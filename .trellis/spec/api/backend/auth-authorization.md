@@ -38,6 +38,8 @@
 | `POST` | `/api/v1/auth/admin/token/refresh` | 无 | body: refreshToken |
 | `POST` | `/api/v1/auth/web/token/refresh` | 无 | body: refreshToken |
 | `GET` | `/api/v1/auth/me` | `requireAuth()` | 返回主体 + 有效码列表 |
+| `GET/POST` | `/api/v1/knowledge-bases/:kbId/members` | `requirePermission('member.manage')` | 列表/邀请；**始终**验码+成员 |
+| `DELETE` | `/api/v1/knowledge-bases/:kbId/members/:userId` | 同上 | 移除成员 |
 
 业务路由（示例）：
 
@@ -48,12 +50,19 @@ app.use('*', attachAuthMiddleware)
 // 必须登录
 app.use('/api/v1/secure/*', requireAuth('admin'))
 
-// 验码（ADR-051）
-app.use('/api/v1/...', requirePermission('doc.upload', {
-  expectedApp: 'admin',
-  resolveKbMember: async (userId, kbId) => /* kb_members */,
-}))
+// 验码（ADR-051）；:kbId 默认 resolveKbMemberFromDb
+app.use('/api/v1/...', requirePermission('doc.upload', { expectedApp: 'admin' }))
+
+// ask / sessions：始终成员闸（与 AUTH_ENFORCE 无关；super_admin 旁路）
+app.post('/api/v1/kb/:kbId/ask', requireKbMember(), handler)
 ```
+
+**AUTH_ENFORCE vs 成员闸**：
+
+| 路由类 | 默认 | 说明 |
+|--------|------|------|
+| 入库 documents | `requirePermissionWhenEnforced` | false 时 demo-ingest 无 token |
+| members / ask / sessions | `requirePermission` / `requireKbMember` | **始终**登录+成员；不改 AUTH 默认 |
 
 #### 权限求值
 

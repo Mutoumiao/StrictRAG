@@ -5,11 +5,13 @@ import { createMiddleware } from 'hono/factory';
 import { env } from '../env.js';
 import { fail } from '../lib/response.js';
 import type { ApiVariables } from '../middleware/request-id.js';
+import { membersRepo } from '../services/members.js';
 import {
   canAccessKbScoped,
   canEnterAdminShell,
   hasPermission,
   resolveEffectiveCodes,
+  roleBypassesKbMembership,
 } from './permissions/resolve.js';
 import { AuthIdentityError, verifyBearerAccess } from './identity/token-service.js';
 import type { AuthPrincipal } from './types.js';
@@ -18,6 +20,12 @@ export type AuthVariables = ApiVariables;
 type AuthCtx = Context<{ Variables: AuthVariables }>;
 
 type ExpectedApp = 'admin' | 'web' | Array<'admin' | 'web'>;
+
+export type ResolveKbMember = (userId: string, kbId: string) => Promise<boolean>;
+
+/** 默认查 kb_members；测例可注入 mock */
+export const resolveKbMemberFromDb: ResolveKbMember = (userId, kbId) =>
+  membersRepo.isMember(userId, kbId);
 
 function principalFromClaims(claims: {
   sub: string;
@@ -104,7 +112,8 @@ export const requireAuth = (expectedApp?: ExpectedApp) =>
 
 type PermOptions = {
   expectedApp?: 'admin' | 'web';
-  resolveKbMember?: (userId: string, kbId: string) => Promise<boolean>;
+  /** 默认查 kb_members；单测可注入 */
+  resolveKbMember?: ResolveKbMember;
 };
 
 async function checkPermission(
@@ -129,8 +138,10 @@ async function checkPermission(
 
   const kbId = c.req.param('kbId');
   let isKbMember = true;
-  if (kbId && options?.resolveKbMember) {
-    isKbMember = await options.resolveKbMember(auth.userId, kbId);
+  // 路径含 :kbId 时默认查成员（kb scope 码依赖）；platform 码在 canAccessKbScoped 内忽略成员
+  if (kbId) {
+    const resolve = options?.resolveKbMember ?? resolveKbMemberFromDb;
+    isKbMember = await resolve(auth.userId, kbId);
   }
 
   const allowed = canAccessKbScoped({
@@ -159,9 +170,18 @@ async function checkPermission(
   return { ok: true };
 }
 
-/** 验权限码（ADR-051）。须已有 auth（或先 requireAuth）。 */
+/** 验权限码（ADR-051）。无 auth 时先 ensureAuth。 */
 export const requirePermission = (code: string, options?: PermOptions) =>
   createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
+    const authR = await ensureAuth(c, options?.expectedApp);
+    if (!authR.ok) {
+      return fail(
+        c,
+        authR.status === 401 ? BizCode.UNAUTHORIZED : BizCode.FORBIDDEN,
+        authR.message,
+        authR.status,
+      );
+    }
     const r = await checkPermission(c, code, options);
     if (!r.ok) {
       return fail(
@@ -178,6 +198,7 @@ export const requirePermission = (code: string, options?: PermOptions) =>
 /**
  * AUTH_ENFORCE=true：登录 + 权限码；false：放行（demo-ingest）。
  * 业务入库路由统一挂这个，避免假开关。
+ * 打开时 kb scope 走默认 kb_members 校验（与成员 API 同源）。
  */
 export const requirePermissionWhenEnforced = (code: string, options?: PermOptions) =>
   createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
@@ -203,6 +224,42 @@ export const requirePermissionWhenEnforced = (code: string, options?: PermOption
         permR.status,
         'details' in permR ? permR.details : undefined,
       );
+    }
+    await next();
+  });
+
+type KbMemberOptions = {
+  expectedApp?: ExpectedApp;
+  resolveKbMember?: ResolveKbMember;
+};
+
+/**
+ * ask / sessions 等：始终要求登录 + KB 成员（super_admin 旁路）。
+ * 与 AUTH_ENFORCE 无关；demo-ingest 不挂此中间件。
+ */
+export const requireKbMember = (options?: KbMemberOptions) =>
+  createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
+    const authR = await ensureAuth(c, options?.expectedApp);
+    if (!authR.ok) {
+      return fail(
+        c,
+        authR.status === 401 ? BizCode.UNAUTHORIZED : BizCode.FORBIDDEN,
+        authR.message,
+        authR.status,
+      );
+    }
+    const kbId = c.req.param('kbId');
+    if (!kbId) {
+      return fail(c, BizCode.VALIDATION_ERROR, 'kbId required', 400);
+    }
+    if (roleBypassesKbMembership(authR.auth.roles)) {
+      await next();
+      return;
+    }
+    const resolve = options?.resolveKbMember ?? resolveKbMemberFromDb;
+    const isMember = await resolve(authR.auth.userId, kbId);
+    if (!isMember) {
+      return fail(c, BizCode.FORBIDDEN, 'not a knowledge base member', 403, { kbId });
     }
     await next();
   });

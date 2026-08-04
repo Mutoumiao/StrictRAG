@@ -13,6 +13,7 @@ import { requestIdMiddleware, type ApiVariables } from './middleware/request-id.
 import { runReadyChecks } from './ready/checks.js';
 import { authRoutes } from './routes/auth.js';
 import { documentRoutes } from './routes/documents.js';
+import { memberRoutes } from './routes/members.js';
 
 export function createApp() {
   const app = new Hono<{ Variables: ApiVariables }>();
@@ -50,6 +51,7 @@ export function createApp() {
 
   app.route('/api/v1/auth', authRoutes);
   app.route('/api/v1', documentRoutes);
+  app.route('/api/v1', memberRoutes);
 
   return app;
 }

@@ -4,7 +4,6 @@ import {
   TokenRefreshRequestSchema,
 } from '@strict-rag/contracts';
 import { Hono } from 'hono';
-import { uuidv7 } from 'uuidv7';
 
 import {
   AuthIdentityError,
@@ -19,10 +18,11 @@ import {
 } from '../auth/permissions/resolve.js';
 import { env } from '../env.js';
 import { fail, ok } from '../lib/response.js';
+import { DEV_DEFAULT_TENANT, ensureUserByEmail } from '../services/members.js';
 
 /**
  * 身份路由。
- * - dev-login：仅 development，便于本地联调
+ * - dev-login：仅 development/test；主体 upsert 到 users
  * - refresh：无感续期 + rotation
  * - me：当前主体 + 有效码
  *
@@ -45,12 +45,19 @@ authRoutes.post('/admin/dev-login', async (c) => {
     return fail(c, BizCode.FORBIDDEN, 'web_consumer cannot login admin', 403);
   }
 
+  const tenantId = parsed.data.tenantId ?? DEV_DEFAULT_TENANT;
+  const user = await ensureUserByEmail({
+    email: parsed.data.email,
+    tenantId,
+    platformRole: role === 'super_admin' ? 'platform_admin' : 'user',
+  });
+
   const pair = await issueTokenPair({
-    userId: uuidv7(),
+    userId: user.id,
     app: 'admin',
     roles: [role],
-    email: parsed.data.email,
-    tenantId: parsed.data.tenantId,
+    email: user.email,
+    tenantId: user.tenantId,
   });
 
   const effective = resolveEffectiveCodes({ roleCodes: [role] });
@@ -71,12 +78,18 @@ authRoutes.post('/web/dev-login', async (c) => {
   }
 
   const role = defaultRoleForApp('web', parsed.data.roleTemplate ?? 'web_consumer');
+  const tenantId = parsed.data.tenantId ?? DEV_DEFAULT_TENANT;
+  const user = await ensureUserByEmail({
+    email: parsed.data.email,
+    tenantId,
+  });
+
   const pair = await issueTokenPair({
-    userId: uuidv7(),
+    userId: user.id,
     app: 'web',
     roles: [role],
-    email: parsed.data.email,
-    tenantId: parsed.data.tenantId,
+    email: user.email,
+    tenantId: user.tenantId,
   });
   return ok(c, pair, 201);
 });

@@ -9,7 +9,7 @@ apps/api/src/
   env.ts                # Zod env（含 JWT_* · AUTH_ENFORCE）
   auth/
     types.ts
-    middleware.ts       # attachAuth · requireAuth · requirePermission · WhenEnforced
+    middleware.ts       # attachAuth · requireAuth · requirePermission · WhenEnforced · requireKbMember
     identity/           # 双 JWT 过渡（可换 Better Auth）
       jwt.ts
       refresh-store.ts  # MVP 进程内；生产迁 Redis/PG
@@ -17,10 +17,11 @@ apps/api/src/
     permissions/
       resolve.ts        # 有效码求值
   routes/
-    auth.ts             # dev-login · refresh · me
-    documents.ts        # Phase1 入库（默认可不强制登录）
+    auth.ts             # dev-login（upsert users）· refresh · me
+    documents.ts        # Phase1 入库（AUTH_ENFORCE 默认 false）
+    members.ts          # KB 成员 CRUD（始终 member.manage + 成员闸）
   middleware/request-id.ts
-  services/             # 业务；SQL 不进 route
+  services/             # 业务；SQL 不进 route（含 members）
   lib/response.ts
 ```
 
