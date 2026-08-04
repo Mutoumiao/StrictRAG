@@ -9,3 +9,4 @@ export * from './system/health.contract.js';
 export * from './ingest/document.contract.js';
 export * from './async/queues.js';
 export * from './auth/session.contract.js';
+export * from './ask/index.js';
