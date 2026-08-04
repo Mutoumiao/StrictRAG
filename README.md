@@ -116,9 +116,10 @@ Mock 开关（`.env`）：`INGEST_SCAN_MODE` · `INGEST_ES_MODE=fail`（验证�
 
 1. **实施规格（SSOT）**：[`prds/README.md`](./prds/README.md)  
 2. **交付配套总目**：[`prds/12-delivery-guides/README.md`](./prds/12-delivery-guides/README.md)  
-3. **工程开工**：[`prds/12-delivery-guides/06-工程开工.md`](./prds/12-delivery-guides/06-工程开工.md)  
-4. **Sprint0 检查单**：[`prds/12-delivery-guides/07-Sprint0检查单.md`](./prds/12-delivery-guides/07-Sprint0检查单.md)  
-5. **Agent**：[`CLAUDE.md`](./CLAUDE.md)
+3. **对内交付状态**：[`prds/12-delivery-guides/04-交付控制台.md`](./prds/12-delivery-guides/04-交付控制台.md) §0（P0/P1 已交付 · P2 未编码）  
+4. **工程下一刀**：[`prds/12-delivery-guides/06-工程开工.md`](./prds/12-delivery-guides/06-工程开工.md)（S2 设计评审 → Phase 2）  
+5. **Sprint0 检查单（历史勾选）**：[`prds/12-delivery-guides/07-Sprint0检查单.md`](./prds/12-delivery-guides/07-Sprint0检查单.md)  
+6. **Agent**：[`CLAUDE.md`](./CLAUDE.md)
 
 ---
 
@@ -128,7 +129,7 @@ Mock 开关（`.env`）：`INGEST_SCAN_MODE` · `INGEST_ES_MODE=fail`（验证�
 - 四层控制：检索 → 约束生成 → 声明验证 → 拒答  
 - **min 否决**；历史会话 ≠ 证据  
 - 禁止 Prisma 并行；ORM 仅 Drizzle  
-- Phase 0：**无**入库 / 问答 / 鉴权业务逻辑  
+- Phase 0 历史范围定义曾写「无入库/问答」；**现状**以 P0/P1 已交付为准（见交付控制台 §0）；鉴权为临时双 JWT + `AUTH_ENFORCE`，**非**生产 IdP
 
 ---
 

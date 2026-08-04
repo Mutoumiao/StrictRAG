@@ -68,7 +68,7 @@ pnpm build | dev          # turbo；dev 现为占位 echo
 ```
 
 目标端口：**web 3005 · admin 3006 · api 4000**；worker 无 HTTP。  
-**Phase 0/1 代码已落地**（health/ready、migrate、入库闭环 mock）；**无** JWT 鉴权 / ask 图 / 真 ES 生产路径。
+**Phase 0/1 代码已落地**（health/ready、migrate、入库闭环 mock）；鉴权为**临时双 JWT + `AUTH_ENFORCE`**（默认可关，服务 demo）；**无** ask 图 / 真 ES 生产路径。
 
 ## Code Style
 
@@ -90,8 +90,8 @@ pnpm build | dev          # turbo；dev 现为占位 echo
 
 ## Conventions
 
-- **阶段**：Phase 0/1 入库最小闭环（mock ES/scan 可联调）；**禁止** Phase 2 ask 未授权实现
-- **下一阶段**：Docker live 验收 → Phase 2 检索+verify 设计评审
+- **阶段**：Phase 0/1 入库最小闭环（mock ES/scan 可联调）；**禁止** Phase 2 ask 未设计评审 / 未授权实现
+- **下一阶段**：S2 设计评审（`.trellis/tasks/08-05-phase-2-ask-design`）→ `phase-2-ask` 实现；交付状态见 `prds/12-delivery-guides/04-交付控制台.md` §0
 - **质量红线**：检索→约束生成→验证→拒答；**min 否决**；合法 draft 必 verify；历史≠evidence；门禁只加严不放宽；双就绪∧active 检索闸
 - **Git**：历史过浅；建议 conventional commits
 - 沟通默认**简体中文**；命令示例优先 `pnpm` + bash 风格
