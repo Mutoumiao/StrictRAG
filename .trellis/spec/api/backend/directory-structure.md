@@ -21,7 +21,9 @@ apps/api/src/
     documents.ts        # Phase1 入库（AUTH_ENFORCE 默认 false）
     members.ts          # KB 成员 CRUD（始终 member.manage + 成员闸）
   middleware/request-id.ts
-  services/             # 业务；SQL 不进 route（含 members）
+  services/
+    members.ts documents.ts …
+    gateway/            # chat · embed · rerank（mock|http；密钥仅 env）
   lib/response.ts
 ```
 

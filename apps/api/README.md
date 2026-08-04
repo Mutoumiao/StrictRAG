@@ -66,3 +66,21 @@ curl -sS -X POST "http://127.0.0.1:4000/api/v1/knowledge-bases/$KB_ID/members" \
 ask 演示：先 seed `kb_members` + Bearer；入库演示继续 `AUTH_ENFORCE=false` 无 token。
 
 目标身份可换 Better Auth；**TokenPair 形状 + 验码层**保持。
+
+## 模型 Gateway（S2 · #4）
+
+路径：`src/services/gateway/`（chat / embed / rerank）。
+
+| 模式 | 条件 |
+|------|------|
+| `mock` | 无 `GATEWAY_BASE_URL` 或 `GATEWAY_MODE=mock`（CI 默认） |
+| `http` | OpenAI 兼容：`/chat/completions` · `/embeddings` · `/rerank` |
+
+- 同模型 `maxAttempts=2`（429 / timeout / 5xx / network）；auth 不重试  
+- 全链失败抛 `GatewayError` → `mapGatewayFailureToAskReason`（rerank→`rerank_unavailable`，禁止假 answered）  
+- `RERANK_MIN_NODES`：dev/test=1；staging/prod=2（需 `GATEWAY_RERANK_FALLBACK_URL`）  
+
+```ts
+import { getGateway, mapGatewayFailureToAskReason } from './services/gateway/index.js';
+// graph 侧：catch GatewayError → abstain + reason，勿吞掉当 answered
+```

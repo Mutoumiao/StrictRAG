@@ -33,6 +33,26 @@ const EnvSchema = z
     TAU_CLAIM_LEGACY: z.coerce.number().min(0).max(1).optional(),
     GATEWAY_BASE_URL: z.string().optional().default(''),
     GATEWAY_API_KEY: z.string().optional().default(''),
+    /**
+     * mock | http；空=按 BASE_URL 推断（有 URL→http，否则 mock）。
+     * CI/单测默认无 BASE_URL → mock。
+     */
+    GATEWAY_MODE: z.enum(['mock', 'http', '']).optional().default(''),
+    GATEWAY_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
+    /** 同模型 maxAttempts（含首跳）；ADR-032 默认 2 */
+    GATEWAY_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(5).default(2),
+    GATEWAY_CHAT_MODEL: z.string().optional().default('gpt-4o-mini'),
+    GATEWAY_EMBED_MODEL: z.string().optional().default('text-embedding-3-small'),
+    GATEWAY_RERANK_MODEL: z.string().optional().default('bge-reranker-v2-m3'),
+    /** mock 向量维；http 以上游返回为准 */
+    GATEWAY_EMBED_DIMS: z.coerce.number().int().positive().default(8),
+    /** rerank 第二节点（staging/prod RERANK_MIN_NODES=2 时需要） */
+    GATEWAY_RERANK_FALLBACK_URL: z.string().optional().default(''),
+    /**
+     * rerank 链最小节点数：dev/test 默认 1；staging/production 默认 2。
+     * 显式设置可覆盖。
+     */
+    RERANK_MIN_NODES: z.coerce.number().int().positive().optional(),
     ELASTICSEARCH_URL: z.string().optional().default(''),
     /** 上传默认上限 50 MiB；硬天花板 200 MiB（ADR-039） */
     INGEST_MAX_FILE_BYTES: z.coerce.number().int().positive().default(52_428_800),
