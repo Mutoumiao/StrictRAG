@@ -3,8 +3,6 @@
  * 生产应迁 Redis / PG；接入 Better Auth 后由 BA session 表接管。
  */
 
-import type { AuthApp } from '@strict-rag/contracts';
-
 import type { RefreshTokenRecord } from '../types.js';
 
 const byJti = new Map<string, RefreshTokenRecord>();
@@ -33,14 +31,6 @@ export function revokeSession(sessionId: string, atMs: number): void {
       byJti.set(jti, row);
     }
   }
-}
-
-export function listRefreshForApp(app: AuthApp): number {
-  let n = 0;
-  for (const row of byJti.values()) {
-    if (row.app === app && row.revokedAtMs === null) n += 1;
-  }
-  return n;
 }
 
 /** 测试用 */

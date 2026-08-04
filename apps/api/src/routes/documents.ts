@@ -8,6 +8,7 @@ import {
 import { Hono } from 'hono';
 import { uuidv7 } from 'uuidv7';
 
+import { requirePermissionWhenEnforced } from '../auth/middleware.js';
 import { canBecomeActive, canEnqueueScan, scanDeniedCode } from '../gates/approval-scan.js';
 import { checkUploadByteSize } from '../gates/upload-size.js';
 import { fail, ok } from '../lib/response.js';
@@ -18,8 +19,8 @@ import { effectiveMaxUploadBytes, getStorage } from '../services/storage.js';
 
 export const documentRoutes = new Hono<{ Variables: ApiVariables }>();
 
-/** POST /api/v1/knowledge-bases — P1 demo create KB (no auth) */
-documentRoutes.post('/knowledge-bases', async (c) => {
+/** POST /api/v1/knowledge-bases — AUTH_ENFORCE 时需 kb.create */
+documentRoutes.post('/knowledge-bases', requirePermissionWhenEnforced('kb.create'), async (c) => {
   const parsed = CreateKbBodySchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) {
     return fail(c, BizCode.VALIDATION_ERROR, 'invalid body', 400, parsed.error.flatten());
@@ -29,7 +30,10 @@ documentRoutes.post('/knowledge-bases', async (c) => {
 });
 
 /** GET /api/v1/knowledge-bases/:kbId/documents */
-documentRoutes.get('/knowledge-bases/:kbId/documents', async (c) => {
+documentRoutes.get(
+  '/knowledge-bases/:kbId/documents',
+  requirePermissionWhenEnforced('doc.view'),
+  async (c) => {
   const kbId = c.req.param('kbId');
   const rows = await documentRepo.listDocsByKb(kbId);
   return ok(
@@ -47,10 +51,14 @@ documentRoutes.get('/knowledge-bases/:kbId/documents', async (c) => {
       esReady: r.esReady === 1,
     })),
   );
-});
+  },
+);
 
 /** POST /api/v1/knowledge-bases/:kbId/documents/upload-url */
-documentRoutes.post('/knowledge-bases/:kbId/documents/upload-url', async (c) => {
+documentRoutes.post(
+  '/knowledge-bases/:kbId/documents/upload-url',
+  requirePermissionWhenEnforced('doc.upload'),
+  async (c) => {
   const kbId = c.req.param('kbId');
   const parsed = UploadUrlBodySchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) {
@@ -86,10 +94,14 @@ documentRoutes.post('/knowledge-bases/:kbId/documents/upload-url', async (c) => 
     },
     201,
   );
-});
+  },
+);
 
 /** PUT /api/v1/internal/objects — local storage 上传体 */
-documentRoutes.put('/internal/objects', async (c) => {
+documentRoutes.put(
+  '/internal/objects',
+  requirePermissionWhenEnforced('doc.upload'),
+  async (c) => {
   const key = c.req.query('key');
   if (!key) {
     return fail(c, BizCode.VALIDATION_ERROR, 'key required');
@@ -109,10 +121,14 @@ documentRoutes.put('/internal/objects', async (c) => {
   }
   const stored = await getStorage().putObject(key, buf, contentType);
   return ok(c, { key: stored.key, byteSize: stored.byteSize, checksumSha256: stored.checksumSha256 });
-});
+  },
+);
 
 /** POST .../complete — ADR-039 权威 size 闸 */
-documentRoutes.post('/knowledge-bases/:kbId/documents/:docId/complete', async (c) => {
+documentRoutes.post(
+  '/knowledge-bases/:kbId/documents/:docId/complete',
+  requirePermissionWhenEnforced('doc.upload'),
+  async (c) => {
   const { kbId, docId } = c.req.param();
   const body = CompleteUploadBodySchema.safeParse(await c.req.json().catch(() => ({})));
   if (!body.success) {
@@ -152,10 +168,14 @@ documentRoutes.post('/knowledge-bases/:kbId/documents/:docId/complete', async (c
     approvalStatus: 'pending',
     status: 'uploaded',
   });
-});
+  },
+);
 
 /** POST /api/v1/documents/:docId/approve */
-documentRoutes.post('/documents/:docId/approve', async (c) => {
+documentRoutes.post(
+  '/documents/:docId/approve',
+  requirePermissionWhenEnforced('approval.decide'),
+  async (c) => {
   const docId = c.req.param('docId');
   const doc = await documentRepo.getDoc(docId);
   if (!doc) {
@@ -174,10 +194,14 @@ documentRoutes.post('/documents/:docId/approve', async (c) => {
 
   await documentRepo.approve(docId);
   return ok(c, { docId, approvalStatus: 'approved' });
-});
+  },
+);
 
 /** POST /api/v1/documents/:docId/scan — ADR-048 闸 */
-documentRoutes.post('/documents/:docId/scan', async (c) => {
+documentRoutes.post(
+  '/documents/:docId/scan',
+  requirePermissionWhenEnforced('doc.upload'),
+  async (c) => {
   const docId = c.req.param('docId');
   const doc = await documentRepo.getDoc(docId);
   if (!doc) {
@@ -197,10 +221,14 @@ documentRoutes.post('/documents/:docId/scan', async (c) => {
   });
 
   return ok(c, { docId, enqueued: true, jobId, stage: 'scan' });
-});
+  },
+);
 
 /** PATCH /api/v1/documents/:docId/lifecycle */
-documentRoutes.patch('/documents/:docId/lifecycle', async (c) => {
+documentRoutes.patch(
+  '/documents/:docId/lifecycle',
+  requirePermissionWhenEnforced('doc.lifecycle'),
+  async (c) => {
   const docId = c.req.param('docId');
   const parsed = PatchLifecycleBodySchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) {
@@ -220,14 +248,19 @@ documentRoutes.patch('/documents/:docId/lifecycle', async (c) => {
 
   await documentRepo.setLifecycle(docId, parsed.data.lifecycle);
   return ok(c, { docId, lifecycle: parsed.data.lifecycle, status: doc.status });
-});
+  },
+);
 
 /** GET /api/v1/documents/:docId */
-documentRoutes.get('/documents/:docId', async (c) => {
+documentRoutes.get(
+  '/documents/:docId',
+  requirePermissionWhenEnforced('doc.view'),
+  async (c) => {
   const docId = c.req.param('docId');
   const doc = await documentRepo.getDoc(docId);
   if (!doc) {
     return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
   }
   return ok(c, doc);
-});
+  },
+);

@@ -145,7 +145,7 @@ Refresh JWT：`sub` · `sid` · `app` · `jti`（落库/内存状态，用于 ro
 | `JWT_REFRESH_SECRET` | `dev-only-refresh-secret-change-me` | 同上 |
 | `ACCESS_TOKEN_TTL_SEC` | `900` | int > 0 |
 | `REFRESH_TOKEN_TTL_SEC` | `604800` | int > 0 |
-| `AUTH_ENFORCE` | `false` | `true` 时业务路由逐步强制登录；默认 false 保 demo-ingest |
+| `AUTH_ENFORCE` | `false` | `true` 时文档/KB 路由 `requirePermissionWhenEnforced`；默认 false 保 demo-ingest |
 
 #### Hono Variables
 

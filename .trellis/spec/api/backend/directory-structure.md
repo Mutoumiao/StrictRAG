@@ -9,7 +9,7 @@ apps/api/src/
   env.ts                # Zod env（含 JWT_* · AUTH_ENFORCE）
   auth/
     types.ts
-    middleware.ts       # attachAuth · requireAuth · requirePermission
+    middleware.ts       # attachAuth · requireAuth · requirePermission · WhenEnforced
     identity/           # 双 JWT 过渡（可换 Better Auth）
       jwt.ts
       refresh-store.ts  # MVP 进程内；生产迁 Redis/PG

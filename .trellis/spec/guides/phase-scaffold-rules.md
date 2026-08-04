@@ -19,7 +19,8 @@
 | `docker/` | PG+Redis 默认；es/mongo/rustfs profile | `docker/docker-compose.yml` |
 | 测试 | Vitest：api/worker/db + auth 求值/rotation | `**/vitest.config.ts` |
 
-**未做**：Better Auth 生产登录、kb_members 全量、真实 ES/S3 生产路径、ask/LangGraph、业务路由全量 `requirePermission`。
+**未做**：Better Auth 生产登录、kb_members 全量、真实 ES/S3 生产路径、ask/LangGraph。  
+**已做（薄）**：`AUTH_ENFORCE=true` 时入库路由 `requirePermissionWhenEnforced`；默认 false 保 demo。
 ---
 
 ## 允许（骨架 / Phase 0 入口）

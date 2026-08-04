@@ -43,7 +43,7 @@ export default function DocumentsThinPage() {
         <li>status：索引管线（uploaded…ready / failed / needs_ocr）</li>
         <li>approvalStatus：none / pending / approved / rejected</li>
         <li>lifecycle：draft / active / superseded / archived</li>
-        <li>鉴权：Bearer + 无感 refresh；业务 API 仍可 AUTH_ENFORCE=false 演示</li>
+        <li>鉴权：Bearer + refresh；API 默认 AUTH_ENFORCE=false，true 时强制权限码</li>
       </ul>
     </main>
   );

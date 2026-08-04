@@ -37,5 +37,8 @@ curl -sS -X POST http://127.0.0.1:4000/api/v1/auth/admin/dev-login \
   -d '{"email":"admin@example.com","roleTemplate":"super_admin"}'
 ```
 
-业务入库路由默认 `AUTH_ENFORCE=false` 仍可无鉴权演示；`/auth/me` 与细权限路由用 Bearer。
-目标身份实现可替换为 Better Auth，**TokenPair 形状 + 验码层保持**。
+- `AUTH_ENFORCE=false`（默认）：入库 API 无鉴权，供 `pnpm demo:ingest`
+- `AUTH_ENFORCE=true`：入库 API 挂 `requirePermissionWhenEnforced`（须 Bearer + 权限码）
+- `/auth/me` 始终 `requireAuth`
+
+目标身份可换 Better Auth；**TokenPair 形状 + 验码层**保持。

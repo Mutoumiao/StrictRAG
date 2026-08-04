@@ -53,8 +53,8 @@ const EnvSchema = z
     ACCESS_TOKEN_TTL_SEC: z.coerce.number().int().positive().default(900),
     REFRESH_TOKEN_TTL_SEC: z.coerce.number().int().positive().default(604_800),
     /**
-     * true：业务路由须登录（后续逐步挂 requireAuth）。
-     * false：保持 Phase1 demo-ingest 无鉴权可调。
+     * true：文档/KB 业务路由走 requirePermissionWhenEnforced（须 Bearer + 权限码）。
+     * false：放行无鉴权（demo-ingest 默认）。
      */
     AUTH_ENFORCE: z
       .enum(['true', 'false'])
