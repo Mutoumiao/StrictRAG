@@ -1,0 +1,25 @@
+{
+  "name": "@strict-rag/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "echo \"[scaffold] api: target port 4000 — Hono not implemented (Phase 0)\"",
+    "build": "tsc --noEmit",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint . --max-warnings 0",
+    "start": "echo \"[scaffold] api: not implemented\""
+  },
+  "dependencies": {
+    "@strict-rag/admin-catalog": "workspace:*",
+    "@strict-rag/contracts": "workspace:*",
+    "@strict-rag/db": "workspace:*"
+  },
+  "devDependencies": {
+    "@strict-rag/eslint-config": "workspace:*",
+    "@strict-rag/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "typescript": "catalog:"
+  }
+}

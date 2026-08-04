@@ -1,0 +1,39 @@
+# StrictRAG 本地依赖骨架（仅基础设施，不含 api/worker 业务服务）
+# Phase 0 再挂 apps 与 health 探针。规格见 prds/02-engineering、prds/10-delivery。
+#
+# 使用：在仓库根目录
+#   docker compose -f docker/docker-compose.yml up -d
+#
+# 说明：镜像与端口可按环境调整；本文件不启动业务逻辑。
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: strict_rag
+      POSTGRES_PASSWORD: strict_rag
+      POSTGRES_DB: strict_rag
+    ports:
+      - "5432:5432"
+    volumes:
+      - strict_rag_pg:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  # elasticsearch:
+  #   image: (ES 8 + IK 按运维手册选型)
+  #   # P1 入库前必须 green
+
+  # mongo:
+  #   image: mongo:7
+
+  # rustfs / minio-compatible:
+  #   image: (RustFS S3 兼容，ADR-012)
+
+  # langfuse: 可选，P2 质量链路前建议起
+
+volumes:
+  strict_rag_pg:

@@ -1,0 +1,13 @@
+/**
+ * StrictRAG 共享主题 token 占位。
+ * 正式色板见 docs/设计定稿-v1-蓝图.md · product.pen；接 Tailwind 时再展开。
+ */
+:root {
+  --sr-background: #f8fafc;
+  --sr-foreground: #0f172a;
+  --sr-primary: #2563eb;
+  --sr-muted: #64748b;
+  --sr-border: #e2e8f0;
+  --sr-abstain: #7c3aed;
+  --sr-radius: 12px;
+}

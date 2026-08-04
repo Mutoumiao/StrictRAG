@@ -1,0 +1,23 @@
+{
+  "name": "@strict-rag/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "echo \"[scaffold] web: target port 3005 — Next.js not implemented (Phase 0+)\"",
+    "build": "tsc --noEmit",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint . --max-warnings 0",
+    "start": "echo \"[scaffold] web: not implemented\""
+  },
+  "dependencies": {
+    "@strict-rag/contracts": "workspace:*",
+    "@strict-rag/ui": "workspace:*"
+  },
+  "devDependencies": {
+    "@strict-rag/eslint-config": "workspace:*",
+    "@strict-rag/typescript-config": "workspace:*",
+    "eslint": "catalog:",
+    "typescript": "catalog:"
+  }
+}

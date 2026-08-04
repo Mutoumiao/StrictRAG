@@ -1,0 +1,26 @@
+{
+  "name": "strict-rag",
+  "private": true,
+  "version": "0.0.0",
+  "description": "StrictRAG — 为精准度而生的严厉企业知识库 RAG（骨架阶段，无业务逻辑）",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "dev:api": "turbo run dev --filter=@strict-rag/api",
+    "dev:worker": "turbo run dev --filter=@strict-rag/worker",
+    "dev:admin": "turbo run dev --filter=@strict-rag/admin",
+    "dev:web": "turbo run dev --filter=@strict-rag/web",
+    "lint": "turbo run lint",
+    "check-types": "turbo run check-types",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json,yml,yaml}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.7.4",
+    "turbo": "^2.9.6",
+    "typescript": "catalog:"
+  },
+  "packageManager": "pnpm@10.27.0",
+  "engines": {
+    "node": ">=20"
+  }
+}

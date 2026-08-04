@@ -1,0 +1,24 @@
+{
+  "name": "@strict-rag/admin",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "echo \"[scaffold] admin: target port 3006 — Next.js not implemented (Phase 0+)\"",
+    "build": "tsc --noEmit",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint . --max-warnings 0",
+    "start": "echo \"[scaffold] admin: not implemented\""
+  },
+  "dependencies": {
+    "@strict-rag/admin-catalog": "workspace:*",
+    "@strict-rag/contracts": "workspace:*",
+    "@strict-rag/ui": "workspace:*"
+  },
+  "devDependencies": {
+    "@strict-rag/eslint-config": "workspace:*",
+    "@strict-rag/typescript-config": "workspace:*",
+    "eslint": "catalog:",
+    "typescript": "catalog:"
+  }
+}
