@@ -8,14 +8,17 @@ import { Hono } from 'hono';
 
 import { env, toHealthEnv } from './env.js';
 import { childLogger } from './logger.js';
+import { attachAuthMiddleware } from './auth/middleware.js';
 import { requestIdMiddleware, type ApiVariables } from './middleware/request-id.js';
 import { runReadyChecks } from './ready/checks.js';
+import { authRoutes } from './routes/auth.js';
 import { documentRoutes } from './routes/documents.js';
 
 export function createApp() {
   const app = new Hono<{ Variables: ApiVariables }>();
 
   app.use('*', requestIdMiddleware);
+  app.use('*', attachAuthMiddleware);
 
   app.get('/health', (c) => {
     const body: HealthResponse = {
@@ -45,6 +48,7 @@ export function createApp() {
     return c.json(parsed, ready ? 200 : 503);
   });
 
+  app.route('/api/v1/auth', authRoutes);
   app.route('/api/v1', documentRoutes);
 
   return app;

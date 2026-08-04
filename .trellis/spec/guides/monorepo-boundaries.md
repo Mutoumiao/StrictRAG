@@ -46,12 +46,13 @@ apps/web     → packages/{contracts, ui}
 
 | 包 | dependencies |
 |----|----------------|
-| `@strict-rag/api` | contracts, db, admin-catalog |
+| `@strict-rag/api` | contracts, db, admin-catalog（**权限求值**） |
 | `@strict-rag/worker` | contracts, db |
-| `@strict-rag/admin` | contracts, ui, admin-catalog |
-| `@strict-rag/web` | contracts, ui |
+| `@strict-rag/admin` | contracts, ui, admin-catalog（菜单裁剪） |
+| `@strict-rag/web` | contracts, ui（无 admin-catalog 亦可；消费者无运营码） |
 | `@strict-rag/ui` | clsx, tailwind-merge（react peer 可选） |
-| `@strict-rag/contracts` | zod |
+| `@strict-rag/contracts` | zod（含 **auth TokenPair**） |
+| `@strict-rag/admin-catalog` | **无** Next/Hono 依赖；仅数据 SSOT |
 
 ---
 

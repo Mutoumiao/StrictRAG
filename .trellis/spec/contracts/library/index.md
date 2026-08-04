@@ -9,7 +9,8 @@
 
 - [ ] 新错误码 / DTO 是否应放本包（前后端共用）？  
 - [ ] 对外 `error.code` 是否等于 **PRD §4 短名**（或经本包唯一映射输出短名）？  
-- [ ] 是否按域分文件（`common/` · `system/` · 未来业务域）？  
+- [ ] 是否按域分文件（`common/` · `system/` · `auth/` · `ingest/` …）？  
+- [ ] 鉴权 DTO 是否在 `auth/session.contract.ts` 而非 apps 内复制？  
 - [ ] 导出是否走 `src/index.ts` 且使用 `.js` 扩展名（NodeNext）？  
 - [ ] 是否避免在 apps 内再定义平行 BizCode 字符串？  
 

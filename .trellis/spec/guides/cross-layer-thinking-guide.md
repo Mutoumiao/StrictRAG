@@ -39,6 +39,9 @@ admin 上传 → api 入队 → worker: scan → parse → chunk → embed → e
 | Handler ↔ 检索/LLM | route 内 SQL/DSL/Prompt | 禁止；下沉模块 |
 | UI 菜单 ↔ API 授权 | 只藏按钮不验码 | UI ≠ API；handler 独立验码 |
 | admin ↔ web | 无码进管理壳 | 根拦 **`admin.shell`**；pure read 仅 web（ADR-045/051） |
+| 身份 ↔ 授权 | JWT roles 直接放行 | 身份只出 userId/app；**有效码**再放行（见 [auth-authorization](../api/backend/auth-authorization.md)） |
+| admin ↔ web 会话 | 共用 localStorage | 分 key：`strict-rag:admin:…` / `strict-rag:web:…` |
+| refresh 状态 | 无状态 refresh | jti 有状态 + replay 吊销 session |
 
 ---
 

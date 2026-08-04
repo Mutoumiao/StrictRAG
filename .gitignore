@@ -40,3 +40,9 @@ Thumbs.db
 # Misc
 *.local
 .vercel
+
+
+# AI tooling (local agent skills / locks)
+.claude
+.agents
+skills-lock.json

@@ -12,6 +12,11 @@
 | 规则 | 来源 |
 |------|------|
 | 禁止 route 内 SQL / ES DSL / 长 Prompt | 架构 PRD |
+| 授权 **以码为准** | `requirePermission(code)`；禁止 `roles.includes` 单独放行 |
+| 身份与授权分离 | 双 token / Better Auth 只证明身份；码在服务端求值 |
+| access JWT | 必须带唯一 `jti`（同秒续签可区分） |
+| refresh | 有状态 jti；replay → 吊销整 session |
+| 契约 | TokenPair 在 `@strict-rag/contracts`；细节见 [auth-authorization](./auth-authorization.md) |
 | ask `options` 白名单 | **仅** stream / debug / mode / locale；禁客户端改 tau 等 |
 | ask `scope` | **顶层**可选字段（如 `scope.docTypes`）；**禁止**塞进 `options`（ADR-050） |
 | UI ≠ API 授权 | handler **独立验码**；菜单有无改变不了 API |

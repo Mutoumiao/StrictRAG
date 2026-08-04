@@ -9,17 +9,17 @@
 
 | 单元 | 现状 | 证据文件 |
 |------|------|----------|
-| `apps/api` | Hono 真起服；`/health` `/ready`；P1 入库 API（无鉴权演示） | `apps/api/src/**` |
+| `apps/api` | Hono；health/ready；P1 入库；**双 token 身份 + 权限码中间件**（入库默认可不强制登录） | `apps/api/src/**` |
 | `apps/worker` | BullMQ probe + ingest 状态机（scan→…→ready） | `apps/worker/src/**` |
-| `apps/admin` / `web` | Next 空壳首页；admin 薄 `/documents` 说明页 | `apps/*/src/app/**` |
-| `packages/contracts` | BizCode **PRD 短名**、ApiResponse、Health/Ready、ingest DTO、队列名 | `packages/contracts/src/**` |
+| `apps/admin` / `web` | Next 壳；admin 登录+Guard+http 无感 refresh；web 会话层 | `apps/*/src/**` |
+| `packages/contracts` | BizCode 短名、信封、Health、ingest、**auth TokenPair**、队列名 | `packages/contracts/src/**` |
 | `packages/db` | Drizzle schema + migrate；检索闸 helper | `packages/db/src/**` |
 | `packages/ui` | `cn()` + `theme.css` | `packages/ui/src/**` |
-| `packages/admin-catalog` | 空 `PERMISSIONS` / `MENU_TREE`（种子待 P2） | `packages/admin-catalog/src/index.ts` |
+| `packages/admin-catalog` | **权限码 + 角色模板 + 菜单树种子** | `packages/admin-catalog/src/**` |
 | `docker/` | PG+Redis 默认；es/mongo/rustfs profile | `docker/docker-compose.yml` |
-| 测试 | Vitest：`pnpm test`（api/worker/db 护栏） | `**/vitest.config.ts` |
+| 测试 | Vitest：api/worker/db + auth 求值/rotation | `**/vitest.config.ts` |
 
-**未做**：JWT 鉴权、真实 ES/S3 SDK 生产路径、ask/LangGraph。
+**未做**：Better Auth 生产登录、kb_members 全量、真实 ES/S3 生产路径、ask/LangGraph、业务路由全量 `requirePermission`。
 ---
 
 ## 允许（骨架 / Phase 0 入口）
@@ -41,7 +41,7 @@
 |------|------|
 | 入库流水线（parse/chunk/embed/es_index） | Phase 1 |
 | ask / LangGraph / retrieve / generate / verify | Phase 2 |
-| JWT 鉴权、成员 ACL、审批业务 | Phase 2+ |
+| Better Auth 生产身份、成员 ACL 全量、ask 业务 | Phase 2+（身份/码表骨架已先落地） |
 | 在 route 内散落 SQL / ES DSL / 长 Prompt | 架构冻结 |
 | 引入 Prisma / TypeORM 并行 | `prds/01-architecture/02-tech-stack-frozen.md` |
 | npm / yarn 装依赖；再建第二 monorepo | 工程基线 |

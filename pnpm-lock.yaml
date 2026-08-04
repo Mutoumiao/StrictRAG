@@ -45,6 +45,9 @@ catalogs:
     ioredis:
       specifier: ^5.7.0
       version: 5.11.1
+    jose:
+      specifier: ^6.0.11
+      version: 6.2.8
     next:
       specifier: 16.2.7
       version: 16.2.7
@@ -177,6 +180,9 @@ importers:
       ioredis:
         specifier: 'catalog:'
         version: 5.11.1
+      jose:
+        specifier: 'catalog:'
+        version: 6.2.8
       pino:
         specifier: 'catalog:'
         version: 9.14.0
@@ -2286,6 +2292,9 @@ packages:
   iterator.prototype@1.1.5:
     resolution: {integrity: sha512-H0dkQoCa3b2VEeKQBOxFph+JAbcrQdE7KC0UkqwpLmv2EC4P41QXP+rqo9wYodACiG5/WM5s9oDApTU8utwj9g==}
     engines: {node: '>= 0.4'}
+
+  jose@6.2.8:
+    resolution: {integrity: sha512-Bsdjwm3Qsd/P0jR+BHDe3LytDfY7WBq2HmCCLIwuVRHMuEC9ae7/R474GIUdF1NgCyZjzVo/A9DOiOBtXq8ZoQ==}
 
   joycon@3.1.1:
     resolution: {integrity: sha512-34wB/Y7MW7bzjKRjUKTa46I2Z7eV62Rkhva+KkopW7Qvv/OSWBqvkSY7vusOPrNuZcUG3tApvdVgNB8POj3SPw==}
@@ -4581,6 +4590,8 @@ snapshots:
       get-proto: 1.0.1
       has-symbols: 1.1.0
       set-function-name: 2.0.2
+
+  jose@6.2.8: {}
 
   joycon@3.1.1: {}
 

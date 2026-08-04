@@ -44,6 +44,22 @@ const EnvSchema = z
     S3_ACCESS_KEY: z.string().optional().default(''),
     S3_SECRET_KEY: z.string().optional().default(''),
     S3_BUCKET: z.string().default('strict-rag'),
+    /**
+     * 身份 JWT（过渡：参考 ai-partner-agent 双 token）。
+     * 接入 Better Auth 后可弃用签发，仍可暂时兼容校验。
+     */
+    JWT_ACCESS_SECRET: z.string().min(16).default('dev-only-access-secret-change-me'),
+    JWT_REFRESH_SECRET: z.string().min(16).default('dev-only-refresh-secret-change-me'),
+    ACCESS_TOKEN_TTL_SEC: z.coerce.number().int().positive().default(900),
+    REFRESH_TOKEN_TTL_SEC: z.coerce.number().int().positive().default(604_800),
+    /**
+     * true：业务路由须登录（后续逐步挂 requireAuth）。
+     * false：保持 Phase1 demo-ingest 无鉴权可调。
+     */
+    AUTH_ENFORCE: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((v) => v === 'true'),
   })
   .superRefine((data, ctx) => {
     if (data.INGEST_MAX_FILE_BYTES > data.INGEST_MAX_FILE_BYTES_CEILING) {
@@ -67,6 +83,16 @@ const EnvSchema = z
           code: 'custom',
           path: ['DATABASE_URL'],
           message: 'production 禁止使用默认本地凭证',
+        });
+      }
+      if (
+        data.JWT_ACCESS_SECRET.includes('dev-only') ||
+        data.JWT_REFRESH_SECRET.includes('dev-only')
+      ) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['JWT_ACCESS_SECRET'],
+          message: 'production 禁止使用默认 JWT 密钥',
         });
       }
     }

@@ -78,6 +78,41 @@ export type HealthResponse = z.infer<typeof HealthResponseSchema>;
 - `status: z.literal('ok')`  
 - `env: development \| test \| staging \| production`  
 
+---
+
+## 4. Auth / TokenPair（身份契约）
+
+**文件**：`packages/contracts/src/auth/session.contract.ts`  
+**权威实现说明**：[api auth-authorization](../../api/backend/auth-authorization.md)
+
+| 导出 | 用途 |
+|------|------|
+| `AuthAppSchema` | `'admin' \| 'web'` 子站隔离 |
+| `AuthSessionSchema` | 会话视图（含 `permissions` 快照） |
+| `TokenPairResponseSchema` | access + refresh + session |
+| `TokenRefreshRequestSchema` | `{ refreshToken }` |
+| `DevLoginRequestSchema` | 仅开发登录 body |
+
+### 规则
+
+| 规则 | 说明 |
+|------|------|
+| 前后端共用形状 | admin/web `client-session` 存 `TokenPair` 字段子集 |
+| `permissions` 是快照 | **不能**替代 api `resolveEffectiveCodes` |
+| `roles` 是锚点 | **禁止**作为唯一放行条件 |
+| 扩展登录方式 | 可换 Better Auth 签发；**尽量保持 TokenPair 字段** 或写适配层 |
+
+### 错误码（鉴权）
+
+使用已有短名：`UNAUTHORIZED` · `FORBIDDEN` · `VALIDATION_ERROR` · `INVALID_CREDENTIALS` · `NOT_FOUND`。  
+**禁止**再引入 `AUTH.UNAUTHORIZED` 点分串。
+
+### 反模式
+
+- apps 内自建平行 `type LoginResponse`  
+- refresh 响应缺 `session.permissions` 导致菜单不更新  
+
+
 Ready：
 
 - `ready: boolean`  

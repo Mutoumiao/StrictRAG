@@ -42,3 +42,4 @@ catalog:
   vitest: ^3.2.4
   tsx: ^4.20.3
   dotenv: ^16.6.1
+  jose: ^6.0.11

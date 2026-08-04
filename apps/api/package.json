@@ -22,6 +22,7 @@
     "drizzle-orm": "catalog:",
     "hono": "catalog:",
     "ioredis": "catalog:",
+    "jose": "catalog:",
     "pino": "catalog:",
     "uuidv7": "catalog:",
     "zod": "catalog:"

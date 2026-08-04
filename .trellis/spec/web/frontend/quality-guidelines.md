@@ -16,9 +16,21 @@
 - ESLint：`next-js` 配置  
 - 与 admin **拆包**：勿把管理页塞进 web  
 
+## 会话与 HTTP（已落地）
+
+| 项 | 约定 |
+|----|------|
+| 存储 key | **仅** `strict-rag:web:client-session`（与 admin 隔离） |
+| 内容 | `{ accessToken, refreshToken, session }` |
+| http | `apps/web/src/lib/http.ts`：Bearer + 单飞 refresh |
+| refresh URL | `POST /api/v1/auth/web/token/refresh` |
+| 消费者 | 默认 `web_consumer`（无 `admin.shell`）；ask 靠成员，不靠运营码 |
+
+**反模式**：把 admin token 写入 web key；用运营码放行 web 管理能力。
+
 ## 骨架阶段
 
-无页面、无 SSE 客户端；Phase 2 前不做完整 chat 充数。
+Phase 0/1 壳 + 鉴权客户端就绪；Phase 2 前不做完整 chat 充数。
 
 ## 反模式
 

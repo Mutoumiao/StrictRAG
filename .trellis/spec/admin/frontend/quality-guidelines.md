@@ -31,6 +31,19 @@
 - 错误码展示：HTTP `error.code` 为 PRD 短名；见 [contracts-patterns](../../contracts/library/contracts-patterns.md)  
 - 仅 `NEXT_PUBLIC_*` 可进浏览器包  
 
+## 会话与 HTTP（已落地 · 参考 partner）
+
+| 项 | 约定 |
+|----|------|
+| 存储 key | **仅** `strict-rag:admin:client-session`（禁止与 web 共用） |
+| 内容 | `{ accessToken, refreshToken, session }` · 形状对齐 `TokenPairResponse` |
+| http | `apps/admin/src/lib/http.ts`：自动 Bearer；`UNAUTHORIZED` **单飞** refresh → 重试；失败清会话 |
+| refresh URL | `POST /api/v1/auth/admin/token/refresh` |
+| Guard | `AdminAuthGuard`：有本地会话 → `/auth/me` → 须含 **`admin.shell`** |
+| 登录 | 开发：`/login` + `adminDevLogin`；生产改 Better Auth 后仍写同一 `saveClientSession` |
+
+**反模式**：页面各自 `fetch` 不经 http 层导致无 refresh；用 `session.roles` 判断按钮权限而不看 `permissions` / 不调 API。
+
 ## 骨架阶段
 
 - 保持占位或 Phase 0+ 最小壳  

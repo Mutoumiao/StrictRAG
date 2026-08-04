@@ -34,8 +34,9 @@
 - [ ] 新增/改动 DTO、BizCode、错误信封  
 - [ ] 写库时间、ID、env 校验  
 - [ ] 前端展示后端业务码  
+- [ ] 登录 / refresh / Bearer / 权限码 / 菜单裁剪  
 
-→ [cross-layer-thinking-guide](./cross-layer-thinking-guide.md) · [contracts](../contracts/library/index.md)
+→ [cross-layer-thinking-guide](./cross-layer-thinking-guide.md) · [contracts](../contracts/library/index.md) · [auth-authorization](../api/backend/auth-authorization.md) · [catalog-ssot](../admin-catalog/library/catalog-ssot.md)
 
 ### 质量 / RAG
 

@@ -3,47 +3,43 @@
 ## 当前
 
 ```text
-apps/api/
-  package.json     # type:module · dev/start = scaffold echo
-  tsconfig.json    # extends @strict-rag/typescript-config/node.json
-  eslint.config.js # @strict-rag/eslint-config/base
-  src/
-    index.ts       # APP_API_SCAFFOLD = true + 阶段注释
+apps/api/src/
+  index.ts              # 启动
+  app.ts                # createApp：requestId → attachAuth → routes
+  env.ts                # Zod env（含 JWT_* · AUTH_ENFORCE）
+  auth/
+    types.ts
+    middleware.ts       # attachAuth · requireAuth · requirePermission
+    identity/           # 双 JWT 过渡（可换 Better Auth）
+      jwt.ts
+      refresh-store.ts  # MVP 进程内；生产迁 Redis/PG
+      token-service.ts
+    permissions/
+      resolve.ts        # 有效码求值
+  routes/
+    auth.ts             # dev-login · refresh · me
+    documents.ts        # Phase1 入库（默认可不强制登录）
+  middleware/request-id.ts
+  services/             # 业务；SQL 不进 route
+  lib/response.ts
 ```
 
-```typescript
-// apps/api/src/index.ts（现状）
-export const APP_API_SCAFFOLD = true as const;
-```
-
-## 目标职责
+## 职责
 
 | 职责 | 说明 |
 |------|------|
-| HTTP / SSE | Hono + Node（**非**默认 CF Workers） |
-| 鉴权中间件 | JWT · 权限码 · admin 壳（ADR-035/045/051） |
-| 入队 | 写 Redis/BullMQ；**不**在 api 进程跑重入库 |
-| 契约 | OpenAPI/Zod 与 contracts 同源 |
+| HTTP | Hono + Node（**非**默认 CF Workers） |
+| 身份 | Bearer access；refresh rotation（见 [auth-authorization](./auth-authorization.md)） |
+| 授权 | 权限码；**禁止** role 字符串单独放行 |
+| 入队 | BullMQ；重活在 worker |
+| 契约 | `@strict-rag/contracts` |
 
-## 建议落点（实现时 · 对齐工程 PRD）
-
-```text
-src/
-  index.ts          # 启动入口
-  app.ts            # Hono app 工厂
-  env.ts            # Zod env
-  routes/           # 薄路由
-  middleware/       # auth · requestId · 错误映射
-  services/         # 业务编排
-  # repository 可在此或依赖 packages 内模块；SQL 不进 route
-```
-
-前缀约定：`/api/v1`（PRD）。
+前缀：`/api/v1`；鉴权路由：`/api/v1/auth/*`。
 
 ## 脚本
 
-| 脚本 | 现状 |
+| 脚本 | 说明 |
 |------|------|
-| `dev` / `start` | echo 占位提示 |
-| `build` / `check-types` | `tsc --noEmit` |
-| `lint` | eslint max-warnings 0 |
+| `dev` / `start` | tsx 起服 :4000 |
+| `test` | vitest（含 auth 求值与 token rotation） |
+| `check-types` / `lint` | tsc · eslint |
