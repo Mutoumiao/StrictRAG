@@ -22,7 +22,7 @@ curl -sS http://127.0.0.1:4000/health
 curl -sS http://127.0.0.1:4000/ready
 ```
 
-## 身份 / 授权（参考 ai-partner-agent）
+## 身份 / 授权
 
 | 层 | 说明 |
 |----|------|

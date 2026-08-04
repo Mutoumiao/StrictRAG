@@ -5,7 +5,6 @@ import tseslint from 'typescript-eslint';
 import onlyWarn from 'eslint-plugin-only-warn';
 
 /**
- * 仓库共享 ESLint 基线（对齐 ai-partner-agent 结构）。
  *
  * @type {import("eslint").Linter.Config[]}
  */

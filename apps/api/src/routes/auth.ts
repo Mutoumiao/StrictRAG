@@ -21,7 +21,7 @@ import { env } from '../env.js';
 import { fail, ok } from '../lib/response.js';
 
 /**
- * 身份路由（参考 ai-partner-agent 形状）。
+ * 身份路由。
  * - dev-login：仅 development，便于本地联调
  * - refresh：无感续期 + rotation
  * - me：当前主体 + 有效码

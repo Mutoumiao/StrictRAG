@@ -45,7 +45,7 @@ const EnvSchema = z
     S3_SECRET_KEY: z.string().optional().default(''),
     S3_BUCKET: z.string().default('strict-rag'),
     /**
-     * 身份 JWT（过渡：参考 ai-partner-agent 双 token）。
+     * 身份 JWT。
      * 接入 Better Auth 后可弃用签发，仍可暂时兼容校验。
      */
     JWT_ACCESS_SECRET: z.string().min(16).default('dev-only-access-secret-change-me'),

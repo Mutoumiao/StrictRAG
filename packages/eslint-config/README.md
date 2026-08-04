@@ -1,6 +1,6 @@
 # @strict-rag/eslint-config
 
-共享 ESLint flat config（结构对齐 `ai-partner-agent`）。
+共享 ESLint flat config。
 
 | 导出 | 用途 |
 |------|------|

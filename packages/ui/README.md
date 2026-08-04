@@ -1,6 +1,6 @@
 # @strict-rag/ui
 
-共享 UI。导出方式对齐 `ai-partner-agent`：**子路径 exports**，避免单 barrel 全量拖拽。
+共享 UI：**子路径 exports**，避免单 barrel 全量拖拽。
 
 | 路径 | 内容 |
 |------|------|

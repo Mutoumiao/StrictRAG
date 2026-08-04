@@ -1,7 +1,5 @@
 # @strict-rag/contracts
 
-前后端共享契约（对齐 `ai-partner-agent/packages/contracts` 组织方式）。
-
 ```text
 src/
   common/biz-code.ts      # 业务错误码

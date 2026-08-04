@@ -1,5 +1,5 @@
 /**
- * 双 JWT 身份（参考 ai-partner-agent）。
+ * 双 JWT 身份。
  * 目标：access 短无状态 + refresh 有状态可轮换。
  * Better Auth 接入后可替换本模块，客户端 TokenPair 形状保持不变。
  */

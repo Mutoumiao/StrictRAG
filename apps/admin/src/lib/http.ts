@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * 统一 HTTP：Bearer + 401/UNAUTHORIZED 单飞 refresh + 重试（参考 ai-partner-agent）。
+ * 统一 HTTP：Bearer + 401/UNAUTHORIZED 单飞 refresh + 重试。
  */
 
 import type { ApiResponse, TokenPairResponse } from '@strict-rag/contracts';

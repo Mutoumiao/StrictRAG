@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-/** 子站：admin 运营 / web 消费者（参考 ai-partner-agent 的 app 分轨） */
+/** 子站：admin 运营 / web 消费者 */
 export const AuthAppSchema = z.enum(['admin', 'web']);
 export type AuthApp = z.infer<typeof AuthAppSchema>;
 

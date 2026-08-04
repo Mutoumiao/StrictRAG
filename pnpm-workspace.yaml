@@ -2,7 +2,6 @@ packages:
   - "apps/*"
   - "packages/*"
 
-# 集中锁版本（对齐 ai-partner-agent 的 catalog 做法；业务依赖按 Phase 启用）
 catalog:
   typescript: 5.9.2
   "@types/node": ^22.15.3

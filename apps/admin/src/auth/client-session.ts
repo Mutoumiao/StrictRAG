@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * 参考 ai-partner-agent：localStorage 存 access/refresh/session，
+ * localStorage 存 access/refresh/session，
  * 变更发事件供 Guard 同步。
  */
 

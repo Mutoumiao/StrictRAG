@@ -2,7 +2,6 @@
 
 > 路径：`apps/api/src/auth/**` · `apps/api/src/routes/auth.ts`  
 > PRD：`prds/09-security/01-auth-acl-compliance.md` · ADR-051 / 056  
-> 参考实现形态：`ai-partner-agent`（双 token + 无感 refresh）；**授权语义不照搬 role 放行**
 
 ---
 
