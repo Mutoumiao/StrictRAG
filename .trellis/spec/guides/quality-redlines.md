@@ -54,15 +54,15 @@
 
 ---
 
-## 与骨架阶段关系
+## 与当前阶段关系
 
-当前 **无** ask 运行时。本红线用于：
+当前 **无** ask 运行时（P2 编码前）。本红线用于：
 
-1. 评审 PRD 实现任务是否放宽冻结语义  
-2. Phase 2 起写 LangGraph 节点时的检查单  
-3. 禁止「为了 demo 先通」的临时绕过合入 main
+1. 评审 PRD / Trellis 任务是否放宽冻结语义（含 `08-05-phase-2-ask*`）  
+2. Phase 2 写 LangGraph 节点时的检查单（`p2-graph-mvp` · `p2-ask-api-sse` 必对表）  
+3. 禁止「为了 demo 先通」的临时绕过合入 main（含 rerank 静默降级）
 
-**不要**在骨架阶段为「预埋」而复制一整套假 verify；按 Phase 落地。
+**不要**在设计未冻前为「预埋」而复制一整套假 verify；按 `phase-2-ask-design` 落地。
 
 ---
 

@@ -1,7 +1,8 @@
 # 骨架阶段规则（Phase Scaffold）
 
-> 适用：当前仓库状态（`0.0.0` monorepo 骨架）。  
-> 权威分期：`prds/10-delivery/01-phased-roadmap.md` · 项目导航：`CLAUDE.md` / `README.md`。
+> 适用：当前仓库状态（**Phase 0/1 代码已落地**；Phase 2 **任务已规划、业务编码待授权**）。  
+> 权威分期：`prds/10-delivery/01-phased-roadmap.md` · 项目导航：`CLAUDE.md` / `README.md`。  
+> Trellis 下一阶段：`08-05-phase-2-ask-design`（硬门）→ `08-05-phase-2-ask`（S2 最小 epic）· 差额 `08-05-phase-2-backlog`。
 
 ---
 
@@ -20,29 +21,36 @@
 | 测试 | Vitest：api/worker/db + auth 求值/rotation | `**/vitest.config.ts` |
 
 **未做**：Better Auth 生产登录、kb_members 全量、真实 ES/S3 生产路径、ask/LangGraph。  
-**已做（薄）**：`AUTH_ENFORCE=true` 时入库路由 `requirePermissionWhenEnforced`；默认 false 保 demo。
----
-
-## 允许（骨架 / Phase 0 入口）
-
-在明确做 **Phase 0** 时允许：
-
-- `GET /health` · `GET /ready`（契约形状已在 `HealthResponseSchema` / `ReadyResponseSchema`）
-- 各 app 自有 `env.ts`（Zod）；密钥不进前端包
-- **配置侧闸**（服务端）：如 tauClaim **唯一来源**校验、`RERANK_MIN_NODES` 分档启动检查——**不是**客户端 options
-- `packages/db`：Drizzle schema + migrate 基建
-- api/worker 真 dev 起服、Pino 日志骨架
-- compose 扩展 ES/Mongo/RustFS（按运维 PRD，非默认真业务）
+**已做（薄）**：`AUTH_ENFORCE=true` 时入库路由 `requirePermissionWhenEnforced`；默认 false 保 demo。  
+**任务规划**：Phase 2 S2 任务树已创建；**设计评审通过 + 负责人确认前禁止写 ask 业务代码**。
 
 ---
 
-## 禁止（未授权前）
+## 允许
+
+### 已交付阶段（无需再「申请 Phase 0/1」）
+
+- Phase 0 骨架能力与 Phase 1 **S1 最小入库闭环**（含 mock ES 诚实边界）的维护与修 bug  
+- 交付配套文档状态同步（非 `00–11` 契约）  
+- Phase 2 **设计文档**（`08-05-phase-2-ask-design`）
+
+### Phase 2 业务编码（须同时满足）
+
+1. `08-05-phase-2-ask-design` 的 `design.md` AC 勾选完成  
+2. 负责人确认允许按该设计写 P2 业务代码  
+3. 当前 start 的子任务 `meta.blocked_by` 均已完成  
+
+允许范围以子任务 prd 与设计稿为准（S2 最小）；**不等于**路线图 Phase 2 全文（见 `08-05-phase-2-backlog`）。
+
+---
+
+## 禁止
 
 | 禁止 | 原因 |
 |------|------|
-| 入库流水线（parse/chunk/embed/es_index） | Phase 1 |
-| ask / LangGraph / retrieve / generate / verify | Phase 2 |
-| Better Auth 生产身份、成员 ACL 全量、ask 业务 | Phase 2+（身份/码表骨架已先落地） |
+| 跳过设计闸门写 ask / LangGraph / retrieve / generate / verify | Phase 2 硬门未过 |
+| 宣称「全文 Phase 2 / 生产 ES 已上」而实际为 S2 最小或 mock | 签字边界 / 诚实边界 |
+| Better Auth 生产身份在无任务/设计时半吊子落地 | 须有收敛设计 |
 | 在 route 内散落 SQL / ES DSL / 长 Prompt | 架构冻结 |
 | 引入 Prisma / TypeORM 并行 | `prds/01-architecture/02-tech-stack-frozen.md` |
 | npm / yarn 装依赖；再建第二 monorepo | 工程基线 |
