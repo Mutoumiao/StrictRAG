@@ -291,8 +291,9 @@ export async function runIngestStage(
         return { done: true };
       }
 
-      mockEsStore.bulkIndex(doc.kbId, doc.indexVersion, manifest.chunkIds);
-      const report = mockEsStore.reconcile(doc.kbId, doc.indexVersion, manifest.chunkIds);
+      // 按 doc 维度索引/对账（同 KB 多文档不得互相污染 orphan 判定）
+      mockEsStore.bulkIndex(doc.id, doc.indexVersion, manifest.chunkIds);
+      const report = mockEsStore.reconcile(doc.id, doc.indexVersion, manifest.chunkIds);
       if (!report.ok) {
         await setDoc(data.docId, {
           status: 'failed',
