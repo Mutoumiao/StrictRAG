@@ -86,7 +86,7 @@ curl -sS http://127.0.0.1:4000/ready
 
 ## Phase 1 入库闭环（S1 最小）
 
-代码路径已落地（API + worker 状态机 + mock 模式）：
+代码路径已落地（API + worker 状态机 + **mock 嵌入/ES**）：
 
 | 步骤 | API / 行为 |
 |------|------------|
@@ -96,11 +96,19 @@ curl -sS http://127.0.0.1:4000/ready
 | 入库 | `POST .../scan` → worker：scan→parse→chunk→embed→es（串行双就绪） |
 | 发布 | `PATCH .../lifecycle` → `active`（仅 `status=ready`） |
 
-演示步骤见 [`scripts/demo-ingest.md`](./scripts/demo-ingest.md)；样例文 `fixtures/ingest-samples/`（10 篇）。
+### 一键演示 / 回归
+
+```bash
+# 终端 1–2：api + worker；Docker PG+Redis；已 migrate
+pnpm demo:ingest          # 同 KB ≥10 fixtures → ready → active
+# 别名：pnpm test:e2e-ingest
+```
+
+说明见 [`scripts/demo-ingest.md`](./scripts/demo-ingest.md)；样例 `fixtures/ingest-samples/`（10 篇）。
 
 Mock 开关（`.env`）：`INGEST_SCAN_MODE` · `INGEST_ES_MODE=fail`（验证不得 ready）· `STORAGE_MODE=local`。
 
-> 本机需 Docker 起 PG/Redis 后 `pnpm db:migrate` 才能做 live 联调。ES/RustFS 生产路径仍可按 profile 扩展。
+> **边界（勿过度宣称）**：P1 的「ES」是 worker **进程内 mock** 对账，**不是** 生产 Elasticsearch+IK 集群。`/ready` 中 `elasticsearch=skipped` 属正常。真 ES/RustFS 按 compose profile 后续接入。
 
 ---
 

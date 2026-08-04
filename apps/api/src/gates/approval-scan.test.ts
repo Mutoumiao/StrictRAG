@@ -1,16 +1,8 @@
-import { BizCode } from '@strict-rag/contracts';
 import { describe, expect, it } from 'vitest';
 
-function canEnqueueScan(approvalStatus: string): boolean {
-  return approvalStatus === 'approved';
-}
+import { canBecomeActive, canEnqueueScan, scanDeniedCode } from './approval-scan.js';
 
-/** 未批 scan 对外码（PRD 短名） */
-function scanDeniedCode(): typeof BizCode.FORBIDDEN {
-  return BizCode.FORBIDDEN;
-}
-
-describe('approval scan gate', () => {
+describe('approval scan gate (ADR-048, shared with scan route)', () => {
   it('blocks pending / none / rejected', () => {
     expect(canEnqueueScan('pending')).toBe(false);
     expect(canEnqueueScan('none')).toBe(false);
@@ -23,5 +15,14 @@ describe('approval scan gate', () => {
 
   it('uses PRD short code FORBIDDEN', () => {
     expect(scanDeniedCode()).toBe('FORBIDDEN');
+  });
+});
+
+describe('lifecycle active gate (shared with PATCH route)', () => {
+  it('only ready can become active', () => {
+    expect(canBecomeActive('ready')).toBe(true);
+    expect(canBecomeActive('uploaded')).toBe(false);
+    expect(canBecomeActive('indexing_es')).toBe(false);
+    expect(canBecomeActive('needs_ocr')).toBe(false);
   });
 });

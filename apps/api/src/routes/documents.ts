@@ -8,6 +8,8 @@ import {
 import { Hono } from 'hono';
 import { uuidv7 } from 'uuidv7';
 
+import { canBecomeActive, canEnqueueScan, scanDeniedCode } from '../gates/approval-scan.js';
+import { checkUploadByteSize } from '../gates/upload-size.js';
 import { fail, ok } from '../lib/response.js';
 import type { ApiVariables } from '../middleware/request-id.js';
 import { documentRepo } from '../services/documents.js';
@@ -131,10 +133,11 @@ documentRoutes.post('/knowledge-bases/:kbId/documents/:docId/complete', async (c
   }
 
   const max = effectiveMaxUploadBytes();
-  if (head.byteSize > max) {
+  const sizeGate = checkUploadByteSize(head.byteSize, max);
+  if (!sizeGate.ok) {
     return fail(
       c,
-      BizCode.PAYLOAD_TOO_LARGE,
+      sizeGate.code,
       `object size ${head.byteSize} exceeds limit ${max}`,
       413,
       { maxBytes: max, actual: head.byteSize },
@@ -180,8 +183,8 @@ documentRoutes.post('/documents/:docId/scan', async (c) => {
   if (!doc) {
     return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
   }
-  if (doc.approvalStatus !== 'approved') {
-    return fail(c, BizCode.FORBIDDEN, 'document must be approved before scan', 403, {
+  if (!canEnqueueScan(doc.approvalStatus)) {
+    return fail(c, scanDeniedCode(), 'document must be approved before scan', 403, {
       approvalStatus: doc.approvalStatus,
     });
   }
@@ -209,7 +212,7 @@ documentRoutes.patch('/documents/:docId/lifecycle', async (c) => {
     return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
   }
 
-  if (parsed.data.lifecycle === 'active' && doc.status !== 'ready') {
+  if (parsed.data.lifecycle === 'active' && !canBecomeActive(doc.status)) {
     return fail(c, BizCode.CONFLICT, 'only ready documents can become active', 409, {
       status: doc.status,
     });
