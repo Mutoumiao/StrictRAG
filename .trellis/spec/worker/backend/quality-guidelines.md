@@ -26,7 +26,9 @@
 
 - **Bad**：队列名写成 `sr:probe`（BullMQ `Queue name cannot contain :`）  
 - **Bad**：api/worker 各用进程 cwd 下的 `.data/objects`（parse 读到 0 字 → 假 `needs_ocr`）  
+- **Bad**：mock ES 按 `kbId+indexVersion` 聚合并对账「整集合 ≡ 单文档 manifest」→ 同 KB 第 2 篇起 `ES_RECONCILE_FAILED`（假 orphan）  
 - **Good**：`sr-probe` / `sr-ingest`；`STORAGE_LOCAL_DIR` 解析到 monorepo 根  
+- **Good**：mock ES 按 **`docId+indexVersion`** 对账；集成验收须跑 **≥10 篇同 KB** 而非只测 1 篇  
 
 ## 阶段说明
 
