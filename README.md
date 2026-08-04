@@ -2,47 +2,105 @@
 
 **为精准度而生的严厉企业知识库 RAG。**
 
+宁拒勿妄 · 证据优先。
+
+---
 
 ## 仓库结构
 
 ```text
 StrictRAG/
 ├── apps/
-│   ├── admin/          # Next.js 管理端（占位 · 目标端口 3006）
-│   ├── web/            # Next.js 用户端（占位 · 目标端口 3005）
-│   ├── api/            # Hono + Node（占位 · 目标端口 4000）
-│   └── worker/         # BullMQ 消费者（占位）
+│   ├── admin/          # Next.js 管理端（空壳 · 端口 3006）
+│   ├── web/            # Next.js 用户端（空壳 · 端口 3005）
+│   ├── api/            # Hono + Node（health/ready · 端口 4000）
+│   └── worker/         # BullMQ 消费者（探针队列）
 ├── packages/
 │   ├── contracts/      # BizCode · ApiResponse · Zod（按域）
 │   ├── admin-catalog/  # 权限码 + 菜单（ADR-056）
-│   ├── db/             # Drizzle schema（api/worker 共用）
-│   ├── ui/             # cn() · theme.css（子路径 exports）
+│   ├── db/             # Drizzle schema + migrate
+│   ├── ui/             # cn() · theme.css
 │   ├── eslint-config/
 │   └── typescript-config/
-├── prds/
-│   ├── 00–11…          # 生产规格 SSOT
-│   └── 12-delivery-guides/  # 交付配套（非接口 SSOT）
-├── docker/             # 本地依赖 compose 骨架
-├── product.pen         # 设计线稿
+├── prds/               # 生产规格 SSOT（00–11）+ 交付配套（12）
+├── docker/             # 本地依赖 compose
 └── CLAUDE.md           # Agent 指令与仓库导航
 ```
 
 ---
 
-## 快速开始（骨架）
+## 快速开始（Phase 0）
+
+需要：**Node.js 20+**、**pnpm 10+**、Docker Compose。
 
 ```bash
-# 需要 Node.js 20+、pnpm 10+
+# 1) 依赖
 pnpm install
+cp .env.example .env
+
+# 2) 基础设施（PG + Redis）
+docker compose -f docker/docker-compose.yml up -d
+
+# 3) 数据库 migrate
+pnpm db:migrate
+
+# 4) 类型 / lint / 单测 / 构建
 pnpm check-types
 pnpm lint
+pnpm test
+pnpm build
 
-# 本地基础设施（可选：PG + Redis）
-docker compose -f docker/docker-compose.yml up -d
+# 5) 起服（分终端）
+pnpm dev:api      # http://127.0.0.1:4000
+pnpm dev:worker   # BullMQ probe
+pnpm dev:web      # http://127.0.0.1:3005
+pnpm dev:admin    # http://127.0.0.1:3006
 ```
 
-> 当前 `dev` / `start` 仅为占位提示，**不会**启动真实 HTTP。  
-> Phase 0：health/ready、migrate、真 dev；契约信封已在 `packages/contracts`。
+### 健康检查
+
+```bash
+curl -sS http://127.0.0.1:4000/health
+curl -sS http://127.0.0.1:4000/ready
+```
+
+| 端点 | 语义 |
+|------|------|
+| `GET /health` | 进程存活（不依赖外部） |
+| `GET /ready` | PG + Redis 硬依赖；ES/Gateway 未配置则 `skipped` |
+
+### Compose 扩展 profile
+
+见 [`docker/README.md`](./docker/README.md)（`es` / `mongo` / `rustfs`）。
+
+### 模型 Gateway
+
+服务端 env：`GATEWAY_BASE_URL`、`GATEWAY_API_KEY`（**禁止**进 web/admin）。  
+未配置时 ready 中 `gateway=skipped`。有 Key 后 `/ready` 会探测 `GET {base}/v1/models`。
+
+### tauClaim
+
+唯一配置源：`TAU_CLAIM`（0–1）。若同时设 `TAU_CLAIM_LEGACY` 且值不同 → **启动失败**（防双源）。
+
+---
+
+## Phase 1 入库闭环（S1 最小）
+
+代码路径已落地（API + worker 状态机 + mock 模式）：
+
+| 步骤 | API / 行为 |
+|------|------------|
+| 建库 | `POST /api/v1/knowledge-bases` |
+| 上传 | `upload-url` → `PUT /api/v1/internal/objects` → `complete`（权威 size 闸） |
+| 审批 | `POST /api/v1/documents/:id/approve`；未批 scan → `FORBIDDEN` |
+| 入库 | `POST .../scan` → worker：scan→parse→chunk→embed→es（串行双就绪） |
+| 发布 | `PATCH .../lifecycle` → `active`（仅 `status=ready`） |
+
+演示步骤见 [`scripts/demo-ingest.md`](./scripts/demo-ingest.md)；样例文 `fixtures/ingest-samples/`（10 篇）。
+
+Mock 开关（`.env`）：`INGEST_SCAN_MODE` · `INGEST_ES_MODE=fail`（验证不得 ready）· `STORAGE_MODE=local`。
+
+> 本机需 Docker 起 PG/Redis 后 `pnpm db:migrate` 才能做 live 联调。ES/RustFS 生产路径仍可按 profile 扩展。
 
 ---
 
@@ -51,7 +109,7 @@ docker compose -f docker/docker-compose.yml up -d
 1. **实施规格（SSOT）**：[`prds/README.md`](./prds/README.md)  
 2. **交付配套总目**：[`prds/12-delivery-guides/README.md`](./prds/12-delivery-guides/README.md)  
 3. **工程开工**：[`prds/12-delivery-guides/06-工程开工.md`](./prds/12-delivery-guides/06-工程开工.md)  
-4. **交付编排**：[`prds/12-delivery-guides/04-交付控制台.md`](./prds/12-delivery-guides/04-交付控制台.md)  
+4. **Sprint0 检查单**：[`prds/12-delivery-guides/07-Sprint0检查单.md`](./prds/12-delivery-guides/07-Sprint0检查单.md)  
 5. **Agent**：[`CLAUDE.md`](./CLAUDE.md)
 
 ---
@@ -62,10 +120,10 @@ docker compose -f docker/docker-compose.yml up -d
 - 四层控制：检索 → 约束生成 → 声明验证 → 拒答  
 - **min 否决**；历史会话 ≠ 证据  
 - 禁止 Prisma 并行；ORM 仅 Drizzle  
-- 本阶段：**仅骨架，无入库/问答/鉴权业务逻辑**
+- Phase 0：**无**入库 / 问答 / 鉴权业务逻辑  
 
 ---
 
 ## 来源说明
 
-规格与交付材料自 `rag-zero-hallucinations` 迁入；原根目录 `docs/` 已并入 `prds/12-delivery-guides/`。教学 Notebook / 上游 `00–11` 教程未迁入本仓。
+规格与交付材料自 `rag-zero-hallucinations` 迁入。教学 Notebook / 上游教程未迁入本仓。

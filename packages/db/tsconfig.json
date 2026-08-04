@@ -1,8 +1,9 @@
 {
-  "extends": "@strict-rag/typescript-config/base.json",
+  "extends": "@strict-rag/typescript-config/node.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src",
+    "noEmit": true
   },
   "include": ["src"]
 }

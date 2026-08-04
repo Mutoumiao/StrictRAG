@@ -1,3 +1,10 @@
-# @strict-rag/admin
+# `@strict-rag/admin`
 
-Next.js 管理端。骨架占位，无业务实现。准入：platform_admin 或 KB write/admin（ADR-045）。
+Next.js 管理端。目标端口 **3006**。
+
+```bash
+pnpm --filter @strict-rag/admin dev
+# http://127.0.0.1:3006
+```
+
+Phase 0 仅空壳首页；权限码+菜单见 `@strict-rag/admin-catalog`（种子/空壳）。

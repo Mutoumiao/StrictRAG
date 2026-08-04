@@ -12,12 +12,16 @@
     "dev:web": "turbo run dev --filter=@strict-rag/web",
     "lint": "turbo run lint",
     "check-types": "turbo run check-types",
+    "test": "turbo run test",
+    "db:generate": "pnpm --filter @strict-rag/db db:generate",
+    "db:migrate": "pnpm --filter @strict-rag/db db:migrate",
     "format": "prettier --write \"**/*.{ts,tsx,md,json,yml,yaml}\""
   },
   "devDependencies": {
     "prettier": "^3.7.4",
     "turbo": "^2.9.6",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "packageManager": "pnpm@10.27.0",
   "engines": {

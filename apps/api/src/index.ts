@@ -1,9 +1,33 @@
 /**
- * apps/api — Hono + Node HTTP / SSE / 鉴权 / 入队
- *
- * 骨架阶段：无路由、无中间件、无业务逻辑。
- * Phase 0：`GET /health`、`GET /ready`、env Zod、Pino。
- * 规格：prds/05-api、prds/02-engineering/01-clhoria-template-alignment.md
+ * apps/api — Hono + Node HTTP
+ * Phase 0：env Zod · Pino · GET /health · GET /ready
+ * 规格：prds/05-api · ADR-028
  */
 
-export const APP_API_SCAFFOLD = true as const;
+import { serve } from '@hono/node-server';
+
+import { createApp } from './app.js';
+import { env } from './env.js';
+import { logger } from './logger.js';
+
+const app = createApp();
+
+serve(
+  {
+    fetch: app.fetch,
+    port: env.API_PORT,
+    hostname: '0.0.0.0',
+  },
+  (info) => {
+    logger.info(
+      {
+        port: info.port,
+        tauClaim: env.TAU_CLAIM,
+        gatewayConfigured: Boolean(env.GATEWAY_BASE_URL),
+      },
+      `api listening on http://127.0.0.1:${info.port}`,
+    );
+  },
+);
+
+export { createApp };

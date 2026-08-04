@@ -67,8 +67,8 @@ pnpm build | dev          # turbo；dev 现为占位 echo
 # docker compose -f docker/docker-compose.yml up -d
 ```
 
-目标端口（实现后）：**web 3005 · admin 3006 · api 4000**；worker 无 HTTP。  
-**业务进程尚未实现**。
+目标端口：**web 3005 · admin 3006 · api 4000**；worker 无 HTTP。  
+**Phase 0/1 代码已落地**（health/ready、migrate、入库闭环 mock）；**无** JWT 鉴权 / ask 图 / 真 ES 生产路径。
 
 ## Code Style
 
@@ -76,25 +76,25 @@ pnpm build | dev          # turbo；dev 现为占位 echo
 - 依赖版本优先 **`catalog:`**（在 `pnpm-workspace.yaml` 登记）
 - Prettier：singleQuote、trailingComma all、printWidth 100
 - 包名 `@strict-rag/<name>`；源码 `src/`
-- contracts：错误码与 `ApiResponse` 信封只放 `packages/contracts`，按域增文件
+- contracts：错误码与 `ApiResponse` 信封只放 `packages/contracts`，按域增文件；**`error.code` = PRD 短名**
 - UI：`import { cn } from '@strict-rag/ui/lib/utils'`（子路径导出）
-- 写库时间本地格式串（见 ORM PRD）；ID 用 uuid v7（实现阶段）
-- **禁止** route 内散落 SQL / ES DSL / 长 Prompt；密钥不进 web/admin 包
+- 写库时间本地格式串（见 ORM PRD）；ID 用 uuid v7
+- **禁止** route 内散落 SQL / ES DSL / 长 Prompt（SQL 进 `services/` / repo）；密钥不进 web/admin 包
 
 ## Testing
 
-- **现状**：无测试目录 / 无 Vitest 配置
-- **目标（PRD）**：后端 Vitest；验收剧本 `prds/10-delivery/03-acceptance-scenarios.md`
-- 新增测试时与源码同域放置，并更新本段
+- **命令**：`pnpm test`（turbo → vitest）
+- **已有**：`apps/api` · `apps/worker` · `packages/db` 同域 `*.test.ts`
+- **目标（PRD）**：集成测 + 验收剧本 `prds/10-delivery/03-acceptance-scenarios.md`
+- 新增测试与源码同域放置
 
 ## Conventions
 
-- **阶段**：骨架完成。未明确授权前 **禁止业务逻辑**（入库、ask、鉴权、审批、检索等）
-- **下一阶段**：Phase 0 → health/ready · env Zod · db migrate · 真 dev 起服（`prds/10-delivery/01-phased-roadmap.md`）
+- **阶段**：Phase 0/1 入库最小闭环（mock ES/scan 可联调）；**禁止** Phase 2 ask 未授权实现
+- **下一阶段**：Docker live 验收 → Phase 2 检索+verify 设计评审
 - **质量红线**：检索→约束生成→验证→拒答；**min 否决**；合法 draft 必 verify；历史≠evidence；门禁只加严不放宽；双就绪∧active 检索闸
 - **Git**：历史过浅；建议 conventional commits
 - 沟通默认**简体中文**；命令示例优先 `pnpm` + bash 风格
-
 ## Do Not
 
 - 用教学 Notebook / LanceDB 数字当生产 SLA 或实现抄本

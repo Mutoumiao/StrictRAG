@@ -8,6 +8,9 @@ node_modules
 .env.*
 !.env.example
 
+# Local object storage mock
+.data/
+
 # Testing
 coverage
 

@@ -4,21 +4,32 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "echo \"[scaffold] worker: no HTTP port — BullMQ not implemented (Phase 0)\"",
+    "dev": "tsx watch src/index.ts",
     "build": "tsc --noEmit",
     "check-types": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
-    "start": "echo \"[scaffold] worker: not implemented\""
+    "start": "tsx src/index.ts",
+    "test": "vitest run"
   },
   "dependencies": {
     "@strict-rag/contracts": "workspace:*",
-    "@strict-rag/db": "workspace:*"
+    "@strict-rag/db": "workspace:*",
+    "bullmq": "catalog:",
+    "dotenv": "catalog:",
+    "drizzle-orm": "catalog:",
+    "ioredis": "catalog:",
+    "pino": "catalog:",
+    "uuidv7": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@strict-rag/eslint-config": "workspace:*",
     "@strict-rag/typescript-config": "workspace:*",
     "@types/node": "catalog:",
     "eslint": "catalog:",
-    "typescript": "catalog:"
+    "pino-pretty": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

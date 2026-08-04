@@ -4,22 +4,36 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "echo \"[scaffold] api: target port 4000 — Hono not implemented (Phase 0)\"",
+    "dev": "tsx watch src/index.ts",
     "build": "tsc --noEmit",
     "check-types": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
-    "start": "echo \"[scaffold] api: not implemented\""
+    "start": "tsx src/index.ts",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@hono/node-server": "catalog:",
     "@strict-rag/admin-catalog": "workspace:*",
     "@strict-rag/contracts": "workspace:*",
-    "@strict-rag/db": "workspace:*"
+    "@strict-rag/db": "workspace:*",
+    "bullmq": "catalog:",
+    "date-fns": "catalog:",
+    "dotenv": "catalog:",
+    "drizzle-orm": "catalog:",
+    "hono": "catalog:",
+    "ioredis": "catalog:",
+    "pino": "catalog:",
+    "uuidv7": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@strict-rag/eslint-config": "workspace:*",
     "@strict-rag/typescript-config": "workspace:*",
     "@types/node": "catalog:",
     "eslint": "catalog:",
-    "typescript": "catalog:"
+    "pino-pretty": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

@@ -1,10 +1,13 @@
-# StrictRAG 本地依赖骨架（仅基础设施，不含 api/worker 业务服务）
-# Phase 0 再挂 apps 与 health 探针。规格见 prds/02-engineering、prds/10-delivery。
+# StrictRAG 本地依赖
+# 规格：prds/02-engineering · prds/10-delivery · Sprint0 检查单
 #
-# 使用：在仓库根目录
+# 默认（Phase 0 最低）：
 #   docker compose -f docker/docker-compose.yml up -d
 #
-# 说明：镜像与端口可按环境调整；本文件不启动业务逻辑。
+# 扩展 profile：
+#   docker compose -f docker/docker-compose.yml --profile es --profile mongo --profile rustfs up -d
+#
+# 业务进程 api/worker 不在 compose 内启动（本地 pnpm dev）。
 
 services:
   postgres:
@@ -17,23 +20,73 @@ services:
       - "5432:5432"
     volumes:
       - strict_rag_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U strict_rag -d strict_rag"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
-  # elasticsearch:
-  #   image: (ES 8 + IK 按运维手册选型)
-  #   # P1 入库前必须 green
+  # Elasticsearch 8 + IK（P1 入库前必须 green；镜像需运维选型带 IK 的发行版）
+  # 使用：--profile es
+  elasticsearch:
+    profiles: ["es"]
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      # TODO(P1): 替换为含 IK 分词的镜像或挂载 plugin；见 prds/03-data/03-elasticsearch-bm25.md
+    ports:
+      - "9200:9200"
+    volumes:
+      - strict_rag_es:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
 
-  # mongo:
-  #   image: mongo:7
+  # MongoDB：P1 正文 body 存储
+  mongo:
+    profiles: ["mongo"]
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - strict_rag_mongo:/data/db
 
-  # rustfs / minio-compatible:
-  #   image: (RustFS S3 兼容，ADR-012)
+  # RustFS / MinIO 兼容 S3：P1 上传预签名
+  # ADR-012；生产用 RustFS，本地可用 minio 兼容端点 dogfood
+  rustfs:
+    profiles: ["rustfs"]
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: strict_rag
+      MINIO_ROOT_PASSWORD: strict_rag_secret
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - strict_rag_rustfs:/data
 
-  # langfuse: 可选，P2 质量链路前建议起
+  # Langfuse：可选，P2 质量链路前建议起
+  # langfuse:
+  #   profiles: ["langfuse"]
+  #   image: langfuse/langfuse:latest
 
 volumes:
   strict_rag_pg:
+  strict_rag_es:
+  strict_rag_mongo:
+  strict_rag_rustfs:

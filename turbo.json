@@ -34,6 +34,18 @@
         "NEXT_PUBLIC_APP_ENV",
         "NEXT_PUBLIC_API_BASE_URL"
       ]
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": ["coverage/**"],
+      "env": [
+        "APP_ENV",
+        "DATABASE_URL",
+        "REDIS_URL",
+        "TAU_CLAIM",
+        "NODE_ENV"
+      ]
     }
   }
 }
