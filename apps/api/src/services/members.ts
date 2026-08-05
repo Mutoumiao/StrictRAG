@@ -9,6 +9,32 @@ export const DEV_DEFAULT_TENANT = '01900000-0000-7000-8000-000000000001';
 
 export type KbMemberRole = 'read' | 'write' | 'admin';
 
+export type MemberListRow = {
+  kbId: string;
+  userId: string;
+  role: string;
+  email: string | null;
+  displayName: string | null;
+  createdAt: string | null;
+};
+
+export type MembersRepo = {
+  list(kbId: string): Promise<MemberListRow[]>;
+  invite(input: {
+    kbId: string;
+    tenantId: string;
+    userId?: string;
+    email?: string;
+    role: KbMemberRole;
+    createdBy?: string;
+  }): Promise<
+    | { ok: true; userId: string; role: KbMemberRole }
+    | { ok: false; reason: 'conflict'; userId: string }
+    | { ok: false; reason: 'user_not_found' }
+  >;
+  remove(kbId: string, userId: string): Promise<boolean>;
+};
+
 /** 按 email upsert users（dev-login / 邀请） */
 export async function ensureUserByEmail(params: {
   email: string;
@@ -47,7 +73,9 @@ export async function ensureUserByEmail(params: {
   };
 }
 
-export const membersRepo = {
+export const membersRepo: MembersRepo & {
+  isMember(userId: string, kbId: string): Promise<boolean>;
+} = {
   async isMember(userId: string, kbId: string): Promise<boolean> {
     const [row] = await getDb()
       .select({ id: kbMembers.id })
@@ -127,3 +155,70 @@ export const membersRepo = {
     return deleted.length > 0;
   },
 };
+
+/** 单测用内存成员仓（无 PG） */
+export function createMemoryMembersRepo(): MembersRepo & {
+  seedUser(u: { id: string; email?: string; displayName?: string | null }): void;
+  isMember(userId: string, kbId: string): boolean;
+} {
+  const userById = new Map<string, { id: string; email: string | null; displayName: string | null }>();
+  const emailToId = new Map<string, string>();
+  /** key = `${kbId}:${userId}` */
+  const membership = new Map<string, MemberListRow>();
+
+  const key = (kbId: string, userId: string) => `${kbId}:${userId}`;
+
+  return {
+    seedUser(u) {
+      userById.set(u.id, {
+        id: u.id,
+        email: u.email ?? null,
+        displayName: u.displayName ?? null,
+      });
+      if (u.email) emailToId.set(u.email.toLowerCase(), u.id);
+    },
+    isMember(userId, kbId) {
+      return membership.has(key(kbId, userId));
+    },
+    async list(kbId) {
+      return [...membership.values()].filter((r) => r.kbId === kbId);
+    },
+    async invite(input) {
+      let userId = input.userId;
+      if (!userId && input.email) {
+        const existing = emailToId.get(input.email.toLowerCase());
+        if (existing) {
+          userId = existing;
+        } else {
+          userId = uuidv7();
+          userById.set(userId, {
+            id: userId,
+            email: input.email,
+            displayName: null,
+          });
+          emailToId.set(input.email.toLowerCase(), userId);
+        }
+      }
+      if (!userId) return { ok: false, reason: 'user_not_found' };
+      if (input.userId && !userById.has(input.userId)) {
+        return { ok: false, reason: 'user_not_found' };
+      }
+      if (membership.has(key(input.kbId, userId))) {
+        return { ok: false, reason: 'conflict', userId };
+      }
+      const u = userById.get(userId);
+      membership.set(key(input.kbId, userId), {
+        kbId: input.kbId,
+        userId,
+        role: input.role,
+        email: u?.email ?? null,
+        displayName: u?.displayName ?? null,
+        createdAt: new Date().toISOString(),
+      });
+      return { ok: true, userId, role: input.role };
+    },
+    async remove(kbId, userId) {
+      return membership.delete(key(kbId, userId));
+    },
+  };
+}

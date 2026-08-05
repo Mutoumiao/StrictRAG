@@ -19,4 +19,10 @@ describe('default retrieval gate', () => {
     ];
     expect(filterDefaultRetrievable(docs).map((d) => d.id)).toEqual(['1']);
   });
+
+  it('rejects needs_ocr / parsing / archived-like pairs', () => {
+    expect(isDefaultRetrievable({ status: 'needs_ocr', lifecycle: 'active' })).toBe(false);
+    expect(isDefaultRetrievable({ status: 'parsing', lifecycle: 'active' })).toBe(false);
+    expect(isDefaultRetrievable({ status: 'ready', lifecycle: 'archived' })).toBe(false);
+  });
 });

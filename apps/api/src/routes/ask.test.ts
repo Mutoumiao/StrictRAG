@@ -347,6 +347,148 @@ describe('POST ask sync + SSE', () => {
     expect(capturedReqId).toBeTruthy();
     void finalLine;
   });
+
+  it('真实图：rerank 失败 → HTTP abstained rerank_unavailable（非 answered）', async () => {
+    const { executeAsk } = await import('../services/ask/execute.js');
+    const { userId, accessToken } = await token(['web_consumer']);
+    const app = buildApp({
+      members: new Set([userId]),
+      execute: (params) =>
+        executeAsk(params as Parameters<typeof executeAsk>[0], {
+          skipTrace: true,
+          graphDeps: {
+            retrieve: async () => ({
+              ok: false,
+              reason: 'rerank_unavailable',
+              message: 'rerank down',
+            }),
+            chat: async () => {
+              throw new Error('should not generate after rerank fail');
+            },
+          },
+        }),
+    });
+
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ question: '年假几天', options: { stream: false } }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { status: string; reason: string; answer: string; citations: unknown[] };
+    };
+    expect(body.data.status).toBe('abstained');
+    expect(body.data.reason).toBe('rerank_unavailable');
+    expect(body.data.answer).toBe('');
+    expect(body.data.citations).toEqual([]);
+  });
+
+  it('真实图：sync 与 SSE final 字段一致（含 reason/answer/citations）', async () => {
+    const { executeAsk } = await import('../services/ask/execute.js');
+    const { userId, accessToken } = await token(['web_consumer']);
+    const evidence = [
+      {
+        chunkId: CHUNK,
+        docId: DOC,
+        title: '休假',
+        text: '员工年假为15天',
+        preview: '15天',
+        lifecycle: 'active' as const,
+        score: 0.9,
+      },
+    ];
+    const graphDeps = {
+      retrieve: async () => ({
+        ok: true as const,
+        evidence,
+        meta: { esMode: 'mock' as const, candidateCount: 1, denseHits: 1, sparseHits: 1 },
+      }),
+      chat: async (purpose: string) => {
+        if (purpose === 'generate') {
+          return JSON.stringify({
+            answer: '年假为15天。',
+            citations: [CHUNK],
+            insufficient: false,
+          });
+        }
+        if (purpose === 'claim_split') {
+          return JSON.stringify({ claims: [{ text: '年假为15天', chunkIds: [CHUNK] }] });
+        }
+        if (purpose === 'judge') {
+          return JSON.stringify({ scores: [0.95] });
+        }
+        throw new Error(`unexpected ${purpose}`);
+      },
+    };
+    const app = buildApp({
+      members: new Set([userId]),
+      execute: (params) =>
+        executeAsk(params as Parameters<typeof executeAsk>[0], {
+          skipTrace: true,
+          graphDeps,
+        }),
+    });
+
+    const syncRes = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ question: '年假', options: { stream: false } }),
+    });
+    const sync = (await syncRes.json()) as {
+      data: {
+        status: string;
+        reason: string;
+        answer: string;
+        answerKind?: string;
+        citations: { chunkId: string }[];
+        suggestedActions: unknown[];
+      };
+    };
+    expect(sync.data.status).toBe('answered');
+    expect(sync.data.reason).toBe('verified');
+
+    const sseRes = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+        accept: 'text/event-stream',
+      },
+      body: JSON.stringify({ question: '年假', options: { stream: true } }),
+    });
+    const text = await sseRes.text();
+    const dataLines = text
+      .split('\n')
+      .filter((l) => l.startsWith('data: '))
+      .map((l) => l.slice(6));
+    const finalPayload = dataLines
+      .map((d) => {
+        try {
+          return JSON.parse(d) as Record<string, unknown>;
+        } catch {
+          return null;
+        }
+      })
+      .reverse()
+      .find((o) => o && typeof o.reason === 'string' && typeof o.status === 'string');
+
+    expect(finalPayload).toBeTruthy();
+    expect(finalPayload!.status).toBe(sync.data.status);
+    expect(finalPayload!.reason).toBe(sync.data.reason);
+    expect(finalPayload!.answer).toBe(sync.data.answer);
+    expect(finalPayload!.answerKind).toBe(sync.data.answerKind);
+    expect(JSON.stringify(finalPayload!.citations)).toBe(JSON.stringify(sync.data.citations));
+    expect(JSON.stringify(finalPayload!.suggestedActions)).toBe(
+      JSON.stringify(sync.data.suggestedActions),
+    );
+  });
 });
 
 describe('executeAsk trace + graph wiring', () => {

@@ -9,6 +9,31 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { getDb } from '../db.js';
 import type { CorpusChunk, CorpusLoader, RetrieveScope } from './types.js';
 
+/** 文档侧双闸门 + 可选 docTypes（loadCorpusFromDb / hasRetrievableDocs 共用） */
+export type DocForRetrieve = {
+  status: string;
+  lifecycle: string;
+  docType?: string | null;
+};
+
+/**
+ * 仅 ready∧active 可进语料；scope.docTypes 再滤一层。
+ * 抽成纯函数便于单测护栏（P0：防 loadCorpus 漏滤 draft）。
+ */
+export function filterDocsForRetrieve<T extends DocForRetrieve>(
+  docs: readonly T[],
+  scope?: RetrieveScope,
+): T[] {
+  return docs.filter((d) => {
+    if (!isDefaultRetrievable(d)) return false;
+    if (scope?.docTypes?.length) {
+      const dt = d.docType ?? '';
+      if (!scope.docTypes.includes(dt)) return false;
+    }
+    return true;
+  });
+}
+
 /**
  * 从 PG 拉 KB 下可检索 chunk（双闸门 + 可选 docTypes）。
  * draft / superseded / 非 ready 不进。
@@ -18,14 +43,7 @@ export const loadCorpusFromDb: CorpusLoader = async ({ kbId, scope }) => {
   const db = getDb();
   const docs = await db.select().from(documents).where(eq(documents.kbId, kbId));
 
-  const allowed = docs.filter((d) => {
-    if (!isDefaultRetrievable(d)) return false;
-    if (scope?.docTypes?.length) {
-      const dt = d.docType ?? '';
-      if (!scope.docTypes.includes(dt)) return false;
-    }
-    return true;
-  });
+  const allowed = filterDocsForRetrieve(docs, scope);
 
   if (allowed.length === 0) return [];
 
@@ -76,11 +94,5 @@ export const loadCorpusFromDb: CorpusLoader = async ({ kbId, scope }) => {
 export async function hasRetrievableDocs(kbId: string, scope?: RetrieveScope): Promise<boolean> {
   const db = getDb();
   const docs = await db.select().from(documents).where(eq(documents.kbId, kbId));
-  return docs.some((d) => {
-    if (!isDefaultRetrievable(d)) return false;
-    if (scope?.docTypes?.length) {
-      return scope.docTypes.includes(d.docType ?? '');
-    }
-    return true;
-  });
+  return filterDocsForRetrieve(docs, scope).length > 0;
 }

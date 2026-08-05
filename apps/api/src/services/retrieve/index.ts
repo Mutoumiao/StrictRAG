@@ -1,6 +1,6 @@
 export { rrfFuse } from './rrf.js';
 export { cosine, sparseOverlapScore, rankByScore } from './scoring.js';
-export { loadCorpusFromDb, hasRetrievableDocs } from './corpus.js';
+export { loadCorpusFromDb, hasRetrievableDocs, filterDocsForRetrieve } from './corpus.js';
 export {
   runRetrieve,
   retrieve,

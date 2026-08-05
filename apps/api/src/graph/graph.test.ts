@@ -175,6 +175,28 @@ describe('runAskGraph M2 generate+citations', () => {
     expect(r).toMatchObject({ status: 'abstained', reason: 'invalid_citations' });
   });
 
+  it('mixed legal+illegal citations keeps only evidence ids and still verifies', async () => {
+    const r = await runAskGraph(
+      baseInput(),
+      deps({
+        chat: scriptedChat({
+          generate: JSON.stringify({
+            answer: '年假为15天。',
+            citations: [CHUNK, '99999999-9999-7999-8999-999999999999'],
+            insufficient: false,
+          }),
+          claim_split: JSON.stringify({
+            claims: [{ text: '年假为15天', chunkIds: [CHUNK] }],
+          }),
+          judge: JSON.stringify({ scores: [0.9] }),
+        }),
+      }),
+    );
+    expect(r.status).toBe('answered');
+    expect(r.reason).toBe('verified');
+    expect(r.citations.map((c) => c.chunkId)).toEqual([CHUNK]);
+  });
+
   it('insufficient flag → model_abstained', async () => {
     const r = await runAskGraph(
       baseInput(),
@@ -196,6 +218,7 @@ describe('runAskGraph M3 verify+min+budget', () => {
     expect(r.answer).toContain('15');
     expect(r.citations[0]?.chunkId).toBe(CHUNK);
     expect(r.minSupport).toBeGreaterThanOrEqual(0.5);
+    // 合法 draft 必走 generate + claim_split + judge（3 次 LLM），禁止跳过 verify
     expect(r.debug?.llmCalls).toBe(3);
   });
 

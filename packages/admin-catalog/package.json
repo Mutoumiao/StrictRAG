@@ -9,12 +9,14 @@
   "scripts": {
     "build": "tsc --noEmit",
     "check-types": "tsc --noEmit",
-    "lint": "eslint . --max-warnings 0"
+    "lint": "eslint . --max-warnings 0",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@strict-rag/eslint-config": "workspace:*",
     "@strict-rag/typescript-config": "workspace:*",
     "eslint": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

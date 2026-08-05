@@ -212,4 +212,72 @@ describe('executeAsk wires tracer spans', () => {
     expect(names).toContain('ask.finalize');
     expect(rec!.scores.reason_code).toBe('chitchat');
   });
+
+  it('knowledge happy path records route→retrieve→generate→claim_split→verify→finalize', async () => {
+    const { executeAsk } = await import('../services/ask/execute.js');
+    const CHUNK = '11111111-1111-7111-8111-111111111111';
+    const DOC = '22222222-2222-7222-8222-222222222222';
+    const requestId = `req-know-${uuidv7().slice(0, 8)}`;
+    const result = await executeAsk(
+      {
+        requestId,
+        kbId: KB,
+        tenantId: '01900000-0000-7000-8000-000000000001',
+        userId: uuidv7(),
+        membership: 'member',
+        body: { question: '年假有多少天？', options: { mode: 'balanced' } },
+      },
+      {
+        skipTrace: true,
+        graphDeps: {
+          retrieve: async () => ({
+            ok: true,
+            evidence: [
+              {
+                chunkId: CHUNK,
+                docId: DOC,
+                title: '休假',
+                text: '员工年假为15天',
+                preview: '15天',
+                lifecycle: 'active',
+                score: 0.9,
+              },
+            ],
+            meta: { esMode: 'mock', candidateCount: 1, denseHits: 1, sparseHits: 1 },
+          }),
+          chat: async (purpose) => {
+            if (purpose === 'generate') {
+              return JSON.stringify({
+                answer: '年假为15天。',
+                citations: [CHUNK],
+                insufficient: false,
+              });
+            }
+            if (purpose === 'claim_split') {
+              return JSON.stringify({ claims: [{ text: '年假为15天', chunkIds: [CHUNK] }] });
+            }
+            if (purpose === 'judge') {
+              return JSON.stringify({ scores: [0.95] });
+            }
+            throw new Error(`unexpected ${purpose}`);
+          },
+        },
+      },
+    );
+    expect(result.response.status).toBe('answered');
+    expect(result.response.reason).toBe('verified');
+    const rec = getTraceRecord(requestId);
+    expect(rec).toBeTruthy();
+    const names = rec!.spans.map((s) => s.name);
+    for (const need of [
+      'ask.route',
+      'ask.retrieve',
+      'ask.generate',
+      'ask.claim_split',
+      'ask.verify',
+      'ask.finalize',
+    ]) {
+      expect(names, `missing span ${need}`).toContain(need);
+    }
+  });
 });

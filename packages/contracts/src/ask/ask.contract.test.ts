@@ -60,6 +60,16 @@ describe('AskRequestSchema', () => {
     const r = AskRequestSchema.safeParse({ question: '' });
     expect(r.success).toBe(false);
   });
+
+  it('rejects top-level tauClaim (strict root)', () => {
+    const r = AskRequestSchema.safeParse({ question: 'x', tauClaim: 0.1 });
+    expect(r.success).toBe(false);
+  });
+
+  it('rejects invalid mode turbo', () => {
+    const r = AskOptionsSchema.safeParse({ mode: 'turbo' });
+    expect(r.success).toBe(false);
+  });
 });
 
 describe('AskReasonSchema', () => {
@@ -72,5 +82,23 @@ describe('AskReasonSchema', () => {
     ] as const) {
       expect(AskReasonSchema.safeParse(code).success).toBe(true);
     }
+  });
+});
+
+describe('CreateFeedbackBodySchema / InviteMemberBodySchema', () => {
+  it('feedback 至少 rating/category/comment 之一', async () => {
+    const { CreateFeedbackBodySchema } = await import('./feedback.contract.js');
+    expect(CreateFeedbackBodySchema.safeParse({ requestId: 'r1' }).success).toBe(false);
+    expect(
+      CreateFeedbackBodySchema.safeParse({ requestId: 'r1', rating: 'up' }).success,
+    ).toBe(true);
+  });
+
+  it('invite 须 userId 或 email', async () => {
+    const { InviteMemberBodySchema } = await import('./member.contract.js');
+    expect(InviteMemberBodySchema.safeParse({ role: 'read' }).success).toBe(false);
+    expect(
+      InviteMemberBodySchema.safeParse({ email: 'a@b.com', role: 'read' }).success,
+    ).toBe(true);
   });
 });
