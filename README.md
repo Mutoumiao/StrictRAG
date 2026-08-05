@@ -116,8 +116,8 @@ Mock 开关（`.env`）：`INGEST_SCAN_MODE` · `INGEST_ES_MODE=fail`（验证�
 
 1. **实施规格（SSOT）**：[`prds/README.md`](./prds/README.md)  
 2. **交付配套总目**：[`prds/12-delivery-guides/README.md`](./prds/12-delivery-guides/README.md)  
-3. **对内交付状态**：[`prds/12-delivery-guides/04-交付控制台.md`](./prds/12-delivery-guides/04-交付控制台.md) §0（P0/P1 已交付 · P2 未编码）  
-4. **工程下一刀**：[`prds/12-delivery-guides/06-工程开工.md`](./prds/12-delivery-guides/06-工程开工.md)（S2 设计评审 → Phase 2）  
+3. **对内交付状态**：[`prds/12-delivery-guides/04-交付控制台.md`](./prds/12-delivery-guides/04-交付控制台.md) §0（P0/P1 + **S2 最小**已交付 · **≠** 全文 P2）  
+4. **工程下一刀**：[`prds/12-delivery-guides/06-工程开工.md`](./prds/12-delivery-guides/06-工程开工.md)（backlog 拆 feature · B8 真 ES…）  
 5. **Sprint0 检查单（历史勾选）**：[`prds/12-delivery-guides/07-Sprint0检查单.md`](./prds/12-delivery-guides/07-Sprint0检查单.md)  
 6. **Agent**：[`CLAUDE.md`](./CLAUDE.md)
 
