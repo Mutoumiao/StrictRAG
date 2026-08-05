@@ -79,8 +79,10 @@ function buildApp(opts: {
   members?: Set<string>;
   execute?: (params: unknown) => Promise<ExecuteAskResult>;
   kbExists?: boolean;
+  ownedSessions?: Set<string>;
 }) {
   const members = opts.members ?? new Set<string>();
+  const owned = opts.ownedSessions;
   const app = new Hono<{ Variables: AuthVariables }>();
   app.use('*', requestIdMiddleware);
   app.use('*', attachAuthMiddleware);
@@ -94,6 +96,9 @@ function buildApp(opts: {
           : { id: KB, tenantId: '01900000-0000-7000-8000-000000000001' },
       execute: (opts.execute as typeof import('../services/ask/index.js').executeAsk) ??
         fixedExecute(sampleAnswered()),
+      resolveOwnedSession: owned
+        ? async ({ sessionId }) => owned.has(sessionId)
+        : async () => true,
     }),
   );
   return app;
@@ -414,5 +419,140 @@ describe('executeAsk trace + graph wiring', () => {
     // 快照不含会话闲聊/历史
     const blob = JSON.stringify(saved[0]!.evidenceSnapshot);
     expect(blob).not.toMatch(/刚才|历史会话|session history/i);
+  });
+
+  it('带 sessionId 落 trace 时 rewriteUsed=false，历史文不进 evidence', async () => {
+    const { executeAsk } = await import('../services/ask/execute.js');
+    const SID = '33333333-3333-7333-8333-333333333333';
+    const HISTORY_LEAK = '上一轮会话里的 Vue 秘密答案';
+    const saved: {
+      sessionId?: string | null;
+      evidenceSnapshot: unknown[];
+      configSnap?: Record<string, unknown>;
+      rewriteUsedField?: number;
+    }[] = [];
+
+    const result = await executeAsk(
+      {
+        requestId: 'req-sess-1',
+        kbId: KB,
+        tenantId: '01900000-0000-7000-8000-000000000001',
+        userId: uuidv7(),
+        membership: 'member',
+        body: {
+          question: '年假几天',
+          sessionId: SID,
+          options: { mode: 'balanced', debug: true },
+        },
+      },
+      {
+        graphDeps: {
+          chat: async (purpose) => {
+            if (purpose === 'generate') {
+              return JSON.stringify({
+                answer: '15天',
+                citations: [CHUNK],
+                insufficient: false,
+              });
+            }
+            if (purpose === 'claim_split') {
+              return JSON.stringify({ claims: [{ text: '15天', chunkIds: [CHUNK] }] });
+            }
+            return JSON.stringify({ scores: [0.95] });
+          },
+          retrieve: async () => ({
+            ok: true,
+            evidence: [
+              {
+                chunkId: CHUNK,
+                docId: DOC,
+                title: '休假',
+                text: '员工年假为15天',
+                preview: '15天',
+                lifecycle: 'active',
+                score: 0.9,
+              },
+            ],
+            meta: { esMode: 'mock', candidateCount: 1, denseHits: 1, sparseHits: 1 },
+          }),
+        },
+        saveTrace: async (input) => {
+          saved.push({
+            sessionId: input.sessionId,
+            evidenceSnapshot: input.evidenceSnapshot,
+            configSnap: input.configSnap,
+          });
+          // 模拟「若错误地把历史塞进 evidence」的检测：保证我们没塞
+          expect(JSON.stringify(input.evidenceSnapshot)).not.toContain(HISTORY_LEAK);
+          return { id: 't2' };
+        },
+      },
+    );
+
+    expect(result.httpStatus).toBe(200);
+    expect(result.response.sessionId).toBe(SID);
+    expect(result.response.debug?.rewriteUsed).toBe(false);
+    expect(saved[0]?.sessionId).toBe(SID);
+    expect(saved[0]?.configSnap?.rewriteUsed).toBe(false);
+    // 历史原文不得出现在 evidence 或 citations
+    const evidenceBlob = JSON.stringify(saved[0]?.evidenceSnapshot);
+    expect(evidenceBlob).not.toContain(HISTORY_LEAK);
+    expect(JSON.stringify(result.response.citations)).not.toContain(HISTORY_LEAK);
+  });
+});
+
+describe('POST ask sessionId gate', () => {
+  it('未知 sessionId → 404', async () => {
+    const { userId, accessToken } = await token(['web_consumer']);
+    const app = buildApp({
+      members: new Set([userId]),
+      ownedSessions: new Set(),
+    });
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        question: 'hi',
+        sessionId: '33333333-3333-7333-8333-333333333333',
+        options: { stream: false },
+      }),
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it('合法 sessionId 回显且主路径 200', async () => {
+    const SID = '33333333-3333-7333-8333-333333333333';
+    const { userId, accessToken } = await token(['web_consumer']);
+    const app = buildApp({
+      members: new Set([userId]),
+      ownedSessions: new Set([SID]),
+      execute: async (params) => {
+        const p = params as { requestId: string; body: { sessionId?: string | null } };
+        const base = sampleAnswered(p.requestId);
+        return {
+          ...base,
+          response: { ...base.response, sessionId: p.body.sessionId ?? null },
+          graph: { ...base.graph, sessionId: p.body.sessionId ?? null },
+        };
+      },
+    });
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        question: '年假',
+        sessionId: SID,
+        options: { stream: false, debug: true },
+      }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { sessionId: string | null } };
+    expect(body.data.sessionId).toBe(SID);
   });
 });

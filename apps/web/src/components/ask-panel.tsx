@@ -1,18 +1,18 @@
 'use client';
 
 /**
- * 最小问答：KB id + 问题 → SSE final。
- * 三态：answered / abstained / 系统错误（HTTP 4xx/5xx）。
- * 不把会话历史当 citation；不推连续追问卖点。
+ * 问答 + 薄会话壳。
+ * 历史仅回放；**不是** citation 证据。rewrite 未开；无连续追问卖点。
  */
 
-import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
-import type { AskResponse } from '@strict-rag/contracts';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
+import type { AskResponse, SessionMessage, SessionSummary } from '@strict-rag/contracts';
 import { useRouter } from 'next/navigation';
 
 import { webLogoutLocal } from '@/auth/api';
 import { useWebAuth } from '@/components/auth-guard';
 import { askKnowledgeBase, type AskSseStatus } from '@/lib/ask-sse';
+import { createSession, getSessionDetail, listSessions } from '@/lib/sessions-api';
 
 type ViewState =
   | { type: 'idle' }
@@ -29,12 +29,67 @@ export function AskPanel() {
   const [kbId, setKbId] = useState('');
   const [question, setQuestion] = useState('');
   const [view, setView] = useState<ViewState>({ type: 'idle' });
+  const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [history, setHistory] = useState<SessionMessage[]>([]);
+  const [sessionBusy, setSessionBusy] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
-  // ponytail: 客户端再读 localStorage，避免 SSR hydration 不一致
   useEffect(() => {
     setKbId(window.localStorage.getItem(KB_STORAGE) ?? '');
   }, []);
+
+  const refreshSessions = useCallback(async (id: string) => {
+    try {
+      const items = await listSessions(id);
+      setSessions(items);
+    } catch {
+      setSessions([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    const id = kbId.trim();
+    if (!id) {
+      setSessions([]);
+      return;
+    }
+    void refreshSessions(id);
+  }, [kbId, refreshSessions]);
+
+  async function selectSession(sessionId: string) {
+    const id = kbId.trim();
+    if (!id) return;
+    setActiveSessionId(sessionId);
+    setView({ type: 'idle' });
+    try {
+      const detail = await getSessionDetail(id, sessionId);
+      setHistory(detail.messages ?? []);
+    } catch {
+      setHistory([]);
+    }
+  }
+
+  async function onNewSession() {
+    const id = kbId.trim();
+    if (!id) return;
+    setSessionBusy(true);
+    try {
+      const row = await createSession(id);
+      await refreshSessions(id);
+      setActiveSessionId(row.sessionId);
+      setHistory([]);
+      setView({ type: 'idle' });
+    } catch (err) {
+      setView({
+        type: 'error',
+        code: 'INTERNAL',
+        message: err instanceof Error ? err.message : '创建会话失败',
+      });
+    } finally {
+      setSessionBusy(false);
+    }
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -51,7 +106,10 @@ export function AskPanel() {
     try {
       const result = await askKnowledgeBase(
         id,
-        { question: q },
+        {
+          question: q,
+          sessionId: activeSessionId,
+        },
         {
           signal: ac.signal,
           onStatus: (s: AskSseStatus) => {
@@ -71,11 +129,24 @@ export function AskPanel() {
       }
 
       const data = result.response;
+      if (data.sessionId) setActiveSessionId(data.sessionId);
       if (data.status === 'answered') {
         setView({ type: 'answered', data });
       } else {
         setView({ type: 'abstained', data });
       }
+
+      // 回放历史（非证据）
+      if (data.sessionId) {
+        try {
+          const detail = await getSessionDetail(id, data.sessionId);
+          setHistory(detail.messages ?? []);
+          await refreshSessions(id);
+        } catch {
+          /* ignore */
+        }
+      }
+      setQuestion('');
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
       setView({
@@ -98,127 +169,214 @@ export function AskPanel() {
   return (
     <div
       style={{
-        maxWidth: 720,
-        margin: '0 auto',
-        padding: '32px 20px 64px',
+        display: 'flex',
+        minHeight: '100vh',
         fontFamily: 'system-ui, sans-serif',
         color: 'var(--sr-foreground)',
+        background: 'var(--sr-background)',
       }}
     >
-      <header
+      {/* 左栏：会话列表（回放壳，非证据源） */}
+      <aside
         style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          gap: 16,
-          marginBottom: 28,
-        }}
-      >
-        <div>
-          <p
-            style={{
-              margin: 0,
-              fontSize: 12,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              color: 'var(--sr-muted)',
-            }}
-          >
-            StrictRAG · 问答
-          </p>
-          <h1 style={{ margin: '6px 0 0', fontSize: 22, fontWeight: 600 }}>知识库提问</h1>
-          <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--sr-muted)', maxWidth: 480 }}>
-            答案须有证据支撑；无法核验时会拒答并说明原因。单轮提问，不依赖未校验的流式草稿。
-          </p>
-        </div>
-        <div style={{ textAlign: 'right', fontSize: 12, color: 'var(--sr-muted)' }}>
-          <div>{me.email ?? me.userId.slice(0, 8)}</div>
-          <button
-            type="button"
-            onClick={onLogout}
-            style={{
-              marginTop: 6,
-              border: 'none',
-              background: 'transparent',
-              color: 'var(--sr-primary)',
-              cursor: 'pointer',
-              fontSize: 12,
-              padding: 0,
-            }}
-          >
-            退出
-          </button>
-        </div>
-      </header>
-
-      <form
-        onSubmit={onSubmit}
-        style={{
+          width: 220,
+          flexShrink: 0,
+          borderRight: '1px solid var(--sr-border)',
+          padding: 12,
+          background: '#fff',
           display: 'flex',
           flexDirection: 'column',
-          gap: 12,
-          padding: 16,
-          border: '1px solid var(--sr-border)',
-          borderRadius: 'var(--sr-radius)',
-          background: '#fff',
+          gap: 8,
         }}
       >
-        <label style={{ fontSize: 13 }}>
-          知识库 ID
-          <input
-            value={kbId}
-            onChange={(ev) => setKbId(ev.target.value)}
-            placeholder="uuid"
-            required
-            style={inputStyle}
-          />
-        </label>
-        <label style={{ fontSize: 13 }}>
-          问题
-          <textarea
-            value={question}
-            onChange={(ev) => setQuestion(ev.target.value)}
-            rows={3}
-            required
-            maxLength={8000}
-            placeholder="输入要检索的问题…"
-            style={{ ...inputStyle, resize: 'vertical' }}
-          />
-        </label>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button
-            type="submit"
-            disabled={view.type === 'loading'}
+        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--sr-muted)' }}>会话</div>
+        <button
+          type="button"
+          onClick={() => void onNewSession()}
+          disabled={sessionBusy || !kbId.trim()}
+          style={{
+            padding: '8px 10px',
+            borderRadius: 8,
+            border: '1px solid var(--sr-border)',
+            background: 'var(--sr-background)',
+            cursor: sessionBusy ? 'wait' : 'pointer',
+            fontSize: 13,
+          }}
+        >
+          新建会话
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setActiveSessionId(null);
+            setHistory([]);
+            setView({ type: 'idle' });
+          }}
+          style={{
+            ...sessionBtnStyle(activeSessionId === null),
+            fontSize: 12,
+          }}
+        >
+          单轮（不归属会话）
+        </button>
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0, overflow: 'auto', flex: 1 }}>
+          {sessions.map((s) => (
+            <li key={s.sessionId}>
+              <button
+                type="button"
+                onClick={() => void selectSession(s.sessionId)}
+                style={sessionBtnStyle(activeSessionId === s.sessionId)}
+              >
+                {s.title?.trim() || s.sessionId.slice(0, 8)}
+              </button>
+            </li>
+          ))}
+        </ul>
+        <p style={{ margin: 0, fontSize: 11, color: 'var(--sr-muted)', lineHeight: 1.4 }}>
+          历史仅供回看，不作引用证据。本阶段不改写指代。
+        </p>
+      </aside>
+
+      <div style={{ flex: 1, maxWidth: 720, margin: '0 auto', padding: '32px 20px 64px' }}>
+        <header
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            gap: 16,
+            marginBottom: 28,
+          }}
+        >
+          <div>
+            <p
+              style={{
+                margin: 0,
+                fontSize: 12,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color: 'var(--sr-muted)',
+              }}
+            >
+              StrictRAG · 问答
+            </p>
+            <h1 style={{ margin: '6px 0 0', fontSize: 22, fontWeight: 600 }}>知识库提问</h1>
+            <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--sr-muted)', maxWidth: 480 }}>
+              答案须有证据支撑；无法核验时会拒答。可多会话隔离；每轮仍独立检索验证。
+            </p>
+          </div>
+          <div style={{ textAlign: 'right', fontSize: 12, color: 'var(--sr-muted)' }}>
+            <div>{me.email ?? me.userId.slice(0, 8)}</div>
+            <button type="button" onClick={onLogout} style={linkBtnStyle}>
+              退出
+            </button>
+          </div>
+        </header>
+
+        {history.length > 0 ? (
+          <section
             style={{
-              padding: '10px 16px',
-              borderRadius: 8,
-              border: 'none',
-              background: 'var(--sr-foreground)',
-              color: '#fff',
-              fontSize: 14,
-              cursor: view.type === 'loading' ? 'wait' : 'pointer',
-              opacity: view.type === 'loading' ? 0.6 : 1,
+              marginBottom: 16,
+              padding: 12,
+              borderRadius: 'var(--sr-radius)',
+              border: '1px dashed var(--sr-border)',
+              background: '#fff',
             }}
           >
-            {view.type === 'loading' ? `处理中（${view.phase ?? '…'}）` : '提问'}
-          </button>
-          {view.type === 'error' || view.type === 'abstained' ? (
-            <button type="button" onClick={onRetry} style={linkBtnStyle}>
-              重试
+            <h2 style={{ margin: 0, fontSize: 12, color: 'var(--sr-muted)', fontWeight: 600 }}>
+              本会话回放（非证据）
+            </h2>
+            <ul style={{ margin: '8px 0 0', padding: 0, listStyle: 'none', fontSize: 13 }}>
+              {history.map((m, i) => (
+                <li
+                  key={`${m.requestId ?? i}-${m.role}-${i}`}
+                  style={{
+                    marginBottom: 8,
+                    color: m.role === 'user' ? 'var(--sr-foreground)' : 'var(--sr-muted)',
+                  }}
+                >
+                  <strong style={{ fontSize: 11 }}>{m.role === 'user' ? '问' : '答'}</strong>{' '}
+                  {m.content.slice(0, 280)}
+                  {m.content.length > 280 ? '…' : ''}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        <form
+          onSubmit={onSubmit}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
+            padding: 16,
+            border: '1px solid var(--sr-border)',
+            borderRadius: 'var(--sr-radius)',
+            background: '#fff',
+          }}
+        >
+          <label style={{ fontSize: 13 }}>
+            知识库 ID
+            <input
+              value={kbId}
+              onChange={(ev) => setKbId(ev.target.value)}
+              placeholder="uuid"
+              required
+              style={inputStyle}
+            />
+          </label>
+          <label style={{ fontSize: 13 }}>
+            问题
+            <textarea
+              value={question}
+              onChange={(ev) => setQuestion(ev.target.value)}
+              rows={3}
+              required
+              maxLength={8000}
+              placeholder="输入要检索的问题…"
+              style={{ ...inputStyle, resize: 'vertical' }}
+            />
+          </label>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              type="submit"
+              disabled={view.type === 'loading'}
+              style={{
+                padding: '10px 16px',
+                borderRadius: 8,
+                border: 'none',
+                background: 'var(--sr-foreground)',
+                color: '#fff',
+                fontSize: 14,
+                cursor: view.type === 'loading' ? 'wait' : 'pointer',
+                opacity: view.type === 'loading' ? 0.6 : 1,
+              }}
+            >
+              {view.type === 'loading' ? `处理中（${view.phase ?? '…'}）` : '提问'}
             </button>
+            {view.type === 'error' || view.type === 'abstained' ? (
+              <button type="button" onClick={onRetry} style={linkBtnStyle}>
+                重试
+              </button>
+            ) : null}
+            {activeSessionId ? (
+              <span style={{ fontSize: 11, color: 'var(--sr-muted)' }}>
+                会话 {activeSessionId.slice(0, 8)}…
+              </span>
+            ) : null}
+          </div>
+        </form>
+
+        <div style={{ marginTop: 20 }}>
+          {view.type === 'loading' ? (
+            <p style={{ color: 'var(--sr-muted)', fontSize: 14 }}>正在检索与校验…</p>
+          ) : null}
+          {view.type === 'answered' ? <AnsweredCard data={view.data} /> : null}
+          {view.type === 'abstained' ? <AbstainedCard data={view.data} /> : null}
+          {view.type === 'error' ? (
+            <ErrorCard code={view.code} message={view.message} httpStatus={view.httpStatus} />
           ) : null}
         </div>
-      </form>
-
-      <div style={{ marginTop: 20 }}>
-        {view.type === 'loading' ? (
-          <p style={{ color: 'var(--sr-muted)', fontSize: 14 }}>正在检索与校验…</p>
-        ) : null}
-        {view.type === 'answered' ? <AnsweredCard data={view.data} /> : null}
-        {view.type === 'abstained' ? <AbstainedCard data={view.data} /> : null}
-        {view.type === 'error' ? (
-          <ErrorCard code={view.code} message={view.message} httpStatus={view.httpStatus} />
-        ) : null}
       </div>
     </div>
   );
@@ -235,7 +393,7 @@ function AnsweredCard({ data }: { data: AskResponse }) {
       {!isChitchat && data.citations && data.citations.length > 0 ? (
         <div style={{ marginTop: 16 }}>
           <h2 style={{ margin: 0, fontSize: 13, color: 'var(--sr-muted)', fontWeight: 600 }}>
-            引用（服务端返回）
+            引用（服务端返回 · 非会话历史）
           </h2>
           <ul style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 13, lineHeight: 1.5 }}>
             {data.citations.map((c) => (
@@ -281,11 +439,6 @@ function AbstainedCard({ data }: { data: AskResponse }) {
           ))}
         </ul>
       ) : null}
-      {data.requestId ? (
-        <p style={{ margin: '12px 0 0', fontSize: 11, color: 'var(--sr-muted)' }}>
-          {data.requestId}
-        </p>
-      ) : null}
     </section>
   );
 }
@@ -314,11 +467,24 @@ function ErrorCard({
       </div>
       <p style={{ margin: '12px 0 0', fontSize: 15, fontWeight: 600 }}>{title}</p>
       <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--sr-muted)' }}>{message}</p>
-      <p style={{ margin: '10px 0 0', fontSize: 12, color: 'var(--sr-muted)' }}>
-        与「拒答」不同：这是鉴权/网络/服务端异常，不是「证据不足故不答」。
-      </p>
     </section>
   );
+}
+
+function sessionBtnStyle(active: boolean): CSSProperties {
+  return {
+    display: 'block',
+    width: '100%',
+    textAlign: 'left',
+    padding: '8px 10px',
+    marginBottom: 4,
+    borderRadius: 8,
+    border: active ? '1px solid var(--sr-primary)' : '1px solid transparent',
+    background: active ? '#eff6ff' : 'transparent',
+    cursor: 'pointer',
+    fontSize: 13,
+    color: 'var(--sr-foreground)',
+  };
 }
 
 const inputStyle: CSSProperties = {
@@ -337,7 +503,9 @@ const linkBtnStyle: CSSProperties = {
   background: 'transparent',
   color: 'var(--sr-primary)',
   cursor: 'pointer',
-  fontSize: 13,
+  fontSize: 12,
+  marginTop: 6,
+  padding: 0,
 };
 
 function cardStyle(bg: string, border: string): CSSProperties {

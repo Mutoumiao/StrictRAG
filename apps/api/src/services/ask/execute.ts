@@ -65,8 +65,13 @@ function toAskResponse(
     mode: graph.mode,
     sessionId: graph.sessionId ?? null,
   };
-  if (debug && graph.debug) {
-    base.debug = { ...graph.debug };
+  if (debug) {
+    // P2：rewrite 强制关；可观测 rewriteUsed=false
+    base.debug = {
+      ...(graph.debug ?? {}),
+      rewriteUsed: false,
+      sessionRewriteEnabledDefault: false,
+    };
   }
   return base;
 }
@@ -138,7 +143,12 @@ export async function executeAsk(
               routeLabel: graph.debug.routeLabel,
             }
           : undefined,
-        configSnap: { tauClaim: env.TAU_CLAIM, mode },
+        configSnap: {
+          tauClaim: env.TAU_CLAIM,
+          mode,
+          rewriteUsed: false,
+          sessionRewriteEnabledDefault: false,
+        },
       });
     } catch {
       // 落库失败不阻断业务响应（P2）；#11 可加告警

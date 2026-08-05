@@ -19,6 +19,33 @@ const TauSchema = z
     }
   });
 
+/** 与 env.ts 中 SESSION_REWRITE_ENABLED superRefine 对齐 */
+const RewriteSchema = z
+  .object({
+    SESSION_REWRITE_ENABLED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((v) => v === 'true'),
+  })
+  .superRefine((data, ctx) => {
+    if (data.SESSION_REWRITE_ENABLED) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['SESSION_REWRITE_ENABLED'],
+        message: 'P2 禁止 SESSION_REWRITE_ENABLED=true',
+      });
+    }
+  });
+
+describe('SESSION_REWRITE_ENABLED P2 gate (U8)', () => {
+  it('default false ok', () => {
+    expect(RewriteSchema.safeParse({}).success).toBe(true);
+  });
+  it('true rejected', () => {
+    expect(RewriteSchema.safeParse({ SESSION_REWRITE_ENABLED: 'true' }).success).toBe(false);
+  });
+});
+
 describe('tauClaim unique source', () => {
   it('accepts single TAU_CLAIM', () => {
     const r = TauSchema.safeParse({ TAU_CLAIM: '0.5' });

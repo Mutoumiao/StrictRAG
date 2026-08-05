@@ -15,6 +15,7 @@ import { askRoutes } from './routes/ask.js';
 import { authRoutes } from './routes/auth.js';
 import { documentRoutes } from './routes/documents.js';
 import { memberRoutes } from './routes/members.js';
+import { sessionRoutes } from './routes/sessions.js';
 
 export function createApp() {
   const app = new Hono<{ Variables: ApiVariables }>();
@@ -53,6 +54,7 @@ export function createApp() {
   app.route('/api/v1/auth', authRoutes);
   app.route('/api/v1', documentRoutes);
   app.route('/api/v1', memberRoutes);
+  app.route('/api/v1', sessionRoutes);
   app.route('/api/v1', askRoutes);
 
   return app;

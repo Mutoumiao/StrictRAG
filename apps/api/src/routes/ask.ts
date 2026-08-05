@@ -15,6 +15,10 @@ import {
   type ExecuteAskDeps,
   type ExecuteAskResult,
 } from '../services/ask/index.js';
+import {
+  resolveOwnedSessionDefault,
+  type ResolveOwnedSession,
+} from '../services/ask/session-guard.js';
 import { documentRepo } from '../services/documents.js';
 
 export type AskRouteDeps = {
@@ -23,6 +27,8 @@ export type AskRouteDeps = {
   getKb?: (kbId: string) => Promise<{ id: string; tenantId: string } | null>;
   /** 默认 execute 的图/落库依赖 */
   executeDeps?: ExecuteAskDeps;
+  /** 校验 session 归属（有 sessionId 时） */
+  resolveOwnedSession?: ResolveOwnedSession;
 };
 
 /**
@@ -35,6 +41,7 @@ export function createAskRoutes(deps: AskRouteDeps = {}) {
   const memberMw = requireKbMember({ resolveKbMember: deps.resolveKbMember });
   const run = deps.execute ?? executeAsk;
   const getKb = deps.getKb ?? ((id: string) => documentRepo.getKb(id));
+  const resolveSession = deps.resolveOwnedSession ?? resolveOwnedSessionDefault;
 
   routes.post('/knowledge-bases/:kbId/ask', memberMw, async (c) => {
     const kbId = c.req.param('kbId');
@@ -61,6 +68,19 @@ export function createAskRoutes(deps: AskRouteDeps = {}) {
     const auth = c.get('auth');
     if (!auth) {
       return fail(c, BizCode.UNAUTHORIZED, 'authentication required', 401);
+    }
+
+    // 有 sessionId：须存在且本人本 KB；不跑 rewrite（P2）
+    const sessionId = parsed.data.sessionId ?? null;
+    if (sessionId) {
+      const owned = await resolveSession({
+        sessionId,
+        kbId,
+        userId: auth.userId,
+      });
+      if (!owned) {
+        return fail(c, BizCode.NOT_FOUND, 'session not found', 404, { sessionId });
+      }
     }
 
     const membership = roleBypassesKbMembership(auth.roles) ? 'super_admin' : 'member';
