@@ -6,6 +6,7 @@ import {
   type GatewayClient,
 } from '../gateway/index.js';
 import { env } from '../../env.js';
+import { recordRerank } from '../../obs/metrics.js';
 import { loadCorpusFromDb } from './corpus.js';
 import { rrfFuse } from './rrf.js';
 import { cosine, rankByScore, sparseOverlapScore } from './scoring.js';
@@ -105,7 +106,9 @@ export async function runRetrieve(
   let rerankHits: { index: number; score: number }[];
   try {
     rerankHits = await deps.rerank(input.question, passages, Math.min(rerankTopN, passages.length));
+    recordRerank(true);
   } catch (err) {
+    recordRerank(false, err instanceof GatewayError ? err.kind : 'error');
     if (err instanceof GatewayError) {
       return fail(mapGatewayFailureToAskReason(err, 'rerank'), err.message);
     }
@@ -113,6 +116,7 @@ export async function runRetrieve(
   }
 
   if (rerankHits.length === 0) {
+    recordRerank(false, 'empty');
     return fail('low_retrieval', 'rerank returned empty');
   }
 

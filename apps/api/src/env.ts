@@ -93,6 +93,30 @@ const EnvSchema = z
       .enum(['true', 'false'])
       .default('false')
       .transform((v) => v === 'true'),
+    /**
+     * ask 试点限流：每用户每 KB 每分钟上限。
+     * 0 = 关闭（默认 0，避免 CI/demo 踩限流；试点可设 30）。
+     */
+    ASK_RATE_LIMIT_RPM: z.coerce.number().int().min(0).default(0),
+    /**
+     * Langfuse 开关。true 时打 mock export 日志；未配密钥仍可 ask。
+     * 真 SDK 接线不阻塞本切片。
+     */
+    LANGFUSE_ENABLED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((v) => v === 'true'),
+    LANGFUSE_PUBLIC_KEY: z.string().optional().default(''),
+    LANGFUSE_SECRET_KEY: z.string().optional().default(''),
+    LANGFUSE_BASE_URL: z.string().optional().default(''),
+    /**
+     * 进程内 memory tracer（dev mock exporter）。
+     * 默认 true；压测可关。
+     */
+    OBS_MEMORY_TRACE: z
+      .enum(['true', 'false'])
+      .default('true')
+      .transform((v) => v === 'true'),
   })
   .superRefine((data, ctx) => {
     if (data.INGEST_MAX_FILE_BYTES > data.INGEST_MAX_FILE_BYTES_CEILING) {

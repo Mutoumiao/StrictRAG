@@ -9,6 +9,8 @@ import {
   type GraphDeps,
 } from '../../graph/index.js';
 import { env } from '../../env.js';
+import { childLogger } from '../../logger.js';
+import { createAskTracer, recordAskResult } from '../../obs/index.js';
 import { getGateway } from '../gateway/index.js';
 import { createDefaultRetrieveDeps } from '../retrieve/index.js';
 import { saveAskTrace } from './traces.js';
@@ -34,6 +36,8 @@ export type ExecuteAskDeps = {
   saveTrace?: typeof saveAskTrace;
   /** 跳过落库（单测） */
   skipTrace?: boolean;
+  /** 跳过默认 tracer 注入（graphDeps 已自带 tracer 时） */
+  skipDefaultTracer?: boolean;
 };
 
 function toEvidenceSnapshot(graph: AskGraphResult): EvidenceSnapshotItem[] {
@@ -87,6 +91,22 @@ export async function executeAsk(
   const started = Date.now();
   const mode = params.body.options?.mode ?? 'balanced';
   const locale = params.body.options?.locale ?? 'zh-CN';
+  const log = childLogger({
+    requestId: params.requestId,
+    tenantId: params.tenantId,
+    userId: params.userId,
+    kbId: params.kbId,
+    sessionId: params.body.sessionId ?? undefined,
+  });
+
+  const obs = createAskTracer({
+    requestId: params.requestId,
+    tenantId: params.tenantId,
+    userId: params.userId,
+    kbId: params.kbId,
+    sessionId: params.body.sessionId,
+    mode,
+  });
 
   const graphDeps: GraphDeps =
     deps.graphDeps ??
@@ -95,8 +115,14 @@ export async function executeAsk(
       return {
         chat: chatFromGateway(gw),
         retrieveDeps: createDefaultRetrieveDeps(gw),
+        tracer: obs.tracer,
       };
     })();
+
+  // 注入 tracer（测例自带 graphDeps 时合并，除非 skip）
+  if (!deps.skipDefaultTracer && deps.graphDeps && !deps.graphDeps.tracer) {
+    graphDeps.tracer = obs.tracer;
+  }
 
   const graph = await runAskGraph(
     {
@@ -117,6 +143,19 @@ export async function executeAsk(
   const latencyMs = Date.now() - started;
   const response = toAskResponse(graph, latencyMs, params.body.options?.debug === true);
   const evidenceSnapshot = toEvidenceSnapshot(graph);
+
+  // 指标 + Langfuse mock scores（拒答也完整 trace）
+  recordAskResult({
+    status: response.status,
+    reason: response.reason,
+    ok: response.status === 'answered',
+  });
+  obs.finish({
+    answered: response.status === 'answered',
+    min_support: response.minSupport,
+    reason_code: response.reason,
+    latency_ms: latencyMs,
+  });
 
   if (!deps.skipTrace) {
     const save = deps.saveTrace ?? saveAskTrace;
@@ -150,10 +189,21 @@ export async function executeAsk(
           sessionRewriteEnabledDefault: false,
         },
       });
-    } catch {
-      // 落库失败不阻断业务响应（P2）；#11 可加告警
+    } catch (err) {
+      // 落库失败不阻断 200，但不得静默：warn 可观测
+      log.warn({ err }, 'ask_traces save failed');
     }
   }
+
+  log.info(
+    {
+      status: response.status,
+      reason: response.reason,
+      latencyMs,
+      spanCount: obs.memory?.getRecord().spans.length,
+    },
+    'ask execute done',
+  );
 
   // 空库：409 优先于 200+kb_not_ready（API 冻结）
   if (graph.reason === 'kb_not_ready') {

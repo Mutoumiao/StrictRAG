@@ -19,7 +19,7 @@ export function fail(
   c: Context<{ Variables: ApiVariables }>,
   code: BizCode,
   message: string,
-  httpStatus: 400 | 401 | 403 | 404 | 409 | 413 | 500 = 400,
+  httpStatus: 400 | 401 | 403 | 404 | 409 | 413 | 429 | 500 = 400,
   details?: unknown,
 ) {
   const error: ApiError = { code, message, details };

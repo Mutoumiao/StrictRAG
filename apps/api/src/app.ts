@@ -10,6 +10,7 @@ import { env, toHealthEnv } from './env.js';
 import { childLogger } from './logger.js';
 import { attachAuthMiddleware } from './auth/middleware.js';
 import { requestIdMiddleware, type ApiVariables } from './middleware/request-id.js';
+import { metricsSnapshot } from './obs/index.js';
 import { runReadyChecks } from './ready/checks.js';
 import { askRoutes } from './routes/ask.js';
 import { authRoutes } from './routes/auth.js';
@@ -51,6 +52,9 @@ export function createApp() {
     }
     return c.json(parsed, ready ? 200 : 503);
   });
+
+  /** 指标骨架快照（P2 无鉴权；生产可前置网关保护） */
+  app.get('/metrics', (c) => c.json({ service: 'api', metrics: metricsSnapshot() }, 200));
 
   app.route('/api/v1/auth', authRoutes);
   app.route('/api/v1', documentRoutes);

@@ -10,6 +10,13 @@ import { requireKbMember, type AuthVariables, type ResolveKbMember } from '../au
 import { roleBypassesKbMembership } from '../auth/permissions/resolve.js';
 import { childLogger } from '../logger.js';
 import { fail, ok } from '../lib/response.js';
+import { env } from '../env.js';
+import {
+  askRateLimitKey,
+  checkFixedWindowRateLimit,
+  recordRateLimited,
+  type RateLimitResult,
+} from '../obs/index.js';
 import {
   executeAsk,
   type ExecuteAskDeps,
@@ -29,6 +36,8 @@ export type AskRouteDeps = {
   executeDeps?: ExecuteAskDeps;
   /** 校验 session 归属（有 sessionId 时） */
   resolveOwnedSession?: ResolveOwnedSession;
+  /** 限流；默认按 env.ASK_RATE_LIMIT_RPM */
+  checkRateLimit?: (userId: string, kbId: string) => RateLimitResult;
 };
 
 /**
@@ -42,11 +51,16 @@ export function createAskRoutes(deps: AskRouteDeps = {}) {
   const run = deps.execute ?? executeAsk;
   const getKb = deps.getKb ?? ((id: string) => documentRepo.getKb(id));
   const resolveSession = deps.resolveOwnedSession ?? resolveOwnedSessionDefault;
+  const checkLimit =
+    deps.checkRateLimit ??
+    ((userId: string, kbId: string) =>
+      checkFixedWindowRateLimit(askRateLimitKey(userId, kbId), {
+        limit: env.ASK_RATE_LIMIT_RPM,
+      }));
 
   routes.post('/knowledge-bases/:kbId/ask', memberMw, async (c) => {
     const kbId = c.req.param('kbId');
     const requestId = c.get('requestId');
-    const log = childLogger({ requestId, kbId });
 
     let raw: unknown;
     try {
@@ -86,12 +100,27 @@ export function createAskRoutes(deps: AskRouteDeps = {}) {
     const membership = roleBypassesKbMembership(auth.roles) ? 'super_admin' : 'member';
     const tenantId = auth.tenantId ?? kb.tenantId;
 
+    const log = childLogger({
+      requestId,
+      kbId,
+      userId: auth.userId,
+      tenantId,
+      sessionId: sessionId ?? undefined,
+    });
+
+    // 试点限流（ASK_RATE_LIMIT_RPM>0）
+    const rl = checkLimit(auth.userId, kbId);
+    if (!rl.ok) {
+      recordRateLimited('ask');
+      log.warn({ retryAfterSec: rl.retryAfterSec }, 'ask rate limited');
+      return fail(c, BizCode.RATE_LIMITED, 'ask rate limit exceeded', 429, {
+        retryAfterSec: rl.retryAfterSec,
+      });
+    }
+
     const wantStream =
       parsed.data.options?.stream === true ||
       (c.req.header('accept') ?? '').includes('text/event-stream');
-
-    // 限流钩子位（完整限流 → observability #11）
-    // rateLimitHook?.('ask', { userId: auth.userId, kbId });
 
     if (!wantStream) {
       const result = await run(

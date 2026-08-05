@@ -30,6 +30,7 @@ import {
   type AskGraphState,
   type GraphEvidence,
 } from './state.js';
+import { recordLlmCall } from '../obs/metrics.js';
 import { noopTracer, type SpanTracer } from './tracer.js';
 
 export type GraphChat = (
@@ -434,7 +435,13 @@ export async function runAskGraph(
 /** 从 Gateway 构造 GraphChat（每次 chat 1 次计费由 run 负责） */
 export function chatFromGateway(gateway: GatewayClient): GraphChat {
   return async (purpose, messages) => {
-    const res = await gateway.chat({ purpose, messages });
-    return res.text;
+    try {
+      const res = await gateway.chat({ purpose, messages });
+      recordLlmCall(purpose, true);
+      return res.text;
+    } catch (err) {
+      recordLlmCall(purpose, false);
+      throw err;
+    }
   };
 }

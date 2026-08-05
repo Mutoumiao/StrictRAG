@@ -6,6 +6,28 @@ Hono + Node HTTP API。
 
 - `GET /health` — 进程存活
 - `GET /ready` — PG / Redis（硬依赖）+ 可选 ES / Gateway 探测
+- `GET /metrics` — 进程内指标骨架快照（P2 · #11）
+
+## 可观测 / 限流（S2 · #11）
+
+| 项 | 说明 |
+|----|------|
+| **Memory tracer** | `OBS_MEMORY_TRACE=true`（默认）：每次 ask 记录 `kb.ask` 主链 span（route→…→finalize） |
+| **Langfuse** | `LANGFUSE_ENABLED=true` 时打 mock export 日志；真 SDK 后接；关开关不影响 ask |
+| **限流** | `ASK_RATE_LIMIT_RPM`（默认 **0**=关）；试点可设 `30`；超限 **429** `RATE_LIMITED` |
+| **指标** | `ask_total` / `ask_ok` / `ask_fail` · `llm_call_total` · `rerank_total` · `ask_rate_limited_total` |
+| **日志上下文** | `requestId, tenantId, userId, kbId, sessionId?`（ask 路径） |
+
+```bash
+# 指标快照
+curl -sS http://127.0.0.1:4000/metrics | jq .
+
+# 试点限流示例
+ASK_RATE_LIMIT_RPM=30 pnpm --filter @strict-rag/api dev
+```
+
+span 名（设计 §14）：`ask.route` · `ask.retrieve` · `ask.generate` · `ask.claim_split` · `ask.verify` · `ask.finalize`。  
+score：`answered` · `min_support` · `reason_code` · `latency_ms`。
 
 ## 本地
 
