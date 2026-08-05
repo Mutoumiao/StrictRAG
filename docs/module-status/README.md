@@ -43,7 +43,7 @@
 |------|------|
 | 端到端成熟度 | **只在本矩阵写一次**；包文档写本包成熟度 |
 | 冲突 | 以 **代码 + 包文档** 为准，再回写矩阵 |
-| 延期能力 | 链 [phase-2-backlog](../../.trellis/tasks/08-05-phase-2-backlog/status.md)，**不在此复抄 B1–B11 全文** |
+| 延期能力 | 链 [phase-2-backlog](../../.trellis/tasks/archive/2026-08/08-05-phase-2-backlog/status.md)（已归档扫表），**不在此复抄 B1–B11 全文** |
 | 项目级承诺 | 链 [交付控制台 §0](../../prds/12-delivery-guides/04-交付控制台.md)，不在此写对外话术长段 |
 | 包文档待补 | 矩阵仍可标端到端状态；「详见」指向已有包文或标注「包状态待补」 |
 
@@ -130,7 +130,8 @@ task 完成
 ## 交叉引用
 
 - 交付总览（项目望远镜）：`prds/12-delivery-guides/04-交付控制台.md` §0  
-- P2 欠账单：`.trellis/tasks/08-05-phase-2-backlog/status.md`  
-- 工程约定（HOW）：`.trellis/spec/`  
+- P2 欠账单（归档）：`.trellis/tasks/archive/2026-08/08-05-phase-2-backlog/status.md`  
+- S2 epic 签字（归档）：`.trellis/tasks/archive/2026-08/08-05-phase-2-ask/sign-off.md`  
+- 工程约定（HOW）：`.trellis/spec/`（含 `api/backend/ask-pipeline.md`）  
 - 产品 SSOT（WHAT）：`prds/00–11/`  
 - 包显微镜（IS）：本目录 `<包>.md`

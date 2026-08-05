@@ -72,5 +72,5 @@ Next.js 用户端：**登录 + 单轮问答（SSE）+ 会话列表/历史回放*
 | 问答面板 | `src/components/ask-panel.tsx` |
 | SSE | `src/lib/ask-sse.ts` · `ask-sse-parse.ts` · `ask-sse.test.ts` |
 | 会话 API 客户端 | `src/lib/sessions-api.ts` |
-| Task | `08-05-p2-web-ask-ui` · `08-05-p2-sessions-shell` |
-| 签字 | epic `08-05-phase-2-ask/sign-off.md`（含 web-ask-ui） |
+| Task（归档） | `.trellis/tasks/archive/2026-08/08-05-p2-web-ask-ui/` · `08-05-p2-sessions-shell/` |
+| 签字（归档） | `.trellis/tasks/archive/2026-08/08-05-phase-2-ask/sign-off.md` |

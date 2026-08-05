@@ -56,13 +56,16 @@
 
 ## 与当前阶段关系
 
-当前 **无** ask 运行时（P2 编码前）。本红线用于：
+**S2 最小 ask 已落地**（线性图 + SSE + 会话壳；ES 默认 mock；rewrite 强制关）。  
+Epic `08-05-phase-2-ask` 已关并归档；**≠** 路线图 Phase 2 全文。
 
-1. 评审 PRD / Trellis 任务是否放宽冻结语义（含 `08-05-phase-2-ask*`）  
-2. Phase 2 写 LangGraph 节点时的检查单（`p2-graph-mvp` · `p2-ask-api-sse` 必对表）  
-3. 禁止「为了 demo 先通」的临时绕过合入 main（含 rerank 静默降级）
+本红线仍用于：
 
-**不要**在设计未冻前为「预埋」而复制一整套假 verify；按 `phase-2-ask-design` 落地。
+1. 评审后续 feature（B1/B8…、P2.5、P3a）是否放宽冻结语义  
+2. 改 `graph/` · `retrieve/` · `routes/ask` 时的检查单（对照 [api ask-pipeline](../api/backend/ask-pipeline.md)）  
+3. 禁止「为了 demo 先通」的临时绕过合入 main（含 rerank 静默降级、假 ES 当生产）
+
+**下一阶段禁止**：未 P2.5 二元出口进入 P3a CRAG；未 B8 专项宣称生产 ES。
 
 ---
 
@@ -70,4 +73,5 @@
 
 - 该改动是否让 **拒答变少** 却无对应 ADR？  
 - evidence 文本在 generate 与 verify 是否 **同一切片**？  
-- 失败路径是否有 **稳定 reason 码**（非吞掉异常）？
+- 失败路径是否有 **稳定 reason 码**（非吞掉异常）？  
+- 是否误开 rewrite 或把历史当 evidence？

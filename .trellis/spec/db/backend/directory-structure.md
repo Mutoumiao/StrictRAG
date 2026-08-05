@@ -1,47 +1,45 @@
 # db · 目录结构
 
-## 当前（骨架）
+## 当前（P1 + S2 schema）
 
 ```text
 packages/db/
-  package.json
-    scripts: build/check-types/lint
-             db:generate / db:migrate → echo Phase 0 占位
+  package.json            # db:generate · db:migrate 等
+  drizzle/                # 迁移 SQL（评审入口）
   src/
-    index.ts    # export const DB_SCAFFOLD = true
+    index.ts              # 导出 client / schema / query helpers
+    client.ts
+    time.ts               # 本地格式串写库
+    query/
+      retrieval-gate.ts   # isDefaultRetrievable：ready ∧ active
+      retrieval-gate.test.ts
+    schema/
+      index.ts
+      _shard/base-columns.ts
+      system/
+        schema-meta.ts · users.ts
+      kb/
+        knowledge-bases.ts · documents.ts · chunks.ts
+        chunk-embeddings.ts · chunk-manifests.ts
+        kb-members.ts · ingest-jobs.ts
+      ask/
+        ask-sessions.ts · ask-traces.ts · ask-feedback.ts
 ```
 
-**无** `drizzle.config.*`、**无** `schema/`、**无** migrations 目录（Phase 0 再建）。
-
-## 目标组织（PRD · 实现时）
-
-来自 `prds/02-engineering/02-orm-drizzle.md`：
-
-```text
-src/
-  schema/
-    _shard/base-columns.ts
-    kb/
-      knowledge-bases.ts
-      documents.ts
-      chunks.ts
-      chunk-embeddings.ts
-      kb-members.ts
-      ...
-  index.ts          # 导出 db client 工厂、schema、relations
-```
+## 规则
 
 | 规则 | 说明 |
 |------|------|
-| 唯一 ORM | Drizzle + postgres-js |
-| 迁移 | drizzle-kit generate + migrate |
-| 共用 | api 与 worker 都依赖本包；禁止双份 schema |
+| 唯一 ORM | Drizzle + postgres-js；禁 Prisma |
+| 共用 | api 与 worker **必须**依赖本包；禁止双份 schema |
+| 检索闸 | P2 retrieve **必须**复用 `isDefaultRetrievable`（ADR-038） |
+| 时间 / ID | 本地格式串写库；uuid v7（见 database-guidelines） |
 
-## 脚本目标
+## 脚本
 
 | 脚本 | 意图 |
 |------|------|
 | `db:generate` | drizzle-kit generate |
 | `db:migrate` | 生产可重复 migrate |
 
-实现后根目录或本包提供统一 `pnpm` 入口（与工程 PRD 对齐）。
+**生产禁止** `db:push` 直接改线上。

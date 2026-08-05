@@ -1,26 +1,30 @@
 # @strict-rag/api · Hono HTTP 后端
 
 > 路径：`apps/api` · 目标端口 **4000**  
-> 现状：Phase 0 health/ready + Phase 1 入库 API + **身份/授权骨架**（双 token 过渡 · 权限码求值）；SQL 在 `services/`。
+> 现状：**P0/P1 入库** + **S2 最小 ask**（图/SSE/会话壳/反馈/Gateway/检索 mock）+ 身份/授权骨架。  
+> 默认：`RETRIEVE_ES_MODE=mock` · `AUTH_ENFORCE=false` · `SESSION_REWRITE_ENABLED=false`（强制）· Gateway 缺 URL→mock。
 
 ---
 
 ## Pre-Development Checklist
 
-- [ ] 任务是否属于已批准 Phase？  
+- [ ] 任务是否属于已批准范围？（勿把 backlog B1–B11 静默塞进已关 S2 epic）  
 - [ ] DTO/错误码是否来自 `@strict-rag/contracts`，且对外 code 为 **PRD §4 短名**？  
+- [ ] 触及 ask / 检索 / 验证时是否读 [quality-redlines](../../guides/quality-redlines.md) + [ask-pipeline](./ask-pipeline.md)？  
 - [ ] 权限是否 **以码为准**（读 [auth-authorization](./auth-authorization.md)）？  
-- [ ] 新登录/refresh/会话字段是否改 contracts + 双端 http？  
-- [ ] `AUTH_ENFORCE` / demo-ingest 影响是否评估？  
+- [ ] ask / sessions / members 是否 **始终**成员闸（与 `AUTH_ENFORCE` 无关）？  
+- [ ] 新登录/refresh/会话/ask 字段是否改 contracts + 双端 http？  
 - [ ] DB 是否经 `@strict-rag/db`（禁止 app 私有 schema）？  
 - [ ] 是否避免 route 内 SQL / ES DSL / 长 Prompt？  
+- [ ] 是否误开 `SESSION_REWRITE_ENABLED` 或宣称生产 ES？  
 - [ ] 密钥是否仅服务端 env（JWT 禁止 prod 默认 dev-only）？  
 
 ## Quality Check
 
 - [ ] `pnpm --filter @strict-rag/api check-types` · `lint` · `test`  
 - [ ] 鉴权改动含 resolve / token rotation 测试  
-- [ ] 未实现业务却声称「可问答/可入库」  
+- [ ] ask 改动含 graph/route 拒答与成员 403 断言  
+- [ ] 提交说明写清 S2 最小 / mock / 未做项；禁止「全文 Phase 2 完成」  
 
 ---
 
@@ -28,11 +32,12 @@
 
 | 指南 | 说明 |
 |------|------|
-| [directory-structure](./directory-structure.md) | 现状与目标布局 |
+| [directory-structure](./directory-structure.md) | 现状布局 |
+| [ask-pipeline](./ask-pipeline.md) | **Ask 信任路径 code-spec**（图 · SSE · 检索 · Gateway · env） |
 | [quality-guidelines](./quality-guidelines.md) | 质量与禁项 |
 | [error-handling](./error-handling.md) | 错误与信封 |
 | [logging-guidelines](./logging-guidelines.md) | Pino 上下文 |
-| [auth-authorization](./auth-authorization.md) | 身份双 token + 权限码（参考 partner） |
+| [auth-authorization](./auth-authorization.md) | 身份双 token + 权限码 |
 
 ## 依赖（package.json）
 
@@ -41,5 +46,6 @@
 ## PRD 映射
 
 - `prds/05-api/01-http-api-hono.md`  
-- `prds/02-engineering/01-clhoria-template-alignment.md`  
-- Phase 0：`prds/10-delivery/01-phased-roadmap.md`
+- `prds/04-pipelines/02-online-ask-langgraph.md`  
+- `prds/07-models` · `prds/08-quality` · `prds/09-security`  
+- IS：`docs/module-status/api.md`

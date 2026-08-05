@@ -69,4 +69,4 @@ Drizzle schema + client：**知识库/文档/分片/向量/入库任务/成员**
 | Ask 表 | `packages/db/src/schema/ask/*` |
 | 检索闸 | `packages/db/src/query/retrieval-gate.ts` · `retrieval-gate.test.ts` |
 | Client | `packages/db/src/client.ts` |
-| Task | `08-05-p2-contracts-schema` · archive `08-04-p1-kb-doc-schema` 等 |
+| Task（归档） | `.trellis/tasks/archive/2026-08/08-05-p2-contracts-schema/` · `08-04-p1-kb-doc-schema` 等 |

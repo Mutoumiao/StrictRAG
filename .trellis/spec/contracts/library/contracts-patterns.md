@@ -58,9 +58,7 @@ export type BizCode = (typeof BizCode)[keyof typeof BizCode];
 
 ## 3. Zod 契约
 
-**文件**：`packages/contracts/src/system/health.contract.ts`
-
-模式：
+**模式**（各域同形）：
 
 ```typescript
 export const HealthResponseSchema = z.object({ /* ... */ });
@@ -70,13 +68,26 @@ export type HealthResponse = z.infer<typeof HealthResponseSchema>;
 | 规则 | 说明 |
 |------|------|
 | Schema + infer 类型同文件 | 单一来源 |
-| Phase 0 | `service: 'api' \| 'worker'`；`ReadyResponse.checks` 可选 |
-| 校验位置 | api 出口或测试断言；实现阶段入口 body 也用同包 schema |
+| 校验位置 | api 入口 body + 出口/测试断言；前端只消费类型 |
+| ask options/scope | **`.strict()`**；未知键 400（ADR-050） |
 
-当前 Health：
+### 3.1 Health（`system/health.contract.ts`）
 
 - `status: z.literal('ok')`  
 - `env: development \| test \| staging \| production`  
+- `service: 'api' \| 'worker'`；`ReadyResponse.checks` 可选  
+
+### 3.2 Ask（`ask/ask.contract.ts` · S2）
+
+| Schema | 约束 |
+|--------|------|
+| `AskOptionsSchema` | 仅 stream / debug / mode / locale |
+| `AskScopeSchema` | 顶层 docTypes；**不**进 options |
+| `AskRequestSchema` | question 1–8000；sessionId uuid?；strict |
+| `AskResponseSchema` | status answered\|abstained；citations；reason；与 SSE final 同源 |
+
+**语义**：ask 业务拒答 → 常为 HTTP **200** + `status: abstained`（非 `ApiFailure`）；协议/鉴权错误才走 failure 信封。  
+细节： [api ask-pipeline](../../api/backend/ask-pipeline.md)。 
 
 ---
 

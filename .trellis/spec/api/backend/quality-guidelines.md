@@ -38,13 +38,16 @@
 
 码表与模板 SSOT：`@strict-rag/admin-catalog` + `prds/09-security`。
 
-## Phase 0 优先实现
+## 已落地阶段（勿回退）
 
-1. `GET /health` · `GET /ready` — 形状对齐 `HealthResponseSchema` / `ReadyResponseSchema`  
-2. `env.ts` Zod；缺关键密钥时 staging/production 拒绝启动（见工程 PRD）  
-3. 配置侧校验（如 **tauClaim 唯一来源**、`RERANK_MIN_NODES` 分档）——属服务端配置闸，**非**客户端 options  
-4. Pino + requestId  
-5. 与 compose 依赖的 ready checks（PG/Redis 等）  
+| 阶段 | 能力 |
+|------|------|
+| P0 | health/ready · env · Pino · requestId · compose 依赖检查 |
+| P1 | 入库 API · 审批/体积闸 · worker 入队 |
+| S2 最小 | ask 图/SSE · 会话壳 · 反馈 · Gateway 切片 · 检索 mock · 观测骨架 |
+
+S2 细节与错误矩阵见 [ask-pipeline](./ask-pipeline.md)。  
+下一刀：按 backlog（B1/B8…）**新建** feature 任务；禁止宣称全文 Phase 2 / 生产 ES。
 
 ## 编码风格
 
@@ -59,5 +62,9 @@
 - **Bad**：前端可调的 debug 开关关闭 verify  
 - **Bad**：admin 壳用旧 ADR-045 role 公式  
 - **Bad**：相对 `STORAGE_LOCAL_DIR` 依赖 api 进程 cwd（与 worker 分裂）  
+- **Bad**：route 内展开 Prompt / ES DSL；rerank 失败仍 `answered`  
+- **Bad**：`SESSION_REWRITE_ENABLED=true` 或把历史当 evidence  
+- **Bad**：`RETRIEVE_ES_MODE=mock` 时对外说「生产 ES」  
 - **Good**：重活入队 worker；api 只做受理与查询；权限以码为准  
-- **Good**：`STORAGE_LOCAL_DIR` 相对路径解析到 monorepo 根
+- **Good**：`STORAGE_LOCAL_DIR` 相对路径解析到 monorepo 根  
+- **Good**：ask 走 `executeAsk` → `runAskGraph`；同步 DTO ≡ SSE final

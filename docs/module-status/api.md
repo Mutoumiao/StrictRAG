@@ -34,12 +34,12 @@ Hono HTTP 后端：入库 API、临时双 JWT 鉴权、单轮 ask 图/SSE 与会
 - SQL 在 `services/`，路由薄
 
 ### 问答（S2 最小）
-- 同步 ask + SSE；图：检索 → 约束生成 → 验证 → 拒答
-- 会话列表/详情壳（**rewrite 强制关**，env 校验拒绝 `true`）
+- 同步 ask + SSE；**线性状态机**（非 LangGraph.js）：检索 → 约束生成 → 验证 → 拒答（`graph/run.ts`）
+- 会话列表/详情壳（**rewrite 强制关**，`SESSION_REWRITE_ENABLED=true` 启动失败）
 - 反馈提交/管理队列 API（`routes/feedback`）
-- Gateway 切片（`GATEWAY_MODE` mock/http；缺配置走 mock client）
-- 检索适配层（RRF/打分；`RETRIEVE_ES_MODE` **默认 mock**；`http` **仅枚举预留**，运行即拒，≠ 生产 ES）
-- 观测骨架：进程内 metrics · memory tracer · ask 限流（`ASK_RATE_LIMIT_RPM` 默认 0=关）
+- Gateway 切片（`GATEWAY_MODE` mock/http；缺 URL→mock client）
+- 检索适配层（RRF/打分；`RETRIEVE_ES_MODE` **默认 mock**；`http` **运行即拒** `not implemented`，≠ 生产 ES）
+- 观测骨架：进程内 metrics · memory tracer · ask 限流（`ASK_RATE_LIMIT_RPM` 默认 0=关）· `/metrics` 无鉴权
 
 ---
 
@@ -91,5 +91,7 @@ Hono HTTP 后端：入库 API、临时双 JWT 鉴权、单轮 ask 图/SSE 与会
 | 观测 | `apps/api/src/obs/` |
 | env 默认 | `apps/api/src/env.ts`（`RETRIEVE_ES_MODE=mock` · `AUTH_ENFORCE=false` · `SESSION_REWRITE_ENABLED=false`） |
 | 单测 | `apps/api/src/**/*.test.ts`（ask / graph / retrieve / members / feedback / sessions / obs 等） |
-| Task | epic `08-05-phase-2-ask`（已关）· P0/P1 archive |
-| 签字 | `.trellis/tasks/08-05-phase-2-ask/sign-off.md` |
+| Task（归档） | `.trellis/tasks/archive/2026-08/08-05-phase-2-ask/` · 子任务 `08-05-p2-*` 同目录 |
+| 签字（归档） | `.trellis/tasks/archive/2026-08/08-05-phase-2-ask/sign-off.md` |
+| 挂账（归档） | `.trellis/tasks/archive/2026-08/08-05-phase-2-backlog/status.md` |
+| HOW | `.trellis/spec/api/backend/ask-pipeline.md` |

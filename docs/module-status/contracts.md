@@ -69,4 +69,4 @@
 | ask 域 | `packages/contracts/src/ask/*` |
 | 入库 | `packages/contracts/src/ingest/document.contract.ts` |
 | 单测 | `packages/contracts/src/ask/ask.contract.test.ts` |
-| Task | `08-05-p2-contracts-schema` · archive P0/P1 契约落地 |
+| Task（归档） | `.trellis/tasks/archive/2026-08/08-05-p2-contracts-schema/` · P0/P1 archive |

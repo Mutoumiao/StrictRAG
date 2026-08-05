@@ -1,35 +1,39 @@
 # api · 目录结构
 
-## 当前
+## 当前（S2 最小）
 
 ```text
 apps/api/src/
-  index.ts              # 启动
-  app.ts                # createApp：requestId → attachAuth → routes
-  env.ts                # Zod env（含 JWT_* · AUTH_ENFORCE）
+  index.ts                 # 启动
+  app.ts                   # createApp：requestId → attachAuth → routes
+  env.ts                   # Zod env（JWT · AUTH · GATEWAY · RETRIEVE · SESSION_REWRITE · OBS）
   auth/
     types.ts
-    middleware.ts       # attachAuth · requireAuth · requirePermission · WhenEnforced · requireKbMember
-    identity/           # 双 JWT 过渡（可换 Better Auth）
-      jwt.ts
-      refresh-store.ts  # MVP 进程内；生产迁 Redis/PG
-      token-service.ts
-    permissions/
-      resolve.ts        # 有效码求值
-  graph/                # ask MVP 信任路径（route→retrieve→generate→verify→finalize）
-    run.ts prompts.ts route-rules.ts tracer.ts …
+    middleware.ts          # attachAuth · requireAuth · requirePermission · WhenEnforced · requireKbMember
+    identity/              # 双 JWT 过渡
+      jwt.ts · refresh-store.ts · token-service.ts
+    permissions/resolve.ts # 有效码求值 · super_admin 旁路成员
+  graph/                   # 单轮信任路径（线性状态机）
+    run.ts · state.ts · prompts.ts · parse.ts · route-rules.ts
+    budget.ts · reasons.ts · tracer.ts · graph.test.ts
   routes/
-    auth.ts             # dev-login（upsert users）· refresh · me
-    documents.ts        # Phase1 入库（AUTH_ENFORCE 默认 false）
-    members.ts          # KB 成员 CRUD（始终 member.manage + 成员闸）
-    ask.ts              # POST …/ask 同步+SSE（始终成员闸）
+    auth.ts                # dev-login · refresh · me
+    documents.ts           # P1 入库
+    members.ts             # 成员 list/invite/delete
+    ask.ts                 # POST …/ask 同步+SSE
+    sessions.ts            # 会话壳（无 rewrite）
+    feedback.ts            # 反馈队列
   middleware/request-id.ts
   services/
-    members.ts documents.ts …
-    gateway/            # chat · embed · rerank（mock|http；密钥仅 env）
-    retrieve/           # 混合检索 + 双闸门 + RRF + rerank（RETRIEVE_ES_MODE）
-    ask/                # executeAsk · ask_traces 落库
+    documents.ts · members.ts · sessions.ts · feedback.ts · db.ts · storage.ts · queue.ts
+    ask/                   # executeAsk · session-guard · traces 落库
+    gateway/               # chat · embed · rerank（mock|http）
+    retrieve/              # 混合检索 · 双闸门 · RRF · scoring
+  obs/                     # metrics · rate-limit · memory/ask tracer
+  gates/                   # 上传体积 · 审批 scan
+  ready/checks.ts
   lib/response.ts
+  logger.ts
 ```
 
 ## 职责
@@ -39,15 +43,16 @@ apps/api/src/
 | HTTP | Hono + Node（**非**默认 CF Workers） |
 | 身份 | Bearer access；refresh rotation（见 [auth-authorization](./auth-authorization.md)） |
 | 授权 | 权限码；**禁止** role 字符串单独放行 |
+| Ask | 始终 KB 成员闸；SQL/图/Prompt 不在 route 内展开（见 [ask-pipeline](./ask-pipeline.md)） |
 | 入队 | BullMQ；重活在 worker |
 | 契约 | `@strict-rag/contracts` |
 
-前缀：`/api/v1`；鉴权路由：`/api/v1/auth/*`。
+前缀：`/api/v1`；鉴权：`/api/v1/auth/*`；指标：`GET /metrics`（骨架无鉴权）。
 
 ## 脚本
 
 | 脚本 | 说明 |
 |------|------|
 | `dev` / `start` | tsx 起服 :4000 |
-| `test` | vitest（含 auth 求值与 token rotation） |
+| `test` | vitest（auth · graph · ask · retrieve · sessions · feedback · obs …） |
 | `check-types` / `lint` | tsc · eslint |

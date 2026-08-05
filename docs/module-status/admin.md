@@ -8,7 +8,7 @@
 | 默认依赖模式 | 鉴权=临时双 JWT + admin **dev-login**（经 api `AUTH_ENFORCE`）· KB=手填 uuid · 菜单仅展示已实现路由 |
 | 关联模块 | API：`api` 文档/审批/成员；菜单+权限码：`admin-catalog`；契约：`contracts` |
 | 最近更新 | 2026-08-05 |
-| Spec | `.trellis/spec/admin/`（若有）· 前端约定对齐 web |
+| Spec | `.trellis/spec/admin/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · 审批/成员相关 API |
 
 ## 一句话
@@ -88,4 +88,4 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心（通过/驳回
 | API 封装 | `apps/admin/src/lib/admin-api.ts` · `lib/http.ts` |
 | 登录 / 守卫 | `apps/admin/src/app/login/page.tsx` · `components/auth-guard.tsx` |
 | 端口 | `apps/admin/package.json` → `next dev --port 3006` |
-| Task | `08-05-p2c-approval-members-ui` · epic `08-05-phase-2-ask` |
+| Task（归档） | `.trellis/tasks/archive/2026-08/08-05-p2c-approval-members-ui/` · epic `08-05-phase-2-ask/` |

@@ -44,11 +44,12 @@
 
 **反模式**：页面各自 `fetch` 不经 http 层导致无 refresh；用 `session.roles` 判断按钮权限而不看 `permissions` / 不调 API。
 
-## 骨架阶段
+## 阶段口径（S2c）
 
-- 保持占位或 Phase 0+ 最小壳  
-- 未授权不做完整业务页充数  
-- 线稿参考 `product.pen`，交付说明见 `prds/12-delivery-guides`（非接口 SSOT）  
+- 已具备：登录 · 壳 · 文档/审批/成员 **薄页**（可演示，非生产运营台）  
+- 未做：设置/供应商/部门/面板等 → 另建 feature，见 backlog B2–B6  
+- 线稿参考 `product.pen`；交付白话见 `prds/12-delivery-guides`（**非**接口 SSOT）  
+- **禁止**把 ask SSE 做成 admin 默认首页（用户端在 web）
 
 ## 反模式
 

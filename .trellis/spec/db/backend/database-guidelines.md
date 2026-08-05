@@ -43,14 +43,39 @@
 - 文档状态切换  
 - `index_version` 激活  
 
+### 检索闸（S2 · 必复用）
+
+```typescript
+// packages/db/src/query/retrieval-gate.ts
+isDefaultRetrievable({ status, lifecycle })
+// ⇔ status === 'ready' && lifecycle === 'active'
+```
+
+| 规则 | 说明 |
+|------|------|
+| 默认闸 | ready ∧ active（ADR-038） |
+| 消费者 | `apps/api` retrieve **必须**复用；禁止 route/service 私写平行谓词 |
+| 单测 | `retrieval-gate.test.ts` 护栏 |
+
+### Ask 表（S2）
+
+| 表/模块 | 用途 |
+|---------|------|
+| `schema/ask/ask-sessions.ts` | 会话壳（无 rewrite 近窗） |
+| `schema/ask/ask-traces.ts` | 请求轨迹 / evidence_snapshot |
+| `schema/ask/ask-feedback.ts` | 反馈队列 |
+
+`evidence_snapshot` **仅**本轮 retrieve 切片；禁止塞会话原文。
+
 ---
 
-## Schema 示例形状（PRD 示意，非现仓文件）
+## Schema 形状（以仓内文件为准）
 
 ```typescript
 import { pgTable, text, uuid } from 'drizzle-orm/pg-core';
 import { baseColumns } from '../_shard/base-columns';
 
+// 示例：真实列以 packages/db/src/schema/** 为准
 export const documents = pgTable('documents', {
   ...baseColumns,
   tenantId: uuid('tenant_id').notNull(),
@@ -60,14 +85,11 @@ export const documents = pgTable('documents', {
 });
 ```
 
-实现时以真实 `base-columns` 与 PG PRD 为准。
-
 ---
 
 ## 迁移流程
 
 ```bash
-# 目标命令（Phase 0 接线后）
 pnpm --filter @strict-rag/db db:generate
 pnpm --filter @strict-rag/db db:migrate
 ```
@@ -77,7 +99,7 @@ pnpm --filter @strict-rag/db db:migrate
 
 ---
 
-## 测试（目标）
+## 测试
 
 | 类型 | 要求 |
 |------|------|
