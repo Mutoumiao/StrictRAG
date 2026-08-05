@@ -16,6 +16,8 @@ apps/api/src/
       token-service.ts
     permissions/
       resolve.ts        # 有效码求值
+  graph/                # ask MVP 信任路径（route→retrieve→generate→verify→finalize）
+    run.ts prompts.ts route-rules.ts tracer.ts …
   routes/
     auth.ts             # dev-login（upsert users）· refresh · me
     documents.ts        # Phase1 入库（AUTH_ENFORCE 默认 false）
