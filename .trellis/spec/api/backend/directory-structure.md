@@ -22,11 +22,13 @@ apps/api/src/
     auth.ts             # dev-login（upsert users）· refresh · me
     documents.ts        # Phase1 入库（AUTH_ENFORCE 默认 false）
     members.ts          # KB 成员 CRUD（始终 member.manage + 成员闸）
+    ask.ts              # POST …/ask 同步+SSE（始终成员闸）
   middleware/request-id.ts
   services/
     members.ts documents.ts …
     gateway/            # chat · embed · rerank（mock|http；密钥仅 env）
     retrieve/           # 混合检索 + 双闸门 + RRF + rerank（RETRIEVE_ES_MODE）
+    ask/                # executeAsk · ask_traces 落库
   lib/response.ts
 ```
 

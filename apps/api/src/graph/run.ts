@@ -91,6 +91,8 @@ function finalize(
     suggestedActions: s.suggestedActions.length ? s.suggestedActions : pres.suggestedActions,
     sessionId: s.sessionId,
     mode: s.mode,
+    // 快照仅 state.evidence（retrieve 本轮）；永不含会话原文
+    evidence_snapshot: s.evidence_snapshot ?? s.evidence ?? [],
     debug: {
       llmCalls: s.llmCalls,
       retrieveCalls: s.retrieveCalls,

@@ -1,0 +1,418 @@
+import { Hono } from 'hono';
+import { describe, expect, it } from 'vitest';
+import { uuidv7 } from 'uuidv7';
+
+import { attachAuthMiddleware, type AuthVariables } from '../auth/middleware.js';
+import { issueTokenPair } from '../auth/identity/token-service.js';
+import { requestIdMiddleware } from '../middleware/request-id.js';
+import type { ExecuteAskResult } from '../services/ask/index.js';
+import { createAskRoutes } from './ask.js';
+
+const KB = '01900000-0000-7000-8000-0000000000aa';
+const CHUNK = '11111111-1111-7111-8111-111111111111';
+const DOC = '22222222-2222-7222-8222-222222222222';
+
+async function token(roles: string[], userId = uuidv7()) {
+  const pair = await issueTokenPair({
+    userId,
+    app: 'web',
+    roles,
+    email: `${userId.slice(0, 8)}@test.local`,
+    tenantId: '01900000-0000-7000-8000-000000000001',
+  });
+  return { userId, accessToken: pair.accessToken };
+}
+
+function fixedExecute(result: ExecuteAskResult) {
+  return async (): Promise<ExecuteAskResult> => result;
+}
+
+function sampleAnswered(requestId = 'req-test'): ExecuteAskResult {
+  return {
+    httpStatus: 200,
+    response: {
+      requestId,
+      status: 'answered',
+      answer: '年假为15天。',
+      answerKind: 'knowledge',
+      citations: [
+        {
+          chunkId: CHUNK,
+          docId: DOC,
+          title: '休假',
+          preview: '15天',
+          lifecycle: 'active',
+        },
+      ],
+      minSupport: 0.9,
+      reason: 'verified',
+      userMessage: '年假为15天。',
+      suggestedActions: [],
+      latencyMs: 12,
+      mode: 'balanced',
+      sessionId: null,
+    },
+    graph: {
+      requestId,
+      status: 'answered',
+      answer: '年假为15天。',
+      answerKind: 'knowledge',
+      citations: [],
+      reason: 'verified',
+      suggestedActions: [],
+      mode: 'balanced',
+      evidence_snapshot: [
+        {
+          chunkId: CHUNK,
+          docId: DOC,
+          text: '员工年假为15天',
+          preview: '15天',
+          lifecycle: 'active',
+          title: '休假',
+        },
+      ],
+    },
+  };
+}
+
+function buildApp(opts: {
+  members?: Set<string>;
+  execute?: (params: unknown) => Promise<ExecuteAskResult>;
+  kbExists?: boolean;
+}) {
+  const members = opts.members ?? new Set<string>();
+  const app = new Hono<{ Variables: AuthVariables }>();
+  app.use('*', requestIdMiddleware);
+  app.use('*', attachAuthMiddleware);
+  app.route(
+    '/api/v1',
+    createAskRoutes({
+      resolveKbMember: async (userId, kbId) => kbId === KB && members.has(userId),
+      getKb: async (id) =>
+        opts.kbExists === false || id !== KB
+          ? null
+          : { id: KB, tenantId: '01900000-0000-7000-8000-000000000001' },
+      execute: (opts.execute as typeof import('../services/ask/index.js').executeAsk) ??
+        fixedExecute(sampleAnswered()),
+    }),
+  );
+  return app;
+}
+
+describe('POST ask validation', () => {
+  it('rejects options.tauClaim → 400', async () => {
+    const { userId, accessToken } = await token(['web_consumer']);
+    const app = buildApp({ members: new Set([userId]) });
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        question: '年假几天',
+        options: { tauClaim: 0.1, mode: 'balanced' },
+      }),
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { ok: boolean; error: { code: string } };
+    expect(body.ok).toBe(false);
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('rejects scope inside options → 400', async () => {
+    const { userId, accessToken } = await token(['web_consumer']);
+    const app = buildApp({ members: new Set([userId]) });
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        question: '年假几天',
+        options: { scope: { docTypes: ['hr'] }, mode: 'balanced' },
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('accepts top-level scope.docTypes', async () => {
+    const { userId, accessToken } = await token(['web_consumer']);
+    const app = buildApp({ members: new Set([userId]) });
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        question: '年假几天',
+        scope: { docTypes: ['hr'] },
+        options: { mode: 'balanced', stream: false },
+      }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { ok: boolean; data: { reason: string } };
+    expect(body.ok).toBe(true);
+    expect(body.data.reason).toBe('verified');
+  });
+});
+
+describe('POST ask auth', () => {
+  it('non-member → 403', async () => {
+    const { accessToken } = await token(['web_consumer']);
+    const app = buildApp({ members: new Set() });
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ question: 'hi' }),
+    });
+    expect(res.status).toBe(403);
+  });
+
+  it('no bearer → 401', async () => {
+    const app = buildApp({ members: new Set() });
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ question: 'hi' }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('kb missing → 404', async () => {
+    const { userId, accessToken } = await token(['web_consumer']);
+    const app = buildApp({ members: new Set([userId]), kbExists: false });
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ question: '年假' }),
+    });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('POST ask sync + SSE', () => {
+  it('sync 200 + AskResponse shape', async () => {
+    const { userId, accessToken } = await token(['web_consumer']);
+    const app = buildApp({ members: new Set([userId]) });
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ question: '年假有多少天？' }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      ok: true;
+      data: {
+        requestId: string;
+        status: string;
+        reason: string;
+        citations: { chunkId: string }[];
+      };
+    };
+    expect(body.ok).toBe(true);
+    expect(body.data.status).toBe('answered');
+    expect(body.data.reason).toBe('verified');
+    expect(body.data.citations[0]?.chunkId).toBe(CHUNK);
+    expect(body.data.requestId).toBeTruthy();
+  });
+
+  it('kb_not_ready → 409', async () => {
+    const { userId, accessToken } = await token(['web_consumer']);
+    const app = buildApp({
+      members: new Set([userId]),
+      execute: fixedExecute({
+        httpStatus: 409,
+        response: {
+          requestId: 'r1',
+          status: 'abstained',
+          answer: '',
+          reason: 'kb_not_ready',
+          citations: [],
+          suggestedActions: [],
+          mode: 'balanced',
+        },
+        graph: {
+          requestId: 'r1',
+          status: 'abstained',
+          answer: '',
+          reason: 'kb_not_ready',
+          citations: [],
+          suggestedActions: [],
+          mode: 'balanced',
+          evidence_snapshot: [],
+        },
+      }),
+    });
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ question: '年假' }),
+    });
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { error: { code: string } };
+    expect(body.error.code).toBe('KB_NOT_READY');
+  });
+
+  it('SSE final ≡ sync critical fields', async () => {
+    const { userId, accessToken } = await token(['web_consumer']);
+    let capturedReqId = '';
+    const app = buildApp({
+      members: new Set([userId]),
+      execute: async (params) => {
+        const p = params as { requestId: string };
+        capturedReqId = p.requestId;
+        return sampleAnswered(p.requestId);
+      },
+    });
+
+    const syncRes = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ question: '年假', options: { stream: false } }),
+    });
+    const syncBody = (await syncRes.json()) as {
+      data: {
+        status: string;
+        reason: string;
+        answer: string;
+        citations: unknown[];
+        userMessage?: string;
+        sessionId?: string | null;
+        suggestedActions: unknown[];
+      };
+    };
+
+    const sseRes = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+        accept: 'text/event-stream',
+      },
+      body: JSON.stringify({ question: '年假', options: { stream: true } }),
+    });
+    expect(sseRes.status).toBe(200);
+    const text = await sseRes.text();
+    expect(text).toContain('event: final');
+    const finalLine = text
+      .split('\n')
+      .find((l) => l.startsWith('data: ') && l.includes('"status"'));
+    // last data with status is final payload
+    const dataLines = text
+      .split('\n')
+      .filter((l) => l.startsWith('data: '))
+      .map((l) => l.slice(6));
+    const finalPayload = dataLines
+      .map((d) => {
+        try {
+          return JSON.parse(d) as Record<string, unknown>;
+        } catch {
+          return null;
+        }
+      })
+      .reverse()
+      .find((o) => o && typeof o.reason === 'string' && typeof o.status === 'string');
+
+    expect(finalPayload).toBeTruthy();
+    expect(finalPayload!.status).toBe(syncBody.data.status);
+    expect(finalPayload!.reason).toBe(syncBody.data.reason);
+    expect(finalPayload!.answer).toBe(syncBody.data.answer);
+    expect(finalPayload!.userMessage).toBe(syncBody.data.userMessage);
+    expect(finalPayload!.sessionId ?? null).toBe(syncBody.data.sessionId ?? null);
+    expect(Array.isArray(finalPayload!.citations)).toBe(true);
+    expect(Array.isArray(finalPayload!.suggestedActions)).toBe(true);
+    expect(capturedReqId).toBeTruthy();
+    void finalLine;
+  });
+});
+
+describe('executeAsk trace + graph wiring', () => {
+  it('saves evidence_snapshot without session history text', async () => {
+    const { executeAsk } = await import('../services/ask/execute.js');
+    const saved: { evidenceSnapshot: { preview?: string; chunkId: string }[]; rawQuestion: string }[] =
+      [];
+    const CHUNK_ID = CHUNK;
+    const result = await executeAsk(
+      {
+        requestId: 'req-trace-1',
+        kbId: KB,
+        tenantId: '01900000-0000-7000-8000-000000000001',
+        userId: uuidv7(),
+        membership: 'member',
+        body: {
+          question: '年假有多少天？',
+          sessionId: null,
+          options: { mode: 'balanced' },
+        },
+      },
+      {
+        graphDeps: {
+          chat: async (purpose) => {
+            if (purpose === 'generate') {
+              return JSON.stringify({
+                answer: '年假为15天。',
+                citations: [CHUNK_ID],
+                insufficient: false,
+              });
+            }
+            if (purpose === 'claim_split') {
+              return JSON.stringify({
+                claims: [{ text: '年假为15天', chunkIds: [CHUNK_ID] }],
+              });
+            }
+            return JSON.stringify({ scores: [0.95] });
+          },
+          retrieve: async () => ({
+            ok: true,
+            evidence: [
+              {
+                chunkId: CHUNK_ID,
+                docId: DOC,
+                title: '休假',
+                text: '员工年假为15天，须提前申请。',
+                preview: '员工年假为15天',
+                lifecycle: 'active',
+                score: 0.9,
+              },
+            ],
+            meta: { esMode: 'mock', candidateCount: 1, denseHits: 1, sparseHits: 1 },
+          }),
+        },
+        saveTrace: async (input) => {
+          saved.push({
+            evidenceSnapshot: input.evidenceSnapshot,
+            rawQuestion: input.rawQuestion,
+          });
+          return { id: 't1' };
+        },
+      },
+    );
+
+    expect(result.httpStatus).toBe(200);
+    expect(result.response.reason).toBe('verified');
+    expect(saved).toHaveLength(1);
+    expect(saved[0]!.rawQuestion).toBe('年假有多少天？');
+    expect(saved[0]!.evidenceSnapshot[0]?.chunkId).toBe(CHUNK_ID);
+    // 快照不含会话闲聊/历史
+    const blob = JSON.stringify(saved[0]!.evidenceSnapshot);
+    expect(blob).not.toMatch(/刚才|历史会话|session history/i);
+  });
+});

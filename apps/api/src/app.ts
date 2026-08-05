@@ -11,6 +11,7 @@ import { childLogger } from './logger.js';
 import { attachAuthMiddleware } from './auth/middleware.js';
 import { requestIdMiddleware, type ApiVariables } from './middleware/request-id.js';
 import { runReadyChecks } from './ready/checks.js';
+import { askRoutes } from './routes/ask.js';
 import { authRoutes } from './routes/auth.js';
 import { documentRoutes } from './routes/documents.js';
 import { memberRoutes } from './routes/members.js';
@@ -52,6 +53,7 @@ export function createApp() {
   app.route('/api/v1/auth', authRoutes);
   app.route('/api/v1', documentRoutes);
   app.route('/api/v1', memberRoutes);
+  app.route('/api/v1', askRoutes);
 
   return app;
 }

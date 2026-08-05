@@ -86,6 +86,8 @@ export type AskGraphResult = {
   suggestedActions: { type: string; label: string }[];
   sessionId?: string | null;
   mode: AskMode;
+  /** 与 finalize 同源；仅本轮 KB chunk，禁止会话历史 */
+  evidence_snapshot: GraphEvidence[];
   debug?: {
     llmCalls: number;
     retrieveCalls: number;
