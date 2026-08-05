@@ -197,6 +197,31 @@ documentRoutes.post(
   },
 );
 
+/** POST /api/v1/documents/:docId/reject — 无 ticket 表时的最小驳回 */
+documentRoutes.post(
+  '/documents/:docId/reject',
+  requirePermissionWhenEnforced('approval.decide'),
+  async (c) => {
+    const docId = c.req.param('docId');
+    const doc = await documentRepo.getDoc(docId);
+    if (!doc) {
+      return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
+    }
+    if (doc.approvalStatus === 'rejected') {
+      return ok(c, { docId, approvalStatus: 'rejected' });
+    }
+    if (doc.approvalStatus !== 'pending') {
+      return fail(
+        c,
+        BizCode.RULE_VIOLATION,
+        `cannot reject when approvalStatus=${doc.approvalStatus}`,
+      );
+    }
+    await documentRepo.reject(docId);
+    return ok(c, { docId, approvalStatus: 'rejected' });
+  },
+);
+
 /** POST /api/v1/documents/:docId/scan — ADR-048 闸 */
 documentRoutes.post(
   '/documents/:docId/scan',

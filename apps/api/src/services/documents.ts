@@ -92,6 +92,16 @@ export const documentRepo = {
       .where(eq(documents.id, docId));
   },
 
+  /** ponytail: 无独立 ticket 表；驳回只改 approval_status */
+  async reject(docId: string) {
+    await getDb()
+      .update(documents)
+      .set({
+        approvalStatus: 'rejected',
+      })
+      .where(eq(documents.id, docId));
+  },
+
   async setLifecycle(docId: string, lifecycle: string) {
     await getDb().update(documents).set({ lifecycle }).where(eq(documents.id, docId));
   },

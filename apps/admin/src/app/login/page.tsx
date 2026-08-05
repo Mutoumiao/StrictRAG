@@ -5,10 +5,13 @@ import { useRouter } from 'next/navigation';
 
 import { adminDevLogin } from '@/auth/api';
 
-/** 开发登录页；生产将改为 Better Auth 邮箱/微信等 */
+type RoleTpl = 'super_admin' | 'kb_admin' | 'doc_operator';
+
+/** 开发登录；可选角色模板便于验码裁剪（doc_operator 无审批决定）。 */
 export default function AdminLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('admin@example.com');
+  const [role, setRole] = useState<RoleTpl>('super_admin');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -17,7 +20,7 @@ export default function AdminLoginPage() {
     setPending(true);
     setError(null);
     try {
-      await adminDevLogin({ email, roleTemplate: 'super_admin' });
+      await adminDevLogin({ email, roleTemplate: role });
       router.replace('/documents');
     } catch (err) {
       setError(err instanceof Error ? err.message : '登录失败');
@@ -44,6 +47,18 @@ export default function AdminLoginPage() {
             onChange={(ev) => setEmail(ev.target.value)}
             required
           />
+        </label>
+        <label className="text-sm">
+          角色模板
+          <select
+            className="mt-1 w-full rounded-md border px-3 py-2"
+            value={role}
+            onChange={(ev) => setRole(ev.target.value as RoleTpl)}
+          >
+            <option value="super_admin">super_admin（全权）</option>
+            <option value="kb_admin">kb_admin（含审批/成员）</option>
+            <option value="doc_operator">doc_operator（无审批决定）</option>
+          </select>
         </label>
         {error ? <p className="text-sm text-red-600">{error}</p> : null}
         <button
