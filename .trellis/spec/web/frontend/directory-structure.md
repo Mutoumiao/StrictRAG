@@ -8,7 +8,16 @@ apps/web/
   tsconfig.json    # 同 admin：DOM + jsx preserve + Bundler
   eslint.config.js # next-js
   src/app/
-    placeholder.ts # APP_WEB_SCAFFOLD = true
+    page.tsx       # 问答主页（WebAuthGuard + AskPanel）
+    login/page.tsx # web dev-login
+  src/components/
+    auth-guard.tsx # 会话 + /auth/me
+    ask-panel.tsx  # answered / abstained / error 三态
+  src/lib/
+    http.ts
+    ask-sse-parse.ts  # 只信 final
+    ask-sse.ts        # 默认 stream SSE 客户端
+  src/auth/        # client-session + webDevLogin
 ```
 
 ## 目标职责
