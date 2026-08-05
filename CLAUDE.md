@@ -18,9 +18,9 @@
 |-------|--------|--------|
 | Monorepo | pnpm 10 + Turborepo | Node ≥ 20；**仅 pnpm**；版本见 `pnpm-workspace.yaml#catalog` |
 | Packages | `@strict-rag/*` | apps 4 + packages 6 |
-| admin / web | Next.js（目标） | **骨架占位**，未接框架 |
-| api | Hono + Node（目标） | **骨架**；非 CF Workers |
-| worker | BullMQ（目标） | **骨架** |
+| admin / web | Next.js | **S2 薄页**已接；非完整运营台 |
+| api | Hono + Node | ask 图/SSE 已落；非 CF Workers |
+| worker | BullMQ | 入库状态机已落 |
 | ORM / PG | Drizzle → PG 16 + pgvector | 唯一 ORM；禁 Prisma |
 | Sparse / body / S3 | ES+IK · Mongo · RustFS | 见 `prds/03-data` |
 | Queue / graph | Redis · LangGraph.js | ask 状态机见 `prds/04-pipelines` |
@@ -68,7 +68,7 @@ pnpm build | dev          # turbo；dev 现为占位 echo
 ```
 
 目标端口：**web 3005 · admin 3006 · api 4000**；worker 无 HTTP。  
-**Phase 0/1 代码已落地**（health/ready、migrate、入库闭环 mock）；鉴权为**临时双 JWT + `AUTH_ENFORCE`**（默认可关，服务 demo）；**无** ask 图 / 真 ES 生产路径。
+**P0/P1 + S2 最小已落地**（入库闭环 mock · ask 图/SSE · web/admin 薄壳）；鉴权**临时双 JWT + `AUTH_ENFORCE`**；**默认 mock ES**；**≠** 全文 Phase 2 / 生产 ES。
 
 ## Code Style
 
@@ -90,8 +90,8 @@ pnpm build | dev          # turbo；dev 现为占位 echo
 
 ## Conventions
 
-- **阶段**：Phase 0/1 入库最小闭环（mock ES/scan 可联调）；**禁止** Phase 2 ask 未设计评审 / 未授权实现
-- **下一阶段**：S2 设计评审（`.trellis/tasks/08-05-phase-2-ask-design`）→ `phase-2-ask` 实现；交付状态见 `prds/12-delivery-guides/04-交付控制台.md` §0
+- **阶段**：P0/P1 入库 + **S2 最小** ask（epic `08-05-phase-2-ask` 已关）；签字见 `sign-off.md`
+- **下一阶段**：`08-05-phase-2-backlog/status.md` 拆 feature（B1/B8…）；**禁止**宣称全文 P2 / 生产 ES；交付状态见 `prds/12-delivery-guides/04-交付控制台.md` §0
 - **质量红线**：检索→约束生成→验证→拒答；**min 否决**；合法 draft 必 verify；历史≠evidence；门禁只加严不放宽；双就绪∧active 检索闸
 - **Git**：历史过浅；建议 conventional commits
 - 沟通默认**简体中文**；命令示例优先 `pnpm` + bash 风格
@@ -100,5 +100,5 @@ pnpm build | dev          # turbo；dev 现为占位 echo
 - 用教学 Notebook / LanceDB 数字当生产 SLA 或实现抄本
 - 静默放宽已冻 ADR；用 npm/yarn 装依赖；再 scaffold 第二 monorepo
 - 把 `12-delivery-guides` 当接口契约覆盖 `00–11`
-- 暗示「业务已完成」——提交说明写清做了什么 / 未做什么
+- 暗示「业务已完成 / 全文 Phase 2 完成 / 生产 ES 已上」——提交说明写清做了什么 / 未做什么
 - 删除或「精简」`prds/00–11` 已冻条款
