@@ -4,23 +4,18 @@
 
 ## 权威分层（冲突时）
 
-| 问什么 | 以谁为准 | 路径 |
-|--------|----------|------|
-| **WHAT** · 产品语义 / 接口契约 | PRD SSOT | **`prds/00–11/**`**（当前 **0.4.32**） |
-| **HOW** · 怎么写代码 | Trellis Spec | `.trellis/spec/` |
-| **IS** · 现在仓库有什么 | **源码为真**；状态镜像 | `docs/module-status/` |
+三问定位：**WHAT**（语义 / 契约）→ **`prds/00–11/`**（当前 **0.4.32**）；**HOW**（怎么写代码）→ `.trellis/spec/`；**IS**（现在仓库有什么）→ **源码为真**，状态镜像 `docs/module-status/`。
 
 | 优先级 | 路径 | 角色 |
 |--------|------|------|
-| 1 | **`prds/00–11/**`** | **生产 SSOT** |
+| 1 | **`prds/00–11/`** | **生产 SSOT** |
 | 2 | `docs/module-status/` | **IS 镜像**（包完成度 / 默认 mock / 债；**非**契约） |
 | 3 | `prds/12-delivery-guides/` | 交付白话 / 开工 / 试点 / 设计（**非**接口契约） |
 | 4 | `prds/12-delivery-guides/90-工业级优化思路.md` | 战略（M3+ 须回写 00–11 后生效） |
 | 5 | `product.pen` | 设计线稿 |
 
 冲突：冻结语义以 **`prds/00–11`** 为准；**完成度 / 已具备** 以 **源码 + `docs/module-status`** 为准（状态文须能指到证据路径）。  
-改冻结语义：ADR → 改 PRD → 升 `prds/README.md` 版本。  
-决策与交接：`prds/11-decisions/`。交付望远镜：`prds/12-delivery-guides/04-交付控制台.md` §0。
+改冻结语义：ADR → 改 PRD → 升 `prds/README.md` 版本。
 
 ---
 
@@ -53,13 +48,11 @@
 | 路径 | 用途 |
 |------|------|
 | `.trellis/workflow.md` | 开发阶段、何时建 task、skill 路由 |
-| `.trellis/spec/` | 包/层编码指南（**HOW**；开工前读 index + checklist） |
+| `.trellis/spec/` | 包/层编码指南（**HOW**；开工前读包 `index.md`，内含 checklist） |
 | `.trellis/tasks/` | 进行中与归档 task（PRD、research、jsonl） |
 | `.trellis/workspace/` | 开发者 journal / session |
 
-有平台命令时优先：`/trellis:finish-work`、`/trellis:continue` 等。  
-可选助手：`.agents/skills/` · `.codex/agents/`。  
-（原 `AGENTS.md` 已并入本节；勿再维护独立 AGENTS 文件。）
+有平台命令时优先：`/trellis:finish-work`、`/trellis:continue` 等。 
 
 ---
 
@@ -95,7 +88,6 @@ product.pen                 → 线稿
 
 | 要做… | 打开 |
 |--------|------|
-| **现在有什么 / 完成度** | `docs/module-status/README.md` · `<包>.md` |
 | 范围 / 非目标 | `prds/00-product/` |
 | 栈 / 仓边界 | `prds/01-architecture/` · `02-engineering/` |
 | Schema / 存储 | `prds/03-data/` |
@@ -110,7 +102,6 @@ product.pen                 → 线稿
 | 交付配套 / 控制台 | `prds/12-delivery-guides/README.md` · `04-交付控制台.md` |
 | Sprint0 / 垂直切片 | `prds/12-delivery-guides/06-工程开工.md` |
 | 编码 HOW | `.trellis/spec/<包>/` |
-| P2 欠账 | `.trellis/tasks/08-05-phase-2-backlog/status.md` |
 
 ## Build & Run
 
@@ -123,7 +114,7 @@ pnpm build | dev          # turbo
 ```
 
 目标端口：**web 3005 · admin 3006 · api 4000**；worker 无 HTTP。  
-**P0/P1 + S2 最小已落地**（入库闭环 mock · ask 图/SSE · web/admin 薄壳）；鉴权**临时双 JWT + `AUTH_ENFORCE` 默认关**；**默认 mock ES**；**≠** 全文 Phase 2 / 生产 ES。细节与证据 → `docs/module-status/`。
+当前进度、默认 mock / 鉴权开关 → 以 `docs/module-status/` 为准（勿据本节推断完成度）。
 
 ## Code Style
 
@@ -139,16 +130,15 @@ pnpm build | dev          # turbo
 ## Testing
 
 - **命令**：`pnpm test`（turbo → vitest）
-- **已有**：`apps/api` · `apps/worker` · `packages/db` 等同域 `*.test.ts`
+- **已有**：`apps/api|worker|web` · `packages/db|contracts|admin-catalog` 同域 `*.test.ts`
 - **目标（PRD）**：集成测 + 验收剧本 `prds/10-delivery/03-acceptance-scenarios.md`
 - 新增测试与源码同域放置
 
 ## Conventions
 
-- **阶段**：P0/P1 入库 + **S2 最小** ask（epic `08-05-phase-2-ask` 已关）
-- **下一阶段**：`08-05-phase-2-backlog/status.md`（B1/B8…）；禁止宣称全文 P2 / 生产 ES
+- **阶段**：P0/P1 入库 + **S2 最小** ask 已落地（epic `08-05-phase-2-ask` 已关）；下一阶段欠账见 `.trellis/tasks/08-05-phase-2-backlog/status.md`（B1/B8…）
 - **质量红线**：检索→约束生成→验证→拒答；**min 否决**；合法 draft 必 verify；历史≠evidence；门禁只加严不放宽；双就绪∧active 检索闸
-- **状态回写**：实现 → `trellis-update-spec` → `update-module-status` → 交接/提交
+- **状态回写**：实现 → 更新 `.trellis/spec/` → skill `update-module-status` → 交接/提交
 - **Git**：建议 conventional commits
 - 沟通默认**简体中文**；命令示例优先 `pnpm` + bash 风格
 
