@@ -24,6 +24,7 @@ apps/api/src/
   services/
     members.ts documents.ts …
     gateway/            # chat · embed · rerank（mock|http；密钥仅 env）
+    retrieve/           # 混合检索 + 双闸门 + RRF + rerank（RETRIEVE_ES_MODE）
   lib/response.ts
 ```
 

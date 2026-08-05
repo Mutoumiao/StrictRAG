@@ -106,9 +106,9 @@ pnpm demo:ingest          # 同 KB ≥10 fixtures → ready → active
 
 说明见 [`scripts/demo-ingest.md`](./scripts/demo-ingest.md)；样例 `fixtures/ingest-samples/`（10 篇）。
 
-Mock 开关（`.env`）：`INGEST_SCAN_MODE` · `INGEST_ES_MODE=fail`（验证不得 ready）· `STORAGE_MODE=local`。
+Mock 开关（`.env`）：`INGEST_SCAN_MODE` · `INGEST_ES_MODE=fail`（验证不得 ready）· `STORAGE_MODE=local` · `RETRIEVE_ES_MODE=mock`（P2 检索 sparse 替身；`http` 真 ES → backlog）。
 
-> **边界（勿过度宣称）**：P1 的「ES」是 worker **进程内 mock** 对账，**不是** 生产 Elasticsearch+IK 集群。`/ready` 中 `elasticsearch=skipped` 属正常。真 ES/RustFS 按 compose profile 后续接入。
+> **边界（勿过度宣称）**：P1 的「ES」是 worker **进程内 mock** 对账，**不是** 生产 Elasticsearch+IK 集群。`/ready` 中 `elasticsearch=skipped` 属正常。P2 retrieve 默认 `RETRIEVE_ES_MODE=mock`（PG chunk 文本 + 向量 + Gateway rerank），**禁止**宣称生产 ES 已上。真 ES/RustFS 按 compose profile / B8 后续接入。
 
 ---
 

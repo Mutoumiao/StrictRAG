@@ -54,6 +54,11 @@ const EnvSchema = z
      */
     RERANK_MIN_NODES: z.coerce.number().int().positive().optional(),
     ELASTICSEARCH_URL: z.string().optional().default(''),
+    /**
+     * 检索 sparse 适配：mock=PG chunk 文本替身；http=真 ES（B8，未实现）。
+     * 默认 mock，与 P1 INGEST_ES_MODE 精神一致。禁止无 B8 时宣称生产 ES。
+     */
+    RETRIEVE_ES_MODE: z.enum(['mock', 'http']).default('mock'),
     /** 上传默认上限 50 MiB；硬天花板 200 MiB（ADR-039） */
     INGEST_MAX_FILE_BYTES: z.coerce.number().int().positive().default(52_428_800),
     INGEST_MAX_FILE_BYTES_CEILING: z.coerce.number().int().positive().default(209_715_200),
