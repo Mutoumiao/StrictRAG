@@ -3,7 +3,7 @@
 > 适用：当前仓库状态（**P0/P1 入库** + **S2 最小 ask 已落地并归档**）。  
 > 权威分期：`prds/10-delivery/01-phased-roadmap.md` · 项目导航：`CLAUDE.md`。  
 > 已关 epic：`archive/2026-08/08-05-phase-2-ask`（S2 最小，≠ 全文 Phase 2）。  
-> 挂账：`archive/2026-08/08-05-phase-2-backlog/status.md`（B1–B11；实现时 **新建** feature）。
+> 产品挂账：`archive/2026-08/08-05-phase-2-backlog/status.md`（B1–B11）；总 backlog：`08-06-project-backlog/status.md`（实现时 **新建** feature）。
 
 ---
 

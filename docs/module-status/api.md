@@ -93,5 +93,6 @@ Hono HTTP 后端：入库 API、临时双 JWT 鉴权、单轮 ask 图/SSE 与会
 | 单测 | `apps/api/src/**/*.test.ts`（ask / graph / retrieve / members / feedback / sessions / obs 等） |
 | Task（归档） | `.trellis/tasks/archive/2026-08/08-05-phase-2-ask/` · 子任务 `08-05-p2-*` 同目录 |
 | 签字（归档） | `.trellis/tasks/archive/2026-08/08-05-phase-2-ask/sign-off.md` |
-| 挂账（归档） | `.trellis/tasks/archive/2026-08/08-05-phase-2-backlog/status.md` |
+| 总 backlog | `.trellis/tasks/08-06-project-backlog/status.md`（ARCH / 穿插） |
+| 产品挂账（归档） | `.trellis/tasks/archive/2026-08/08-05-phase-2-backlog/status.md`（B1–B11） |
 | HOW | `.trellis/spec/api/backend/ask-pipeline.md` |

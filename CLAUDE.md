@@ -136,7 +136,7 @@ pnpm build | dev          # turbo
 
 ## Conventions
 
-- **阶段**：P0/P1 入库 + **S2 最小** ask 已落地（epic `08-05-phase-2-ask` 已关）；下一阶段欠账见 `.trellis/tasks/08-05-phase-2-backlog/status.md`（B1/B8…）
+- **阶段**：P0/P1 入库 + **S2 最小** ask 已落地（epic `08-05-phase-2-ask` 已关）；**总 backlog**（调度 + ARCH）`.trellis/tasks/08-06-project-backlog/status.md`；产品 B1–B11 阶段挂账 `archive/…/08-05-phase-2-backlog/status.md`
 - **质量红线**：检索→约束生成→验证→拒答；**min 否决**；合法 draft 必 verify；历史≠evidence；门禁只加严不放宽；双就绪∧active 检索闸
 - **状态回写**：实现 → 更新 `.trellis/spec/` → skill `update-module-status` → 交接/提交
 - **Git**：建议 conventional commits

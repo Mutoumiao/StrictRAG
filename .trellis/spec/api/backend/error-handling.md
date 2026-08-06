@@ -91,4 +91,10 @@ ask 业务拒答 reason（`model_abstained` 等）走 **业务响应**，不要�
 
 ## 现状
 
-尚无错误中间件；新增时以本文件 + contracts + API PRD §4 为准，只保留 **一种** 对外 code 命名。
+尚无错误中间件（代码未落）。**实现时**以本文件 + contracts + API PRD §4 为准，只保留 **一种** 对外 code 命名。
+
+**ARCH-P0 逐步规格（文件落点 / PG 映射 / 测试）**见**总 backlog** HOW（实现前必读）：
+
+`.trellis/tasks/08-06-project-backlog/research/arch-p0-runtime-hardening.md`
+
+落地后须把「尚无错误中间件」改回「已有 onError/notFound + PG 兜底」，并删掉仅指向 research 的临时句。

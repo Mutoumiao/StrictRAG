@@ -4,7 +4,7 @@
 
 **仓库阶段**：**P0/P1 入库** + **S2 最小 ask 可演示**（单轮信任环 · SSE · 会话壳 · 审批/成员薄 UI）。  
 **默认依赖**：ES/`RETRIEVE_ES_MODE=mock` · Gateway 可 mock · `AUTH_ENFORCE` 默认关 · **rewrite 强制关**。  
-**明确不等于**：路线图 Phase 2 全文 · 生产 ES+IK · CRAG/multi_hop。挂账见归档 task `08-05-phase-2-backlog/status.md`（实现时 **新建** feature）。
+**明确不等于**：路线图 Phase 2 全文 · 生产 ES+IK · CRAG/multi_hop。产品挂账见归档 `08-05-phase-2-backlog`；全局调度 / ARCH 见活任务 `08-06-project-backlog`（实现时 **新建** feature）。
 
 ---
 
