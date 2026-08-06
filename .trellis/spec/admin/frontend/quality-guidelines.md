@@ -56,4 +56,19 @@
 - **Bad**：准入写成 `platform_admin` ∨ 任一 KB `write`/`admin`（旧 ADR-045）  
 - **Bad**：admin 内再定义 `PERMISSIONS` 数组  
 - **Bad**：把 ask SSE 主体验做成 admin 默认首页（用户端在 web）  
-- **Good**：catalog 注册 `admin.shell` 与业务码 → api 验码 → admin 按码渲染
+- **Good**：catalog 注册 `admin.shell` 与业务码 → api 验码 → admin 按码渲染  
+
+## 模块分层反模式（摘要）
+
+> 全文：[module-layering.md](./module-layering.md)
+
+- **Bad**：`services` / 组件内写 `'/api/v1/...'` 或复制 path（path **只**在 `api.ts`）  
+- **Bad**：页面 / 组件直接 `fetch` 业务接口并堆 toast  
+- **Bad**：hooks 与 services 双份同一套 list+toast 编排  
+- **Bad**：上帝 `services.ts` 不按业务拆分；导出 `handleClick` / `doStuff`  
+- **Bad**：空建 `store.ts` / `hooks/` / 平行 wire `types.ts`  
+- **Bad**：跨模块复制 path，或滥用对方 `services`（应优先对方 `api`）  
+- **Bad**：`services` 内维护权限码决策树 / `if (role === …)` 放行（权限引擎在 **API**；UI 只裁剪；services 只映射 403）  
+- **Good**：`page` 薄 → `_components` 调用例名 → `*.services.ts` 调 `api` → `lib/http`  
+- **Good**：无 React 用 services；须 `useChat`/订阅用 hooks；体量按用例拆 `list.services.ts` 等  
+- **Good**：按钮按有效码显隐 + API 硬验码；services 假定「能点到就请求」，失败用 `mapBizError`

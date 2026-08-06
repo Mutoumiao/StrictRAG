@@ -34,6 +34,8 @@ admin 上传 → api 入队 → worker: scan → parse → chunk → embed → e
 | 边界 | 常见问题 | 本仓约定 |
 |------|----------|----------|
 | 前端 ↔ API | 类型两套、错误码字符串漂移 | 共用 `@strict-rag/contracts` |
+| 前端内部分层 | path/toast/UI 搅在一处难改 | path 仅 `api`；用例在 services；须 React 用 hooks；page 薄（[admin](../admin/frontend/module-layering.md) · [web](../web/frontend/module-layering.md)） |
+| 前端 services ↔ 授权 | services 内第二套码表/role 放行 | **API 硬验码**；UI 裁剪按钮；services 只映射 403（不做权限引擎） |
 | API ↔ DB | 时间 ISO 写库、ID 策略不一 | 本地时间串 + uuid v7（PRD ORM） |
 | API ↔ Worker | schema 分叉、队列 payload 无 Zod | 共享 db；payload 放 contracts |
 | Handler ↔ 检索/LLM | route 内 SQL/DSL/Prompt | 禁止；下沉模块 |

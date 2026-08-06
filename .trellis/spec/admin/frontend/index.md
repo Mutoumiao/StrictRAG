@@ -9,15 +9,21 @@
 
 - [ ] 是否管理端能力（KB/成员/文档/审批/评测）而非用户 ask 主路径？  
 - [ ] 权限码 / 菜单是否来自 `@strict-rag/admin-catalog`？  
-- [ ] API 类型是否来自 `@strict-rag/contracts`？  
+- [ ] API 类型是否来自 `@strict-rag/contracts`？默认不建平行 wire `types.ts`？  
 - [ ] UI 是否优先 `@strict-rag/ui`（`cn` / theme）？  
 - [ ] 壳准入是否按 **`admin.shell`**（非旧 role 公式），且不靠前端藏路由？  
 - [ ] 菜单裁剪是否 `filterMenuByCodes` + 落地 href 白名单？  
+- [ ] 后端 path 是否只在模块 `api.ts` / `auth/api`（services **禁止**写 URL）？  
+- [ ] 业务用例是否在 `services` / `*.services.ts`；hooks 是否仅 React 绑定且不与 services 双轨？  
+- [ ] `page.tsx` 是否保持薄组合；UI 是否不直接业务 `fetch`？  
+- [ ] store / hooks 目录 / types 是否「有需要才建」？services 膨胀是否按 **业务用例** 拆分？  
+- [ ] services 是否不做权限引擎（无码树/role 放行）；授权是否仍以 **API 验码** 为准、UI 只裁剪？  
 
 ## Quality Check
 
 - [ ] 无密钥、无服务端 DB URL  
 - [ ] 按钮可见 ≠ API 已授权（双罪禁止）  
+- [ ] 分层符合 [module-layering](./module-layering.md)  
 - [ ] `pnpm --filter @strict-rag/admin check-types` · `lint`  
 
 ---
@@ -26,7 +32,8 @@
 
 | 指南 | 说明 |
 |------|------|
-| [directory-structure](./directory-structure.md) | 现状布局 |
+| [directory-structure](./directory-structure.md) | 现状布局 · 目标模块树摘要 |
+| [module-layering](./module-layering.md) | **page / api / services / hooks / store 分层纪要**（强制） |
 | [quality-guidelines](./quality-guidelines.md) | 质量与 RBAC UI |
 
 ## 依赖

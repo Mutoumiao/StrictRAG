@@ -8,20 +8,25 @@
 ## Pre-Development Checklist
 
 - [ ] 是否用户问答 / 会话路径（非管理壳）？  
-- [ ] 类型与错误码是否来自 `@strict-rag/contracts`？  
+- [ ] 类型与错误码是否来自 `@strict-rag/contracts`？默认不建平行 wire `types.ts`？  
 - [ ] UI 是否用 `@strict-rag/ui`？  
 - [ ] options 是否白名单，且 `scope` 走顶层（不进 options）？  
 - [ ] 流式是否 **只信 `data-ask-final`**（schema 校验），进度用 `data-status`？  
 - [ ] 是否禁止自写 SSE 分帧（须 `@ai-sdk/react` + transport）？  
 - [ ] 拒答/错误「重试」是否用 `lastQuestion`（不依赖提交后已空的输入框）？  
 - [ ] 会话存储 key 是否仅为 `strict-rag:web:client-session`？  
-- [ ] 业务 HTTP 是否在 `src/api/*` 或 `auth/api`，传输在 `lib/http`？  
+- [ ] 业务 HTTP / path 是否只在 `src/api/*` 或 `auth/api`，传输在 `lib/http`？  
+- [ ] services（若有）是否禁止写 URL、只调 api？hooks 是否不与 services 双轨编排？  
+- [ ] `page.tsx` 是否薄组合？store/types/空目录是否按需？  
+- [ ] 是否未为对称提前拆碎 `src/api` 或空建 features？  
+- [ ] services/hooks 是否不做权限引擎；鉴权/成员约束是否以 **API** 为准？  
 
 ## Quality Check
 
 - [ ] 无服务端密钥  
 - [ ] 不把会话历史当「证据」展示逻辑写死为可 citation  
 - [ ] 拒答态可见 reason/userMessage；禁止伪装成功答案  
+- [ ] 分层符合 [module-layering](./module-layering.md)  
 - [ ] `pnpm --filter @strict-rag/web check-types` · `lint` · `test`  
 
 ---
@@ -30,7 +35,8 @@
 
 | 指南 | 说明 |
 |------|------|
-| [directory-structure](./directory-structure.md) | 现状布局 · API 分层 |
+| [directory-structure](./directory-structure.md) | 现状布局 · API 放置策略 |
+| [module-layering](./module-layering.md) | **page / api / services / hooks / store 分层纪要**（强制） |
 | [quality-guidelines](./quality-guidelines.md) | 质量与 ask UI |
 
 ## 依赖

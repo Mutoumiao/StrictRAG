@@ -15,7 +15,7 @@
 1. 在 `packages/contracts/src/<domain>/*.contract.ts` 写 Schema + type（含 Query）  
 2. `src/index.ts` 导出  
 3. `apps/api` 路由：body **与** query `safeParse`；成功 `data` 用 contracts 类型  
-4. 前端：admin 在对应 `app/.../api.ts`（或 `auth/api`）封装；web 在 `src/api/<domain>.ts` 封装；传输层仅 `lib/http`  
+4. 前端：admin 在对应 `app/.../api.ts`（或 `auth/api`）封装；web 在 `src/api/<domain>.ts` 封装；传输层仅 `lib/http`。业务编排在 `services` / hooks，**禁止**在 services 写 path（见 admin/web [module-layering](../../admin/frontend/module-layering.md)）
 
 ---
 
@@ -152,5 +152,5 @@ const limit = Number(c.req.query('limit') ?? '50');
 1. 建 `src/<domain>/*.contract.ts`  
 2. 从 `index.ts` 导出  
 3. 更新本 spec（若新域）  
-4. api route + admin/web `src/api/<module>.ts` 共用类型  
-5. **禁止**在页面组件内定义 wire DTO  
+4. api route + 前端封装共用类型：admin → 模块 `app/.../api.ts`（或 `auth/api`）；web → `src/api/<domain>.ts`；**services 不写 path**  
+5. **禁止**在页面组件内定义 wire DTO

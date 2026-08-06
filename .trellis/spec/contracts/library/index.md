@@ -14,7 +14,7 @@
 - [ ] 对外 `error.code` 是否等于 **PRD §4 短名**？  
 - [ ] 是否按域分文件（`common/` · `system/` · `auth/` · `ingest/` · `ask/` …）？  
 - [ ] ask options 是否 **strict 白名单**；scope 是否顶层？  
-- [ ] 前端是否用 contracts 类型，且调用落在模块 `api.ts`（admin）或 `src/api/*`（web），而非页面内联？  
+- [ ] 前端是否用 contracts 类型，且 **path 只落在** 模块 `api.ts`（admin）或 `src/api/*`（web），而非页面/services 内联？  
 - [ ] 导出是否走 `src/index.ts` 且使用 `.js` 扩展名（NodeNext）？  
 
 ## Quality Check

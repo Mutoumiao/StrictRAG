@@ -11,7 +11,8 @@ apps/admin/
       kb-context.ts           # 当前 KB 选择（localStorage）
     auth/
       client-session.ts       # token 本地存储
-      api.ts                  # 登录 / me / 本地登出
+      api.ts                  # 登录 / me HTTP（仅 path）
+      # services.ts           # 按需：登录用例编排（不写 path）
     components/
       admin-shell.tsx
       auth-guard.tsx
@@ -21,7 +22,7 @@ apps/admin/
         layout.tsx
         documents/
           page.tsx
-          api.ts              # 本模块私有 HTTP
+          api.ts              # 本模块私有 HTTP（仅 path + contracts）
         approvals/
           page.tsx
           api.ts
@@ -30,22 +31,44 @@ apps/admin/
           api.ts
 ```
 
-## 职责分层
+> **目标扩展**（按需长出，禁止空建）：同目录 `services.ts` | `*.services.ts` · `hooks/` · `_components/` · 可选 `store.ts`。  
+> **分层纪律全文** → [module-layering.md](./module-layering.md)
+
+## 目标模块树（路由 colocation）
+
+```text
+app/(ops)/<module>/
+  page.tsx                 # 薄：组合
+  api.ts                   # 唯一写后端 path
+  services.ts              # 业务编排；可拆 list.services.ts 等
+  store.ts                 # 可选
+  hooks/                   # 可选；禁止内含 page.tsx
+  _components/             # 偏 UI（_ = 非路由）
+```
+
+## 职责分层（摘要）
 
 | 层 | 路径 | 放什么 | 不放什么 |
 |----|------|--------|----------|
-| 传输 | `lib/http.ts` | get/post/patch/delete、鉴权头、refresh | 具体业务路径与 DTO 拼装 |
+| 传输 | `lib/http.ts` | get/post/patch/delete、鉴权头、refresh | 业务 path、DTO 拼装 |
 | 身份 | `auth/api.ts` | dev-login、me、本地登出 | 业务域接口 |
-| 模块 API | `app/(ops)/<module>/api.ts` | **仅该模块**需要的后端调用 | http 实现、测试、跨域大杂烩 |
-| 页面 | `page.tsx` | UI 状态与交互 | 直接 `fetch`、手写 wire type |
+| 模块 API | `app/(ops)/<module>/api.ts` | **仅该模块** HTTP 函数 + contracts | toast、store、业务编排 |
+| 模块 services | 同目录 `*.services.ts` | 用例：调 api、toast、store、校验 | **后端 URL/path**、JSX |
+| 模块 hooks | 同目录 `hooks/` | 必须绑 React 的逻辑 | 与 services 双份编排；path |
+| 页面 | `page.tsx` | 组合入口组件 | 直接 `fetch`、手写 wire type、堆业务 |
 
 ## 规则
 
-1. **类型**：请求/响应只用 `@strict-rag/contracts`；禁止模块内平行 wire DTO。  
-2. **模块私有 api.ts**：与页面同目录；该模块独有接口写在这里。  
-3. **跨模块调用**：优先 import 对方模块已导出的函数（如审批列表复用 `documents/api` 的 `listDocuments`），禁止复制路径字符串。  
-4. **禁止**再建「大杂烩」`src/api/` 把 http + 全站接口 + 测试堆在一起。  
-5. 新运营页有独立域时：在对应 `app/.../<module>/` 下加 `api.ts`，不要塞进无关模块。
+1. **类型**：请求/响应只用 `@strict-rag/contracts`；默认不建模块 `types.ts`。  
+2. **模块私有 api.ts**：与页面同目录；**独占**该模块后端 path。  
+3. **services 禁止写请求 URL**；只调用 `api` 导出函数。体量大时按 **业务用例** 拆多个 `*.services.ts`。  
+3b. **services 不做权限引擎**：不重算 grants/denies、不用 `role ===` 放行；UI 裁剪码 + **API 硬验码**；services 只映射 403 文案（见 module-layering §6.5）。  
+4. **hooks vs services**：无 React → services；须订阅/生命周期 → hooks（内部再调 services/api）。禁止双轨复制同一用例。  
+5. **跨模块**：优先 import 对方 **`api`**；禁止复制 path；慎 import 对方 services。  
+6. **禁止**再建全站大杂烩 `src/api/`。  
+7. **store / hooks 目录 / types**：不需要不建。  
+8. 新运营域：在 `app/(ops)/<module>/` 落树，不要塞进无关模块。  
+9. 域被 ≥2 无关路由依赖时 → 上提 `src/features/<domain>/`（见 module-layering §11）。
 
 ## 职责（产品）
 

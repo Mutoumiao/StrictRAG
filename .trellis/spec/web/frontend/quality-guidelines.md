@@ -47,6 +47,18 @@
 - **Good**：answered / abstained / 错误态三套明确 UI；只应用校验通过的 final payload  
 - **Good**：`lastQuestion` 记最近成功发起的文案；重试 `submitQuestion(lastQuestion \|\| question)`  
 
+## 模块分层反模式（摘要）
+
+> 全文：[module-layering.md](./module-layering.md)
+
+- **Bad**：组件 / hooks / services 内写业务 path（path **只**在 `src/api/*` 或 `auth/api`）  
+- **Bad**：services 与 hooks 双份同一用例编排  
+- **Bad**：为对称空建 `app/**/api.ts` / 空 features / 空 store  
+- **Bad**：平行 wire `types.ts` 复制 contracts  
+- **Bad**：services/hooks 内用运营码 / 自造权限树放行业务（授权在 **API**；前端只 Guard + 映射错误）  
+- **Good**：`api` 浅（path/transport）+ hook/services 深（用例/状态机）+ `page` 薄  
+- **Good**：无 React → services；须订阅 → hooks；膨胀按 **业务** 拆 `*.services.ts` |
+
 ### Common Mistake: 重试依赖已清空输入
 
 **Symptom**：error/abstained 后点「重试」无网络请求。
