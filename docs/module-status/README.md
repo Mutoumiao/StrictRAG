@@ -47,7 +47,7 @@
 | 项目级承诺 | 链 [交付控制台 §0](../../prds/12-delivery-guides/04-交付控制台.md)，不在此写对外话术长段 |
 | 包文档待补 | 矩阵仍可标端到端状态；「详见」指向已有包文或标注「包状态待补」 |
 
-### 矩阵（2026-08-06）
+### 矩阵（2026-08-07）
 
 | 能力域 | 端到端成熟度 | 主包 | 协作包 | 详见 |
 |--------|--------------|------|--------|------|
@@ -60,7 +60,7 @@
 | **模型网关** | **可联调**（HTTP + mock client 切片；无完整供应商 UI） | `api` | — | [api · 问答](./api.md#问答s2-最小) · backlog B3 |
 | **观测 / 评测** | **骨架**（进程内 metrics/tracer；无 L1 黄金集门禁） | `api` | — | [api](./api.md) · backlog B10 |
 | **契约 / Schema 基座** | **可联调**（支撑 P1/S2 路径；随能力扩展） | `contracts` / `db` | 全业务包 | [contracts](./contracts.md) · [db](./db.md) |
-| **工程 tooling** | **生产向**（共享 eslint/tsconfig；无业务完成度故事） | `eslint-config` · `typescript-config` | 全仓 | [eslint-config](./eslint-config.md) · [typescript-config](./typescript-config.md) · [ui](./ui.md)（骨架） |
+| **工程 tooling** | **生产向**（共享 eslint/tsconfig；无业务完成度故事） | `eslint-config` · `typescript-config` | 全仓 · `ui` | [eslint-config](./eslint-config.md) · [typescript-config](./typescript-config.md) · [ui](./ui.md)（可联调 · S2 原子） |
 
 **矩阵未覆盖、且明确未交付的能力**（勿从「可演示」行外推）：生产 ES+IK、真 RustFS/Mongo、rewrite/连续追问、CRAG/multi_hop、部门强制隔离、KB 设置全 UI、历史 indexVersion 分片浏览等 → 见 backlog 与交付控制台 §0。
 
@@ -85,7 +85,7 @@
 | `contracts` | `packages/contracts` | [contracts.md](./contracts.md) | 完整六段 | ✅ 按契约域 |
 | `db` | `packages/db` | [db.md](./db.md) | 完整六段 | ✅ 按 schema 域 |
 | `admin-catalog` | `packages/admin-catalog` | [admin-catalog.md](./admin-catalog.md) | 中等 | ✅ 权限码 + 菜单 |
-| `ui` | `packages/ui` | [ui.md](./ui.md) | 中等 | ✅ `cn` / theme 骨架 |
+| `ui` | `packages/ui` | [ui.md](./ui.md) | 中等 | ✅ Soft Bento theme + 首批原子 |
 | `eslint-config` | `packages/eslint-config` | [eslint-config.md](./eslint-config.md) | 极瘦 | ✅ |
 | `typescript-config` | `packages/typescript-config` | [typescript-config.md](./typescript-config.md) | 极瘦 | ✅ |
 

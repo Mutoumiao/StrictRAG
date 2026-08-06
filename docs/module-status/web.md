@@ -6,8 +6,8 @@
 | 端口 | 3005 |
 | 成熟度 | **可演示**（S2 用户端薄壳） |
 | 默认依赖模式 | 鉴权=临时双 JWT（经 api）· 问答默认 AI SDK UI Message Stream · rewrite=关（服务端强制）· KB=手填 id |
-| 关联模块 | ask 流/会话：`api`；类型：`contracts`；theme：`ui` |
-| 最近更新 | 2026-08-06 |
+| 关联模块 | ask 流/会话：`api`；类型：`contracts`；样式/组件：`ui` |
+| 最近更新 | 2026-08-07 |
 | Spec | `.trellis/spec/web/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · ask 流相关 API |
 
@@ -37,7 +37,9 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流）+ 会话列表/历史
 
 ### 工程
 - 分层：传输 `lib/http.ts` · 身份 `auth/api.ts` · 业务 `src/api/{ask,sessions,feedback}.ts` · hook `hooks/use-knowledge-ask.ts`
-- 走 `@strict-rag/contracts` 类型 · Tailwind v4 + `@strict-rag/ui`（Button/Input/theme）
+- 类型：`@strict-rag/contracts`
+- 样式：Tailwind v4（`postcss.config.mjs` · `src/app/globals.css` 引 ui theme + `@source`）；`ask-panel` / 登录用 Button · Input · Label · Textarea · Card · Badge · Alert（含 `variant="abstain"`）等；**无**大面积布局/色板 `style={{}}`
+- 构建：`next build --webpack`；`next.config` 含 `transpilePackages` + webpack `extensionAlias`
 - 依赖：`ai` · `@ai-sdk/react`（catalog）
 - `src/api/feedback.ts` 仅 HTTP 封装；**无**反馈 UI
 
@@ -52,7 +54,7 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流）+ 会话列表/历史
 | 反馈控件 | api 有 feedback API；**本包无**提交/列表 UI |
 | 分片预览全文、doc_type scope UI | backlog B1/B11 |
 | 知识库发现/切换器 | 无 KB 浏览，仅手填 id |
-| 生产视觉定稿落地 | 线稿在 pen；本包为功能薄壳 |
+| 生产视觉 / pen **像素**定稿 | Soft Bento token + ui 原子已接；**非** product.pen 全屏像素还原 |
 
 ---
 
@@ -61,7 +63,7 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流）+ 会话列表/历史
 | 债 | 影响 | 备注 |
 |----|------|------|
 | KB 手填 id | 演示门槛、易用性差 | 依赖运营/库管告知 id |
-| UI 与 pen Soft Bento 未对齐 | 观感非定稿 | 设计见交付控制台 §0 |
+| Soft Bento / pen 未像素对齐 | 观感非定稿 | 色板与原子在 `packages/ui`；本包只组合 |
 | 会话/错误态体验简陋 | 空/错态规格在文档，实现未全铺 | 功能地图 §4.16 |
 | 无 E2E / 无 hook 单测 | 主要靠 api 单测 + 手测 | 旧手写 SSE 单测已随协议删除 |
 | 流结束无 final 时可能停 loading | 边角 | 服务端 catch 已写 final；客户端未兜底 ready 无 final |
@@ -78,5 +80,6 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流）+ 会话列表/历史
 | ask 流 | `src/hooks/use-knowledge-ask.ts` · `src/api/ask.ts`（transport） · `ask-panel.tsx`（`lastQuestion`） |
 | 会话 / 反馈客户端 | `src/api/sessions.ts` · `src/api/feedback.ts`（无 UI） |
 | 传输 | `src/lib/http.ts` |
-| Task（归档） | `.trellis/tasks/archive/2026-08/08-05-p2-web-ask-ui/` · `08-05-p2-sessions-shell/` |
+| 样式入口 | `apps/web/src/app/globals.css` · `postcss.config.mjs` · `package.json`（tailwind · `build --webpack`） |
+| Task（归档） | `.trellis/tasks/archive/2026-08/08-05-p2-web-ask-ui/` · `08-05-p2-sessions-shell/` · `08-06-frontend-tailwind-shadcn/` |
 | 签字（归档） | `.trellis/tasks/archive/2026-08/08-05-phase-2-ask/sign-off.md` |
