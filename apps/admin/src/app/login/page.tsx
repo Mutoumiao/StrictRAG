@@ -2,6 +2,10 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Button } from '@strict-rag/ui/components/ui/button';
+import { Input } from '@strict-rag/ui/components/ui/input';
+import { Label } from '@strict-rag/ui/components/ui/label';
+import { Select } from '@strict-rag/ui/components/ui/select';
 
 import { loginWithDev } from '@/auth/services';
 
@@ -37,36 +41,32 @@ export default function AdminLoginPage() {
         </p>
       </div>
       <form onSubmit={onSubmit} className="flex flex-col gap-3">
-        <label className="text-sm">
-          邮箱
-          <input
-            className="mt-1 w-full rounded-md border px-3 py-2"
+        <div className="space-y-1.5">
+          <Label htmlFor="admin-email">邮箱</Label>
+          <Input
+            id="admin-email"
             type="email"
             value={email}
             onChange={(ev) => setEmail(ev.target.value)}
             required
           />
-        </label>
-        <label className="text-sm">
-          角色模板
-          <select
-            className="mt-1 w-full rounded-md border px-3 py-2"
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="admin-role">角色模板</Label>
+          <Select
+            id="admin-role"
             value={role}
             onChange={(ev) => setRole(ev.target.value as RoleTpl)}
           >
             <option value="super_admin">super_admin（全权）</option>
             <option value="kb_admin">kb_admin（含审批/成员）</option>
             <option value="doc_operator">doc_operator（无审批决定）</option>
-          </select>
-        </label>
-        {error ? <p className="text-sm text-red-600">{error}</p> : null}
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-md bg-zinc-900 px-3 py-2 text-sm text-white disabled:opacity-50"
-        >
+          </Select>
+        </div>
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        <Button type="submit" disabled={pending}>
           {pending ? '登录中…' : '开发登录'}
-        </button>
+        </Button>
       </form>
     </main>
   );

@@ -6,10 +6,20 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import type { ChunkDetail, ChunkListItem, DocumentListItem } from '@strict-rag/contracts';
+import { Button } from '@strict-rag/ui/components/ui/button';
+import { Label } from '@strict-rag/ui/components/ui/label';
+import { Select } from '@strict-rag/ui/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@strict-rag/ui/components/ui/table';
 
 import { useAdminAuth } from '@/components/auth-guard';
-import type { ChunkDetail, ChunkListItem, DocumentListItem } from '@strict-rag/contracts';
-
 import { readStoredKbId } from '@/lib/kb-context';
 
 import { loadChunkBody, loadChunkDocs, loadChunkList } from '../services';
@@ -131,41 +141,36 @@ export function ChunksWorkspace() {
   if (!canView) {
     return (
       <div>
-        <h1 style={{ fontSize: 18, margin: '0 0 12px' }}>分片</h1>
-        <p style={{ fontSize: 14, color: '#b91c1c' }}>无 chunk.view 权限（403）</p>
+        <h1 className="mb-3 text-lg font-semibold">分片</h1>
+        <p className="text-sm text-destructive">无 chunk.view 权限（403）</p>
       </div>
     );
   }
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
-        <h1 style={{ fontSize: 18, margin: 0 }}>分片</h1>
-        <button type="button" onClick={() => void loadDocs()} style={{ fontSize: 13 }}>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h1 className="m-0 text-lg font-semibold">分片</h1>
+        <Button type="button" variant="outline" size="sm" onClick={() => void loadDocs()}>
           刷新文档
-        </button>
+        </Button>
       </div>
 
       {!kbId ? (
-        <p style={{ color: 'var(--sr-muted, #64748b)', fontSize: 14 }}>
-          请在顶栏填写知识库 UUID 后刷新。
-        </p>
+        <p className="text-sm text-muted-foreground">请在顶栏填写知识库 UUID 后刷新。</p>
       ) : null}
 
-      {state === 'loading' ? (
-        <p style={{ fontSize: 14, color: 'var(--sr-muted, #64748b)' }}>加载中…</p>
-      ) : null}
-      {state === 'error' ? (
-        <p style={{ fontSize: 14, color: '#b91c1c' }}>{error}</p>
-      ) : null}
+      {state === 'loading' ? <p className="text-sm text-muted-foreground">加载中…</p> : null}
+      {state === 'error' ? <p className="text-sm text-destructive">{error}</p> : null}
 
       {kbId ? (
-        <label style={{ display: 'block', fontSize: 13, marginBottom: 12 }}>
-          文档
-          <select
+        <div className="mb-3 space-y-1">
+          <Label htmlFor="chunk-doc">文档</Label>
+          <Select
+            id="chunk-doc"
             value={docId}
             onChange={(e) => void onSelectDoc(e.target.value)}
-            style={{ display: 'block', marginTop: 4, minWidth: 280, fontSize: 13, padding: 4 }}
+            className="min-w-[280px] w-auto"
           >
             <option value="">选择文档…</option>
             {docs.map((d) => (
@@ -173,12 +178,12 @@ export function ChunksWorkspace() {
                 {d.title} · {d.status}/{d.lifecycle} · v{d.indexVersion}
               </option>
             ))}
-          </select>
-        </label>
+          </Select>
+        </div>
       ) : null}
 
       {meta ? (
-        <p style={{ fontSize: 12, color: 'var(--sr-muted, #64748b)', marginBottom: 8 }}>
+        <p className="mb-2 text-xs text-muted-foreground">
           indexVersion={meta.indexVersion}
           {meta.status ? ` · status=${meta.status}` : ''}
           {meta.lifecycle ? ` · lifecycle=${meta.lifecycle}` : ''}
@@ -189,62 +194,44 @@ export function ChunksWorkspace() {
       ) : null}
 
       {docId && state === 'ready' && items.length === 0 ? (
-        <p style={{ fontSize: 14, color: 'var(--sr-muted, #64748b)' }}>
+        <p className="text-sm text-muted-foreground">
           当前激活版本无分片（未切块或 indexVersion=0）
         </p>
       ) : null}
 
       {items.length > 0 ? (
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead>
-            <tr style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0' }}>
-              <th style={{ padding: '8px 4px', width: 48 }}>#</th>
-              <th style={{ padding: '8px 4px' }}>preview</th>
-              <th style={{ padding: '8px 4px', width: 72 }}>tokens</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table>
+          <TableHeader>
+            <TableRow className="border-b-border">
+              <TableHead className="w-12">#</TableHead>
+              <TableHead>preview</TableHead>
+              <TableHead className="w-[72px]">tokens</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {items.map((r) => (
-              <tr key={r.chunkId} style={{ borderBottom: '1px solid #f1f5f9', verticalAlign: 'top' }}>
-                <td style={{ padding: '8px 4px' }}>{r.ordinal}</td>
-                <td style={{ padding: '8px 4px' }}>
+              <TableRow key={r.chunkId} className="align-top">
+                <TableCell>{r.ordinal}</TableCell>
+                <TableCell>
                   <button
                     type="button"
                     onClick={() => void onOpenChunk(r.chunkId)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      padding: 0,
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      color: 'inherit',
-                      font: 'inherit',
-                    }}
+                    className="cursor-pointer border-0 bg-transparent p-0 text-left font-inherit text-inherit"
                   >
                     {r.preview}
                     {r.previewTruncated ? '…' : ''}
                   </button>
                   {openId === r.chunkId ? (
-                    <div
-                      style={{
-                        marginTop: 8,
-                        padding: 10,
-                        background: '#f8fafc',
-                        borderRadius: 6,
-                        whiteSpace: 'pre-wrap',
-                        fontSize: 12,
-                        lineHeight: 1.5,
-                      }}
-                    >
+                    <div className="mt-2 whitespace-pre-wrap rounded-md bg-muted p-2.5 text-xs leading-relaxed">
                       {detailBusy ? '加载全文…' : null}
                       {detailError ? (
-                        <span style={{ color: '#b91c1c' }}>{detailError}</span>
+                        <span className="text-destructive">{detailError}</span>
                       ) : null}
                       {detail && detail.chunkId === r.chunkId ? (
                         <>
                           {detail.body}
                           {detail.bodyTruncated ? (
-                            <div style={{ marginTop: 6, color: '#94a3b8' }}>
+                            <div className="mt-1.5 text-muted-foreground">
                               （已截断 · 软上限 64KiB）
                             </div>
                           ) : null}
@@ -252,24 +239,24 @@ export function ChunksWorkspace() {
                       ) : null}
                     </div>
                   ) : null}
-                </td>
-                <td style={{ padding: '8px 4px', color: '#94a3b8' }}>
-                  {r.tokenCount ?? '—'}
-                </td>
-              </tr>
+                </TableCell>
+                <TableCell className="text-muted-foreground">{r.tokenCount ?? '—'}</TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       ) : null}
 
       {nextCursor ? (
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
+          className="mt-3"
           onClick={() => void onLoadMore()}
-          style={{ marginTop: 12, fontSize: 13 }}
         >
           加载更多
-        </button>
+        </Button>
       ) : null}
     </div>
   );

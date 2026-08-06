@@ -37,7 +37,7 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流）+ 会话列表/历史
 
 ### 工程
 - 分层：传输 `lib/http.ts` · 身份 `auth/api.ts` · 业务 `src/api/{ask,sessions,feedback}.ts` · hook `hooks/use-knowledge-ask.ts`
-- 走 `@strict-rag/contracts` 类型 · 仅引入 `@strict-rag/ui/theme.css`（无组件库页面）
+- 走 `@strict-rag/contracts` 类型 · Tailwind v4 + `@strict-rag/ui`（Button/Input/theme）
 - 依赖：`ai` · `@ai-sdk/react`（catalog）
 - `src/api/feedback.ts` 仅 HTTP 封装；**无**反馈 UI
 

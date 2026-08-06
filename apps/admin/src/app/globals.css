@@ -1,9 +1,4 @@
-* {
-  box-sizing: border-box;
-}
+/* admin 入口：主题在 @strict-rag/ui；此处补 app 源码扫描 */
+@import '@strict-rag/ui/theme.css';
 
-html,
-body {
-  margin: 0;
-  padding: 0;
-}
+@source '../../../src/**/*.{ts,tsx}';

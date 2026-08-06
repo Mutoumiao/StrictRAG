@@ -9,6 +9,10 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { MENU_TREE, filterMenuByCodes } from '@strict-rag/admin-catalog';
+import { Button } from '@strict-rag/ui/components/ui/button';
+import { Input } from '@strict-rag/ui/components/ui/input';
+import { Label } from '@strict-rag/ui/components/ui/label';
+import { cn } from '@strict-rag/ui/lib/utils';
 
 import { logoutLocal } from '@/auth/services';
 import { useAdminAuth } from '@/components/auth-guard';
@@ -37,40 +41,21 @@ export function AdminShell({ children }: { children: ReactNode }) {
   );
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        fontFamily: 'system-ui, sans-serif',
-        color: 'var(--sr-foreground)',
-        background: 'var(--sr-background)',
-      }}
-    >
-      <header
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 12,
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '12px 20px',
-          borderBottom: '1px solid var(--sr-border, #e2e8f0)',
-        }}
-      >
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center' }}>
-          <strong style={{ fontSize: 14 }}>StrictRAG Admin</strong>
-          <nav style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+    <div className="min-h-screen bg-background text-foreground">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
+        <div className="flex flex-wrap items-center gap-4">
+          <strong className="text-sm">StrictRAG Admin</strong>
+          <nav className="flex flex-wrap gap-2.5">
             {links.map((l) => {
               const active = pathname === l.href || pathname.startsWith(`${l.href}/`);
               return (
                 <Link
                   key={l.id}
                   href={l.href}
-                  style={{
-                    fontSize: 13,
-                    textDecoration: 'none',
-                    color: active ? 'var(--sr-foreground)' : 'var(--sr-muted, #64748b)',
-                    fontWeight: active ? 600 : 400,
-                  }}
+                  className={cn(
+                    'text-[13px] no-underline',
+                    active ? 'font-semibold text-foreground' : 'font-normal text-muted-foreground',
+                  )}
                 >
                   {l.label}
                 </Link>
@@ -78,10 +63,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
             })}
           </nav>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <label style={{ fontSize: 12, color: 'var(--sr-muted, #64748b)' }}>
+        <div className="flex flex-wrap items-center gap-2">
+          <Label className="flex items-center gap-1.5 text-xs font-normal text-muted-foreground">
             KB
-            <input
+            <Input
               value={kbId}
               onChange={(e) => {
                 const v = e.target.value.trim();
@@ -89,33 +74,24 @@ export function AdminShell({ children }: { children: ReactNode }) {
                 writeStoredKbId(v);
               }}
               placeholder="knowledge-base uuid"
-              style={{
-                marginLeft: 6,
-                width: 280,
-                maxWidth: '40vw',
-                padding: '4px 8px',
-                fontSize: 12,
-                borderRadius: 6,
-                border: '1px solid var(--sr-border, #e2e8f0)',
-              }}
+              className="h-8 w-[280px] max-w-[40vw] text-xs"
             />
-          </label>
-          <span style={{ fontSize: 12, color: 'var(--sr-muted, #64748b)' }}>
-            {me.email ?? me.userId}
-          </span>
-          <button
+          </Label>
+          <span className="text-xs text-muted-foreground">{me.email ?? me.userId}</span>
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => {
               logoutLocal();
               window.location.href = '/login';
             }}
-            style={{ fontSize: 12, padding: '4px 10px' }}
           >
             退出
-          </button>
+          </Button>
         </div>
       </header>
-      <main style={{ padding: '20px 24px', maxWidth: 960 }}>{children}</main>
+      <main className="mx-auto max-w-[960px] px-6 py-5">{children}</main>
     </div>
   );
 }

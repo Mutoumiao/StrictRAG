@@ -6,6 +6,18 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { KbMember, KbMemberRole } from '@strict-rag/contracts';
+import { Button } from '@strict-rag/ui/components/ui/button';
+import { Input } from '@strict-rag/ui/components/ui/input';
+import { Label } from '@strict-rag/ui/components/ui/label';
+import { Select } from '@strict-rag/ui/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@strict-rag/ui/components/ui/table';
 
 import { useAdminAuth } from '@/components/auth-guard';
 import { readStoredKbId } from '@/lib/kb-context';
@@ -95,104 +107,90 @@ export function MembersWorkspace() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
-        <h1 style={{ fontSize: 18, margin: 0 }}>成员</h1>
-        <button type="button" onClick={() => void load()} style={{ fontSize: 13 }}>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h1 className="m-0 text-lg font-semibold">成员</h1>
+        <Button type="button" variant="outline" size="sm" onClick={() => void load()}>
           刷新
-        </button>
+        </Button>
       </div>
 
-      {!kbId ? (
-        <p style={{ color: 'var(--sr-muted, #64748b)', fontSize: 14 }}>
-          请在顶栏填写知识库 UUID。
-        </p>
-      ) : null}
+      {!kbId ? <p className="text-sm text-muted-foreground">请在顶栏填写知识库 UUID。</p> : null}
 
-      {flash ? <p style={{ fontSize: 13 }}>{flash}</p> : null}
+      {flash ? <p className="text-[13px]">{flash}</p> : null}
 
-      {state === 'loading' ? (
-        <p style={{ fontSize: 14, color: 'var(--sr-muted, #64748b)' }}>加载中…</p>
-      ) : null}
-      {state === 'error' ? (
-        <p style={{ fontSize: 14, color: '#b91c1c' }}>{error}</p>
-      ) : null}
+      {state === 'loading' ? <p className="text-sm text-muted-foreground">加载中…</p> : null}
+      {state === 'error' ? <p className="text-sm text-destructive">{error}</p> : null}
 
       {canManage ? (
-        <form
-          onSubmit={(e) => void onInvite(e)}
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 8,
-            alignItems: 'end',
-            marginBottom: 20,
-          }}
-        >
-          <label style={{ fontSize: 13 }}>
-            邮箱
-            <input
+        <form onSubmit={(e) => void onInvite(e)} className="mb-5 flex flex-wrap items-end gap-2">
+          <div className="space-y-1">
+            <Label htmlFor="member-email">邮箱</Label>
+            <Input
+              id="member-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              style={{ display: 'block', marginTop: 4, padding: '6px 8px', width: 220 }}
+              className="w-[220px]"
             />
-          </label>
-          <label style={{ fontSize: 13 }}>
-            角色
-            <select
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="member-role">角色</Label>
+            <Select
+              id="member-role"
               value={role}
               onChange={(e) => setRole(e.target.value as KbMemberRole)}
-              style={{ display: 'block', marginTop: 4, padding: '6px 8px' }}
+              className="w-auto"
             >
               <option value="read">read</option>
               <option value="write">write</option>
               <option value="admin">admin</option>
-            </select>
-          </label>
-          <button type="submit" disabled={busy || !kbId} style={{ fontSize: 13, padding: '6px 12px' }}>
+            </Select>
+          </div>
+          <Button type="submit" size="sm" disabled={busy || !kbId}>
             邀请
-          </button>
+          </Button>
         </form>
       ) : null}
 
       {state === 'ready' && rows.length === 0 ? (
-        <p style={{ fontSize: 14, color: 'var(--sr-muted, #64748b)' }}>暂无成员</p>
+        <p className="text-sm text-muted-foreground">暂无成员</p>
       ) : null}
 
       {rows.length > 0 ? (
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead>
-            <tr style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0' }}>
-              <th style={{ padding: '8px 4px' }}>用户</th>
-              <th style={{ padding: '8px 4px' }}>角色</th>
-              <th style={{ padding: '8px 4px' }} />
-            </tr>
-          </thead>
-          <tbody>
+        <Table>
+          <TableHeader>
+            <TableRow className="border-b-border">
+              <TableHead>用户</TableHead>
+              <TableHead>角色</TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {rows.map((r) => (
-              <tr key={r.userId} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                <td style={{ padding: '8px 4px' }}>
+              <TableRow key={r.userId}>
+                <TableCell>
                   <div>{r.email ?? r.displayName ?? r.userId}</div>
-                  <div style={{ fontSize: 11, color: '#94a3b8' }}>{r.userId}</div>
-                </td>
-                <td style={{ padding: '8px 4px' }}>{r.role}</td>
-                <td style={{ padding: '8px 4px' }}>
+                  <div className="text-[11px] text-muted-foreground">{r.userId}</div>
+                </TableCell>
+                <TableCell>{r.role}</TableCell>
+                <TableCell>
                   {canManage ? (
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="sm"
                       disabled={busy}
                       onClick={() => void onRemove(r.userId)}
-                      style={{ fontSize: 12 }}
                     >
                       移除
-                    </button>
+                    </Button>
                   ) : null}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       ) : null}
     </div>
   );

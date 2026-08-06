@@ -1,11 +1,20 @@
 # @strict-rag/ui
 
-共享 UI：**子路径 exports**，避免单 barrel 全量拖拽。
+共享 UI：**子路径 exports**。
 
 | 路径 | 内容 |
 |------|------|
 | `@strict-rag/ui/lib/utils` | `cn()` |
-| `@strict-rag/ui/theme.css` | CSS 变量占位 |
-| `@strict-rag/ui` | 根 re-export（可选） |
+| `@strict-rag/ui/theme.css` | token + `@theme` |
+| `@strict-rag/ui/components/ui/button` | Button |
+| `@strict-rag/ui/components/ui/input` | Input |
+| `@strict-rag/ui/components/ui/label` | Label |
+| `@strict-rag/ui/components/ui/textarea` | Textarea |
+| `@strict-rag/ui/components/ui/select` | Select（native） |
+| `@strict-rag/ui/components/ui/table` | Table 系列 |
+| `@strict-rag/ui/components/ui/card` | Card 系列 |
+| `@strict-rag/ui/components/ui/badge` | Badge |
+| `@strict-rag/ui/components/ui/alert` | Alert |
+| `@strict-rag/ui` | 根 re-export |
 
-组件（button 等）待接 Next 时再按需注册到 `package.json#exports`。
+admin/web `globals.css`：`tailwind` + theme + `@source` 扫描本包。

@@ -19,7 +19,7 @@
 | `contracts` | `packages/contracts` | [library](./contracts/library/index.md) | BizCode / ApiResponse / Zod（含 ask 域） |
 | `admin-catalog` | `packages/admin-catalog` | [library](./admin-catalog/library/index.md) | 权限码 + 菜单 SSOT |
 | `db` | `packages/db` | [backend](./db/backend/index.md) | Drizzle schema（api/worker 共用） |
-| `ui` | `packages/ui` | [frontend](./ui/frontend/index.md) | `cn()` · theme · 共享组件 |
+| `ui` | `packages/ui` | [frontend](./ui/frontend/index.md) | Tailwind v4 主题 + Soft Bento · shadcn 风格原子 |
 | `eslint-config` | `packages/eslint-config` | [tooling](./eslint-config/tooling/index.md) | 共享 ESLint |
 | `typescript-config` | `packages/typescript-config` | [tooling](./typescript-config/tooling/index.md) | 共享 tsconfig |
 

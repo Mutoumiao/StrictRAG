@@ -50,7 +50,7 @@ apps/web     → packages/{contracts, ui}
 | `@strict-rag/worker` | contracts, db |
 | `@strict-rag/admin` | contracts, ui, admin-catalog（菜单裁剪） |
 | `@strict-rag/web` | contracts, ui（无 admin-catalog 亦可；消费者无运营码） |
-| `@strict-rag/ui` | clsx, tailwind-merge（react peer 可选） |
+| `@strict-rag/ui` | clsx, tailwind-merge, cva；react peer；**Tailwind 构建在 admin/web** |
 | `@strict-rag/contracts` | zod（含 **auth TokenPair**） |
 | `@strict-rag/admin-catalog` | **无** Next/Hono 依赖；仅数据 SSOT |
 
@@ -75,7 +75,9 @@ apps/web     → packages/{contracts, ui}
 - **错误码与 `ApiResponse` 信封只放** `packages/contracts`（见 `biz-code.ts` · `response.ts`）  
 - 按域增文件：`common/*` + `system/*` + 未来 `kb/*` · `ask/*` 等  
 - ESM 子路径导出用 `.js` 后缀：`export * from './common/biz-code.js'`（见 `packages/contracts/src/index.ts`）  
-- UI：`import { cn } from '@strict-rag/ui/lib/utils'`（子路径 exports，见 `packages/ui/package.json`）
+- UI：`import { cn } from '@strict-rag/ui/lib/utils'`；组件 `@strict-rag/ui/components/ui/*`（子路径 exports）  
+- UI 主题：`packages/ui/src/theme.css` 为 Tailwind v4 入口；app 只经 `globals.css` 引入（见 [ui · component-guidelines](../ui/frontend/component-guidelines.md)）  
+- Next 消费 NodeNext 包：`transpilePackages` + webpack `extensionAlias`（`.js`→`.ts`）；`next build --webpack`
 
 ---
 

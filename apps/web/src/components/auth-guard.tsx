@@ -65,16 +65,7 @@ export function WebAuthGuard({ children }: { children: ReactNode }) {
 
   if (loading || !ctx) {
     return (
-      <div
-        style={{
-          minHeight: '40vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'var(--sr-muted)',
-          fontSize: 14,
-        }}
-      >
+      <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
         校验登录状态…
       </div>
     );

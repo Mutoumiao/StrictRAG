@@ -17,7 +17,10 @@
 
 ## 技术约定
 
-- `cn` / theme → `@strict-rag/ui`  
+- `cn` / 组件 / theme → `@strict-rag/ui`（契约见 [ui · component-guidelines](../../ui/frontend/component-guidelines.md)）  
+- 三态视觉：answered → `success`；**abstained → `abstain`**；error → `destructive`（拒答 ≠ 系统红）  
+- 入口：`globals.css` import ui theme + `@source`；`layout` 只引 globals  
+- 构建：`next build --webpack` + `extensionAlias`  
 - ESLint：`next-js` 配置  
 - 与 admin **拆包**：勿把管理页塞进 web  
 - 类型：`AskRequest` / `AskResponse` / BizCode 来自 `@strict-rag/contracts`  
@@ -39,7 +42,10 @@
 
 ## 反模式
 
+- **Bad**：拒答卡片用 `destructive` / 红色系统错误样式（应 `abstain`）  
+- **Bad**：ask-panel 大面积 `style={{}}` 或 `bg-[#f5f3ff]`（应 token + Alert/Badge）  
 - **Bad**：前端在本地用历史消息拼 evidence 高亮当引用  
+
 - **Bad**：debug 开关默认打开并展示内部 trace 给终端用户  
 - **Bad**：手写 `event: final` 解析或每个 SSE event 都 `setAnswer` 覆盖 final  
 - **Bad**：`data-ask-final` 不经 `AskResponseSchema` 盲 `as`  

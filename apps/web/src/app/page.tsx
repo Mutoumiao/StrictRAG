@@ -9,13 +9,7 @@ import { AskPanel } from '@/components/ask-panel';
  */
 export default function HomePage() {
   return (
-    <main
-      style={{
-        minHeight: '100vh',
-        background: 'var(--sr-background)',
-        color: 'var(--sr-foreground)',
-      }}
-    >
+    <main className="min-h-screen bg-background text-foreground">
       <WebAuthGuard>
         <AskPanel />
       </WebAuthGuard>

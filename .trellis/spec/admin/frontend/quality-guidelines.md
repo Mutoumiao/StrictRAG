@@ -26,10 +26,25 @@
 
 ## 技术约定
 
-- 共享样式：`import { cn } from '@strict-rag/ui/lib/utils'`  
-- 主题：`import '@strict-rag/ui/theme.css'`（接 Tailwind 后扩展）  
+- 共享样式 / 组件：`@strict-rag/ui/lib/utils` · `@strict-rag/ui/components/ui/*`  
+- 主题管道：**完整契约**见 [ui · component-guidelines](../../ui/frontend/component-guidelines.md)  
+  - `src/app/globals.css` → `@import '@strict-rag/ui/theme.css'` + `@source` 本 app  
+  - `layout.tsx` 只 `import './globals.css'`  
+  - Soft Bento：`bg-background` `#F3F5F8` · `bg-primary` `#2563EB` · Admin 侧栏可用 `bg-sidebar`  
+- 构建：`next build --webpack` + `extensionAlias`（NodeNext `.js`→`.ts`）  
 - 错误码展示：HTTP `error.code` 为 PRD 短名；见 [contracts-patterns](../../contracts/library/contracts-patterns.md)  
 - 仅 `NEXT_PUBLIC_*` 可进浏览器包  
+
+### Don't: 内联 style 做运营页布局
+
+```tsx
+// Bad
+<div style={{ padding: 16, color: 'var(--sr-muted)' }} />
+
+// Good
+<div className="p-4 text-muted-foreground" />
+```
+
 
 ## 会话与 HTTP（已落地 · 参考 partner）
 

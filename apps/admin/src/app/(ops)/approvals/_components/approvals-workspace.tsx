@@ -6,10 +6,11 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { DocumentListItem } from '@strict-rag/contracts';
+import { Button } from '@strict-rag/ui/components/ui/button';
+import { cn } from '@strict-rag/ui/lib/utils';
 
 import { useAdminAuth } from '@/components/auth-guard';
-import type { DocumentListItem } from '@strict-rag/contracts';
-
 import { readStoredKbId } from '@/lib/kb-context';
 
 import { applyApprovalAction, loadApprovalsList, type ApprovalAction } from '../services';
@@ -86,85 +87,71 @@ export function ApprovalsWorkspace() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
-        <h1 style={{ fontSize: 18, margin: 0 }}>审批中心</h1>
-        <button type="button" onClick={() => void load()} style={{ fontSize: 13 }}>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h1 className="m-0 text-lg font-semibold">审批中心</h1>
+        <Button type="button" variant="outline" size="sm" onClick={() => void load()}>
           刷新
-        </button>
+        </Button>
       </div>
-      <p style={{ fontSize: 13, color: 'var(--sr-muted, #64748b)', marginTop: 0 }}>
+      <p className="mt-0 text-[13px] text-muted-foreground">
         未审批文档不可 scan（ADR-048）。
         {canDecide ? null : ' 当前角色无 approval.decide，决定按钮已隐藏。'}
       </p>
 
       {flash ? (
         <p
-          style={{
-            fontSize: 13,
-            color: flash.kind === 'ok' ? '#15803d' : '#b91c1c',
-          }}
+          className={cn(
+            'text-[13px]',
+            flash.kind === 'ok' ? 'text-success' : 'text-destructive',
+          )}
         >
           {flash.text}
         </p>
       ) : null}
 
-      {!kbId ? (
-        <p style={{ color: 'var(--sr-muted, #64748b)', fontSize: 14 }}>
-          请在顶栏填写知识库 UUID。
-        </p>
-      ) : null}
+      {!kbId ? <p className="text-sm text-muted-foreground">请在顶栏填写知识库 UUID。</p> : null}
 
-      {state === 'loading' ? (
-        <p style={{ fontSize: 14, color: 'var(--sr-muted, #64748b)' }}>加载中…</p>
-      ) : null}
-      {state === 'error' ? (
-        <p style={{ fontSize: 14, color: '#b91c1c' }}>{error}</p>
-      ) : null}
+      {state === 'loading' ? <p className="text-sm text-muted-foreground">加载中…</p> : null}
+      {state === 'error' ? <p className="text-sm text-destructive">{error}</p> : null}
 
       {state === 'ready' ? (
         <>
-          <h2 style={{ fontSize: 15, margin: '20px 0 8px' }}>待审 ({pending.length})</h2>
+          <h2 className="mb-2 mt-5 text-[15px] font-semibold">待审 ({pending.length})</h2>
           {pending.length === 0 ? (
-            <p style={{ fontSize: 13, color: 'var(--sr-muted, #64748b)' }}>无待审文档</p>
+            <p className="text-[13px] text-muted-foreground">无待审文档</p>
           ) : (
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+            <ul className="m-0 list-none p-0">
               {pending.map((r) => (
                 <li
                   key={r.id}
-                  style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: 10,
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '10px 0',
-                    borderBottom: '1px solid #f1f5f9',
-                  }}
+                  className="flex flex-wrap items-center justify-between gap-2.5 border-b border-muted py-2.5"
                 >
                   <div>
-                    <div style={{ fontSize: 14 }}>{r.title}</div>
-                    <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                    <div className="text-sm">{r.title}</div>
+                    <div className="text-[11px] text-muted-foreground">
                       {r.id} · status={r.status}
                     </div>
                   </div>
                   {canDecide ? (
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button
+                    <div className="flex gap-2">
+                      <Button
                         type="button"
+                        size="sm"
+                        variant="outline"
                         disabled={busyId === r.id}
                         onClick={() => void onAction(r.id, 'approve')}
-                        style={{ fontSize: 13 }}
                       >
                         通过
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
+                        size="sm"
+                        variant="destructive"
                         disabled={busyId === r.id}
                         onClick={() => void onAction(r.id, 'reject')}
-                        style={{ fontSize: 13 }}
                       >
                         驳回
-                      </button>
+                      </Button>
                     </div>
                   ) : null}
                 </li>
@@ -172,41 +159,34 @@ export function ApprovalsWorkspace() {
             </ul>
           )}
 
-          <h2 style={{ fontSize: 15, margin: '24px 0 8px' }}>
+          <h2 className="mb-2 mt-6 text-[15px] font-semibold">
             已通过 · 可 scan ({approved.length})
           </h2>
           {approved.length === 0 ? (
-            <p style={{ fontSize: 13, color: 'var(--sr-muted, #64748b)' }}>无已通过文档</p>
+            <p className="text-[13px] text-muted-foreground">无已通过文档</p>
           ) : (
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+            <ul className="m-0 list-none p-0">
               {approved.map((r) => (
                 <li
                   key={r.id}
-                  style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: 10,
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '10px 0',
-                    borderBottom: '1px solid #f1f5f9',
-                  }}
+                  className="flex flex-wrap items-center justify-between gap-2.5 border-b border-muted py-2.5"
                 >
                   <div>
-                    <div style={{ fontSize: 14 }}>{r.title}</div>
-                    <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                    <div className="text-sm">{r.title}</div>
+                    <div className="text-[11px] text-muted-foreground">
                       {r.id} · status={r.status} · lifecycle={r.lifecycle}
                     </div>
                   </div>
                   {canScan ? (
-                    <button
+                    <Button
                       type="button"
+                      size="sm"
+                      variant="outline"
                       disabled={busyId === r.id}
                       onClick={() => void onAction(r.id, 'scan')}
-                      style={{ fontSize: 13 }}
                     >
                       入队 scan
-                    </button>
+                    </Button>
                   ) : null}
                 </li>
               ))}

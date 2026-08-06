@@ -9,7 +9,9 @@
 
 - [ ] 是否用户问答 / 会话路径（非管理壳）？  
 - [ ] 类型与错误码是否来自 `@strict-rag/contracts`？默认不建平行 wire `types.ts`？  
-- [ ] UI 是否用 `@strict-rag/ui`？  
+- [ ] UI 是否用 `@strict-rag/ui`（组件 + Soft Bento token）？禁止大面积内联 style？  
+- [ ] 拒答是否用 **abstain** 语义色（非 destructive 系统红）？  
+
 - [ ] options 是否白名单，且 `scope` 走顶层（不进 options）？  
 - [ ] 流式是否 **只信 `data-ask-final`**（schema 校验），进度用 `data-status`？  
 - [ ] 是否禁止自写 SSE 分帧（须 `@ai-sdk/react` + transport）？  
@@ -29,7 +31,8 @@
 - [ ] 拒答态可见 reason/userMessage；禁止伪装成功答案  
 - [ ] 分层符合 [module-layering](./module-layering.md)  
 - [ ] **抽公共**：有无 A 类欠抽 / B 类过抽？ask 流与会话壳是否被错误合成上帝 hook？见 [§12.1](./module-layering.md)  
-- [ ] `pnpm --filter @strict-rag/web check-types` · `lint` · `test`  
+- [ ] `pnpm --filter @strict-rag/web check-types` · `lint` · `test` · `build`（`next build --webpack`）  
+
 
 ---
 

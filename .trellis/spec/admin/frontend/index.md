@@ -10,7 +10,9 @@
 - [ ] 是否管理端能力（KB/成员/文档/审批/评测）而非用户 ask 主路径？  
 - [ ] 权限码 / 菜单是否来自 `@strict-rag/admin-catalog`？  
 - [ ] API 类型是否来自 `@strict-rag/contracts`？默认不建平行 wire `types.ts`？  
-- [ ] UI 是否优先 `@strict-rag/ui`（`cn` / theme）？  
+- [ ] UI 是否优先 `@strict-rag/ui`（`cn` / 子路径组件 / Soft Bento token）？禁止大面积内联 style？  
+- [ ] 样式入口是否仅为 `./globals.css`（内 import ui theme；本 app `@source`）？  
+
 - [ ] 壳准入是否按 **`admin.shell`**（非旧 role 公式），且不靠前端藏路由？  
 - [ ] 菜单裁剪是否 `filterMenuByCodes` + 落地 href 白名单？  
 - [ ] 后端 path 是否只在模块 `api.ts` / `auth/api`（services **禁止**写 URL）？  
@@ -26,7 +28,8 @@
 - [ ] 按钮可见 ≠ API 已授权（双罪禁止）  
 - [ ] 分层符合 [module-layering](./module-layering.md)  
 - [ ] **抽公共**：有无 A1～A4 欠抽（≥3 处同形纯逻辑、≥4 模块同步改协议、path/wire 复制）？有无 B1～B4 过抽（仅形状像就上帝 hook / options 丛林 / 空 hooks）？见 [§12.1](./module-layering.md)  
-- [ ] `pnpm --filter @strict-rag/admin check-types` · `lint`  
+- [ ] `pnpm --filter @strict-rag/admin check-types` · `lint` · `build`（`next build --webpack`）  
+
 
 ---
 

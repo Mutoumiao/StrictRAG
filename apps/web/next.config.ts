@@ -8,8 +8,15 @@ const monorepoRoot = path.resolve(appDir, '../..');
 
 const nextConfig: NextConfig = {
   transpilePackages: ['@strict-rag/ui', '@strict-rag/contracts'],
-  // 避免父目录 package-lock 干扰 workspace 根推断
   outputFileTracingRoot: monorepoRoot,
+  // NodeNext 包内 `from './x.js'` 实际源是 .ts；bundler 需 extensionAlias
+  webpack: (config) => {
+    config.resolve.extensionAlias = {
+      '.js': ['.ts', '.tsx', '.js'],
+      '.jsx': ['.tsx', '.jsx'],
+    };
+    return config;
+  },
 };
 
 export default nextConfig;

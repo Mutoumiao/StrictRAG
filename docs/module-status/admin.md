@@ -82,7 +82,7 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员 + 分�
 |----|------|------|
 | KB 手填 id | 演示门槛高 | 与 web 同类债 |
 | 菜单 SSOT 与已实现路由双轨 | catalog 超前；shell 硬编码白名单 | 新页落地须同步 `implemented` |
-| 无组件化设计系统铺开 | 内联 style 为主 | 仅引入 `@strict-rag/ui/theme.css` |
+| Soft Bento / pen 未像素对齐 | 观感非定稿 | Tailwind v4 + Button/Input 已接（task `08-06-frontend-tailwind-shadcn`） |
 | 无 E2E | 手测 + api 单测 | task `08-05-p2c-approval-members-ui` |
 
 ---

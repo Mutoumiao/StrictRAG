@@ -2,6 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Button } from '@strict-rag/ui/components/ui/button';
+import { Input } from '@strict-rag/ui/components/ui/input';
+import { Label } from '@strict-rag/ui/components/ui/label';
 
 import { loginWithDev } from '@/auth/services';
 
@@ -26,65 +29,28 @@ export default function WebLoginPage() {
   }
 
   return (
-    <main
-      style={{
-        maxWidth: 420,
-        margin: '0 auto',
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        gap: 24,
-        padding: 24,
-        fontFamily: 'system-ui, sans-serif',
-        color: 'var(--sr-foreground)',
-        background: 'var(--sr-background)',
-      }}
-    >
+    <main className="mx-auto flex min-h-screen max-w-[420px] flex-col justify-center gap-6 p-6">
       <div>
-        <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>StrictRAG</h1>
-        <p style={{ margin: '8px 0 0', fontSize: 14, color: 'var(--sr-muted)' }}>
+        <h1 className="m-0 text-[22px] font-semibold">StrictRAG</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
           用户端开发登录。问答结果以服务端校验为准；证据不足时会明确拒答。
         </p>
       </div>
-      <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <label style={{ fontSize: 14 }}>
-          邮箱
-          <input
-            style={{
-              display: 'block',
-              width: '100%',
-              marginTop: 4,
-              padding: '8px 12px',
-              borderRadius: 8,
-              border: '1px solid var(--sr-border)',
-              fontSize: 14,
-            }}
+      <form onSubmit={onSubmit} className="flex flex-col gap-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="web-email">邮箱</Label>
+          <Input
+            id="web-email"
             type="email"
             value={email}
             onChange={(ev) => setEmail(ev.target.value)}
             required
           />
-        </label>
-        {error ? (
-          <p style={{ margin: 0, fontSize: 13, color: '#b91c1c' }}>{error}</p>
-        ) : null}
-        <button
-          type="submit"
-          disabled={pending}
-          style={{
-            padding: '10px 12px',
-            borderRadius: 8,
-            border: 'none',
-            background: 'var(--sr-foreground)',
-            color: '#fff',
-            fontSize: 14,
-            cursor: pending ? 'wait' : 'pointer',
-            opacity: pending ? 0.6 : 1,
-          }}
-        >
+        </div>
+        {error ? <p className="m-0 text-[13px] text-destructive">{error}</p> : null}
+        <Button type="submit" disabled={pending}>
           {pending ? '登录中…' : '开发登录'}
-        </button>
+        </Button>
       </form>
     </main>
   );

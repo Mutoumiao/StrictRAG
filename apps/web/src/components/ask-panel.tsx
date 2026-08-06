@@ -6,8 +6,20 @@
  * 流式由 useKnowledgeAsk 驱动；会话编排在 sessions.services。
  */
 
-import { useCallback, useEffect, useState, type CSSProperties, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { AskResponse, SessionMessage, SessionSummary } from '@strict-rag/contracts';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from '@strict-rag/ui/components/ui/alert';
+import { Badge } from '@strict-rag/ui/components/ui/badge';
+import { Button } from '@strict-rag/ui/components/ui/button';
+import { Card, CardContent } from '@strict-rag/ui/components/ui/card';
+import { Input } from '@strict-rag/ui/components/ui/input';
+import { Label } from '@strict-rag/ui/components/ui/label';
+import { Textarea } from '@strict-rag/ui/components/ui/textarea';
+import { cn } from '@strict-rag/ui/lib/utils';
 import { useRouter } from 'next/navigation';
 
 import { logoutLocal } from '@/auth/services';
@@ -147,47 +159,22 @@ export function AskPanel() {
   }
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        minHeight: '100vh',
-        fontFamily: 'system-ui, sans-serif',
-        color: 'var(--sr-foreground)',
-        background: 'var(--sr-background)',
-      }}
-    >
-      {/* 左栏：会话列表（回放壳，非证据源） */}
-      <aside
-        style={{
-          width: 220,
-          flexShrink: 0,
-          borderRight: '1px solid var(--sr-border)',
-          padding: 12,
-          background: '#fff',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 8,
-        }}
-      >
-        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--sr-muted)' }}>会话</div>
+    <div className="flex min-h-screen bg-background text-foreground">
+      <aside className="flex w-[220px] shrink-0 flex-col gap-2 border-r border-border bg-card p-3">
+        <div className="text-xs font-semibold text-muted-foreground">会话</div>
         {shellError ? (
-          <p style={{ margin: 0, fontSize: 11, color: '#b91c1c', lineHeight: 1.4 }}>{shellError}</p>
+          <p className="m-0 text-[11px] leading-snug text-destructive">{shellError}</p>
         ) : null}
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={() => void onNewSession()}
           disabled={sessionBusy || !kbId.trim()}
-          style={{
-            padding: '8px 10px',
-            borderRadius: 8,
-            border: '1px solid var(--sr-border)',
-            background: 'var(--sr-background)',
-            cursor: sessionBusy ? 'wait' : 'pointer',
-            fontSize: 13,
-          }}
+          className="justify-start"
         >
           新建会话
-        </button>
+        </Button>
         <button
           type="button"
           onClick={() => {
@@ -195,164 +182,120 @@ export function AskPanel() {
             setHistory([]);
             reset();
           }}
-          style={{
-            ...sessionBtnStyle(activeSessionId === null),
-            fontSize: 12,
-          }}
+          className={sessionBtnClass(activeSessionId === null)}
         >
           单轮（不归属会话）
         </button>
-        <ul style={{ listStyle: 'none', margin: 0, padding: 0, overflow: 'auto', flex: 1 }}>
+        <ul className="m-0 flex-1 list-none overflow-auto p-0">
           {sessions.map((s) => (
             <li key={s.sessionId}>
               <button
                 type="button"
                 onClick={() => void selectSession(s.sessionId)}
-                style={sessionBtnStyle(activeSessionId === s.sessionId)}
+                className={sessionBtnClass(activeSessionId === s.sessionId)}
               >
                 {s.title?.trim() || s.sessionId.slice(0, 8)}
               </button>
             </li>
           ))}
         </ul>
-        <p style={{ margin: 0, fontSize: 11, color: 'var(--sr-muted)', lineHeight: 1.4 }}>
+        <p className="m-0 text-[11px] leading-snug text-muted-foreground">
           历史仅供回看，不作引用证据。本阶段不改写指代。
         </p>
       </aside>
 
-      <div style={{ flex: 1, maxWidth: 720, margin: '0 auto', padding: '32px 20px 64px' }}>
-        <header
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            gap: 16,
-            marginBottom: 28,
-          }}
-        >
+      <div className="mx-auto max-w-[720px] flex-1 px-5 py-8 pb-16">
+        <header className="mb-7 flex items-start justify-between gap-4">
           <div>
-            <p
-              style={{
-                margin: 0,
-                fontSize: 12,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                color: 'var(--sr-muted)',
-              }}
-            >
+            <p className="m-0 text-xs tracking-wider text-muted-foreground uppercase">
               StrictRAG · 问答
             </p>
-            <h1 style={{ margin: '6px 0 0', fontSize: 22, fontWeight: 600 }}>知识库提问</h1>
-            <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--sr-muted)', maxWidth: 480 }}>
+            <h1 className="mt-1.5 mb-0 text-[22px] font-semibold">知识库提问</h1>
+            <p className="mt-2 max-w-[480px] text-[13px] text-muted-foreground">
               答案须有证据支撑；无法核验时会拒答。可多会话隔离；每轮仍独立检索验证。
             </p>
           </div>
-          <div style={{ textAlign: 'right', fontSize: 12, color: 'var(--sr-muted)' }}>
+          <div className="text-right text-xs text-muted-foreground">
             <div>{me.email ?? me.userId.slice(0, 8)}</div>
-            <button type="button" onClick={onLogout} style={linkBtnStyle}>
+            <Button type="button" variant="link" size="sm" className="mt-1.5" onClick={onLogout}>
               退出
-            </button>
+            </Button>
           </div>
         </header>
 
         {history.length > 0 ? (
-          <section
-            style={{
-              marginBottom: 16,
-              padding: 12,
-              borderRadius: 'var(--sr-radius)',
-              border: '1px dashed var(--sr-border)',
-              background: '#fff',
-            }}
-          >
-            <h2 style={{ margin: 0, fontSize: 12, color: 'var(--sr-muted)', fontWeight: 600 }}>
-              本会话回放（非证据）
-            </h2>
-            <ul style={{ margin: '8px 0 0', padding: 0, listStyle: 'none', fontSize: 13 }}>
-              {history.map((m, i) => (
-                <li
-                  key={`${m.requestId ?? i}-${m.role}-${i}`}
-                  style={{
-                    marginBottom: 8,
-                    color: m.role === 'user' ? 'var(--sr-foreground)' : 'var(--sr-muted)',
-                  }}
-                >
-                  <strong style={{ fontSize: 11 }}>{m.role === 'user' ? '问' : '答'}</strong>{' '}
-                  {m.content.slice(0, 280)}
-                  {m.content.length > 280 ? '…' : ''}
-                </li>
-              ))}
-            </ul>
-          </section>
+          <Card className="mb-4 border-dashed">
+            <CardContent className="pt-3">
+              <h2 className="m-0 text-xs font-semibold text-muted-foreground">
+                本会话回放（非证据）
+              </h2>
+              <ul className="mt-2 mb-0 list-none p-0 text-[13px]">
+                {history.map((m, i) => (
+                  <li
+                    key={`${m.requestId ?? i}-${m.role}-${i}`}
+                    className={cn(
+                      'mb-2',
+                      m.role === 'user' ? 'text-foreground' : 'text-muted-foreground',
+                    )}
+                  >
+                    <strong className="text-[11px]">{m.role === 'user' ? '问' : '答'}</strong>{' '}
+                    {m.content.slice(0, 280)}
+                    {m.content.length > 280 ? '…' : ''}
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
         ) : null}
 
-        <form
-          onSubmit={onSubmit}
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 12,
-            padding: 16,
-            border: '1px solid var(--sr-border)',
-            borderRadius: 'var(--sr-radius)',
-            background: '#fff',
-          }}
-        >
-          <label style={{ fontSize: 13 }}>
-            知识库 ID
-            <input
-              value={kbId}
-              onChange={(ev) => setKbId(ev.target.value)}
-              placeholder="uuid"
-              required
-              style={inputStyle}
-            />
-          </label>
-          <label style={{ fontSize: 13 }}>
-            问题
-            <textarea
-              value={question}
-              onChange={(ev) => setQuestion(ev.target.value)}
-              rows={3}
-              required
-              maxLength={8000}
-              placeholder="输入要检索的问题…"
-              style={{ ...inputStyle, resize: 'vertical' }}
-            />
-          </label>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <button
-              type="submit"
-              disabled={view.type === 'loading'}
-              style={{
-                padding: '10px 16px',
-                borderRadius: 8,
-                border: 'none',
-                background: 'var(--sr-foreground)',
-                color: '#fff',
-                fontSize: 14,
-                cursor: view.type === 'loading' ? 'wait' : 'pointer',
-                opacity: view.type === 'loading' ? 0.6 : 1,
-              }}
-            >
-              {view.type === 'loading' ? `处理中（${view.phase ?? '…'}）` : '提问'}
-            </button>
-            {view.type === 'error' || view.type === 'abstained' ? (
-              <button type="button" onClick={onRetry} style={linkBtnStyle}>
-                重试
-              </button>
-            ) : null}
-            {activeSessionId ? (
-              <span style={{ fontSize: 11, color: 'var(--sr-muted)' }}>
-                会话 {activeSessionId.slice(0, 8)}…
-              </span>
-            ) : null}
-          </div>
-        </form>
+        <Card>
+          <CardContent className="pt-4">
+            <form onSubmit={onSubmit} className="flex flex-col gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="ask-kb">知识库 ID</Label>
+                <Input
+                  id="ask-kb"
+                  value={kbId}
+                  onChange={(ev) => setKbId(ev.target.value)}
+                  placeholder="uuid"
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ask-q">问题</Label>
+                <Textarea
+                  id="ask-q"
+                  value={question}
+                  onChange={(ev) => setQuestion(ev.target.value)}
+                  rows={3}
+                  required
+                  maxLength={8000}
+                  placeholder="输入要检索的问题…"
+                  className="resize-y"
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button type="submit" disabled={view.type === 'loading'}>
+                  {view.type === 'loading' ? `处理中（${view.phase ?? '…'}）` : '提问'}
+                </Button>
+                {view.type === 'error' || view.type === 'abstained' ? (
+                  <Button type="button" variant="link" onClick={onRetry}>
+                    重试
+                  </Button>
+                ) : null}
+                {activeSessionId ? (
+                  <span className="text-[11px] text-muted-foreground">
+                    会话 {activeSessionId.slice(0, 8)}…
+                  </span>
+                ) : null}
+              </div>
+            </form>
+          </CardContent>
+        </Card>
 
-        <div style={{ marginTop: 20 }}>
+        <div className="mt-5">
           {view.type === 'loading' ? (
-            <p style={{ color: 'var(--sr-muted)', fontSize: 14 }}>正在检索与校验…</p>
+            <p className="text-sm text-muted-foreground">正在检索与校验…</p>
           ) : null}
           {view.type === 'answered' ? <AnsweredCard data={view.data} /> : null}
           {view.type === 'abstained' ? <AbstainedCard data={view.data} /> : null}
@@ -365,26 +308,37 @@ export function AskPanel() {
   );
 }
 
+function sessionBtnClass(active: boolean) {
+  return cn(
+    'mb-1 block w-full cursor-pointer rounded-md border px-2.5 py-2 text-left text-[13px]',
+    active
+      ? 'border-primary bg-accent text-foreground'
+      : 'border-transparent bg-transparent text-foreground',
+  );
+}
+
 function AnsweredCard({ data }: { data: AskResponse }) {
   const isChitchat = data.answerKind === 'chitchat' || data.reason === 'chitchat';
   return (
-    <section style={cardStyle('#ecfdf5', '#059669')}>
-      <div style={badgeStyle('#059669')}>已回答 · {data.reason}</div>
-      <p style={{ margin: '12px 0 0', fontSize: 15, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+    <Alert variant="success">
+      <Badge variant="success" className="bg-transparent px-0">
+        已回答 · {data.reason}
+      </Badge>
+      <AlertDescription className="mt-3 whitespace-pre-wrap">
         {data.answer || data.userMessage || '（空答案）'}
-      </p>
+      </AlertDescription>
       {!isChitchat && data.citations && data.citations.length > 0 ? (
-        <div style={{ marginTop: 16 }}>
-          <h2 style={{ margin: 0, fontSize: 13, color: 'var(--sr-muted)', fontWeight: 600 }}>
+        <div className="mt-4">
+          <h2 className="m-0 text-[13px] font-semibold text-muted-foreground">
             引用（服务端返回 · 非会话历史）
           </h2>
-          <ul style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 13, lineHeight: 1.5 }}>
+          <ul className="mt-2 mb-0 list-disc pl-[18px] text-[13px] leading-normal">
             {data.citations.map((c) => (
-              <li key={c.chunkId} style={{ marginBottom: 6 }}>
+              <li key={c.chunkId} className="mb-1.5">
                 <strong>{c.title ?? c.docId.slice(0, 8)}</strong>
                 {c.sectionPath ? ` · ${c.sectionPath}` : null}
                 {c.preview ? (
-                  <div style={{ color: 'var(--sr-muted)', marginTop: 2 }}>{c.preview}</div>
+                  <div className="mt-0.5 text-muted-foreground">{c.preview}</div>
                 ) : null}
               </li>
             ))}
@@ -392,37 +346,37 @@ function AnsweredCard({ data }: { data: AskResponse }) {
         </div>
       ) : null}
       {isChitchat ? (
-        <p style={{ margin: '12px 0 0', fontSize: 12, color: 'var(--sr-muted)' }}>
-          闲聊路径，无知识库引用。
-        </p>
+        <p className="mt-3 mb-0 text-xs text-muted-foreground">闲聊路径，无知识库引用。</p>
       ) : null}
       {data.latencyMs != null ? (
-        <p style={{ margin: '12px 0 0', fontSize: 11, color: 'var(--sr-muted)' }}>
+        <p className="mt-3 mb-0 text-[11px] text-muted-foreground">
           {data.latencyMs} ms · {data.requestId}
         </p>
       ) : null}
-    </section>
+    </Alert>
   );
 }
 
 function AbstainedCard({ data }: { data: AskResponse }) {
   return (
-    <section style={cardStyle('#f5f3ff', 'var(--sr-abstain)')}>
-      <div style={badgeStyle('var(--sr-abstain)')}>拒答 · {data.reason}</div>
-      <p style={{ margin: '12px 0 0', fontSize: 15, lineHeight: 1.6 }}>
+    <Alert variant="abstain">
+      <Badge variant="abstain" className="bg-transparent px-0">
+        拒答 · {data.reason}
+      </Badge>
+      <AlertDescription className="mt-3">
         {data.userMessage || data.answer || '当前无法给出有证据支撑的答案。'}
-      </p>
-      <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--sr-muted)' }}>
+      </AlertDescription>
+      <p className="mt-2 mb-0 text-xs text-muted-foreground">
         这是业务结果，不是系统崩溃。可调整问题表述或补充入库后重试。
       </p>
       {data.suggestedActions && data.suggestedActions.length > 0 ? (
-        <ul style={{ margin: '12px 0 0', paddingLeft: 18, fontSize: 13 }}>
+        <ul className="mt-3 mb-0 list-disc pl-[18px] text-[13px]">
           {data.suggestedActions.map((a) => (
             <li key={`${a.type}-${a.label}`}>{a.label}</li>
           ))}
         </ul>
       ) : null}
-    </section>
+    </Alert>
   );
 }
 
@@ -443,69 +397,15 @@ function ErrorCard({
       ? '登录已失效'
       : '请求失败';
   return (
-    <section style={cardStyle('#fef2f2', '#b91c1c')}>
-      <div style={badgeStyle('#b91c1c')}>
+    <Alert variant="destructive">
+      <AlertTitle className="text-destructive">
         系统错误 · {code}
         {httpStatus != null ? ` · HTTP ${httpStatus}` : ''}
-      </div>
-      <p style={{ margin: '12px 0 0', fontSize: 15, fontWeight: 600 }}>{title}</p>
-      <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--sr-muted)' }}>{message}</p>
-    </section>
+      </AlertTitle>
+      <p className="mt-3 mb-0 text-[15px] font-semibold">{title}</p>
+      <AlertDescription className="mt-1.5 text-[13px] text-muted-foreground">
+        {message}
+      </AlertDescription>
+    </Alert>
   );
-}
-
-function sessionBtnStyle(active: boolean): CSSProperties {
-  return {
-    display: 'block',
-    width: '100%',
-    textAlign: 'left',
-    padding: '8px 10px',
-    marginBottom: 4,
-    borderRadius: 8,
-    border: active ? '1px solid var(--sr-primary)' : '1px solid transparent',
-    background: active ? '#eff6ff' : 'transparent',
-    cursor: 'pointer',
-    fontSize: 13,
-    color: 'var(--sr-foreground)',
-  };
-}
-
-const inputStyle: CSSProperties = {
-  display: 'block',
-  width: '100%',
-  marginTop: 4,
-  padding: '8px 12px',
-  borderRadius: 8,
-  border: '1px solid var(--sr-border)',
-  fontSize: 14,
-  fontFamily: 'inherit',
-};
-
-const linkBtnStyle: CSSProperties = {
-  border: 'none',
-  background: 'transparent',
-  color: 'var(--sr-primary)',
-  cursor: 'pointer',
-  fontSize: 12,
-  marginTop: 6,
-  padding: 0,
-};
-
-function cardStyle(bg: string, border: string): CSSProperties {
-  return {
-    padding: 16,
-    borderRadius: 'var(--sr-radius)',
-    border: `1px solid ${border}`,
-    background: bg,
-  };
-}
-
-function badgeStyle(color: string): CSSProperties {
-  return {
-    display: 'inline-block',
-    fontSize: 12,
-    fontWeight: 600,
-    color,
-    letterSpacing: '0.02em',
-  };
 }
