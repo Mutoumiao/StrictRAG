@@ -16,6 +16,7 @@
     "@strict-rag/admin-catalog": "workspace:*",
     "@strict-rag/contracts": "workspace:*",
     "@strict-rag/db": "workspace:*",
+    "ai": "catalog:",
     "bullmq": "catalog:",
     "date-fns": "catalog:",
     "dotenv": "catalog:",

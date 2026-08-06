@@ -12,8 +12,10 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@ai-sdk/react": "catalog:",
     "@strict-rag/contracts": "workspace:*",
     "@strict-rag/ui": "workspace:*",
+    "ai": "catalog:",
     "next": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:"
