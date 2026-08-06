@@ -10,7 +10,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { MENU_TREE, filterMenuByCodes } from '@strict-rag/admin-catalog';
 
-import { adminLogoutLocal } from '@/auth/api';
+import { logoutLocal } from '@/auth/services';
 import { useAdminAuth } from '@/components/auth-guard';
 import { readStoredKbId, writeStoredKbId } from '@/lib/kb-context';
 
@@ -106,7 +106,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           <button
             type="button"
             onClick={() => {
-              adminLogoutLocal();
+              logoutLocal();
               window.location.href = '/login';
             }}
             style={{ fontSize: 12, padding: '4px 10px' }}

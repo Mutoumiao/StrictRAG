@@ -2,7 +2,7 @@
 
 /**
  * 审批中心：通过/驳回/触发扫描。
- * 列表复用文档模块 listDocuments（跨模块只依赖对方公开函数，不复制路径）。
+ * 列表走 documents list.services（经 approvals/services 复用），此处不复制 path。
  */
 
 import type {
@@ -11,8 +11,6 @@ import type {
 } from '@strict-rag/contracts';
 
 import { http } from '@/lib/http';
-
-export { listDocuments } from '../documents/api';
 
 export async function approveDocument(docId: string) {
   return http.post<DocumentApprovalActionResponse>(`/api/v1/documents/${docId}/approve`);

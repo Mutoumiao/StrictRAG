@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { adminDevLogin } from '@/auth/api';
+import { loginWithDev } from '@/auth/services';
 
 type RoleTpl = 'super_admin' | 'kb_admin' | 'doc_operator';
 
@@ -19,14 +19,13 @@ export default function AdminLoginPage() {
     e.preventDefault();
     setPending(true);
     setError(null);
-    try {
-      await adminDevLogin({ email, roleTemplate: role });
+    const result = await loginWithDev({ email, roleTemplate: role });
+    if (result.ok) {
       router.replace('/documents');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '登录失败');
-    } finally {
-      setPending(false);
+    } else {
+      setError(result.message);
     }
+    setPending(false);
   }
 
   return (
