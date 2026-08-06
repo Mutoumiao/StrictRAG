@@ -8,15 +8,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useAdminAuth } from '@/components/auth-guard';
-import {
-  approveDocument,
-  listDocuments,
-  readStoredKbId,
-  rejectDocument,
-  scanDocument,
-  type DocRow,
-} from '@/lib/admin-api';
+import type { DocumentListItem } from '@strict-rag/contracts';
+
 import { ApiHttpError } from '@/lib/http';
+import { readStoredKbId } from '@/lib/kb-context';
+
+import { approveDocument, listDocuments, rejectDocument, scanDocument } from './api';
 
 type Flash = { kind: 'ok' | 'err'; text: string } | null;
 
@@ -26,7 +23,7 @@ export default function ApprovalsPage() {
   const canDecide = me.permissions.includes('approval.decide');
   const canScan = me.permissions.includes('doc.upload');
 
-  const [rows, setRows] = useState<DocRow[]>([]);
+  const [rows, setRows] = useState<DocumentListItem[]>([]);
   const [state, setState] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [kbId, setKbId] = useState('');

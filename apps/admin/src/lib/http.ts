@@ -1,10 +1,11 @@
 'use client';
 
 /**
- * 统一 HTTP：Bearer + 401/UNAUTHORIZED 单飞 refresh + 重试。
+ * HTTP 传输层：Bearer、单飞 refresh、重试。
+ * 不含业务 API 定义；业务调用写在各模块 api.ts。
  */
 
-import type { ApiResponse, TokenPairResponse } from '@strict-rag/contracts';
+import type { ApiResponse, TokenPairResponse, TokenRefreshRequest } from '@strict-rag/contracts';
 
 import {
   clearClientSession,
@@ -41,10 +42,11 @@ async function refreshClientSession() {
   const stored = readClientSession();
   if (!stored) throw new Error('no session');
 
+  const body: TokenRefreshRequest = { refreshToken: stored.refreshToken };
   const res = await fetch(`${resolveBaseURL()}/api/v1/auth/admin/token/refresh`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ refreshToken: stored.refreshToken }),
+    body: JSON.stringify(body),
   });
   const payload = (await res.json()) as ApiResponse<TokenPairResponse>;
   if (!payload.ok) {

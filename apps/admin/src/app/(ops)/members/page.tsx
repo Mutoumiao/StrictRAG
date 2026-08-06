@@ -8,13 +8,10 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { KbMember, KbMemberRole } from '@strict-rag/contracts';
 
 import { useAdminAuth } from '@/components/auth-guard';
-import {
-  inviteMember,
-  listMembers,
-  readStoredKbId,
-  removeMember,
-} from '@/lib/admin-api';
 import { ApiHttpError } from '@/lib/http';
+import { readStoredKbId } from '@/lib/kb-context';
+
+import { inviteMember, listMembers, removeMember } from './api';
 
 export default function MembersPage() {
   const { me } = useAdminAuth();

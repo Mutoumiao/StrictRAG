@@ -8,17 +8,17 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { useAdminAuth } from '@/components/auth-guard';
-import {
-  listDocuments,
-  readStoredKbId,
-  type DocRow,
-} from '@/lib/admin-api';
+import type { DocumentListItem } from '@strict-rag/contracts';
+
 import { ApiHttpError } from '@/lib/http';
+import { readStoredKbId } from '@/lib/kb-context';
+
+import { listDocuments } from './api';
 
 export default function DocumentsPage() {
   const { me } = useAdminAuth();
   const canView = me.permissions.includes('doc.view');
-  const [rows, setRows] = useState<DocRow[]>([]);
+  const [rows, setRows] = useState<DocumentListItem[]>([]);
   const [state, setState] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [kbId, setKbId] = useState('');

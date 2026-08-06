@@ -7,7 +7,7 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import type { AuthSession } from '@strict-rag/contracts';
+import type { AuthMeResponse, AuthSession } from '@strict-rag/contracts';
 
 import { fetchAuthMe } from '@/auth/api';
 import {
@@ -16,18 +16,8 @@ import {
   sessionChangedEventName,
 } from '@/auth/client-session';
 
-type AuthMe = {
-  userId: string;
-  sessionId: string;
-  app: string;
-  roles: string[];
-  permissions: string[];
-  email?: string;
-  tenantId?: string;
-};
-
 type AdminAuthContextValue = {
-  me: AuthMe;
+  me: AuthMeResponse;
   session: AuthSession;
   refresh: () => Promise<void>;
 };

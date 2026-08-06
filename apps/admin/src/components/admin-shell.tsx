@@ -12,7 +12,7 @@ import { MENU_TREE, filterMenuByCodes } from '@strict-rag/admin-catalog';
 
 import { adminLogoutLocal } from '@/auth/api';
 import { useAdminAuth } from '@/components/auth-guard';
-import { readStoredKbId, writeStoredKbId } from '@/lib/admin-api';
+import { readStoredKbId, writeStoredKbId } from '@/lib/kb-context';
 
 export function AdminShell({ children }: { children: ReactNode }) {
   const { me } = useAdminAuth();
