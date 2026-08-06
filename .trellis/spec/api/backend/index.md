@@ -1,7 +1,7 @@
 # @strict-rag/api · Hono HTTP 后端
 
 > 路径：`apps/api` · 目标端口 **4000**  
-> 现状：**P0/P1 入库** + **S2 最小 ask**（图/SSE/会话壳/反馈/Gateway/检索 mock）+ 身份/授权骨架。  
+> 现状：**P0/P1 入库** + **S2 最小 ask**（图 / AI SDK UI Message Stream / 会话壳 / 反馈 / Gateway / 检索 mock）+ 身份/授权骨架。  
 > 默认：`RETRIEVE_ES_MODE=mock` · `AUTH_ENFORCE=false` · `SESSION_REWRITE_ENABLED=false`（强制）· Gateway 缺 URL→mock。
 
 ---
@@ -24,6 +24,8 @@
 - [ ] `pnpm --filter @strict-rag/api check-types` · `lint` · `test`  
 - [ ] 鉴权改动含 resolve / token rotation 测试  
 - [ ] ask 改动含 graph/route 拒答与成员 403 断言  
+- [ ] 改 AI SDK 流路径时：是否有 **execute throw → data-ask-final + internal_guard** 回归测？  
+- [ ] 新增/已有 `*QuerySchema` 是否在对应 GET route `safeParse`（禁止契约死代码）？  
 - [ ] 提交说明写清 S2 最小 / mock / 未做项；禁止「全文 Phase 2 完成」  
 
 ---
@@ -33,7 +35,7 @@
 | 指南 | 说明 |
 |------|------|
 | [directory-structure](./directory-structure.md) | 现状布局 |
-| [ask-pipeline](./ask-pipeline.md) | **Ask 信任路径 code-spec**（图 · SSE · 检索 · Gateway · env） |
+| [ask-pipeline](./ask-pipeline.md) | **Ask 信任路径 code-spec**（图 · AI SDK 流 · 检索 · Gateway · env） |
 | [quality-guidelines](./quality-guidelines.md) | 质量与禁项 |
 | [error-handling](./error-handling.md) | 错误与信封 |
 | [logging-guidelines](./logging-guidelines.md) | Pino 上下文 |

@@ -67,4 +67,7 @@ S2 细节与错误矩阵见 [ask-pipeline](./ask-pipeline.md)。
 - **Bad**：`RETRIEVE_ES_MODE=mock` 时对外说「生产 ES」  
 - **Good**：重活入队 worker；api 只做受理与查询；权限以码为准  
 - **Good**：`STORAGE_LOCAL_DIR` 相对路径解析到 monorepo 根  
-- **Good**：ask 走 `executeAsk` → `runAskGraph`；同步 DTO ≡ SSE final
+- **Good**：ask 走 `executeAsk` → `runAskGraph`；同步 DTO ≡ 流式 `data-ask-final`
+- **Good**：GET list/query 用 contracts `*QuerySchema.safeParse`；非法 400
+- **Bad**：自写 SSE 分帧 / 只推 `data-status` 无终态 final / 推未校验 text-delta 当答案
+- **Bad**：contracts 已有 QuerySchema，route 仍手写 `Number(query)` / status if 链

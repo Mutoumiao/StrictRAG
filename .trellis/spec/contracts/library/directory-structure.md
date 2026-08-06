@@ -36,11 +36,12 @@ packages/contracts/
 | `common/` | 横切：业务码、响应信封、分页等 |
 | `system/` | 健康检查、就绪、运维探针 |
 | `auth/` | 登录/TokenPair/会话身份 DTO |
-| `ingest/` | 入库文档 DTO |
-| `ask/` | ask / session / feedback / member / reason |
+| `ingest/` | 入库文档 DTO（body **与** 全部成功响应） |
+| `ask/` | ask / session / feedback / member / reason / SSE |
 | `async/` | 队列名等跨进程常量 |
 
-**不要**全塞进 `common/`；新域按 PRD 资源增加。
+**不要**全塞进 `common/`；新域按 PRD 资源增加。  
+**纪律**：每个对外 HTTP 端点的 wire 类型都在本包；前端只 import 本包类型（admin：模块 `api.ts`；web：`src/api/*`）。
 
 ## 导出规则
 
@@ -55,7 +56,7 @@ packages/contracts/
 | `AskOptionsSchema` | **仅** stream/debug/mode/locale；`.strict()` |
 | `AskScopeSchema` | 顶层 `docTypes`；禁止进 options |
 | `AskRequestSchema` | question + sessionId? + scope? + options?；`.strict()` |
-| `AskResponseSchema` | 同步 JSON ≡ SSE final 同源 |
+| `AskResponseSchema` | 同步 JSON ≡ 流式 `data-ask-final` 同源 |
 
 ## 依赖
 

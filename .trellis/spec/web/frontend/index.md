@@ -1,7 +1,7 @@
 # @strict-rag/web · 用户端前端
 
 > 路径：`apps/web` · 目标端口 **3005**  
-> 现状：**S2 最小 ask UI**（登录 · 会话壳 · SSE/同步 · answered/abstained/error 三态）；**无**完整多轮 rewrite / 反馈控件必达。
+> 现状：**S2 最小 ask UI**（登录 · 会话壳 · AI SDK 流 / 同步 · answered/abstained/error 三态）；**无**完整多轮 rewrite / 反馈控件必达。
 
 ---
 
@@ -10,9 +10,12 @@
 - [ ] 是否用户问答 / 会话路径（非管理壳）？  
 - [ ] 类型与错误码是否来自 `@strict-rag/contracts`？  
 - [ ] UI 是否用 `@strict-rag/ui`？  
-- [ ] SSE/HTTP 是否只传 options 白名单，且 `scope` 走顶层（不进 options）？  
-- [ ] SSE 是否 **只信 `final` 事件** 更新答案（中间事件不覆盖终态）？  
+- [ ] options 是否白名单，且 `scope` 走顶层（不进 options）？  
+- [ ] 流式是否 **只信 `data-ask-final`**（schema 校验），进度用 `data-status`？  
+- [ ] 是否禁止自写 SSE 分帧（须 `@ai-sdk/react` + transport）？  
+- [ ] 拒答/错误「重试」是否用 `lastQuestion`（不依赖提交后已空的输入框）？  
 - [ ] 会话存储 key 是否仅为 `strict-rag:web:client-session`？  
+- [ ] 业务 HTTP 是否在 `src/api/*` 或 `auth/api`，传输在 `lib/http`？  
 
 ## Quality Check
 
@@ -27,17 +30,17 @@
 
 | 指南 | 说明 |
 |------|------|
-| [directory-structure](./directory-structure.md) | 现状布局 |
+| [directory-structure](./directory-structure.md) | 现状布局 · API 分层 |
 | [quality-guidelines](./quality-guidelines.md) | 质量与 ask UI |
 
 ## 依赖
 
-`@strict-rag/contracts` · `@strict-rag/ui`  
+`@strict-rag/contracts` · `@strict-rag/ui` · `ai` · `@ai-sdk/react`  
 （**无** admin-catalog — 管理菜单不在此包）
 
 ## PRD 映射
 
 - `prds/04-pipelines/02-online-ask-langgraph.md`  
 - `prds/05-api` · 前端 IA  
-- SSE 双路径：ADR-030  
+- 流双路径：ADR-030（实现映射 AI SDK data parts；见 ask-pipeline PRD 漂移债）  
 - IS：`docs/module-status/web.md`

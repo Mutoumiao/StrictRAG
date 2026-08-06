@@ -7,19 +7,22 @@
 
 ## Pre-Development Checklist
 
-- [ ] 新错误码 / DTO 是否应放本包（前后端共用）？  
-- [ ] 对外 `error.code` 是否等于 **PRD §4 短名**（或经本包唯一映射输出短名）？  
+- [ ] **本接口全部 wire 类型是否已在本包**（body + 成功 data + **query** + 流 data parts）？  
+- [ ] 前后端是否共用**同一** export（禁止 apps 平行 type）？  
+- [ ] 新 `*QuerySchema` 是否已在对应 GET route `safeParse`（禁止契约死代码）？  
+- [ ] 新错误码 / DTO 是否应放本包？  
+- [ ] 对外 `error.code` 是否等于 **PRD §4 短名**？  
 - [ ] 是否按域分文件（`common/` · `system/` · `auth/` · `ingest/` · `ask/` …）？  
 - [ ] ask options 是否 **strict 白名单**；scope 是否顶层？  
-- [ ] 鉴权 DTO 是否在 `auth/session.contract.ts` 而非 apps 内复制？  
+- [ ] 前端是否用 contracts 类型，且调用落在模块 `api.ts`（admin）或 `src/api/*`（web），而非页面内联？  
 - [ ] 导出是否走 `src/index.ts` 且使用 `.js` 扩展名（NodeNext）？  
-- [ ] 是否避免在 apps 内再定义平行 BizCode / Ask DTO？  
 
 ## Quality Check
 
 - [ ] `pnpm --filter @strict-rag/contracts check-types` · `lint` · `test`  
 - [ ] 无 `any` 泄漏到公共导出类型  
 - [ ] ask 契约变更同步 api/web 单测  
+- [ ] 新增 Query Schema 时 api 路由有绑定与非法 query 断言  
 
 ---
 

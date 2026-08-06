@@ -1,5 +1,24 @@
 # contracts · 编码模式
 
+## 0. 强制纪律（前后端共用）
+
+| 规则 | 说明 |
+|------|------|
+| **所有 HTTP API 线型在本包** | 请求 body / 查询参数 / 成功 `data` / SSE 事件载荷 / `BizCode` **必须**定义在 `packages/contracts` |
+| **前后端同一类型** | api route `ok(c, data)` 的 `data` 与 admin/web 客户端泛型 **同一 export**；禁止 apps 内平行 `type XxxResponse` |
+| **Zod + `z.infer`** | Schema 与 Type 同文件；api 入口 `safeParse` **body 与 query**；出口用类型标注（或 Schema.parse） |
+| **Query 必接线** | 定义了 `*QuerySchema` 的 GET **必须**在 route `safeParse`；禁止 Schema 只导出、route 手写 `Number(query)` / 白名单 if 链（契约死代码） |
+| **禁止** | apps 内手写 wire shape；route 直接吐 DB 行当公开 DTO（须映射到 contracts 类型） |
+
+新增接口流程：
+
+1. 在 `packages/contracts/src/<domain>/*.contract.ts` 写 Schema + type（含 Query）  
+2. `src/index.ts` 导出  
+3. `apps/api` 路由：body **与** query `safeParse`；成功 `data` 用 contracts 类型  
+4. 前端：admin 在对应 `app/.../api.ts`（或 `auth/api`）封装；web 在 `src/api/<domain>.ts` 封装；传输层仅 `lib/http`  
+
+---
+
 ## 1. BizCode
 
 **文件**：`packages/contracts/src/common/biz-code.ts`
@@ -18,9 +37,9 @@ export type BizCode = (typeof BizCode)[keyof typeof BizCode];
 
 | 规则 | 说明 |
 |------|------|
-| **HTTP `error.code` 权威** | `prds/05-api/01-http-api-hono.md` **§4 短名**（`UNAUTHORIZED`、`VALIDATION_ERROR`、…） |
+| **HTTP `error.code` 权威** | `prds/05-api/01-http-api-hono.md` **§4 短名** |
 | **实现只引用本包** | 前后端禁止魔法字符串；apps 不自建第三套码表 |
-| **当前形状** | `BizCode` **字符串值 = PRD 短名**（Phase 0/1 已对齐） |
+| **当前形状** | `BizCode` **字符串值 = PRD 短名** |
 | 类型 | 用 `typeof` 推导，勿手写平行 union |
 | 扩展 | 新码先写 PRD（或 ADR）→ 再进本包 → 值用 PRD 短名 |
 
@@ -29,6 +48,7 @@ export type BizCode = (typeof BizCode)[keyof typeof BizCode];
 - 写 `code: 'AUTH.UNAUTHORIZED'` 点分串（已废弃）  
 - 不经 `BizCode` 的魔法字符串  
 - 对外混用点分名与 PRD 短名
+
 ---
 
 ## 2. 响应信封
@@ -42,15 +62,7 @@ export type BizCode = (typeof BizCode)[keyof typeof BizCode];
 | `ApiMeta` | `{ requestId, timestamp }` |
 | `ApiError` | `{ code: BizCode, message, details? }` |
 
-工厂函数：
-
-- `buildSuccess(data, meta)`  
-- `buildFailure(error, meta)`  
-
-**语义分工**（与 PRD 对齐）：
-
-- 系统/协议错误 → HTTP 4xx/5xx + failure 信封（实现阶段）  
-- ask 业务拒答等 → 见 API PRD（可能 HTTP 200 + 业务 status）；**不要**与 `ApiFailure` 混用语义时不写文档  
+工厂函数：`buildSuccess` · `buildFailure`  
 
 **反模式**：各路由手写 `{ success: true, result }` 旁路信封。
 
@@ -68,82 +80,77 @@ export type HealthResponse = z.infer<typeof HealthResponseSchema>;
 | 规则 | 说明 |
 |------|------|
 | Schema + infer 类型同文件 | 单一来源 |
-| 校验位置 | api 入口 body + 出口/测试断言；前端只消费类型 |
+| 校验位置 | api 入口 **body + query**；出口类型标注（优先 Schema.parse）；流式 `data-ask-final` 前端 **`AskResponseSchema.safeParse`** |
+| query | 例：`SessionListQuerySchema`、`FeedbackQueueQuerySchema`（`z.coerce.number`）；非法 → 400 `VALIDATION_ERROR` |
 | ask options/scope | **`.strict()`**；未知键 400（ADR-050） |
 
-### 3.1 Health（`system/health.contract.ts`）
+### 3.1 域覆盖（须完整）
 
-- `status: z.literal('ok')`  
-- `env: development \| test \| staging \| production`  
-- `service: 'api' \| 'worker'`；`ReadyResponse.checks` 可选  
+| 域 | 路径 | 须含 |
+|----|------|------|
+| common | `common/*` | BizCode、ApiResponse |
+| system | `system/health.contract.ts` | Health / Ready |
+| auth | `auth/session.contract.ts` | DevLogin、TokenPair、Refresh、AuthMe |
+| ingest | `ingest/document.contract.ts` | KB/文档 body + **全部**成功 data |
+| ask | `ask/*` | Ask、Session、Feedback、Member、SSE 事件 |
 
-### 3.2 Ask（`ask/ask.contract.ts` · S2）
+### 3.2 Ask 要点
 
 | Schema | 约束 |
 |--------|------|
 | `AskOptionsSchema` | 仅 stream / debug / mode / locale |
 | `AskScopeSchema` | 顶层 docTypes；**不**进 options |
-| `AskRequestSchema` | question 1–8000；sessionId uuid?；strict |
-| `AskResponseSchema` | status answered\|abstained；citations；reason；与 SSE final 同源 |
+| `AskRequestSchema` | question；sessionId?；strict |
+| `AskResponseSchema` | 同步 JSON ≡ 流式 `data-ask-final` |
+| `AskSseStatusSchema` | AI SDK `data-status` 载荷（命名历史遗留 Sse 前缀） |
+| `SessionListQuerySchema` | GET sessions：`limit`/`offset`；**须** list route 绑定 |
+| `FeedbackQueueQuerySchema` | GET feedback-queue：`status`/`limit`/`offset`；**须** queue route 绑定 |
 
-**语义**：ask 业务拒答 → 常为 HTTP **200** + `status: abstained`（非 `ApiFailure`）；协议/鉴权错误才走 failure 信封。  
-细节： [api ask-pipeline](../../api/backend/ask-pipeline.md)。 
+业务拒答 → 常 HTTP **200** + `status: abstained`；协议错误才 `ApiFailure`。
+
+### 3.3 Query 接线（强制）
+
+```typescript
+// Correct：contracts Query + 默认值在 route
+const q = SessionListQuerySchema.safeParse({
+  limit: c.req.query('limit'),
+  offset: c.req.query('offset'),
+});
+if (!q.success) return fail(c, BizCode.VALIDATION_ERROR, 'invalid query', 400, q.error.flatten());
+const items = await repo.list({ limit: q.data.limit ?? 50, offset: q.data.offset ?? 0, ... });
+
+// Wrong：Schema 已定义却手写 Number / if 白名单 → 契约死代码，校验分裂
+const limit = Number(c.req.query('limit') ?? '50');
+```
 
 ---
 
-## 4. Auth / TokenPair（身份契约）
-
-**文件**：`packages/contracts/src/auth/session.contract.ts`  
-**权威实现说明**：[api auth-authorization](../../api/backend/auth-authorization.md)
+## 4. Auth / TokenPair
 
 | 导出 | 用途 |
 |------|------|
-| `AuthAppSchema` | `'admin' \| 'web'` 子站隔离 |
-| `AuthSessionSchema` | 会话视图（含 `permissions` 快照） |
+| `AuthAppSchema` | `'admin' \| 'web'` |
+| `AuthSessionSchema` | 登录后会话视图 |
 | `TokenPairResponseSchema` | access + refresh + session |
-| `TokenRefreshRequestSchema` | `{ refreshToken }` |
-| `DevLoginRequestSchema` | 仅开发登录 body |
+| `AuthMeResponseSchema` | `GET /auth/me` |
+| `DevLoginRequestSchema` | 开发登录 body |
 
-### 规则
-
-| 规则 | 说明 |
-|------|------|
-| 前后端共用形状 | admin/web `client-session` 存 `TokenPair` 字段子集 |
-| `permissions` 是快照 | **不能**替代 api `resolveEffectiveCodes` |
-| `roles` 是锚点 | **禁止**作为唯一放行条件 |
-| 扩展登录方式 | 可换 Better Auth 签发；**尽量保持 TokenPair 字段** 或写适配层 |
-
-### 错误码（鉴权）
-
-使用已有短名：`UNAUTHORIZED` · `FORBIDDEN` · `VALIDATION_ERROR` · `INVALID_CREDENTIALS` · `NOT_FOUND`。  
-**禁止**再引入 `AUTH.UNAUTHORIZED` 点分串。
-
-### 反模式
-
-- apps 内自建平行 `type LoginResponse`  
-- refresh 响应缺 `session.permissions` 导致菜单不更新  
-
-
-Ready：
-
-- `ready: boolean`  
-- `checks?: Record<string, 'up' \| 'down' \| 'skipped'>`  
+`permissions` 是快照，**不能**替代服务端再验。
 
 ---
 
-## 4. 质量门槛
+## 5. 质量门槛
 
-- TypeScript **strict**（继承 base tsconfig）  
+- TypeScript **strict**  
 - Prettier：singleQuote · trailingComma all · printWidth 100  
-- 无业务副作用、无 I/O、无 env 读取  
+- 无业务副作用、无 I/O、无 env  
 
 ---
 
-## 5. 扩展清单（实现时）
-
-新增域契约时：
+## 6. 扩展清单
 
 1. 建 `src/<domain>/*.contract.ts`  
 2. 从 `index.ts` 导出  
-3. 更新本 spec 与相关 PRD 版本（若冻接口）  
-4. web/admin/api 改为从本包 import
+3. 更新本 spec（若新域）  
+4. api route + admin/web `src/api/<module>.ts` 共用类型  
+5. **禁止**在页面组件内定义 wire DTO  

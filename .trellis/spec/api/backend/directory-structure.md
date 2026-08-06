@@ -20,7 +20,7 @@ apps/api/src/
     auth.ts                # dev-login · refresh · me
     documents.ts           # P1 入库
     members.ts             # 成员 list/invite/delete
-    ask.ts                 # POST …/ask 同步+SSE
+    ask.ts                 # POST …/ask 同步 + AI SDK UI Message Stream
     sessions.ts            # 会话壳（无 rewrite）
     feedback.ts            # 反馈队列
   middleware/request-id.ts
@@ -46,6 +46,7 @@ apps/api/src/
 | Ask | 始终 KB 成员闸；SQL/图/Prompt 不在 route 内展开（见 [ask-pipeline](./ask-pipeline.md)） |
 | 入队 | BullMQ；重活在 worker |
 | 契约 | `@strict-rag/contracts` |
+| 流 | 依赖 `ai`（catalog）；见 [ask-pipeline](./ask-pipeline.md) 流协议 |
 
 前缀：`/api/v1`；鉴权：`/api/v1/auth/*`；指标：`GET /metrics`（骨架无鉴权）。
 

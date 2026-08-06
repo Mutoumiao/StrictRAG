@@ -6,7 +6,7 @@
 
 ---
 
-## Scenario: 单轮 ask（同步 JSON ≡ SSE final）
+## Scenario: 单轮 ask（同步 JSON ≡ 流式 data-ask-final）
 
 ### 1. Scope / Trigger
 
@@ -34,7 +34,7 @@
 
 | 方法 | 路径 | 中间件 | 说明 |
 |------|------|--------|------|
-| `POST` | `/api/v1/knowledge-bases/:kbId/ask` | `requireKbMember` **始终** | 同步 JSON；`Accept: text/event-stream` 或 `options.stream=true` → SSE |
+| `POST` | `/api/v1/knowledge-bases/:kbId/ask` | `requireKbMember` **始终** | 同步 JSON；stream → **AI SDK UI Message Stream**（见下） |
 | `GET` | `/api/v1/knowledge-bases/:kbId/sessions` | 成员闸 | 列表 |
 | `GET` | `/api/v1/knowledge-bases/:kbId/sessions/:sessionId` | 成员闸 + 本人 | 详情/历史壳 |
 | `POST` | `/api/v1/knowledge-bases/:kbId/feedback` 等 | 见 feedback 路由 | 队列/提交 |
@@ -45,8 +45,31 @@
 // 1) AskRequestSchema.safeParse
 // 2) sessionId 有则 resolveOwnedSession（本人本 KB）
 // 3) 限流 ASK_RATE_LIMIT_RPM（0=关）
-// 4) executeAsk → 同步 ok() 或 streamSSE
+// 4) executeAsk → 同步 ok() 或 createUIMessageStreamResponse（AI SDK）
 ```
+
+#### 流协议（AI SDK UI Message Stream · 实现 SSOT）
+
+| 触发 | `Accept: text/event-stream` **或** `options.stream=true` |
+|------|----------------------------------------------------------|
+| 库 | `ai`：`createUIMessageStream` + `createUIMessageStreamResponse` |
+| **禁止** | 自研 `streamSSE` + 命名 `event: final` 解析器；P2 **禁止** `text-delta` 把未校验 token 当 knowledge 答案 |
+
+| part type | 语义 | 客户端 |
+|-----------|------|--------|
+| `data-status`（transient） | 进度 `phase`；错误时 `phase=error` + code/message | loading / 即时 error 提示 |
+| `data-ask-final`（id=`ask-final`） | **完整** `AskResponse`（`AskResponseSchema.parse`） | **唯一**终态答案源；与同步 `data` 字段同源 |
+
+| 路径 | 行为 |
+|------|------|
+| 成功 | status → finalize + `data-ask-final` |
+| `httpStatus===409`（kb_not_ready） | data-status error + **仍写** data-ask-final（abstained） |
+| execute 抛错 | **必须** data-status `phase=error` + data-ask-final（`status=abstained` · `reason=internal_guard` · `answer=''` · `citations=[]`）；**禁止**只写 status 无 final（客户端会卡 loading） |
+| 同步非流 | 仍 `ok/fail` 信封；409 → `BizCode.KB_NOT_READY` |
+
+> **Gotcha**：`createUIMessageStream` 的 `execute` 内 catch **不能**只 `writer.write(data-status error)` 就 return——只订阅 final 的客户端会永久 loading。终态用 `internal_guard` 拒答 shape，**不是** answered。
+
+> **PRD 漂移债**：`prds/05-api` §2.7 仍写 event 名 `phase/token/error/final`。实现以本文 + contracts 为准；改 WHAT 须 ADR 回写 00–11，**禁止**再实现旧 event 解析器。
 
 #### 编排分层
 
@@ -91,7 +114,7 @@ routes/ask.ts
 `options` **仅允许**：`stream` · `debug` · `mode`(`fast|balanced|strict`) · `locale`。  
 禁止：`tauClaim` · `retrieveK` · 把 `scope` 塞进 options（ADR-050）。
 
-#### Response（同步 ≡ SSE `final` 事件 data）
+#### Response（同步 JSON ≡ 流式 `data-ask-final` data）
 
 | 字段 | 说明 |
 |------|------|
@@ -101,6 +124,8 @@ routes/ask.ts
 | `suggestedActions` · `userMessage` | 拒答文案/动作 |
 | `sessionId` · `mode` · `latencyMs` | 壳字段 |
 | `debug` | 仅 `options.debug=true`；须含 `rewriteUsed: false`（P2） |
+
+流内 `internal_guard` final：`userMessage` 可提示稍后重试；**禁止** `status=answered`。
 
 #### Env（ask 相关 · `apps/api/src/env.ts`）
 
@@ -136,10 +161,12 @@ routes/ask.ts
 
 - **Good**：成员问库内 ready∧active 文档 → `answered` + citations ⊆ evidence  
 - **Good**：库外题 → `abstained`；citations `[]`  
-- **Good**：SSE 与同步 JSON 字段一致；web 只信 `final`  
+- **Good**：流 `data-ask-final` 与同步 JSON 字段一致；web 只信 schema 校验后的 final  
+- **Good**：execute throw → 流内仍有 `data-ask-final` + `internal_guard`（不卡 loading）  
 - **Base**：`options` 省略 → 默认 mode/stream 行为；`rewriteUsed=false`  
 - **Bad**：客户端传 `tauClaim` / 把 `scope` 放进 options → 400  
 - **Bad**：rerank 挂仍 `answered`  
+- **Bad**：stream catch **只**写 `data-status` error、无 final  
 - **Bad**：把会话历史文本塞进 evidence_snapshot  
 - **Bad**：`SESSION_REWRITE_ENABLED=true` 启动成功（必须拒绝）
 
@@ -150,11 +177,13 @@ routes/ask.ts
 | contracts | `AskRequestSchema` 拒未知 options；scope 顶层 OK |
 | graph | 库内 verified · 库外 abstained · min 否决 · rerank 失败拒答 |
 | retrieve | 非 ready/非 active 不可见；RRF 顺序；mock 模式可测 |
-| ask 路由 | 非成员 403；非法 body 400；session 归属 404；SSE final ≡ 同步 shape |
-| sessions | 跨 session 零共享；历史 ≠ evidence |
+| ask 路由 | 非成员 403；非法 body 400；session 归属 404；`data-ask-final` ≡ 同步 shape |
+| ask 流异常 | **`execute` mock throw** → 正文含 `data-ask-final`；payload `reason==='internal_guard'` · `status==='abstained'` · `answer===''`；且存在 `data-status` `phase=error` |
+| sessions | 跨 session 零共享；历史 ≠ evidence；list query 非法 limit → 400 |
+| feedback | queue query 非法 status → 400；合法 status 过滤 |
 | gateway | mock/http 选择；失败 reason 映射 |
 | env | `SESSION_REWRITE_ENABLED=true` 校验失败 |
-| web | `ask-sse-parse` 只应用 final；三态 UI |
+| web | `useChat` + `data-ask-final` schema 校验；三态 UI；无自写 SSE 分帧；重试不依赖已清空输入框 |
 
 证据路径：`apps/api/src/**/*.test.ts`（`graph` · `ask` · `retrieve` · `sessions` · `feedback` · `obs`）。
 
@@ -169,6 +198,12 @@ app.post('/ask', async (c) => {
   const answer = await llm(historyAsEvidence, { skipVerify: true, tauClaim });
   return c.json({ status: 'answered', answer });
 });
+
+// stream catch 只推 status → 客户端永久 loading
+} catch (err) {
+  writer.write({ type: 'data-status', data: { phase: 'error', code: 'INTERNAL' }, transient: true });
+  // 缺少 data-ask-final
+}
 ```
 
 #### Correct
@@ -181,6 +216,28 @@ const { httpStatus, response } = await executeAsk({
   requestId, kbId, tenantId, userId, membership, body: parsed.data,
 });
 return c.json(okEnvelope(response), httpStatus);
+
+// stream catch：status error + 拒答形 final（AskResponseSchema.parse）
+} catch (err) {
+  writer.write({
+    type: 'data-status',
+    data: { phase: 'error', code: BizCode.INTERNAL, message: 'ask failed' },
+    transient: true,
+  });
+  writer.write({
+    type: 'data-ask-final',
+    id: 'ask-final',
+    data: AskResponseSchema.parse({
+      requestId,
+      status: 'abstained',
+      answer: '',
+      reason: 'internal_guard',
+      citations: [],
+      suggestedActions: [],
+      userMessage: '服务暂时不可用，请稍后重试',
+    }),
+  });
+}
 ```
 
 ---
