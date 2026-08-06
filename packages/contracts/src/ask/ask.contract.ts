@@ -58,7 +58,7 @@ export type AskStatus = z.infer<typeof AskStatusSchema>;
 export const AskAnswerKindSchema = z.enum(['knowledge', 'chitchat']);
 export type AskAnswerKind = z.infer<typeof AskAnswerKindSchema>;
 
-/** 同步 ask 响应 / SSE final 同源 */
+/** 同步 ask 响应 / 流式 data-ask-final 同源 */
 export const AskResponseSchema = z.object({
   requestId: z.string().min(1),
   status: AskStatusSchema,
@@ -77,3 +77,25 @@ export const AskResponseSchema = z.object({
 });
 
 export type AskResponse = z.infer<typeof AskResponseSchema>;
+
+/**
+ * AI SDK UI Message Stream · data-status（transient）。
+ * phase 表示图进度；错误时附 code/message。
+ */
+export const AskSseStatusSchema = z.object({
+  phase: z.string().min(1),
+  status: z.string().optional(),
+  code: z.string().optional(),
+  message: z.string().optional(),
+});
+export type AskSseStatus = z.infer<typeof AskSseStatusSchema>;
+
+/**
+ * @deprecated 流协议已改为 AI SDK data-status / data-ask-final；保留类型兼容旧引用。
+ */
+export const AskSseErrorSchema = z.object({
+  code: z.string().min(1),
+  message: z.string(),
+  reason: AskReasonSchema.optional(),
+});
+export type AskSseError = z.infer<typeof AskSseErrorSchema>;

@@ -45,3 +45,18 @@ export const DevLoginRequestSchema = z.object({
   tenantId: z.string().min(1).optional(),
 });
 export type DevLoginRequest = z.infer<typeof DevLoginRequestSchema>;
+
+/**
+ * GET /api/v1/auth/me 响应 data（无 token；权限以服务端再验为准）。
+ * 与 AuthSession 区别：me 带当前 effective permissions 快照，无 expiresAtMs。
+ */
+export const AuthMeResponseSchema = z.object({
+  userId: z.string().min(1),
+  sessionId: z.string().min(1),
+  app: AuthAppSchema,
+  roles: z.array(z.string()),
+  permissions: z.array(z.string()),
+  tenantId: z.string().min(1).optional(),
+  email: z.string().email().optional(),
+});
+export type AuthMeResponse = z.infer<typeof AuthMeResponseSchema>;

@@ -34,3 +34,16 @@ export const SessionDetailSchema = SessionSummarySchema.extend({
 });
 
 export type SessionDetail = z.infer<typeof SessionDetailSchema>;
+
+/** GET …/sessions 列表 data */
+export const SessionListResponseSchema = z.object({
+  items: z.array(SessionSummarySchema),
+});
+export type SessionListResponse = z.infer<typeof SessionListResponseSchema>;
+
+/** GET …/sessions 查询参数 */
+export const SessionListQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+});
+export type SessionListQuery = z.infer<typeof SessionListQuerySchema>;

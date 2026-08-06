@@ -48,3 +48,17 @@ export const FeedbackItemSchema = z.object({
 });
 
 export type FeedbackItem = z.infer<typeof FeedbackItemSchema>;
+
+/** GET …/feedback-queue data */
+export const FeedbackListResponseSchema = z.object({
+  items: z.array(FeedbackItemSchema),
+});
+export type FeedbackListResponse = z.infer<typeof FeedbackListResponseSchema>;
+
+/** GET …/feedback-queue 查询参数 */
+export const FeedbackQueueQuerySchema = z.object({
+  status: FeedbackStatusSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+});
+export type FeedbackQueueQuery = z.infer<typeof FeedbackQueueQuerySchema>;

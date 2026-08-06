@@ -27,3 +27,22 @@ export const KbMemberSchema = z.object({
 });
 
 export type KbMember = z.infer<typeof KbMemberSchema>;
+
+/** GET …/members — data 为数组（无额外包装） */
+export type KbMemberListResponse = KbMember[];
+
+/** POST …/knowledge-bases/:kbId/members */
+export const InviteMemberResponseSchema = z.object({
+  kbId: z.string().uuid(),
+  userId: z.string().uuid(),
+  role: KbMemberRoleSchema,
+});
+export type InviteMemberResponse = z.infer<typeof InviteMemberResponseSchema>;
+
+/** DELETE …/knowledge-bases/:kbId/members/:userId */
+export const RemoveMemberResponseSchema = z.object({
+  kbId: z.string().uuid(),
+  userId: z.string().uuid(),
+  removed: z.boolean(),
+});
+export type RemoveMemberResponse = z.infer<typeof RemoveMemberResponseSchema>;
