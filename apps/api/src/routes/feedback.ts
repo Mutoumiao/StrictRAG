@@ -1,7 +1,10 @@
 import {
   BizCode,
   CreateFeedbackBodySchema,
+  FeedbackQueueQuerySchema,
   PatchFeedbackBodySchema,
+  type FeedbackItem,
+  type FeedbackListResponse,
 } from '@strict-rag/contracts';
 import { Hono } from 'hono';
 
@@ -40,16 +43,18 @@ export type FeedbackRouteDeps = {
   getKb?: (kbId: string) => Promise<{ id: string; tenantId: string } | null>;
 };
 
-function toPublic(row: FeedbackRow) {
+function toPublic(row: FeedbackRow): FeedbackItem {
+  const rating: FeedbackItem['rating'] =
+    row.rating === 'up' || row.rating === 'down' ? row.rating : null;
   return {
     feedbackId: row.feedbackId,
     requestId: row.requestId,
     kbId: row.kbId,
     userId: row.userId,
-    rating: row.rating,
+    rating,
     category: row.category,
     comment: row.comment,
-    status: row.status,
+    status: row.status as FeedbackItem['status'],
     handlerId: row.handlerId,
     resolvedAt: row.resolvedAt,
     createdAt: row.createdAt,
@@ -142,25 +147,22 @@ export function createFeedbackRoutes(deps: FeedbackRouteDeps = {}) {
       return fail(c, BizCode.NOT_FOUND, 'knowledge base not found', 404);
     }
 
-    const statusRaw = c.req.query('status');
-    const status =
-      statusRaw === 'open' ||
-      statusRaw === 'dismissed' ||
-      statusRaw === 'linked_doc' ||
-      statusRaw === 'queued_reindex' ||
-      statusRaw === 'promoted_to_gold'
-        ? statusRaw
-        : undefined;
-
-    const limit = Number(c.req.query('limit') ?? '50');
-    const offset = Number(c.req.query('offset') ?? '0');
+    const q = FeedbackQueueQuerySchema.safeParse({
+      status: c.req.query('status'),
+      limit: c.req.query('limit'),
+      offset: c.req.query('offset'),
+    });
+    if (!q.success) {
+      return fail(c, BizCode.VALIDATION_ERROR, 'invalid query', 400, q.error.flatten());
+    }
     const items = await repo.listByKb({
       kbId,
-      status,
-      limit: Number.isFinite(limit) ? limit : 50,
-      offset: Number.isFinite(offset) ? offset : 0,
+      status: q.data.status,
+      limit: q.data.limit ?? 50,
+      offset: q.data.offset ?? 0,
     });
-    return ok(c, { items: items.map(toPublic) });
+    const data: FeedbackListResponse = { items: items.map(toPublic) };
+    return ok(c, data);
   });
 
   /** PATCH /feedback/:feedbackId */

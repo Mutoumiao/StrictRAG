@@ -273,14 +273,12 @@ describe('POST ask sync + SSE', () => {
     expect(body.error.code).toBe('KB_NOT_READY');
   });
 
-  it('SSE final ≡ sync critical fields', async () => {
+  it('UI Message Stream data-ask-final ≡ sync critical fields', async () => {
     const { userId, accessToken } = await token(['web_consumer']);
-    let capturedReqId = '';
     const app = buildApp({
       members: new Set([userId]),
       execute: async (params) => {
         const p = params as { requestId: string };
-        capturedReqId = p.requestId;
         return sampleAnswered(p.requestId);
       },
     });
@@ -316,16 +314,14 @@ describe('POST ask sync + SSE', () => {
     });
     expect(sseRes.status).toBe(200);
     const text = await sseRes.text();
-    expect(text).toContain('event: final');
-    const finalLine = text
-      .split('\n')
-      .find((l) => l.startsWith('data: ') && l.includes('"status"'));
-    // last data with status is final payload
+    expect(text).toContain('data-ask-final');
+    expect(text).toContain('"type":"data-status"');
+
     const dataLines = text
       .split('\n')
       .filter((l) => l.startsWith('data: '))
       .map((l) => l.slice(6));
-    const finalPayload = dataLines
+    const chunks = dataLines
       .map((d) => {
         try {
           return JSON.parse(d) as Record<string, unknown>;
@@ -333,19 +329,74 @@ describe('POST ask sync + SSE', () => {
           return null;
         }
       })
-      .reverse()
-      .find((o) => o && typeof o.reason === 'string' && typeof o.status === 'string');
+      .filter(Boolean) as Record<string, unknown>[];
 
-    expect(finalPayload).toBeTruthy();
-    expect(finalPayload!.status).toBe(syncBody.data.status);
-    expect(finalPayload!.reason).toBe(syncBody.data.reason);
-    expect(finalPayload!.answer).toBe(syncBody.data.answer);
-    expect(finalPayload!.userMessage).toBe(syncBody.data.userMessage);
-    expect(finalPayload!.sessionId ?? null).toBe(syncBody.data.sessionId ?? null);
-    expect(Array.isArray(finalPayload!.citations)).toBe(true);
-    expect(Array.isArray(finalPayload!.suggestedActions)).toBe(true);
-    expect(capturedReqId).toBeTruthy();
-    void finalLine;
+    const finalChunk = chunks.find((o) => o.type === 'data-ask-final');
+    expect(finalChunk).toBeTruthy();
+    const finalPayload = finalChunk!.data as Record<string, unknown>;
+    expect(finalPayload.status).toBe(syncBody.data.status);
+    expect(finalPayload.reason).toBe(syncBody.data.reason);
+    expect(finalPayload.answer).toBe(syncBody.data.answer);
+    expect(finalPayload.userMessage).toBe(syncBody.data.userMessage);
+    expect(finalPayload.sessionId ?? null).toBe(syncBody.data.sessionId ?? null);
+    expect(Array.isArray(finalPayload.citations)).toBe(true);
+    expect(Array.isArray(finalPayload.suggestedActions)).toBe(true);
+  });
+
+  it('stream execute 抛错 → data-status error + data-ask-final internal_guard', async () => {
+    const { userId, accessToken } = await token(['web_consumer']);
+    const app = buildApp({
+      members: new Set([userId]),
+      execute: async () => {
+        throw new Error('simulated execute failure');
+      },
+    });
+
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+        accept: 'text/event-stream',
+      },
+      body: JSON.stringify({ question: '年假', options: { stream: true } }),
+    });
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).toContain('data-ask-final');
+    expect(text).toContain('"type":"data-status"');
+
+    const dataLines = text
+      .split('\n')
+      .filter((l) => l.startsWith('data: '))
+      .map((l) => l.slice(6));
+    const chunks = dataLines
+      .map((d) => {
+        try {
+          return JSON.parse(d) as Record<string, unknown>;
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean) as Record<string, unknown>[];
+
+    const statusError = chunks.find(
+      (o) =>
+        o.type === 'data-status' &&
+        typeof o.data === 'object' &&
+        o.data !== null &&
+        (o.data as { phase?: string }).phase === 'error',
+    );
+    expect(statusError).toBeTruthy();
+
+    const finalChunk = chunks.find((o) => o.type === 'data-ask-final');
+    expect(finalChunk).toBeTruthy();
+    const finalPayload = finalChunk!.data as Record<string, unknown>;
+    expect(finalPayload.status).toBe('abstained');
+    expect(finalPayload.reason).toBe('internal_guard');
+    expect(finalPayload.answer).toBe('');
+    expect(Array.isArray(finalPayload.citations)).toBe(true);
+    expect(finalPayload.citations).toEqual([]);
   });
 
   it('真实图：rerank 失败 → HTTP abstained rerank_unavailable（非 answered）', async () => {
@@ -464,11 +515,12 @@ describe('POST ask sync + SSE', () => {
       body: JSON.stringify({ question: '年假', options: { stream: true } }),
     });
     const text = await sseRes.text();
+    expect(text).toContain('data-ask-final');
     const dataLines = text
       .split('\n')
       .filter((l) => l.startsWith('data: '))
       .map((l) => l.slice(6));
-    const finalPayload = dataLines
+    const chunks = dataLines
       .map((d) => {
         try {
           return JSON.parse(d) as Record<string, unknown>;
@@ -476,16 +528,17 @@ describe('POST ask sync + SSE', () => {
           return null;
         }
       })
-      .reverse()
-      .find((o) => o && typeof o.reason === 'string' && typeof o.status === 'string');
+      .filter(Boolean) as Record<string, unknown>[];
+    const finalChunk = chunks.find((o) => o.type === 'data-ask-final');
+    expect(finalChunk).toBeTruthy();
+    const finalPayload = finalChunk!.data as Record<string, unknown>;
 
-    expect(finalPayload).toBeTruthy();
-    expect(finalPayload!.status).toBe(sync.data.status);
-    expect(finalPayload!.reason).toBe(sync.data.reason);
-    expect(finalPayload!.answer).toBe(sync.data.answer);
-    expect(finalPayload!.answerKind).toBe(sync.data.answerKind);
-    expect(JSON.stringify(finalPayload!.citations)).toBe(JSON.stringify(sync.data.citations));
-    expect(JSON.stringify(finalPayload!.suggestedActions)).toBe(
+    expect(finalPayload.status).toBe(sync.data.status);
+    expect(finalPayload.reason).toBe(sync.data.reason);
+    expect(finalPayload.answer).toBe(sync.data.answer);
+    expect(finalPayload.answerKind).toBe(sync.data.answerKind);
+    expect(JSON.stringify(finalPayload.citations)).toBe(JSON.stringify(sync.data.citations));
+    expect(JSON.stringify(finalPayload.suggestedActions)).toBe(
       JSON.stringify(sync.data.suggestedActions),
     );
   });

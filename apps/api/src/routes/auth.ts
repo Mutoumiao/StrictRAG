@@ -2,6 +2,8 @@ import {
   BizCode,
   DevLoginRequestSchema,
   TokenRefreshRequestSchema,
+  type AuthMeResponse,
+  type TokenPairResponse,
 } from '@strict-rag/contracts';
 import { Hono } from 'hono';
 
@@ -65,7 +67,7 @@ authRoutes.post('/admin/dev-login', async (c) => {
     return fail(c, BizCode.FORBIDDEN, 'admin.shell required', 403);
   }
 
-  return ok(c, pair, 201);
+  return ok(c, pair as TokenPairResponse, 201);
 });
 
 authRoutes.post('/web/dev-login', async (c) => {
@@ -91,7 +93,7 @@ authRoutes.post('/web/dev-login', async (c) => {
     email: user.email,
     tenantId: user.tenantId,
   });
-  return ok(c, pair, 201);
+  return ok(c, pair as TokenPairResponse, 201);
 });
 
 authRoutes.post('/admin/token/refresh', async (c) => {
@@ -101,7 +103,7 @@ authRoutes.post('/admin/token/refresh', async (c) => {
   }
   try {
     const pair = await refreshTokenPair(parsed.data.refreshToken, 'admin');
-    return ok(c, pair);
+    return ok(c, pair as TokenPairResponse);
   } catch (err) {
     const message = err instanceof AuthIdentityError ? err.message : 'refresh failed';
     return fail(c, BizCode.UNAUTHORIZED, message, 401);
@@ -115,7 +117,7 @@ authRoutes.post('/web/token/refresh', async (c) => {
   }
   try {
     const pair = await refreshTokenPair(parsed.data.refreshToken, 'web');
-    return ok(c, pair);
+    return ok(c, pair as TokenPairResponse);
   } catch (err) {
     const message = err instanceof AuthIdentityError ? err.message : 'refresh failed';
     return fail(c, BizCode.UNAUTHORIZED, message, 401);
@@ -128,7 +130,7 @@ authRoutes.get('/me', requireAuth(), async (c) => {
   if (!auth) {
     return fail(c, BizCode.UNAUTHORIZED, 'unauthorized', 401);
   }
-  return ok(c, {
+  const data: AuthMeResponse = {
     userId: auth.userId,
     sessionId: auth.sessionId,
     app: auth.app,
@@ -136,5 +138,6 @@ authRoutes.get('/me', requireAuth(), async (c) => {
     tenantId: auth.tenantId,
     email: auth.email,
     permissions: [...effective],
-  });
+  };
+  return ok(c, data);
 });

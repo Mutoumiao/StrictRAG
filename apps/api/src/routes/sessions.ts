@@ -1,6 +1,10 @@
 import {
   CreateSessionBodySchema,
+  SessionListQuerySchema,
   BizCode,
+  type SessionDetail,
+  type SessionListResponse,
+  type SessionSummary,
 } from '@strict-rag/contracts';
 import { Hono } from 'hono';
 
@@ -51,7 +55,7 @@ export function createSessionRoutes(deps: SessionRouteDeps = {}) {
       title: parsed.data.title ?? null,
     });
 
-    return ok(c, row, 201);
+    return ok(c, row as SessionSummary, 201);
   });
 
   /** GET /knowledge-bases/:kbId/sessions */
@@ -67,15 +71,21 @@ export function createSessionRoutes(deps: SessionRouteDeps = {}) {
       return fail(c, BizCode.NOT_FOUND, 'knowledge base not found', 404);
     }
 
-    const limit = Number(c.req.query('limit') ?? '50');
-    const offset = Number(c.req.query('offset') ?? '0');
+    const q = SessionListQuerySchema.safeParse({
+      limit: c.req.query('limit'),
+      offset: c.req.query('offset'),
+    });
+    if (!q.success) {
+      return fail(c, BizCode.VALIDATION_ERROR, 'invalid query', 400, q.error.flatten());
+    }
     const items = await repo.list({
       kbId,
       userId: auth.userId,
-      limit: Number.isFinite(limit) ? limit : 50,
-      offset: Number.isFinite(offset) ? offset : 0,
+      limit: q.data.limit ?? 50,
+      offset: q.data.offset ?? 0,
     });
-    return ok(c, { items });
+    const data: SessionListResponse = { items: items as SessionSummary[] };
+    return ok(c, data);
   });
 
   /** GET /knowledge-bases/:kbId/sessions/:sessionId */
@@ -98,7 +108,8 @@ export function createSessionRoutes(deps: SessionRouteDeps = {}) {
       userId: auth.userId,
     });
 
-    return ok(c, { ...meta, messages });
+    const data: SessionDetail = { ...meta, messages } as SessionDetail;
+    return ok(c, data);
   });
 
   return routes;

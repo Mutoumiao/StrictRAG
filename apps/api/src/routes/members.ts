@@ -1,4 +1,10 @@
-import { BizCode, InviteMemberBodySchema } from '@strict-rag/contracts';
+import {
+  BizCode,
+  InviteMemberBodySchema,
+  type InviteMemberResponse,
+  type KbMember,
+  type RemoveMemberResponse,
+} from '@strict-rag/contracts';
 import { Hono } from 'hono';
 
 import {
@@ -37,17 +43,15 @@ export function createMemberRoutes(deps: MemberRouteDeps = {}): Hono<{ Variables
       return fail(c, BizCode.NOT_FOUND, 'knowledge base not found', 404);
     }
     const rows = await members.list(kbId);
-    return ok(
-      c,
-      rows.map((r) => ({
-        kbId: r.kbId,
-        userId: r.userId,
-        role: r.role,
-        email: r.email ?? undefined,
-        displayName: r.displayName ?? undefined,
-        createdAt: r.createdAt ?? undefined,
-      })),
-    );
+    const data: KbMember[] = rows.map((r) => ({
+      kbId: r.kbId,
+      userId: r.userId,
+      role: r.role as KbMember['role'],
+      email: r.email ?? undefined,
+      displayName: r.displayName ?? undefined,
+      createdAt: r.createdAt ?? undefined,
+    }));
+    return ok(c, data);
   });
 
   /** POST /api/v1/knowledge-bases/:kbId/members — 邀请 */
@@ -84,15 +88,12 @@ export function createMemberRoutes(deps: MemberRouteDeps = {}): Hono<{ Variables
       return fail(c, BizCode.NOT_FOUND, 'user not found', 404);
     }
 
-    return ok(
-      c,
-      {
-        kbId,
-        userId: result.userId,
-        role: result.role,
-      },
-      201,
-    );
+    const data: InviteMemberResponse = {
+      kbId,
+      userId: result.userId,
+      role: result.role as InviteMemberResponse['role'],
+    };
+    return ok(c, data, 201);
   });
 
   /** DELETE /api/v1/knowledge-bases/:kbId/members/:userId */
@@ -107,7 +108,8 @@ export function createMemberRoutes(deps: MemberRouteDeps = {}): Hono<{ Variables
     if (!removed) {
       return fail(c, BizCode.NOT_FOUND, 'member not found', 404);
     }
-    return ok(c, { kbId, userId, removed: true });
+    const data: RemoveMemberResponse = { kbId, userId, removed: true };
+    return ok(c, data);
   });
 
   return routes;

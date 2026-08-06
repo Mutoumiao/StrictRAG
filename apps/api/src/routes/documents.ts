@@ -1,7 +1,19 @@
-import { BizCode } from '@strict-rag/contracts';
 import {
+  BizCode,
   CompleteUploadBodySchema,
   CreateKbBodySchema,
+  type CreateKbResponse,
+  type CompleteUploadResponse,
+  type DocumentApprovalActionResponse,
+  type DocumentDetail,
+  type DocumentListItem,
+  type DocumentScanEnqueueResponse,
+  type DocumentStatus,
+  type ApprovalStatus,
+  type Lifecycle,
+  type PatchLifecycleResponse,
+  type PutObjectResponse,
+  type UploadUrlResponse,
   PatchLifecycleBodySchema,
   UploadUrlBodySchema,
 } from '@strict-rag/contracts';
@@ -19,6 +31,37 @@ import { effectiveMaxUploadBytes, getStorage } from '../services/storage.js';
 
 export const documentRoutes = new Hono<{ Variables: ApiVariables }>();
 
+type DocRow = Awaited<ReturnType<typeof documentRepo.getDoc>>;
+
+function toListItem(r: NonNullable<DocRow>): DocumentListItem {
+  return {
+    id: r.id,
+    title: r.title,
+    status: r.status as DocumentStatus,
+    approvalStatus: r.approvalStatus as ApprovalStatus,
+    lifecycle: r.lifecycle as Lifecycle,
+    byteSize: r.byteSize ?? null,
+    indexVersion: r.indexVersion,
+    errorCode: r.errorCode ?? null,
+    embedReady: r.embedReady === 1,
+    esReady: r.esReady === 1,
+  };
+}
+
+function toDetail(r: NonNullable<DocRow>): DocumentDetail {
+  return {
+    ...toListItem(r),
+    tenantId: r.tenantId,
+    kbId: r.kbId,
+    sourceType: r.sourceType,
+    contentType: r.contentType ?? null,
+    errorMessage: r.errorMessage ?? null,
+    docType: r.docType ?? null,
+    createdAt: r.createdAt ?? null,
+    updatedAt: r.updatedAt ?? null,
+  };
+}
+
 /** POST /api/v1/knowledge-bases — AUTH_ENFORCE 时需 kb.create */
 documentRoutes.post('/knowledge-bases', requirePermissionWhenEnforced('kb.create'), async (c) => {
   const parsed = CreateKbBodySchema.safeParse(await c.req.json().catch(() => ({})));
@@ -26,7 +69,8 @@ documentRoutes.post('/knowledge-bases', requirePermissionWhenEnforced('kb.create
     return fail(c, BizCode.VALIDATION_ERROR, 'invalid body', 400, parsed.error.flatten());
   }
   const created = await documentRepo.createKb(parsed.data);
-  return ok(c, created, 201);
+  const data: CreateKbResponse = created;
+  return ok(c, data, 201);
 });
 
 /** GET /api/v1/knowledge-bases/:kbId/documents */
@@ -36,21 +80,8 @@ documentRoutes.get(
   async (c) => {
   const kbId = c.req.param('kbId');
   const rows = await documentRepo.listDocsByKb(kbId);
-  return ok(
-    c,
-    rows.map((r) => ({
-      id: r.id,
-      title: r.title,
-      status: r.status,
-      approvalStatus: r.approvalStatus,
-      lifecycle: r.lifecycle,
-      byteSize: r.byteSize,
-      indexVersion: r.indexVersion,
-      errorCode: r.errorCode,
-      embedReady: r.embedReady === 1,
-      esReady: r.esReady === 1,
-    })),
-  );
+  const data: DocumentListItem[] = rows.map(toListItem);
+  return ok(c, data);
   },
 );
 
@@ -83,17 +114,14 @@ documentRoutes.post(
     contentType: parsed.data.contentType,
   });
 
-  return ok(
-    c,
-    {
-      docId,
-      uploadUrl: slot.uploadUrl,
-      method: slot.method,
-      objectKey: slot.key,
-      maxBytes: effectiveMaxUploadBytes(),
-    },
-    201,
-  );
+  const data: UploadUrlResponse = {
+    docId,
+    uploadUrl: slot.uploadUrl,
+    method: slot.method,
+    objectKey: slot.key,
+    maxBytes: effectiveMaxUploadBytes(),
+  };
+  return ok(c, data, 201);
   },
 );
 
@@ -120,7 +148,12 @@ documentRoutes.put(
     );
   }
   const stored = await getStorage().putObject(key, buf, contentType);
-  return ok(c, { key: stored.key, byteSize: stored.byteSize, checksumSha256: stored.checksumSha256 });
+  const data: PutObjectResponse = {
+    key: stored.key,
+    byteSize: stored.byteSize,
+    checksumSha256: stored.checksumSha256,
+  };
+  return ok(c, data);
   },
 );
 
@@ -162,12 +195,13 @@ documentRoutes.post(
 
   await documentRepo.markCompletePending(docId, head.byteSize);
 
-  return ok(c, {
+  const data: CompleteUploadResponse = {
     docId,
     byteSize: head.byteSize,
     approvalStatus: 'pending',
     status: 'uploaded',
-  });
+  };
+  return ok(c, data);
   },
 );
 
@@ -182,7 +216,8 @@ documentRoutes.post(
     return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
   }
   if (doc.approvalStatus === 'approved') {
-    return ok(c, { docId, approvalStatus: 'approved' });
+    const data: DocumentApprovalActionResponse = { docId, approvalStatus: 'approved' };
+    return ok(c, data);
   }
   if (doc.approvalStatus !== 'pending') {
     return fail(
@@ -193,7 +228,8 @@ documentRoutes.post(
   }
 
   await documentRepo.approve(docId);
-  return ok(c, { docId, approvalStatus: 'approved' });
+  const data: DocumentApprovalActionResponse = { docId, approvalStatus: 'approved' };
+  return ok(c, data);
   },
 );
 
@@ -208,7 +244,8 @@ documentRoutes.post(
       return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
     }
     if (doc.approvalStatus === 'rejected') {
-      return ok(c, { docId, approvalStatus: 'rejected' });
+      const data: DocumentApprovalActionResponse = { docId, approvalStatus: 'rejected' };
+      return ok(c, data);
     }
     if (doc.approvalStatus !== 'pending') {
       return fail(
@@ -218,7 +255,8 @@ documentRoutes.post(
       );
     }
     await documentRepo.reject(docId);
-    return ok(c, { docId, approvalStatus: 'rejected' });
+    const data: DocumentApprovalActionResponse = { docId, approvalStatus: 'rejected' };
+    return ok(c, data);
   },
 );
 
@@ -245,7 +283,13 @@ documentRoutes.post(
     stage: 'scan',
   });
 
-  return ok(c, { docId, enqueued: true, jobId, stage: 'scan' });
+  const data: DocumentScanEnqueueResponse = {
+    docId,
+    enqueued: true,
+    jobId,
+    stage: 'scan',
+  };
+  return ok(c, data);
   },
 );
 
@@ -272,7 +316,12 @@ documentRoutes.patch(
   }
 
   await documentRepo.setLifecycle(docId, parsed.data.lifecycle);
-  return ok(c, { docId, lifecycle: parsed.data.lifecycle, status: doc.status });
+  const data: PatchLifecycleResponse = {
+    docId,
+    lifecycle: parsed.data.lifecycle,
+    status: doc.status,
+  };
+  return ok(c, data);
   },
 );
 
@@ -286,6 +335,6 @@ documentRoutes.get(
   if (!doc) {
     return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
   }
-  return ok(c, doc);
+  return ok(c, toDetail(doc));
   },
 );
