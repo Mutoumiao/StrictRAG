@@ -1,19 +1,24 @@
 'use client';
 
 /**
- * 问答 + 薄会话壳。
+ * 问答 + 薄会话壳（UI）。
  * 历史仅回放；**不是** citation 证据。rewrite 未开；无连续追问卖点。
- * 流式由 useKnowledgeAsk（@ai-sdk/react）驱动，不自解析 SSE。
+ * 流式由 useKnowledgeAsk 驱动；会话编排在 sessions.services。
  */
 
 import { useCallback, useEffect, useState, type CSSProperties, type FormEvent } from 'react';
 import type { AskResponse, SessionMessage, SessionSummary } from '@strict-rag/contracts';
 import { useRouter } from 'next/navigation';
 
-import { createSession, getSessionDetail, listSessions } from '@/api/sessions';
-import { webLogoutLocal } from '@/auth/api';
+import { logoutLocal } from '@/auth/services';
 import { useWebAuth } from '@/components/auth-guard';
 import { useKnowledgeAsk } from '@/hooks/use-knowledge-ask';
+import {
+  createNewSession,
+  loadSessionHistory,
+  loadSessionList,
+  refreshAfterAskFinal,
+} from '@/services/sessions.services';
 
 const KB_STORAGE = 'strict-rag:web:last-kb-id';
 
@@ -28,6 +33,8 @@ export function AskPanel() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [history, setHistory] = useState<SessionMessage[]>([]);
   const [sessionBusy, setSessionBusy] = useState(false);
+  /** 会话壳错误（列表/历史）；不覆盖主问答 view */
+  const [shellError, setShellError] = useState<string | null>(null);
 
   const { view, setView, lastFinal, ask, reset, busy } = useKnowledgeAsk({
     kbId,
@@ -39,11 +46,13 @@ export function AskPanel() {
   }, []);
 
   const refreshSessions = useCallback(async (id: string) => {
-    try {
-      const items = await listSessions(id);
-      setSessions(items);
-    } catch {
+    const result = await loadSessionList(id);
+    if (result.ok) {
+      setSessions(result.sessions);
+      setShellError(null);
+    } else {
       setSessions([]);
+      setShellError(result.message);
     }
   }, []);
 
@@ -51,6 +60,7 @@ export function AskPanel() {
     const id = kbId.trim();
     if (!id) {
       setSessions([]);
+      setShellError(null);
       return;
     }
     void refreshSessions(id);
@@ -60,32 +70,32 @@ export function AskPanel() {
   useEffect(() => {
     if (!lastFinal) return;
     const id = kbId.trim();
-    if (lastFinal.sessionId) {
-      setActiveSessionId(lastFinal.sessionId);
-    }
-    const sid = lastFinal.sessionId ?? activeSessionId;
-    if (!id || !sid) return;
+    if (!id) return;
     void (async () => {
-      try {
-        const detail = await getSessionDetail(id, sid);
-        setHistory(detail.messages ?? []);
-        await refreshSessions(id);
-      } catch {
-        /* ignore */
-      }
+      const result = await refreshAfterAskFinal({
+        kbId: id,
+        finalSessionId: lastFinal.sessionId,
+        activeSessionId,
+      });
+      if (result.sessionId) setActiveSessionId(result.sessionId);
+      setHistory(result.history);
+      setSessions(result.sessions);
+      setShellError(result.error ?? null);
     })();
-  }, [lastFinal, kbId, activeSessionId, refreshSessions]);
+  }, [lastFinal, kbId, activeSessionId]);
 
   async function selectSession(sessionId: string) {
     const id = kbId.trim();
     if (!id) return;
     setActiveSessionId(sessionId);
     reset();
-    try {
-      const detail = await getSessionDetail(id, sessionId);
-      setHistory(detail.messages ?? []);
-    } catch {
+    const result = await loadSessionHistory(id, sessionId);
+    if (result.ok) {
+      setHistory(result.messages);
+      setShellError(null);
+    } else {
       setHistory([]);
+      setShellError(result.message);
     }
   }
 
@@ -93,21 +103,21 @@ export function AskPanel() {
     const id = kbId.trim();
     if (!id) return;
     setSessionBusy(true);
-    try {
-      const row = await createSession(id);
+    const result = await createNewSession(id);
+    if (result.ok) {
       await refreshSessions(id);
-      setActiveSessionId(row.sessionId);
+      setActiveSessionId(result.sessionId);
       setHistory([]);
       reset();
-    } catch (err) {
+    } else {
+      setShellError(result.message);
       setView({
         type: 'error',
         code: 'INTERNAL',
-        message: err instanceof Error ? err.message : '创建会话失败',
+        message: result.message,
       });
-    } finally {
-      setSessionBusy(false);
     }
+    setSessionBusy(false);
   }
 
   async function submitQuestion(raw: string) {
@@ -132,7 +142,7 @@ export function AskPanel() {
   }
 
   function onLogout() {
-    webLogoutLocal();
+    logoutLocal();
     router.replace('/login');
   }
 
@@ -160,6 +170,9 @@ export function AskPanel() {
         }}
       >
         <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--sr-muted)' }}>会话</div>
+        {shellError ? (
+          <p style={{ margin: 0, fontSize: 11, color: '#b91c1c', lineHeight: 1.4 }}>{shellError}</p>
+        ) : null}
         <button
           type="button"
           onClick={() => void onNewSession()}

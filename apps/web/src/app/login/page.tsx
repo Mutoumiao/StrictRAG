@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { webDevLogin } from '@/auth/api';
+import { loginWithDev } from '@/auth/services';
 
 /** 开发登录；生产切 Better Auth。 */
 export default function WebLoginPage() {
@@ -16,14 +16,13 @@ export default function WebLoginPage() {
     e.preventDefault();
     setPending(true);
     setError(null);
-    try {
-      await webDevLogin({ email, roleTemplate: 'web_consumer' });
+    const result = await loginWithDev({ email, roleTemplate: 'web_consumer' });
+    if (result.ok) {
       router.replace('/');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '登录失败');
-    } finally {
-      setPending(false);
+    } else {
+      setError(result.message);
     }
+    setPending(false);
   }
 
   return (
