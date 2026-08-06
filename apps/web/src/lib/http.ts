@@ -1,6 +1,11 @@
 'use client';
 
-import type { ApiResponse, TokenPairResponse } from '@strict-rag/contracts';
+/**
+ * HTTP 传输层：Bearer、单飞 refresh、重试。
+ * 不含业务 API；业务调用见 src/api/* 与 auth/api。
+ */
+
+import type { ApiResponse, TokenPairResponse, TokenRefreshRequest } from '@strict-rag/contracts';
 
 import {
   clearClientSession,
@@ -28,10 +33,11 @@ function resolveBaseURL() {
 async function refreshClientSession() {
   const stored = readClientSession();
   if (!stored) throw new Error('no session');
+  const body: TokenRefreshRequest = { refreshToken: stored.refreshToken };
   const res = await fetch(`${resolveBaseURL()}/api/v1/auth/web/token/refresh`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ refreshToken: stored.refreshToken }),
+    body: JSON.stringify(body),
   });
   const payload = (await res.json()) as ApiResponse<TokenPairResponse>;
   if (!payload.ok) throw new Error(payload.error.message);

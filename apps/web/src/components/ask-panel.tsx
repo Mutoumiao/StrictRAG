@@ -3,23 +3,17 @@
 /**
  * 问答 + 薄会话壳。
  * 历史仅回放；**不是** citation 证据。rewrite 未开；无连续追问卖点。
+ * 流式由 useKnowledgeAsk（@ai-sdk/react）驱动，不自解析 SSE。
  */
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type CSSProperties, type FormEvent } from 'react';
 import type { AskResponse, SessionMessage, SessionSummary } from '@strict-rag/contracts';
 import { useRouter } from 'next/navigation';
 
+import { createSession, getSessionDetail, listSessions } from '@/api/sessions';
 import { webLogoutLocal } from '@/auth/api';
 import { useWebAuth } from '@/components/auth-guard';
-import { askKnowledgeBase, type AskSseStatus } from '@/lib/ask-sse';
-import { createSession, getSessionDetail, listSessions } from '@/lib/sessions-api';
-
-type ViewState =
-  | { type: 'idle' }
-  | { type: 'loading'; phase?: string }
-  | { type: 'answered'; data: AskResponse }
-  | { type: 'abstained'; data: AskResponse }
-  | { type: 'error'; code: string; message: string; httpStatus?: number };
+import { useKnowledgeAsk } from '@/hooks/use-knowledge-ask';
 
 const KB_STORAGE = 'strict-rag:web:last-kb-id';
 
@@ -28,12 +22,17 @@ export function AskPanel() {
   const router = useRouter();
   const [kbId, setKbId] = useState('');
   const [question, setQuestion] = useState('');
-  const [view, setView] = useState<ViewState>({ type: 'idle' });
+  /** 最近一次成功发起的提问文案；重试用（提交后会清空输入框） */
+  const [lastQuestion, setLastQuestion] = useState('');
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [history, setHistory] = useState<SessionMessage[]>([]);
   const [sessionBusy, setSessionBusy] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
+
+  const { view, setView, lastFinal, ask, reset, busy } = useKnowledgeAsk({
+    kbId,
+    sessionId: activeSessionId,
+  });
 
   useEffect(() => {
     setKbId(window.localStorage.getItem(KB_STORAGE) ?? '');
@@ -57,11 +56,31 @@ export function AskPanel() {
     void refreshSessions(id);
   }, [kbId, refreshSessions]);
 
+  // 收到 data-ask-final 后刷新会话回放（非证据）
+  useEffect(() => {
+    if (!lastFinal) return;
+    const id = kbId.trim();
+    if (lastFinal.sessionId) {
+      setActiveSessionId(lastFinal.sessionId);
+    }
+    const sid = lastFinal.sessionId ?? activeSessionId;
+    if (!id || !sid) return;
+    void (async () => {
+      try {
+        const detail = await getSessionDetail(id, sid);
+        setHistory(detail.messages ?? []);
+        await refreshSessions(id);
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, [lastFinal, kbId, activeSessionId, refreshSessions]);
+
   async function selectSession(sessionId: string) {
     const id = kbId.trim();
     if (!id) return;
     setActiveSessionId(sessionId);
-    setView({ type: 'idle' });
+    reset();
     try {
       const detail = await getSessionDetail(id, sessionId);
       setHistory(detail.messages ?? []);
@@ -79,7 +98,7 @@ export function AskPanel() {
       await refreshSessions(id);
       setActiveSessionId(row.sessionId);
       setHistory([]);
-      setView({ type: 'idle' });
+      reset();
     } catch (err) {
       setView({
         type: 'error',
@@ -91,74 +110,25 @@ export function AskPanel() {
     }
   }
 
+  async function submitQuestion(raw: string) {
+    const q = raw.trim();
+    const id = kbId.trim();
+    if (!q || !id || busy) return;
+    window.localStorage.setItem(KB_STORAGE, id);
+    setLastQuestion(q);
+    setQuestion('');
+    await ask(q);
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    const q = question.trim();
-    const id = kbId.trim();
-    if (!q || !id) return;
-
-    abortRef.current?.abort();
-    const ac = new AbortController();
-    abortRef.current = ac;
-    window.localStorage.setItem(KB_STORAGE, id);
-    setView({ type: 'loading', phase: 'running' });
-
-    try {
-      const result = await askKnowledgeBase(
-        id,
-        {
-          question: q,
-          sessionId: activeSessionId,
-        },
-        {
-          signal: ac.signal,
-          onStatus: (s: AskSseStatus) => {
-            setView({ type: 'loading', phase: s.phase });
-          },
-        },
-      );
-
-      if (result.kind === 'http_error') {
-        setView({
-          type: 'error',
-          code: result.code,
-          message: result.message,
-          httpStatus: result.status,
-        });
-        return;
-      }
-
-      const data = result.response;
-      if (data.sessionId) setActiveSessionId(data.sessionId);
-      if (data.status === 'answered') {
-        setView({ type: 'answered', data });
-      } else {
-        setView({ type: 'abstained', data });
-      }
-
-      // 回放历史（非证据）
-      if (data.sessionId) {
-        try {
-          const detail = await getSessionDetail(id, data.sessionId);
-          setHistory(detail.messages ?? []);
-          await refreshSessions(id);
-        } catch {
-          /* ignore */
-        }
-      }
-      setQuestion('');
-    } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') return;
-      setView({
-        type: 'error',
-        code: 'INTERNAL',
-        message: err instanceof Error ? err.message : '请求失败',
-      });
-    }
+    await submitQuestion(question);
   }
 
   function onRetry() {
-    void onSubmit({ preventDefault() {} } as FormEvent);
+    const q = lastQuestion.trim() || question.trim();
+    if (!q || busy) return;
+    void submitQuestion(q);
   }
 
   function onLogout() {
@@ -210,7 +180,7 @@ export function AskPanel() {
           onClick={() => {
             setActiveSessionId(null);
             setHistory([]);
-            setView({ type: 'idle' });
+            reset();
           }}
           style={{
             ...sessionBtnStyle(activeSessionId === null),
@@ -374,7 +344,7 @@ export function AskPanel() {
           {view.type === 'answered' ? <AnsweredCard data={view.data} /> : null}
           {view.type === 'abstained' ? <AbstainedCard data={view.data} /> : null}
           {view.type === 'error' ? (
-            <ErrorCard code={view.code} message={view.message} httpStatus={view.httpStatus} />
+            <ErrorCard code={view.code} message={view.message} />
           ) : null}
         </div>
       </div>
