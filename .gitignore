@@ -46,3 +46,5 @@ Thumbs.db
 .claude
 .agents
 skills-lock.json
+# Local workspace
+.trellis/tasks/
