@@ -17,6 +17,26 @@
 
 ---
 
+## createDb 分端超时（ARCH-P0）
+
+`packages/db/src/client.ts` · `CreateDbOptions`：
+
+| 选项 | 含义 |
+|------|------|
+| `statementTimeoutMs` | session `statement_timeout`；**0 / 不传 = 不设置** |
+| `lockTimeoutMs` | session `lock_timeout`；**0 / 不传 = 不设置** |
+
+| 调用方 | 建议默认 | 证据 |
+|--------|----------|------|
+| **api** `getDb()` | statement **15_000** · lock **10_000** | `apps/api/src/services/db.ts` |
+| **worker** `getDb()` | **0**（长入库禁止无脑 15s） | `apps/worker/src/db.ts` |
+
+规则：api/worker **不同默认**；禁止在 `createDb` 内写死 15s 害 worker。
+
+关闭：`close()` / 各端 `closeDb()`；api 进程 SIGINT/SIGTERM 调 `closeDb`。
+
+---
+
 ## 编码规范
 
 ### 列与命名

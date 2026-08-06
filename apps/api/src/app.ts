@@ -1,15 +1,21 @@
 import {
+  BizCode,
   HealthResponseSchema,
   ReadyResponseSchema,
   type HealthResponse,
   type ReadyResponse,
 } from '@strict-rag/contracts';
 import { Hono } from 'hono';
+import { secureHeaders } from 'hono/secure-headers';
 
 import { env, toHealthEnv } from './env.js';
+import { fail } from './lib/response.js';
 import { childLogger } from './logger.js';
 import { attachAuthMiddleware } from './auth/middleware.js';
+import { jsonBodyLimitMiddleware } from './middleware/body-limit.js';
+import { onErrorHandler } from './middleware/on-error.js';
 import { requestIdMiddleware, type ApiVariables } from './middleware/request-id.js';
+import { requestTimeoutMiddleware } from './middleware/timeout.js';
 import { metricsSnapshot } from './obs/index.js';
 import { runReadyChecks } from './ready/checks.js';
 import { askRoutes } from './routes/ask.js';
@@ -19,10 +25,14 @@ import { feedbackRoutes } from './routes/feedback.js';
 import { memberRoutes } from './routes/members.js';
 import { sessionRoutes } from './routes/sessions.js';
 
+/** requestId → secureHeaders → timeout → bodyLimit → auth → routes → notFound/onError */
 export function createApp() {
   const app = new Hono<{ Variables: ApiVariables }>();
 
   app.use('*', requestIdMiddleware);
+  app.use('*', secureHeaders());
+  app.use('*', requestTimeoutMiddleware);
+  app.use('*', jsonBodyLimitMiddleware);
   app.use('*', attachAuthMiddleware);
 
   app.get('/health', (c) => {
@@ -62,6 +72,9 @@ export function createApp() {
   app.route('/api/v1', sessionRoutes);
   app.route('/api/v1', feedbackRoutes);
   app.route('/api/v1', askRoutes);
+
+  app.notFound((c) => fail(c, BizCode.NOT_FOUND, '资源不存在', 404));
+  app.onError(onErrorHandler);
 
   return app;
 }

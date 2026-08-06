@@ -22,6 +22,7 @@ Hono HTTP 后端：入库 API、临时双 JWT 鉴权、单轮 ask 图 / **AI SDK
 ### 基础设施
 - `/health` · `/ready`（含依赖检查）· `/metrics` 骨架
 - request-id 中间件 · Pino 日志 · env 校验
+- **ARCH-P0 运行时硬化**：`onError`/`notFound` 标准信封 · PG 约束兜底映射 · `secureHeaders` + 可关 `timeout`（ask except）+ JSON `bodyLimit`（上传 except）· `createDb` api 分端超时 · SIGINT/SIGTERM 关 DB/Queue
 
 ### 鉴权与权限
 - 双 JWT（access + refresh）· dev-login · `AUTH_ENFORCE` 开关（默认关）
@@ -84,7 +85,8 @@ Hono HTTP 后端：入库 API、临时双 JWT 鉴权、单轮 ask 图 / **AI SDK
 
 | 类型 | 指针 |
 |------|------|
-| 路由挂载 | `apps/api/src/app.ts` |
+| 路由挂载 / 错误中间件 | `apps/api/src/app.ts` · `middleware/on-error.ts` · `lib/pg-error.ts` |
+| 超时 / 体限 | `middleware/timeout.ts` · `body-limit.ts` · `env.ts`（`API_REQUEST_TIMEOUT_MS` 等） |
 | 图 / ask | `apps/api/src/graph/` · `apps/api/src/routes/ask.ts` · `apps/api/src/services/ask/` |
 | 会话 / 反馈 | `apps/api/src/routes/sessions.ts` · `routes/feedback.ts` |
 | 入库 | `apps/api/src/routes/documents.ts` · `apps/api/src/gates/` |

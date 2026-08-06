@@ -117,6 +117,13 @@ const EnvSchema = z
       .enum(['true', 'false'])
       .default('true')
       .transform((v) => v === 'true'),
+    /**
+     * 全局请求超时（ms）。0 = 关闭。
+     * ask 路径始终 except，不受本值约束。
+     */
+    API_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(0).default(30_000),
+    /** JSON 写接口 body 上限（bytes）；上传路径 except */
+    API_JSON_BODY_LIMIT_BYTES: z.coerce.number().int().positive().default(1_048_576),
   })
   .superRefine((data, ctx) => {
     if (data.INGEST_MAX_FILE_BYTES > data.INGEST_MAX_FILE_BYTES_CEILING) {

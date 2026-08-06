@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（P1 KB/入库表 + S2 ask 会话/轨迹/反馈表；Drizzle → PG） |
 | 默认依赖模式 | 需 `DATABASE_URL`；时间列为本地格式串（见 ORM PRD） |
 | 关联模块 | `api` · `worker` 共用 client/schema；检索闸被 api retrieve 复用 |
-| 最近更新 | 2026-08-05 |
+| 最近更新 | 2026-08-06 |
 | Spec | `.trellis/spec/db/` |
 | PRD | `prds/03-data` · `prds/02-engineering/02-orm-drizzle.md` |
 
@@ -19,7 +19,8 @@ Drizzle schema + client：**知识库/文档/分片/向量/入库任务/成员**
 ## 已具备能力
 
 ### Client / 工具
-- `createDb`（`client.ts`）
+- `createDb`（`client.ts`；可选 `statementTimeoutMs` / `lockTimeoutMs`，0=不设）
+- 分端默认：api 15s/10s · worker 0（ARCH-P0-4）
 - `formatLocalDateTime`（写库时间本地串）
 
 ### Schema · system

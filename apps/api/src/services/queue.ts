@@ -15,11 +15,12 @@ export type IngestJobData = {
 };
 
 let queue: Queue<IngestJobData> | null = null;
+let redis: Redis | null = null;
 
 function getQueue(): Queue<IngestJobData> {
   if (!queue) {
-    const connection = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null });
-    queue = new Queue<IngestJobData>(QUEUE_NAMES.INGEST, { connection });
+    redis = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null });
+    queue = new Queue<IngestJobData>(QUEUE_NAMES.INGEST, { connection: redis });
   }
   return queue;
 }
@@ -32,4 +33,16 @@ export async function enqueueIngest(data: IngestJobData): Promise<string | undef
   });
   logger.info({ jobId: job.id, ...data }, 'enqueued ingest job');
   return job.id;
+}
+
+/** 优雅关闭：关闭 Queue + Redis（幂等） */
+export async function closeQueue(): Promise<void> {
+  if (queue) {
+    await queue.close();
+    queue = null;
+  }
+  if (redis) {
+    redis.disconnect();
+    redis = null;
+  }
 }

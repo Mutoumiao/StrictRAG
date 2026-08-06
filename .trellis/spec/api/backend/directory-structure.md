@@ -4,9 +4,9 @@
 
 ```text
 apps/api/src/
-  index.ts                 # 启动
-  app.ts                   # createApp：requestId → attachAuth → routes
-  env.ts                   # Zod env（JWT · AUTH · GATEWAY · RETRIEVE · SESSION_REWRITE · OBS）
+  index.ts                 # 启动 + SIGINT/SIGTERM → closeDb/closeQueue
+  app.ts                   # createApp：requestId → secure → timeout → bodyLimit → auth → routes → notFound/onError
+  env.ts                   # Zod env（+ API_REQUEST_TIMEOUT_MS · API_JSON_BODY_LIMIT_BYTES …）
   auth/
     types.ts
     middleware.ts          # attachAuth · requireAuth · requirePermission · WhenEnforced · requireKbMember
@@ -23,7 +23,12 @@ apps/api/src/
     ask.ts                 # POST …/ask 同步 + AI SDK UI Message Stream
     sessions.ts            # 会话壳（无 rewrite）
     feedback.ts            # 反馈队列
-  middleware/request-id.ts
+  middleware/
+    request-id.ts          # X-Request-Id
+    timeout.ts             # 可关全局 timeout；ask except
+    body-limit.ts          # JSON 体限；上传/complete except
+    on-error.ts            # 全局 throw 兜底
+  # secureHeaders / notFound 直接在 app.ts 内联
   services/
     documents.ts · members.ts · sessions.ts · feedback.ts · db.ts · storage.ts · queue.ts
     ask/                   # executeAsk · session-guard · traces 落库
@@ -32,7 +37,7 @@ apps/api/src/
   obs/                     # metrics · rate-limit · memory/ask tracer
   gates/                   # 上传体积 · 审批 scan
   ready/checks.ts
-  lib/response.ts
+  lib/response.ts · pg-error.ts
   logger.ts
 ```
 

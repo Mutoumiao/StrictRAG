@@ -6,6 +6,7 @@
 import { Queue, Worker, type ConnectionOptions } from 'bullmq';
 import { Redis } from 'ioredis';
 
+import { closeDb } from './db.js';
 import { env } from './env.js';
 import { runIngestStage } from './ingest/pipeline.js';
 import { logger } from './logger.js';
@@ -114,9 +115,24 @@ async function main() {
     'worker running',
   );
 
+  let shuttingDown = false;
+
   const shutdown = async (signal: string) => {
+    if (shuttingDown) {
+      logger.warn({ signal }, 'shutdown already in progress; force exit');
+      process.exit(1);
+    }
+    shuttingDown = true;
     logger.info({ signal }, 'shutting down worker');
-    await Promise.all([probeWorker.close(), ingestWorker.close(), ingestQueue.close()]);
+    try {
+      await Promise.all([probeWorker.close(), ingestWorker.close()]);
+      await ingestQueue.close();
+      redisForQueue.disconnect();
+      (connection as unknown as Redis).disconnect();
+      await closeDb();
+    } catch (err) {
+      logger.error({ err }, 'worker shutdown error');
+    }
     process.exit(0);
   };
 

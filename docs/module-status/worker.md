@@ -7,7 +7,7 @@
 | 成熟度 | **可联调**（P1 入库状态机；mock 栈下可随垂直切片演示） |
 | 默认依赖模式 | scan=`mock_clean` · embed=`mock` · ES 索引=`mock`（仅 `mock\|fail`，**无 live**）· storage=本地目录 |
 | 关联模块 | 由 `api` 入队；写 `@strict-rag/db`；队列名 `@strict-rag/contracts`；需 Redis + PG |
-| 最近更新 | 2026-08-05 |
+| 最近更新 | 2026-08-06 |
 | Spec | `.trellis/spec/worker/backend/` |
 | PRD | `prds/06-async` · `prds/04-pipelines/01-offline-ingest.md` |
 
@@ -34,6 +34,8 @@ BullMQ 消费者：probe 探针 + 入库五阶段状态机已通；**scan / embe
 
 ### 基础设施
 - env 校验 · Pino · 与 api 共用 DB 包
+- DB：`statementTimeoutMs=0`（长入库；ARCH-P0-4）
+- shutdown：Worker/Queue/Redis/DB 分阶段关闭 · 重复信号幂等
 
 ---
 
