@@ -69,6 +69,9 @@
 - **Bad**：空建 `store.ts` / `hooks/` / 平行 wire `types.ts`  
 - **Bad**：跨模块复制 path，或滥用对方 `services`（应优先对方 `api`）  
 - **Bad**：`services` 内维护权限码决策树 / `if (role === …)` 放行（权限引擎在 **API**；UI 只裁剪；services 只映射 403）  
+- **Bad**：**欠抽** — ≥3 文件同形 `mapErr`/纯逻辑仍复制；path 多处复制（应 A1/A4）  
+- **Bad**：**过抽** — 仅 loading 四态像就 `useOpsWorkspace(config)`；options 丛林；为第 4 页预建空 hook（应 B1～B4）  
 - **Good**：`page` 薄 → `_components` 调用例名 → `*.services.ts` 调 `api` → `lib/http`  
 - **Good**：无 React 用 services；须 `useChat`/订阅用 hooks；体量按用例拆 `list.services.ts` 等  
-- **Good**：按钮按有效码显隐 + API 硬验码；services 假定「能点到就请求」，失败用 `mapBizError`
+- **Good**：按钮按有效码显隐 + API 硬验码；services 假定「能点到就请求」，失败用 `mapBizError`  
+- **Good**：抽公共优先 **纯函数**（`mapBizError`），UI 状态机未达触发前允许样板重复；详见 [module-layering §12.1](./module-layering.md)

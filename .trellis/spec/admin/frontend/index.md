@@ -18,12 +18,14 @@
 - [ ] `page.tsx` 是否保持薄组合；UI 是否不直接业务 `fetch`？  
 - [ ] store / hooks 目录 / types 是否「有需要才建」？services 膨胀是否按 **业务用例** 拆分？  
 - [ ] services 是否不做权限引擎（无码树/role 放行）；授权是否仍以 **API 验码** 为准、UI 只裁剪？  
+- [ ] 抽公共是否对照 [module-layering §12.1](./module-layering.md)（A 欠抽 / B 过抽；优先纯函数再薄 hook）？  
 
 ## Quality Check
 
 - [ ] 无密钥、无服务端 DB URL  
 - [ ] 按钮可见 ≠ API 已授权（双罪禁止）  
 - [ ] 分层符合 [module-layering](./module-layering.md)  
+- [ ] **抽公共**：有无 A1～A4 欠抽（≥3 处同形纯逻辑、≥4 模块同步改协议、path/wire 复制）？有无 B1～B4 过抽（仅形状像就上帝 hook / options 丛林 / 空 hooks）？见 [§12.1](./module-layering.md)  
 - [ ] `pnpm --filter @strict-rag/admin check-types` · `lint`  
 
 ---

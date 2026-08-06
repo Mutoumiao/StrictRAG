@@ -308,6 +308,55 @@ documents/
 
 **删除测试**：删掉该 services 后，若复杂度只是「调用方多写一行 api 调用」且无行为丢失 → 该层过浅，可内联。
 
+### 12.1 抽公共的时机（与「空建」对称 · check 必查）
+
+> 跨包复用落点仍见 [code-reuse-thinking-guide](../../guides/code-reuse-thinking-guide.md)。  
+> **本节管 app 内**：services 重复、ops workspace 样板、hooks 是否上提。  
+> 纪律：**禁止为对称空抽**；**禁止**在该抽时假装「局部性」留下协议债。
+
+#### A. 必须抽（`trellis-check` / Quality Check 应报 **欠抽**）
+
+| # | 触发条件 | 优先形态 | 落点 |
+|---|----------|----------|------|
+| A1 | **同一纯逻辑**（错误映射、`formatX`、Result 包装）在 **≥3 个文件** 实质同形复制 | **纯函数**（无 React） | `src/lib/*`（如 `map-biz-error.ts`）或模块内 private helper |
+| A2 | 改「加载协议」须同时改 **≥4 个** `(ops)/` 路由模块（例：统一 abort、统一 KB 变更自动刷、统一四态枚举） | 极薄 hook 或共享 load 骨架 | `src/lib/` 或 `src/hooks/`（**跨模块**才上提；单模块仍 colocation） |
+| A3 | **≥2 个无关路由**依赖同一业务树 / 同一套 HTTP 域 | 上提域 | `src/features/<domain>/`（见 §11）；**不要**深层互相乱引 |
+| A4 | services 内已复制 **path** 或 wire 字段集 | 不抽逻辑，**收敛到 api / contracts** | 模块 `api.ts` · `@strict-rag/contracts` |
+
+#### B. 禁止抽 / 应报 **过抽**（假抽象）
+
+| # | 反信号 | 说明 |
+|---|--------|------|
+| B1 | 仅「形状像」（都有 `idle\|loading\|error\|ready` + `readStoredKbId`），但 **权限码、数据形状、写动作、副作用**（focus 刷新 / 行级 busy / 表单）已分叉 | 三份 ops workspace **允许**样板重复；硬抽会变成 `options` 丛林 |
+| B2 | 为「将来第 4 页」预建 `useOpsList` / 空 `hooks/` | 违反空目录纪律与 §12 渐进 |
+| B3 | 公共 hook 绑定 **权限裁剪 + 表格列 + 动作按钮** 成上帝组件 | 破坏局部性：改一列要读共享层 |
+| B4 | 抽完后调用方仍要传 5+ 配置项才能还原原行为 | 说明业务本不同构 → **内联回去** |
+
+#### C. 可选（不强制；check **不**因「未抽」失败）
+
+- 仅 2～3 个运营页、同形加载样板、**业务仍分叉** → 维持复制；优先用 **A1 纯函数** 减噪（`mapBizError`），而不是大 hook。  
+- 若只想减 state 样板：最多抽 **极薄** `useAsyncListState<T>`（只管 `state/rows/error` + `setFromResult`），**禁止**塞入权限码与业务表格。
+
+#### D. 形态优先级（强制顺序）
+
+```text
+1. 纯函数 / lib helper（无 React、可单测）
+2. 本模块 private helper 或极薄 hooks/
+3. 跨模块 src/lib 或 src/hooks（确认 ≥2 调用方）
+4. src/features/<domain>（业务域上提，非 UI 样板上提）
+```
+
+**Wrong**：`useDocumentsApprovalsMembersWorkspace(config)`  
+**Correct**：`mapBizError` + 各模块 `_components` 自管 UI；真要共享时 `useAsyncListState` 只做四态。
+
+#### E. 与现有条款的关系
+
+| 已有规则 | 关系 |
+|----------|------|
+| 空目录 / 禁止空 store·hooks | **未达 A 触发前** 禁止预建 |
+| services ~200 行或 3+ 用例簇 | **文件内**按业务拆 `*.services.ts`，不是跨页上帝 hook |
+| §11 上提 features | 业务域复用；**不是**「三个列表 UI 长得像」 |
+
 ---
 
 ## 13. Wrong vs Correct
@@ -359,6 +408,12 @@ export async function loadDocumentList(kbId: string): Promise<LoadResult> {
 }
 
 // _components：只调 loadDocumentList
+
+// Bad：仅因三页都有 loading 四态就抽
+// useOpsWorkspace({ canAccess, columns, actions, reloadOnFocus })
+
+// Good：错误映射抽纯函数；UI 状态机仍留各 workspace（未达 §12.1 A2）
+// lib/map-biz-error.ts → mapBizError(err)
 ```
 
 ---
@@ -393,6 +448,9 @@ export async function loadDocumentList(kbId: string): Promise<LoadResult> {
 - [ ] 跨模块是否优先复用 `api` 而非复制 path、慎用对方 services？  
 - [ ] 登录相关是否落在 `src/auth/*` 而非误塞进 `(ops)/` 某模块？  
 - [ ] services 是否 **未** 实现权限码引擎（无 grants 重算 / 无 role 放行）；403 是否交 API + 文案映射？  
+- [ ] **抽公共（§12.1）**：是否存在 A1～A4 欠抽（≥3 处同形纯逻辑 / ≥4 模块同步改协议 / path 复制）？  
+- [ ] **抽公共（§12.1）**：是否存在 B1～B4 过抽（仅形状像就上帝 hook、空 hooks、options 丛林）？  
+- [ ] 若已抽共享：形态是否遵循「纯函数 → 薄 hook → features」，且无 React 逻辑未塞进 hook？  
 
 ---
 

@@ -20,6 +20,7 @@
 - [ ] `page.tsx` 是否薄组合？store/types/空目录是否按需？  
 - [ ] 是否未为对称提前拆碎 `src/api` 或空建 features？  
 - [ ] services/hooks 是否不做权限引擎；鉴权/成员约束是否以 **API** 为准？  
+- [ ] 抽公共是否对照 [module-layering §12.1](./module-layering.md) / [admin §12.1](../../admin/frontend/module-layering.md)（A 欠抽 / B 过抽）？  
 
 ## Quality Check
 
@@ -27,6 +28,7 @@
 - [ ] 不把会话历史当「证据」展示逻辑写死为可 citation  
 - [ ] 拒答态可见 reason/userMessage；禁止伪装成功答案  
 - [ ] 分层符合 [module-layering](./module-layering.md)  
+- [ ] **抽公共**：有无 A 类欠抽 / B 类过抽？ask 流与会话壳是否被错误合成上帝 hook？见 [§12.1](./module-layering.md)  
 - [ ] `pnpm --filter @strict-rag/web check-types` · `lint` · `test`  
 
 ---

@@ -9,29 +9,36 @@ apps/admin/
     lib/
       http.ts                 # 传输层（Bearer / refresh / 重试）
       kb-context.ts           # 当前 KB 选择（localStorage）
+      map-biz-error.ts        # services 共用错误映射（无 path）
     auth/
       client-session.ts       # token 本地存储
-      api.ts                  # 登录 / me HTTP（仅 path）
-      # services.ts           # 按需：登录用例编排（不写 path）
+      api.ts                  # 登录 / me HTTP（仅 path；不写 session）
+      services.ts             # 登录/登出：写清 session + 错误映射
     components/
       admin-shell.tsx
       auth-guard.tsx
     app/
-      login/page.tsx
+      login/page.tsx          # 薄：表单 UI → auth/services
       (ops)/
         layout.tsx
         documents/
-          page.tsx
-          api.ts              # 本模块私有 HTTP（仅 path + contracts）
+          page.tsx            # 薄：组合 DocumentsWorkspace
+          api.ts
+          list.services.ts
+          _components/documents-workspace.tsx
         approvals/
           page.tsx
-          api.ts
+          api.ts              # 跨模块 re-export listDocuments
+          services.ts
+          _components/approvals-workspace.tsx
         members/
           page.tsx
           api.ts
+          services.ts
+          _components/members-workspace.tsx
 ```
 
-> **目标扩展**（按需长出，禁止空建）：同目录 `services.ts` | `*.services.ts` · `hooks/` · `_components/` · 可选 `store.ts`。  
+> **再扩展**（按需长出，禁止空建）：`hooks/` · 可选 `store.ts` · 按用例拆更多 `*.services.ts`。  
 > **分层纪律全文** → [module-layering.md](./module-layering.md)
 
 ## 目标模块树（路由 colocation）
@@ -68,7 +75,8 @@ app/(ops)/<module>/
 6. **禁止**再建全站大杂烩 `src/api/`。  
 7. **store / hooks 目录 / types**：不需要不建。  
 8. 新运营域：在 `app/(ops)/<module>/` 落树，不要塞进无关模块。  
-9. 域被 ≥2 无关路由依赖时 → 上提 `src/features/<domain>/`（见 module-layering §11）。
+9. 域被 ≥2 无关路由依赖时 → 上提 `src/features/<domain>/`（见 module-layering §11）。  
+10. **抽公共时机**（欠抽 / 过抽）：见 [module-layering §12.1](./module-layering.md)；check 必查。
 
 ## 职责（产品）
 

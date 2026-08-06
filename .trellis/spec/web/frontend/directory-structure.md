@@ -8,22 +8,25 @@ apps/web/
     env.client.ts
     lib/
       http.ts                 # 传输层（Bearer / refresh / 重试）
+      map-biz-error.ts        # services 共用错误映射（无 path）
     auth/
       client-session.ts
-      api.ts                  # 登录 / me HTTP（仅 path）
-      # services.ts           # 按需：登录用例编排（不写 path）
+      api.ts                  # 登录 / me HTTP（仅 path；不写 session）
+      services.ts             # 登录/登出：写清 session + 错误映射
     api/                      # 业务 HTTP（界面简单 → 集中）
       ask.ts                  # DefaultChatTransport（AI SDK，不自解析 SSE）
       sessions.ts
       feedback.ts
+    services/
+      sessions.services.ts    # 会话列表/新建/历史回放编排（无 path）
     hooks/
       use-knowledge-ask.ts    # useChat + data-status / data-ask-final
     components/
       auth-guard.tsx
-      ask-panel.tsx
+      ask-panel.tsx           # UI；会话用例经 services；ask 经 hook
     app/
-      page.tsx
-      login/page.tsx
+      page.tsx                # 薄：Guard + AskPanel
+      login/page.tsx          # 薄：表单 UI → auth/services
 ```
 
 > **分层纪律全文**（page / api / services / hooks / store / 类型）→ [module-layering.md](./module-layering.md)
@@ -56,7 +59,8 @@ apps/web/
 5. ask 流式：**必须** `@ai-sdk/react` + 服务端 UI Message Stream（`data-status` / `data-ask-final`）。  
 6. 组件通过明确路径引入；禁止页面/组件散落业务 path 的 `fetch`。  
 7. **store / 空 hooks 目录 / types**：不需要不建。  
-8. `page.tsx` 保持薄（路由 + 组合）。
+8. `page.tsx` 保持薄（路由 + 组合）。  
+9. **抽公共时机**（欠抽 / 过抽）：见 [module-layering §12.1](./module-layering.md)（与 admin 同纪律）；check 必查。
 
 ## 职责（产品）
 

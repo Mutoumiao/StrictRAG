@@ -294,6 +294,22 @@ export async function loadSessionList(kbId: string) {
 - [ ] 是否未为对称空建 `app/**/api.ts` / 空 features？  
 - [ ] ask 是否只信 `data-ask-final` + schema；重试是否 `lastQuestion`？  
 - [ ] services/hooks 是否 **未** 实现权限/运营码引擎；401/403 是否交 API + 用户可见错误？  
+- [ ] **抽公共（§12.1）**：A 类欠抽 / B 类过抽是否扫过？（同 admin；细节见下）  
+
+### 12.1 抽公共的时机（与 admin 同纪律）
+
+> 权威细则与 admin 对齐：[admin module-layering §12.1](../../admin/frontend/module-layering.md)（A 必须抽 / B 禁止过抽 / C 可选 / D 形态优先级）。  
+> web 补充触发：
+
+| web 场景 | 判定 |
+|----------|------|
+| `mapBizError`、Result 包装在多个 `*.services.ts` 复制 | **A1** → `src/lib/map-biz-error.ts` |
+| ask 流式状态机与会话列表「长得像」 | **B1** → **禁止**合成上帝 hook；流式留 `useKnowledgeAsk`，会话留 services + 面板 |
+| 单域组件 ≥3～4 且仅服务该域 | §1.2 演进到 features；**不是**全局 `src/hooks` 堆业务 |
+| 为对称把 `src/api` 拆进多个空 `app/**/api.ts` | **B2** 禁止 |
+
+**Wrong**：`useWebShell({ ask, sessions, login })` 一把梭。  
+**Correct**：深 hook 只包必须绑 React 的 ask；纯编排进 services；跨文件同形纯逻辑进 `lib/`。
 
 ---
 

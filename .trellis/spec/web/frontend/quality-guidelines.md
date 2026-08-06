@@ -56,8 +56,10 @@
 - **Bad**：为对称空建 `app/**/api.ts` / 空 features / 空 store  
 - **Bad**：平行 wire `types.ts` 复制 contracts  
 - **Bad**：services/hooks 内用运营码 / 自造权限树放行业务（授权在 **API**；前端只 Guard + 映射错误）  
+- **Bad**：**欠抽** — 多 services 复制同形错误映射却不进 `lib/`；**过抽** — 把 ask 流与会话壳合成上帝 hook  
 - **Good**：`api` 浅（path/transport）+ hook/services 深（用例/状态机）+ `page` 薄  
-- **Good**：无 React → services；须订阅 → hooks；膨胀按 **业务** 拆 `*.services.ts` |
+- **Good**：无 React → services；须订阅 → hooks；膨胀按 **业务** 拆 `*.services.ts`  
+- **Good**：抽公共时机见 [module-layering §12.1](./module-layering.md)（与 [admin §12.1](../../admin/frontend/module-layering.md) 同纪律）
 
 ### Common Mistake: 重试依赖已清空输入
 

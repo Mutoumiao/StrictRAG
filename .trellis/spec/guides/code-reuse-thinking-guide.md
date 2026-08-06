@@ -14,6 +14,21 @@ rg "PERMISSIONS|MENU_TREE" packages
 
 重复第三次出现同一逻辑时，再抽共享——不要为「将来可能」预建工具包。
 
+### 前端细化（admin / web · 与分层 check 对齐）
+
+> 权威细则（A 必须抽 / B 禁止过抽 / C 可选 / 形态优先级）：  
+> [admin/frontend/module-layering §12.1](../admin/frontend/module-layering.md) · [web/frontend/module-layering §12.1](../web/frontend/module-layering.md)
+
+| 问自己 | 倾向 |
+|--------|------|
+| 是 **无 React 的同形纯逻辑**（`mapErr`、format）已在 ≥3 文件？ | **抽** → `src/lib/*` 纯函数（A1） |
+| 只是 UI 都有 loading 四态，但权限/数据/动作已分叉？ | **不抽** 大 hook（B1）；允许样板税 |
+| 改加载协议要动 ≥4 个路由模块？ | **抽** 极薄骨架 / 协议 helper（A2） |
+| 抽完要传一堆 options 才能还原？ | **过抽** → 内联（B4） |
+| ask 流 + 会话列表「长得像」？ | **禁止** 合成上帝 hook（web B 类） |
+
+`trellis-check` 跑前端 Quality Check 时：**欠抽与过抽都要报**，不能只骂重复或只骂抽象。
+
 ---
 
 ## 共享落点决策
@@ -60,7 +75,9 @@ rg "PERMISSIONS|MENU_TREE" packages
 - **Bad**：在 admin 写 `const AUTH_UNAUTHORIZED = 'AUTH.UNAUTHORIZED'`  
 - **Bad**：再 scaffold 一个 `packages/utils` 装 2 个函数  
 - **Bad**：为未批准 Phase 预建空的 `packages/rag-graph` 却无 PRD 落点说明  
+- **Bad**（前端）：三 ops 页仅形状像就 `useOpsWorkspace(config)`；或 ≥3 处 `mapErr` 仍不抽 `mapBizError`  
 - **Good**：按 `prds/02-engineering` 建议位置，有真实调用再抽包  
+- **Good**（前端）：纯函数优先；UI 状态机未达 A2 前允许复制；见 module-layering §12.1  
 
 ---
 
