@@ -34,6 +34,11 @@ Hono HTTP 后端：入库 API、临时双 JWT 鉴权、单轮 ask 图 / **AI SDK
 - 文档生命周期 API；入队 worker 消费
 - SQL 在 `services/`，路由薄
 
+### 分片只读（B1 · ADR-052）
+- `GET /documents/:docId/chunks`：当前 `indexVersion` · preview 截断 · **无 body** · cursor/limit
+- `GET /documents/:docId/chunks/:chunkId`：全文 body（PG `body_text`）· UTF-8 **64KiB** 软截断
+- 始终 `requirePermission('chunk.view')`（与 AUTH_ENFORCE 无关）；doc_operator 默认 403
+
 ### 问答（S2 最小）
 - 同步 ask + AI SDK UI Message Stream（`data-status` / `data-ask-final`，**无**自写 `event: final`）；**线性状态机**（非 LangGraph.js）：检索 → 约束生成 → 验证 → 拒答（`graph/run.ts`）
 - 流异常：`execute` 抛错时仍写 `data-status phase=error` + `data-ask-final`（`reason=internal_guard`）；单测覆盖（`routes/ask.test.ts`）
@@ -61,7 +66,9 @@ Hono HTTP 后端：入库 API、临时双 JWT 鉴权、单轮 ask 图 / **AI SDK
 
 | 项 | 说明 |
 |----|------|
-| 分片全文 / KB 设置 / 供应商全 UI | backlog B1–B3；UI 在 admin/web，本包未必已有完整对应 API |
+| KB 设置 / 供应商全 UI | backlog B2–B3；UI 在 admin；本包未必已有完整对应 API |
+| 历史 indexVersion 分片浏览 | ADR-052 明确 P2 不做 |
+| Mongo 权威 body | 现读 PG `body_text` 演示字段；真 Mongo → B9 |
 | 数据面板 · 部门壳 · 全量角色 UI | B4–B6；见 admin 与 backlog |
 | 用户端反馈控件 | 本包有 feedback **API**；web 是否接 UI 见 `web.md` |
 
@@ -90,11 +97,13 @@ Hono HTTP 后端：入库 API、临时双 JWT 鉴权、单轮 ask 图 / **AI SDK
 | 图 / ask | `apps/api/src/graph/` · `apps/api/src/routes/ask.ts` · `apps/api/src/services/ask/` |
 | 会话 / 反馈 | `apps/api/src/routes/sessions.ts` · `routes/feedback.ts` |
 | 入库 | `apps/api/src/routes/documents.ts` · `apps/api/src/gates/` |
+| 分片只读 | `apps/api/src/routes/chunks.ts` · `services/chunks.ts` · `routes/chunks.test.ts` |
 | 鉴权 / 成员 | `apps/api/src/auth/` · `routes/members.ts` |
 | Gateway / 检索 | `apps/api/src/services/gateway/` · `services/retrieve/` |
 | 观测 | `apps/api/src/obs/` |
 | env 默认 | `apps/api/src/env.ts`（`RETRIEVE_ES_MODE=mock` · `AUTH_ENFORCE=false` · `SESSION_REWRITE_ENABLED=false`） |
-| 单测 | `apps/api/src/**/*.test.ts`（ask / graph / retrieve / members / feedback / sessions / obs 等） |
+| 单测 | `apps/api/src/**/*.test.ts`（ask / graph / retrieve / chunks / members / feedback / sessions / obs 等） |
+| Task（B1） | `.trellis/tasks/08-06-b1-chunk-readonly/`（完成后 archive） |
 | Task（归档） | `.trellis/tasks/archive/2026-08/08-05-phase-2-ask/` · 子任务 `08-05-p2-*` 同目录 |
 | 签字（归档） | `.trellis/tasks/archive/2026-08/08-05-phase-2-ask/sign-off.md` |
 | 总 backlog | `.trellis/tasks/08-06-project-backlog/status.md`（ARCH / 穿插） |

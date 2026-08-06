@@ -36,6 +36,11 @@ apps/admin/
           api.ts
           services.ts
           _components/members-workspace.tsx
+        chunks/
+          page.tsx            # B1 分片只读
+          api.ts              # list/detail path；listDocuments re-export from documents
+          services.ts
+          _components/chunks-workspace.tsx
 ```
 
 > **再扩展**（按需长出，禁止空建）：`hooks/` · 可选 `store.ts` · 按用例拆更多 `*.services.ts`。  

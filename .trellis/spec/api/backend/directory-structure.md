@@ -19,6 +19,7 @@ apps/api/src/
   routes/
     auth.ts                # dev-login · refresh · me
     documents.ts           # P1 入库
+    chunks.ts              # B1 分片只读 list/detail（ADR-052）
     members.ts             # 成员 list/invite/delete
     ask.ts                 # POST …/ask 同步 + AI SDK UI Message Stream
     sessions.ts            # 会话壳（无 rewrite）
@@ -30,7 +31,7 @@ apps/api/src/
     on-error.ts            # 全局 throw 兜底
   # secureHeaders / notFound 直接在 app.ts 内联
   services/
-    documents.ts · members.ts · sessions.ts · feedback.ts · db.ts · storage.ts · queue.ts
+    documents.ts · chunks.ts · members.ts · sessions.ts · feedback.ts · db.ts · storage.ts · queue.ts
     ask/                   # executeAsk · session-guard · traces 落库
     gateway/               # chat · embed · rerank（mock|http）
     retrieve/              # 混合检索 · 双闸门 · RRF · scoring
@@ -60,5 +61,5 @@ apps/api/src/
 | 脚本 | 说明 |
 |------|------|
 | `dev` / `start` | tsx 起服 :4000 |
-| `test` | vitest（auth · graph · ask · retrieve · sessions · feedback · obs …） |
+| `test` | vitest（auth · graph · ask · retrieve · chunks · sessions · feedback · obs …） |
 | `check-types` / `lint` | tsc · eslint |

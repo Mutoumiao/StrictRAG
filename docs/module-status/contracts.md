@@ -3,7 +3,7 @@
 | 字段 | 内容 |
 |------|------|
 | 路径 | `packages/contracts` |
-| 成熟度 | **可联调**（支撑 P0/P1 入库 + S2 最小 ask / 会话 / 反馈 / 成员） |
+| 成熟度 | **可联调**（支撑 P0/P1 入库 + S2 ask / 会话 / 反馈 / 成员 + **B1 分片**） |
 | 默认依赖模式 | 纯库；无运行时开关 |
 | 关联模块 | 被 `api` · `worker` · `web` · `admin` 消费；错误码与信封全仓唯一源 |
 | 最近更新 | 2026-08-06 |
@@ -12,7 +12,7 @@
 
 ## 一句话
 
-共享 **Zod 契约 + 业务码 + 队列名 + ApiResponse 信封**：P1 入库与 S2 ask/会话/反馈/成员路径已有契约；**不是**全产品域完整 OpenAPI 覆盖。
+共享 **Zod 契约 + 业务码 + 队列名 + ApiResponse 信封**：P1 入库、B1 分片只读与 S2 ask/会话/反馈/成员路径已有契约；**不是**全产品域完整 OpenAPI 覆盖。
 
 ---
 
@@ -29,6 +29,7 @@
 
 ### 入库
 - 文档 body + **列表/详情/审批/扫描等成功 data**（`ingest/document.contract`）
+- 分片 list query/item/response + detail（`ingest/chunk.contract`；list **无** body 字段）
 
 ### 问答（S2）
 - ask 请求/响应 · reason · 流 `data-status` 形状（`ask/ask.contract` · `ask/reason`；`AskResponse` ≡ 同步 JSON / `data-ask-final`）
@@ -70,5 +71,6 @@
 | 队列 | `packages/contracts/src/async/queues.ts` |
 | ask 域 | `packages/contracts/src/ask/*` |
 | 入库 | `packages/contracts/src/ingest/document.contract.ts` |
-| 单测 | `packages/contracts/src/ask/ask.contract.test.ts` |
+| 分片 | `packages/contracts/src/ingest/chunk.contract.ts` · `chunk.contract.test.ts` |
+| 单测 | `packages/contracts/src/ask/ask.contract.test.ts` · `ingest/chunk.contract.test.ts` |
 | Task（归档） | `.trellis/tasks/archive/2026-08/08-05-p2-contracts-schema/` · P0/P1 archive |

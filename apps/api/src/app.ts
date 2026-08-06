@@ -20,6 +20,7 @@ import { metricsSnapshot } from './obs/index.js';
 import { runReadyChecks } from './ready/checks.js';
 import { askRoutes } from './routes/ask.js';
 import { authRoutes } from './routes/auth.js';
+import { chunkRoutes } from './routes/chunks.js';
 import { documentRoutes } from './routes/documents.js';
 import { feedbackRoutes } from './routes/feedback.js';
 import { memberRoutes } from './routes/members.js';
@@ -68,6 +69,7 @@ export function createApp() {
 
   app.route('/api/v1/auth', authRoutes);
   app.route('/api/v1', documentRoutes);
+  app.route('/api/v1', chunkRoutes);
   app.route('/api/v1', memberRoutes);
   app.route('/api/v1', sessionRoutes);
   app.route('/api/v1', feedbackRoutes);

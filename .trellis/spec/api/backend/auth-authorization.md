@@ -62,7 +62,7 @@ app.post('/api/v1/kb/:kbId/ask', requireKbMember(), handler)
 | 路由类 | 默认 | 说明 |
 |--------|------|------|
 | 入库 documents | `requirePermissionWhenEnforced` | false 时 demo-ingest 无 token |
-| members / ask / sessions | `requirePermission` / `requireKbMember` | **始终**登录+成员；不改 AUTH 默认 |
+| members / ask / sessions / **chunks** | `requirePermission` / `requireKbMember` | **始终**登录+码/成员；不改 AUTH 默认；chunks 码=`chunk.view` |
 
 #### 权限求值
 

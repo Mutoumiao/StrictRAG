@@ -55,14 +55,14 @@
 | **问答 ask / 流** | **可演示**（单轮信任环；AI SDK UI Message Stream；检索默认 mock ES） | `api` | `web` · `contracts` · `db` | [api · 问答](./api.md#问答s2-最小) · [web](./web.md) |
 | **会话壳** | **可演示**（列表/历史回放；**rewrite 关**） | `api` | `web` · `db` · `contracts` | [api · 问答](./api.md#问答s2-最小) · [web](./web.md) |
 | **鉴权 / ACL** | **可联调**（临时双 JWT；KB 成员 + 权限码骨架） | `api` | `admin-catalog` · `admin` · `web` · `contracts` | [api · 鉴权](./api.md#鉴权与权限) · [admin-catalog](./admin-catalog.md) |
-| **admin 运营面** | **可演示**（S2c 审批/成员薄 UI；全量运营面见 backlog） | `admin` | `api` · `admin-catalog` | [admin](./admin.md) · backlog B1–B7 |
+| **admin 运营面** | **可演示**（S2c 审批/成员 + **B1 分片只读**；全量运营面见 backlog） | `admin` | `api` · `admin-catalog` | [admin](./admin.md) · backlog B2–B7 |
 | **反馈** | **可联调**（API 已有；web **无**反馈 UI） | `api` | `web`（未接 UI）· `db` | [api](./api.md) · [web](./web.md) |
 | **模型网关** | **可联调**（HTTP + mock client 切片；无完整供应商 UI） | `api` | — | [api · 问答](./api.md#问答s2-最小) · backlog B3 |
 | **观测 / 评测** | **骨架**（进程内 metrics/tracer；无 L1 黄金集门禁） | `api` | — | [api](./api.md) · backlog B10 |
 | **契约 / Schema 基座** | **可联调**（支撑 P1/S2 路径；随能力扩展） | `contracts` / `db` | 全业务包 | [contracts](./contracts.md) · [db](./db.md) |
 | **工程 tooling** | **生产向**（共享 eslint/tsconfig；无业务完成度故事） | `eslint-config` · `typescript-config` | 全仓 | [eslint-config](./eslint-config.md) · [typescript-config](./typescript-config.md) · [ui](./ui.md)（骨架） |
 
-**矩阵未覆盖、且明确未交付的能力**（勿从「可演示」行外推）：生产 ES+IK、真 RustFS/Mongo、rewrite/连续追问、CRAG/multi_hop、部门强制隔离、分片全文 UI、KB 设置全 UI 等 → 见 backlog 与交付控制台 §0。
+**矩阵未覆盖、且明确未交付的能力**（勿从「可演示」行外推）：生产 ES+IK、真 RustFS/Mongo、rewrite/连续追问、CRAG/multi_hop、部门强制隔离、KB 设置全 UI、历史 indexVersion 分片浏览等 → 见 backlog 与交付控制台 §0。
 
 ## 目录约定
 
