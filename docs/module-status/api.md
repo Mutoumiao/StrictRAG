@@ -7,13 +7,13 @@
 | 成熟度 | **可演示**（P0/P1 入库 + S2 最小 ask；演示依赖 mock ES/Gateway） |
 | 默认依赖模式 | ES=`mock` · auth=临时双 JWT（`AUTH_ENFORCE` **默认 false**）· rewrite=强制关 · storage=`local` · Gateway 缺 URL→mock · `ASK_RATE_LIMIT_RPM=0` |
 | 关联模块 | 入库演示另需 `worker` + PG + Redis；契约 `@strict-rag/contracts` · schema `@strict-rag/db` |
-| 最近更新 | 2026-08-05 |
+| 最近更新 | 2026-08-06 |
 | Spec | `.trellis/spec/api/backend/` |
 | PRD | `prds/05-api` · `04-pipelines` · `09-security` |
 
 ## 一句话
 
-Hono HTTP 后端：入库 API、临时双 JWT 鉴权、单轮 ask 图/SSE 与会话壳均已落地；检索默认 **mock ES**，鉴权 **非** 生产 IdP。
+Hono HTTP 后端：入库 API、临时双 JWT 鉴权、单轮 ask 图 / **AI SDK UI Message Stream** 与会话壳均已落地；检索默认 **mock ES**，鉴权 **非** 生产 IdP。
 
 ---
 
@@ -34,9 +34,10 @@ Hono HTTP 后端：入库 API、临时双 JWT 鉴权、单轮 ask 图/SSE 与会
 - SQL 在 `services/`，路由薄
 
 ### 问答（S2 最小）
-- 同步 ask + SSE；**线性状态机**（非 LangGraph.js）：检索 → 约束生成 → 验证 → 拒答（`graph/run.ts`）
-- 会话列表/详情壳（**rewrite 强制关**，`SESSION_REWRITE_ENABLED=true` 启动失败）
-- 反馈提交/管理队列 API（`routes/feedback`）
+- 同步 ask + AI SDK UI Message Stream（`data-status` / `data-ask-final`，**无**自写 `event: final`）；**线性状态机**（非 LangGraph.js）：检索 → 约束生成 → 验证 → 拒答（`graph/run.ts`）
+- 流异常：`execute` 抛错时仍写 `data-status phase=error` + `data-ask-final`（`reason=internal_guard`）；单测覆盖（`routes/ask.test.ts`）
+- 会话列表/详情壳（**rewrite 强制关**，`SESSION_REWRITE_ENABLED=true` 启动失败）；list query 绑 `SessionListQuerySchema`
+- 反馈提交/管理队列 API（`routes/feedback`）；queue query 绑 `FeedbackQueueQuerySchema`
 - Gateway 切片（`GATEWAY_MODE` mock/http；缺 URL→mock client）
 - 检索适配层（RRF/打分；`RETRIEVE_ES_MODE` **默认 mock**；`http` **运行即拒** `not implemented`，≠ 生产 ES）
 - 观测骨架：进程内 metrics · memory tracer · ask 限流（`ASK_RATE_LIMIT_RPM` 默认 0=关）· `/metrics` 无鉴权
@@ -73,7 +74,8 @@ Hono HTTP 后端：入库 API、临时双 JWT 鉴权、单轮 ask 图/SSE 与会
 | refresh 进程内 Map | 多实例/重启丢 refresh | `auth/identity/refresh-store.ts` |
 | mock sparse / 本地 storage 路径 | 检索与对象存储不真 | backlog B8/B9 |
 | 观测未接真 Langfuse | 可演示级指标 | `LANGFUSE_ENABLED` 默认 false |
-| `/metrics` 无鉴权 | 生产需网关保护 | 注释已标明 |
+| `/metrics` 无鉴权 | 生产需网关保护 | 注释已标明；无 contracts 线型 |
+| sessions / auth TokenPair / documents status 出口 `as` | D1 漂移面 | 类型标注为主；非全量 Schema.parse |
 | 集成测 / 黄金集门禁 | 以单测为主 | backlog B10 |
 
 ---

@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（S2c 运营薄壳：文档列表 / 审批 / 成员） |
 | 默认依赖模式 | 鉴权=临时双 JWT + admin **dev-login**（经 api `AUTH_ENFORCE`）· KB=手填 uuid · 菜单仅展示已实现路由 |
 | 关联模块 | API：`api` 文档/审批/成员；菜单+权限码：`admin-catalog`；契约：`contracts` |
-| 最近更新 | 2026-08-05 |
+| 最近更新 | 2026-08-06 |
 | Spec | `.trellis/spec/admin/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · 审批/成员相关 API |
 
@@ -42,7 +42,9 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心（通过/驳回
 - 需 `member.manage`；无权限则报错态
 
 ### 工程
-- 薄 HTTP 客户端 `lib/http.ts` · `lib/admin-api.ts`
+- 传输：`lib/http.ts`（Bearer + 单飞 refresh）；KB 偏好：`lib/kb-context.ts`（**非** HTTP 业务大杂烩）
+- 身份：`auth/api.ts`
+- 模块私有 API：`app/(ops)/{documents,approvals,members}/api.ts`（**无** `lib/admin-api.ts` / **无** `src/api/` 集中仓）
 - 类型来自 `@strict-rag/contracts`；菜单/码来自 `@strict-rag/admin-catalog`
 
 ---
@@ -85,7 +87,7 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心（通过/驳回
 |------|------|
 | 壳 / 菜单白名单 | `apps/admin/src/components/admin-shell.tsx` |
 | 文档 / 审批 / 成员页 | `apps/admin/src/app/(ops)/documents|approvals|members/page.tsx` |
-| API 封装 | `apps/admin/src/lib/admin-api.ts` · `lib/http.ts` |
+| API 封装 | `apps/admin/src/app/(ops)/{documents,approvals,members}/api.ts` · `lib/http.ts` · `auth/api.ts` |
 | 登录 / 守卫 | `apps/admin/src/app/login/page.tsx` · `components/auth-guard.tsx` |
 | 端口 | `apps/admin/package.json` → `next dev --port 3006` |
 | Task（归档） | `.trellis/tasks/archive/2026-08/08-05-p2c-approval-members-ui/` · epic `08-05-phase-2-ask/` |

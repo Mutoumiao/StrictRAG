@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（支撑 P0/P1 入库 + S2 最小 ask / 会话 / 反馈 / 成员） |
 | 默认依赖模式 | 纯库；无运行时开关 |
 | 关联模块 | 被 `api` · `worker` · `web` · `admin` 消费；错误码与信封全仓唯一源 |
-| 最近更新 | 2026-08-05 |
+| 最近更新 | 2026-08-06 |
 | Spec | `.trellis/spec/contracts/` |
 | PRD | `prds/05-api` · 各域 contract 与 PRD 短名对齐 |
 
@@ -28,13 +28,14 @@
 - 队列名 SSOT：`QUEUE_NAMES.PROBE` · `INGEST`（`async/queues`；BullMQ 禁用 `:`）
 
 ### 入库
-- 文档相关 DTO/schema（`ingest/document.contract`）
+- 文档 body + **列表/详情/审批/扫描等成功 data**（`ingest/document.contract`）
 
 ### 问答（S2）
-- ask 请求/响应 · reason 码（`ask/ask.contract` · `ask/reason`）
-- 会话壳（`ask/session.contract`）
-- 反馈（`ask/feedback.contract`）
-- KB 成员（`ask/member.contract`）
+- ask 请求/响应 · reason · 流 `data-status` 形状（`ask/ask.contract` · `ask/reason`；`AskResponse` ≡ 同步 JSON / `data-ask-final`）
+- 会话壳 + 列表包装 + **`SessionListQuerySchema`**（`ask/session.contract`；api list route 已绑）
+- 反馈 + 队列列表包装 + **`FeedbackQueueQuerySchema`**（`ask/feedback.contract`；api queue route 已绑）
+- KB 成员 + 邀请/移除响应（`ask/member.contract`）
+- AuthMe / TokenPair（`auth/session.contract`）
 - 契约单测：`ask/ask.contract.test.ts`
 
 ---
@@ -55,6 +56,7 @@
 |----|------|------|
 | 域文件随 feature 增长 | 易漏测 | 新契约宜同域 `*.contract.test.ts` |
 | `SESSION_DISABLED` 与 rewrite 语义别名 | 易误用拒多会话 | 码注释已约束用途 |
+| `AskSse*` 命名历史前缀 | 与 AI SDK data parts 易混读 | 语义已是 data-status；PRD §2.7 仍写旧 event 名（WHAT 债，非本包实现） |
 | 无独立 package 级集成测 | 主要靠 api 路由测 + 本包 unit | 可接受于当前阶段 |
 
 ---

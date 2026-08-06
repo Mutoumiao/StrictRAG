@@ -47,12 +47,12 @@
 | 项目级承诺 | 链 [交付控制台 §0](../../prds/12-delivery-guides/04-交付控制台.md)，不在此写对外话术长段 |
 | 包文档待补 | 矩阵仍可标端到端状态；「详见」指向已有包文或标注「包状态待补」 |
 
-### 矩阵（2026-08-05）
+### 矩阵（2026-08-06）
 
 | 能力域 | 端到端成熟度 | 主包 | 协作包 | 详见 |
 |--------|--------------|------|--------|------|
 | **入库闭环** | **可演示**（scan/embed/ES 默认 mock；本地存储） | `worker` | `api` · `db` · `contracts` | [worker](./worker.md) · [api · 入库](./api.md#入库p1) |
-| **问答 ask / SSE** | **可演示**（单轮信任环；检索默认 mock ES） | `api` | `web` · `contracts` · `db` | [api · 问答](./api.md#问答s2-最小) · [web](./web.md) |
+| **问答 ask / 流** | **可演示**（单轮信任环；AI SDK UI Message Stream；检索默认 mock ES） | `api` | `web` · `contracts` · `db` | [api · 问答](./api.md#问答s2-最小) · [web](./web.md) |
 | **会话壳** | **可演示**（列表/历史回放；**rewrite 关**） | `api` | `web` · `db` · `contracts` | [api · 问答](./api.md#问答s2-最小) · [web](./web.md) |
 | **鉴权 / ACL** | **可联调**（临时双 JWT；KB 成员 + 权限码骨架） | `api` | `admin-catalog` · `admin` · `web` · `contracts` | [api · 鉴权](./api.md#鉴权与权限) · [admin-catalog](./admin-catalog.md) |
 | **admin 运营面** | **可演示**（S2c 审批/成员薄 UI；全量运营面见 backlog） | `admin` | `api` · `admin-catalog` | [admin](./admin.md) · backlog B1–B7 |
