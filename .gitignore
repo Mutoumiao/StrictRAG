@@ -45,6 +45,8 @@ Thumbs.db
 # AI tooling (local agent skills / locks)
 .claude
 .agents
+.gstack
 skills-lock.json
 # Local workspace
 .trellis/tasks/
+
