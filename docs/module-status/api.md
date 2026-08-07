@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（P0/P1 入库 + S2 最小 ask；演示依赖 mock ES/Gateway） |
 | 默认依赖模式 | ES=`mock` · auth=临时双 JWT（`AUTH_ENFORCE` **默认 false**）· rewrite=强制关 · storage=`local` · Gateway 缺 URL→mock · `ASK_RATE_LIMIT_RPM=0` |
 | 关联模块 | 入库演示另需 `worker` + PG + Redis；契约 `@strict-rag/contracts` · schema `@strict-rag/db` |
-| 最近更新 | 2026-08-06 |
+| 最近更新 | 2026-08-07 |
 | Spec | `.trellis/spec/api/backend/` |
 | PRD | `prds/05-api` · `04-pipelines` · `09-security` |
 
@@ -39,6 +39,13 @@ Hono HTTP 后端：入库 API、临时双 JWT 鉴权、单轮 ask 图 / **AI SDK
 - `GET /documents/:docId/chunks/:chunkId`：全文 body（PG `body_text`）· UTF-8 **64KiB** 软截断
 - 始终 `requirePermission('chunk.view')`（与 AUTH_ENFORCE 无关）；doc_operator 默认 403
 
+### 知识库设置（B2 · ADR-054 最小）
+- `GET/PATCH /knowledge-bases/:kbId/settings`：白名单 `name`/`description`/`allowedModes`/`defaultMode`
+- 始终 `requirePermission('kb.config.write')`；kb scope 须成员（超管旁路）
+- `qualitySnapshot.tauClaim` 只读（← `env.TAU_CLAIM`）；`sessionRewrite` 固定锁关
+- 禁写 τ / `allowDegradedGenerate` / `sessionRewrite*` 等 → 400；可写变更 Pino `kb_settings_patch` + diff
+- **未**接 ask 侧 `allowedModes` 闸（配置可存；ask 仍默认 balanced）
+
 ### 问答（S2 最小）
 - 同步 ask + AI SDK UI Message Stream（`data-status` / `data-ask-final`，**无**自写 `event: final`）；**线性状态机**（非 LangGraph.js）：检索 → 约束生成 → 验证 → 拒答（`graph/run.ts`）
 - 流异常：`execute` 抛错时仍写 `data-status phase=error` + `data-ask-final`（`reason=internal_guard`）；单测覆盖（`routes/ask.test.ts`）
@@ -66,7 +73,7 @@ Hono HTTP 后端：入库 API、临时双 JWT 鉴权、单轮 ask 图 / **AI SDK
 
 | 项 | 说明 |
 |----|------|
-| KB 设置 / 供应商全 UI | backlog B2–B3；UI 在 admin；本包未必已有完整对应 API |
+| KB 设置全文（docTypes/分片/模型绑定）· ask mode 闸 | B2 仅 settings 白名单+只读质量；AB3 ask 消费见债；B3 供应商 UI |
 | 历史 indexVersion 分片浏览 | ADR-052 明确 P2 不做 |
 | Mongo 权威 body | 现读 PG `body_text` 演示字段；真 Mongo → B9 |
 | 数据面板 · 部门壳 · 全量角色 UI | B4–B6；见 admin 与 backlog |
@@ -98,12 +105,14 @@ Hono HTTP 后端：入库 API、临时双 JWT 鉴权、单轮 ask 图 / **AI SDK
 | 会话 / 反馈 | `apps/api/src/routes/sessions.ts` · `routes/feedback.ts` |
 | 入库 | `apps/api/src/routes/documents.ts` · `apps/api/src/gates/` |
 | 分片只读 | `apps/api/src/routes/chunks.ts` · `services/chunks.ts` · `routes/chunks.test.ts` |
+| 知识库设置 | `apps/api/src/routes/kb-settings.ts` · `services/kb-settings.ts` · `routes/kb-settings.test.ts` |
 | 鉴权 / 成员 | `apps/api/src/auth/` · `routes/members.ts` |
 | Gateway / 检索 | `apps/api/src/services/gateway/` · `services/retrieve/` |
 | 观测 | `apps/api/src/obs/` |
 | env 默认 | `apps/api/src/env.ts`（`RETRIEVE_ES_MODE=mock` · `AUTH_ENFORCE=false` · `SESSION_REWRITE_ENABLED=false`） |
-| 单测 | `apps/api/src/**/*.test.ts`（ask / graph / retrieve / chunks / members / feedback / sessions / obs 等） |
-| Task（B1） | `.trellis/tasks/08-06-b1-chunk-readonly/`（完成后 archive） |
+| 单测 | `apps/api/src/**/*.test.ts`（ask / graph / retrieve / chunks / kb-settings / members / feedback / sessions / obs 等） |
+| Task（B1） | `.trellis/tasks/archive/2026-08/08-06-b1-chunk-readonly/` |
+| Task（B2） | `.trellis/tasks/08-07-b2-kb-settings/`（完成后 archive） |
 | Task（归档） | `.trellis/tasks/archive/2026-08/08-05-phase-2-ask/` · 子任务 `08-05-p2-*` 同目录 |
 | 签字（归档） | `.trellis/tasks/archive/2026-08/08-05-phase-2-ask/sign-off.md` |
 | 总 backlog | `.trellis/tasks/08-06-project-backlog/status.md`（ARCH / 穿插） |

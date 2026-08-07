@@ -27,6 +27,9 @@ packages/contracts/
       feedback.contract.ts
       member.contract.ts
       ask.contract.test.ts
+    kb/
+      kb-settings.contract.ts   # B2 设置 GET data / PATCH body（ADR-054）
+      kb-settings.contract.test.ts
     async/
       queues.ts
 ```
@@ -40,6 +43,7 @@ packages/contracts/
 | `auth/` | 登录/TokenPair/会话身份 DTO |
 | `ingest/` | 入库文档 DTO + **分片只读** list/detail（body **与** 全部成功响应） |
 | `ask/` | ask / session / feedback / member / reason / SSE |
+| `kb/` | 知识库设置 settings（B2） |
 | `async/` | 队列名等跨进程常量 |
 
 **不要**全塞进 `common/`；新域按 PRD 资源增加。  

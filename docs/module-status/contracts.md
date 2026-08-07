@@ -3,16 +3,16 @@
 | 字段 | 内容 |
 |------|------|
 | 路径 | `packages/contracts` |
-| 成熟度 | **可联调**（支撑 P0/P1 入库 + S2 ask / 会话 / 反馈 / 成员 + **B1 分片**） |
+| 成熟度 | **可联调**（支撑 P0/P1 入库 + S2 ask / 会话 / 反馈 / 成员 + B1 分片 + **B2 设置**） |
 | 默认依赖模式 | 纯库；无运行时开关 |
 | 关联模块 | 被 `api` · `worker` · `web` · `admin` 消费；错误码与信封全仓唯一源 |
-| 最近更新 | 2026-08-06 |
+| 最近更新 | 2026-08-07 |
 | Spec | `.trellis/spec/contracts/` |
 | PRD | `prds/05-api` · 各域 contract 与 PRD 短名对齐 |
 
 ## 一句话
 
-共享 **Zod 契约 + 业务码 + 队列名 + ApiResponse 信封**：P1 入库、B1 分片只读与 S2 ask/会话/反馈/成员路径已有契约；**不是**全产品域完整 OpenAPI 覆盖。
+共享 **Zod 契约 + 业务码 + 队列名 + ApiResponse 信封**：P1 入库、B1 分片、B2 知识库设置与 S2 ask/会话/反馈/成员路径已有契约；**不是**全产品域完整 OpenAPI 覆盖。
 
 ---
 
@@ -38,6 +38,10 @@
 - KB 成员 + 邀请/移除响应（`ask/member.contract`）
 - AuthMe / TokenPair（`auth/session.contract`）
 - 契约单测：`ask/ask.contract.test.ts`
+
+### 知识库设置（B2）
+- `KbSettings` / `PatchKbSettingsBodySchema`（strict 白名单 + modes 唯一）（`kb/kb-settings.contract`）
+- `qualitySnapshot` · `sessionRewrite` 锁形状；禁 τ / rewrite 写键
 
 ---
 
@@ -72,5 +76,6 @@
 | ask 域 | `packages/contracts/src/ask/*` |
 | 入库 | `packages/contracts/src/ingest/document.contract.ts` |
 | 分片 | `packages/contracts/src/ingest/chunk.contract.ts` · `chunk.contract.test.ts` |
-| 单测 | `packages/contracts/src/ask/ask.contract.test.ts` · `ingest/chunk.contract.test.ts` |
+| 知识库设置 | `packages/contracts/src/kb/kb-settings.contract.ts` · `kb-settings.contract.test.ts` |
+| 单测 | `packages/contracts/src/ask/ask.contract.test.ts` · `ingest/chunk.contract.test.ts` · `kb/kb-settings.contract.test.ts` |
 | Task（归档） | `.trellis/tasks/archive/2026-08/08-05-p2-contracts-schema/` · P0/P1 archive |

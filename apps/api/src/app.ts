@@ -23,6 +23,7 @@ import { authRoutes } from './routes/auth.js';
 import { chunkRoutes } from './routes/chunks.js';
 import { documentRoutes } from './routes/documents.js';
 import { feedbackRoutes } from './routes/feedback.js';
+import { kbSettingsRoutes } from './routes/kb-settings.js';
 import { memberRoutes } from './routes/members.js';
 import { sessionRoutes } from './routes/sessions.js';
 
@@ -71,6 +72,7 @@ export function createApp() {
   app.route('/api/v1', documentRoutes);
   app.route('/api/v1', chunkRoutes);
   app.route('/api/v1', memberRoutes);
+  app.route('/api/v1', kbSettingsRoutes);
   app.route('/api/v1', sessionRoutes);
   app.route('/api/v1', feedbackRoutes);
   app.route('/api/v1', askRoutes);

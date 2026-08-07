@@ -1,7 +1,7 @@
 # @strict-rag/api · Hono HTTP 后端
 
 > 路径：`apps/api` · 目标端口 **4000**  
-> 现状：**P0/P1 入库** + **S2 最小 ask** + **B1 分片只读**（`chunk.view` list/detail）+ 身份/授权骨架。  
+> 现状：**P0/P1 入库** + **S2 最小 ask** + **B1 分片只读** + **B2 知识库设置**（`kb.config.write` GET/PATCH settings）+ 身份/授权骨架。  
 > 默认：`RETRIEVE_ES_MODE=mock` · `AUTH_ENFORCE=false` · `SESSION_REWRITE_ENABLED=false`（强制）· Gateway 缺 URL→mock。
 
 ---
@@ -12,7 +12,7 @@
 - [ ] DTO/错误码是否来自 `@strict-rag/contracts`，且对外 code 为 **PRD §4 短名**？  
 - [ ] 触及 ask / 检索 / 验证时是否读 [quality-redlines](../../guides/quality-redlines.md) + [ask-pipeline](./ask-pipeline.md)？  
 - [ ] 权限是否 **以码为准**（读 [auth-authorization](./auth-authorization.md)）？  
-- [ ] ask / sessions / members / **chunks** 是否 **始终**验码/成员闸（与 `AUTH_ENFORCE` 无关）？  
+- [ ] ask / sessions / members / **chunks** / **kb settings** 是否 **始终**验码/成员闸（与 `AUTH_ENFORCE` 无关）？  
 - [ ] 新登录/refresh/会话/ask 字段是否改 contracts + 双端 http？  
 - [ ] DB 是否经 `@strict-rag/db`（禁止 app 私有 schema）？  
 - [ ] 是否避免 route 内 SQL / ES DSL / 长 Prompt？  
@@ -41,6 +41,7 @@
 | [logging-guidelines](./logging-guidelines.md) | Pino 上下文 |
 | [auth-authorization](./auth-authorization.md) | 身份双 token + 权限码 |
 | [chunk-readonly](./chunk-readonly.md) | **B1 分片只读** list/detail · `chunk.view` · UTF-8 64KiB |
+| [kb-settings](./kb-settings.md) | **B2 知识库设置** GET/PATCH · `kb.config.write` · 质量只读 · rewrite 锁 |
 
 ## 依赖（package.json）
 

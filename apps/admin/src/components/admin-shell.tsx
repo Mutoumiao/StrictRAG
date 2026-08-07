@@ -33,7 +33,13 @@ export function AdminShell({ children }: { children: ReactNode }) {
   }, [me.permissions]);
 
   // ponytail: catalog 仍是 SSOT；仅展示本切片已落地的 href，避免 404 菜单
-  const implemented = new Set(['/documents', '/approvals', '/members', '/chunks']);
+  const implemented = new Set([
+    '/documents',
+    '/approvals',
+    '/members',
+    '/chunks',
+    '/kb/settings',
+  ]);
   const links = menu.flatMap((g) =>
     (g.children ?? [])
       .filter((n) => n.href && implemented.has(n.href))
