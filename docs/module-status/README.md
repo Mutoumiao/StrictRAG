@@ -55,9 +55,9 @@
 | **问答 ask / 流** | **可演示**（单轮信任环；AI SDK UI Message Stream；检索默认 mock ES） | `api` | `web` · `contracts` · `db` | [api · 问答](./api.md#问答s2-最小) · [web](./web.md) |
 | **会话壳** | **可演示**（列表/历史回放；**rewrite 关**） | `api` | `web` · `db` · `contracts` | [api · 问答](./api.md#问答s2-最小) · [web](./web.md) |
 | **鉴权 / ACL** | **可联调**（临时双 JWT；KB 成员 + 权限码骨架） | `api` | `admin-catalog` · `admin` · `web` · `contracts` | [api · 鉴权](./api.md#鉴权与权限) · [admin-catalog](./admin-catalog.md) |
-| **admin 运营面** | **可演示**（S2c 审批/成员 + B1 分片 + B2 设置最小 + **B7 菜单 clip**；全量运营面见 backlog） | `admin` | `api` · `admin-catalog` · `contracts` | [admin](./admin.md) · [admin-catalog](./admin-catalog.md) · backlog B3–B6 |
+| **admin 运营面** | **可演示**（S2c 审批/成员 + B1/B2 + **B3 模型网关最小** + B7 菜单 clip；全量运营面见 backlog） | `admin` | `api` · `admin-catalog` · `contracts` | [admin](./admin.md) · [admin-catalog](./admin-catalog.md) · backlog B4–B6 |
 | **反馈** | **可联调**（API 已有；web **无**反馈 UI） | `api` | `web`（未接 UI）· `db` | [api](./api.md) · [web](./web.md) |
-| **模型网关** | **可联调**（HTTP + mock client 切片；无完整供应商 UI） | `api` | — | [api · 问答](./api.md#问答s2-最小) · backlog B3 |
+| **模型网关** | **可演示**（Provider CRUD + 平台绑定 + admin `/models`；**Gateway 运行时仍 env**；无 KB 绑定） | `api` | `admin` · `contracts` · `db` | [api · 模型供应商](./api.md) · [admin · 模型网关](./admin.md) · backlog 余量（运行时接线） |
 | **观测 / 评测** | **骨架**（进程内 metrics/tracer；无 L1 黄金集门禁） | `api` | — | [api](./api.md) · backlog B10 |
 | **契约 / Schema 基座** | **可联调**（支撑 P1/S2 路径；随能力扩展） | `contracts` / `db` | 全业务包 | [contracts](./contracts.md) · [db](./db.md) |
 | **工程 tooling** | **生产向**（共享 eslint/tsconfig；无业务完成度故事） | `eslint-config` · `typescript-config` | 全仓 · `ui` | [eslint-config](./eslint-config.md) · [typescript-config](./typescript-config.md) · [ui](./ui.md)（可联调 · S2 原子） |

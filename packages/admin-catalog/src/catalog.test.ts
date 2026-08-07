@@ -9,7 +9,7 @@ import {
 } from './menu-tree.js';
 import { defaultCodesForRoles } from './role-templates.js';
 
-const UNLANDED = ['/dashboard', '/users', '/roles', '/models'] as const;
+const UNLANDED = ['/dashboard', '/users', '/roles'] as const;
 
 describe('defaultCodesForRoles', () => {
   it('doc_operator 无 approval.decide / member.manage', () => {
@@ -68,7 +68,7 @@ describe('clipMenuForShell', () => {
     expect(hrefs).toEqual(['/documents']);
   });
 
-  it('kb_admin 含五条已实现运营路由，无未落地页', () => {
+  it('kb_admin 含五条已实现运营路由，无 /models（默认无 model.gateway.manage）', () => {
     const codes = defaultCodesForRoles(['kb_admin']);
     const hrefs = collectMenuHrefs(clipMenuForShell(codes));
     expect(hrefs).toEqual(
@@ -81,21 +81,24 @@ describe('clipMenuForShell', () => {
       ]),
     );
     expect(hrefs).toHaveLength(5);
+    expect(hrefs).not.toContain('/models');
     for (const u of UNLANDED) {
       expect(hrefs).not.toContain(u);
     }
   });
 
-  it('super_admin 全码仍被 implemented 截断', () => {
+  it('super_admin 含 /models；仍截断未落地 dashboard/users/roles', () => {
     const codes = defaultCodesForRoles(['super_admin']);
     const byCode = collectMenuHrefs(filterMenuByCodes(MENU_TREE, codes));
     for (const u of UNLANDED) {
       expect(byCode).toContain(u);
     }
+    expect(byCode).toContain('/models');
     const clipped = collectMenuHrefs(clipMenuForShell(codes));
     for (const u of UNLANDED) {
       expect(clipped).not.toContain(u);
     }
+    expect(clipped).toContain('/models');
     for (const h of ADMIN_IMPLEMENTED_HREFS) {
       expect(clipped).toContain(h);
     }

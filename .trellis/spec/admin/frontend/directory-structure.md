@@ -41,6 +41,12 @@ apps/admin/
           api.ts              # list/detail path；listDocuments re-export from documents
           services.ts
           _components/chunks-workspace.tsx
+        kb/settings/          # B2 知识库设置
+        models/               # B3 模型网关（供应商 + 平台绑定）
+          page.tsx
+          api.ts
+          services.ts
+          _components/models-workspace.tsx
 ```
 
 > **再扩展**（按需长出，禁止空建）：`hooks/` · 可选 `store.ts` · 按用例拆更多 `*.services.ts`。  

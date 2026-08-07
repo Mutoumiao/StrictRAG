@@ -83,6 +83,7 @@ export const ADMIN_IMPLEMENTED_HREFS: ReadonlySet<string> = new Set([
   '/members',
   '/chunks',
   '/kb/settings',
+  '/models',
 ]);
 
 /** 按有效码裁剪菜单（UI 层；不能替代 API 验码） */

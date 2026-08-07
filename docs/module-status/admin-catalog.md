@@ -21,8 +21,8 @@
 - **权限码**：`PERMISSION_DEFINITIONS` / `PERMISSIONS` / `isPermissionCode`（platform + kb 作用域）
 - **角色模板**：`super_admin` · `kb_admin` · `doc_operator` · `web_consumer`；`defaultCodesForRoles` · `roleBypassesKbMembership`
 - **菜单树**：`MENU_TREE` + `filterMenuByCodes`（按有效码裁剪）
-- **壳 clip（B7）**：`ADMIN_IMPLEMENTED_HREFS` + `clipMenuForShell` + `collectMenuHrefs`；五条落地：`/documents` · `/approvals` · `/members` · `/chunks` · `/kb/settings`
-- 单测：`catalog.test.ts`（含三角色 clip + super_admin 不露未落地）
+- **壳 clip（B7 + B3）**：`ADMIN_IMPLEMENTED_HREFS` + `clipMenuForShell` + `collectMenuHrefs`；六条落地：`/documents` · `/approvals` · `/members` · `/chunks` · `/kb/settings` · **`/models`**
+- 单测：`catalog.test.ts`（kb_admin 无 `/models`；super_admin 含 `/models`；仍截断 dashboard/users/roles）
 
 ---
 
@@ -31,7 +31,7 @@
 | 项 | 说明 |
 |----|------|
 | 动态角色绑码持久化 UI | 模板是种子；运行时以用户角色并集为准（api） |
-| 菜单项对应全量页面 | catalog 含 dashboard/users/roles/models 等；**admin 未落地**（B3–B6）；clip 隐藏 |
+| 菜单项对应全量页面 | catalog 含 dashboard/users/roles；**models 已落地**；其余 B4–B6 clip 隐藏 |
 | 替代 API 鉴权 | 前端裁剪只影响可见性 |
 
 ---
@@ -44,4 +44,4 @@
 | 权限 / 角色 / 菜单 | `permissions.ts` · `role-templates.ts` · `menu-tree.ts` |
 | 单测 | `packages/admin-catalog/src/catalog.test.ts` |
 | 消费方 | `apps/admin/src/components/admin-shell.tsx` · `apps/api/src/auth/permissions/` |
-| Task | `.trellis/tasks/archive/2026-08/08-07-b7-menu-clip-complete/`（本地 trellis 树） |
+| Task | `08-07-b7-menu-clip-complete`（归档）· B3 增 `/models`：`08-07-b3-model-providers` |

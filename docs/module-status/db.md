@@ -3,16 +3,16 @@
 | 字段 | 内容 |
 |------|------|
 | 路径 | `packages/db` |
-| 成熟度 | **可联调**（P1 KB/入库表 + S2 ask 会话/轨迹/反馈表；Drizzle → PG） |
+| 成熟度 | **可联调**（P1 KB/入库 + S2 ask + **B3 model_providers/bindings**；Drizzle → PG） |
 | 默认依赖模式 | 需 `DATABASE_URL`；时间列为本地格式串（见 ORM PRD） |
 | 关联模块 | `api` · `worker` 共用 client/schema；检索闸被 api retrieve 复用 |
-| 最近更新 | 2026-08-06 |
+| 最近更新 | 2026-08-07 |
 | Spec | `.trellis/spec/db/` |
 | PRD | `prds/03-data` · `prds/02-engineering/02-orm-drizzle.md` |
 
 ## 一句话
 
-Drizzle schema + client：**知识库/文档/分片/向量/入库任务/成员** 与 **ask 会话/轨迹/反馈** 表已落地；提供默认检索双闸谓词。**≠** 生产迁移运维全集或全文评测仓。
+Drizzle schema + client：**知识库/文档/分片/向量/入库任务/成员**、**ask 会话/轨迹/反馈** 与 **模型供应商/绑定** 表已落地；提供默认检索双闸谓词。**≠** 生产迁移运维全集或全文评测仓。
 
 ---
 
@@ -25,6 +25,7 @@ Drizzle schema + client：**知识库/文档/分片/向量/入库任务/成员**
 
 ### Schema · system
 - `schema_meta` · `users`
+- **B3**：`model_providers` · `model_bindings`（migration `0003_b3_model_gateway`）
 
 ### Schema · kb（入库主轴）
 - `knowledge_bases` · `documents` · `chunks` · `chunk_manifests` · `chunk_embeddings`

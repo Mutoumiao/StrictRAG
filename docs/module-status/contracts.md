@@ -3,7 +3,7 @@
 | 字段 | 内容 |
 |------|------|
 | 路径 | `packages/contracts` |
-| 成熟度 | **可联调**（支撑 P0/P1 入库 + S2 ask / 会话 / 反馈 / 成员 + B1 分片 + **B2 设置**） |
+| 成熟度 | **可联调**（支撑 P0/P1 入库 + S2 ask / 会话 / 反馈 / 成员 + B1 分片 + B2 设置 + **B3 模型网关**） |
 | 默认依赖模式 | 纯库；无运行时开关 |
 | 关联模块 | 被 `api` · `worker` · `web` · `admin` 消费；错误码与信封全仓唯一源 |
 | 最近更新 | 2026-08-07 |
@@ -12,7 +12,7 @@
 
 ## 一句话
 
-共享 **Zod 契约 + 业务码 + 队列名 + ApiResponse 信封**：P1 入库、B1 分片、B2 知识库设置与 S2 ask/会话/反馈/成员路径已有契约；**不是**全产品域完整 OpenAPI 覆盖。
+共享 **Zod 契约 + 业务码 + 队列名 + ApiResponse 信封**：P1 入库、B1/B2/B3 与 S2 ask/会话/反馈/成员路径已有契约；**不是**全产品域完整 OpenAPI 覆盖。
 
 ---
 
@@ -43,13 +43,17 @@
 - `KbSettings` / `PatchKbSettingsBodySchema`（strict 白名单 + modes 唯一）（`kb/kb-settings.contract`）
 - `qualitySnapshot` · `sessionRewrite` 锁形状；禁 τ / rewrite 写键
 
+### 模型网关（B3）
+- Provider / Create/Patch / Presets / Binding / Catalog / ModelRef helpers（`system/model-gateway.contract`）
+- GET 形状含 `hasApiKey`；**无** apiKey 字段；purpose 类型闸 helper
+
 ---
 
 ## 明确未做 / 边界
 
 | 项 | 说明 |
 |----|------|
-| 全量运营域契约 | 数据面板 / 模型供应商 UI / 部门树等未建独立 contract 域 |
+| 全量运营域契约 | 数据面板 / 部门树 / KB model-bindings 等未建或未完 |
 | 生产 OpenAPI 生成与发布 | 以 Zod 源码为准；无独立 swagger 发布流水线声明 |
 | 版本化兼容策略文档化 | 随能力增量扩；破坏变更须改 PRD 后动契约 |
 

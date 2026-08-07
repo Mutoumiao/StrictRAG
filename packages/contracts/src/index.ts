@@ -12,3 +12,4 @@ export * from './async/queues.js';
 export * from './auth/session.contract.js';
 export * from './ask/index.js';
 export * from './kb/kb-settings.contract.js';
+export * from './system/model-gateway.contract.js';

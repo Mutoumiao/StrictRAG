@@ -128,6 +128,12 @@ export const http = {
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   },
+  put<TResponse, TBody = unknown>(path: string, body?: TBody) {
+    return request<TResponse>(path, {
+      method: 'PUT',
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  },
   delete<T>(path: string) {
     return request<T>(path, { method: 'DELETE' });
   },

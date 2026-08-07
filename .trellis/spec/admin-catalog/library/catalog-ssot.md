@@ -86,7 +86,8 @@ collectMenuHrefs(nodes): string[]  // 测试/调试
 - catalog 导出非空；`super_admin` 默认码包含 `admin.shell` 与 `approval.decide`  
 - `doc_operator` 默认不含 `approval.decide`  
 - `filterMenuByCodes` 无码节点被裁掉  
-- `clipMenuForShell`：三角色可见 href ⊆ implemented；`super_admin` 全码仍不露 `/dashboard` 等未落地  
+- `clipMenuForShell`：三角色可见 href ⊆ implemented；`super_admin` 全码仍不露 `/dashboard`/`users`/`roles`；**含** `/models`（B3）  
+- `kb_admin` 默认无 `model.gateway.manage` → clip **无** `/models`  
 - 空码 → clip 无叶子  
 
 （api `resolve.test.ts` 已覆盖模板求值。）

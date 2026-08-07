@@ -24,6 +24,8 @@ apps/api/src/
     ask.ts                 # POST …/ask 同步 + AI SDK UI Message Stream
     sessions.ts            # 会话壳（无 rewrite）
     feedback.ts            # 反馈队列
+    kb-settings.ts         # B2 知识库设置
+    model-gateway.ts       # B3 模型供应商 + 平台绑定
   middleware/
     request-id.ts          # X-Request-Id
     timeout.ts             # 可关全局 timeout；ask except
@@ -31,9 +33,10 @@ apps/api/src/
     on-error.ts            # 全局 throw 兜底
   # secureHeaders / notFound 直接在 app.ts 内联
   services/
-    documents.ts · chunks.ts · members.ts · sessions.ts · feedback.ts · db.ts · storage.ts · queue.ts
+    documents.ts · chunks.ts · members.ts · sessions.ts · feedback.ts · kb-settings.ts · model-gateway.ts
+    db.ts · storage.ts · queue.ts
     ask/                   # executeAsk · session-guard · traces 落库
-    gateway/               # chat · embed · rerank（mock|http）
+    gateway/               # chat · embed · rerank（mock|http；**未**读 model_bindings 表）
     retrieve/              # 混合检索 · 双闸门 · RRF · scoring
   obs/                     # metrics · rate-limit · memory/ask tracer
   gates/                   # 上传体积 · 审批 scan
