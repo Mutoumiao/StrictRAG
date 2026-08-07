@@ -66,11 +66,55 @@
 - 线稿参考 `product.pen`；交付白话见 `prds/12-delivery-guides`（**非**接口 SSOT）  
 - **禁止**把 ask SSE 做成 admin 默认首页（用户端在 web）
 
+## 前端测试（Vitest + RTL）· 可执行约定
+
+| 项 | 约定 |
+|----|------|
+| 运行 | `pnpm --filter @strict-rag/admin test` |
+| 环境 | `vitest.config.ts`：jsdom · `src/**/*.test.{ts,tsx}` · `@` → `src` |
+| 基建 | **仅** `src/test/`（setup · re-export）；用例 **同域** 并置 |
+| 查询 | role/label；菜单/按钮按 **permissions** 断言显隐 |
+| 必测红线 | `admin.shell` Guard · `clipMenuForShell` 菜单 · 审批 decide/scan 显隐 · session/KB key 隔离 |
+| 勿堆 | 每个运营页全 CRUD 冒烟；无行为变化的纯展示页 |
+
+### Guard mock（Strict Mode）
+
+`AdminAuthGuard` mount 可能 **多次** `load`。`fetchAuthMe` / `readClientSession` 用 **`mockResolvedValue` / `mockReturnValue`**，**禁止**成功路径 `mockResolvedValueOnce` 耗尽后误跳 `/login`。
+
+### `ApiHttpError`（admin 专用签名）
+
+```ts
+// apps/admin/src/lib/http.ts — 三参；web 仍是两参
+new ApiHttpError(code, message, shouldRefresh: boolean)
+```
+
+测 `mapBizError` / services 时必须传第三参（通常 `false`），否则 `tsc` 红。
+
+### Session / KB key
+
+| Key | 用途 |
+|-----|------|
+| `strict-rag:admin:client-session` | 双 token + session（**禁止**写 web key） |
+| `strict-rag:admin:last-kb-id` | 顶栏 KB；**禁止**写 `strict-rag:web:last-kb-id` |
+
+`session` fixture 同 web：须 `app:'admin'` · `permissions` · `expiresAtMs`（见 web quality-guidelines Session fixture）。
+
+### 必测断言点（admin）
+
+| 场景 | 断言 |
+|------|------|
+| 无本地会话 / 无 `admin.shell` | `router.replace('/login')`；不渲染子树 |
+| 仅 `doc.view` | 有「文档」链；无「审批中心」；无未落地「数据面板」 |
+| 审批有 view 无 decide | 列表可出；**无**「通过」「驳回」 |
+| 有 decide | 可点「通过」且 `applyApprovalAction(kb, id, 'approve')` |
+| 有 `doc.upload` + approved | 有「入队 scan」 |
+
 ## 反模式
 
 - **Bad**：准入写成 `platform_admin` ∨ 任一 KB `write`/`admin`（旧 ADR-045）  
 - **Bad**：admin 内再定义 `PERMISSIONS` 数组  
 - **Bad**：把 ask SSE 主体验做成 admin 默认首页（用户端在 web）  
+- **Bad**：Guard 成功路径 `mockResolvedValueOnce` → Strict Mode 二次 load 误登出  
 - **Good**：catalog 注册 `admin.shell` 与业务码 → api 验码 → admin 按码渲染  
 
 ## 模块分层反模式（摘要）
@@ -90,3 +134,11 @@
 - **Good**：无 React 用 services；须 `useChat`/订阅用 hooks；体量按用例拆 `list.services.ts` 等  
 - **Good**：按钮按有效码显隐 + API 硬验码；services 假定「能点到就请求」，失败用 `mapBizError`  
 - **Good**：抽公共优先 **纯函数**（`mapBizError`），UI 状态机未达触发前允许样板重复；详见 [module-layering §12.1](./module-layering.md)
+
+### Common Mistake: Guard 测用 once mock
+
+**Symptom**：有 `admin.shell` 的测偶发 `replace('/login')`，子树闪一下消失。
+
+**Cause**：React Strict Mode / 会话事件二次 `load`，`mockResolvedValueOnce` 第二次返回 undefined 进 catch。
+
+**Fix**：持续 `mockResolvedValue`；`readClientSession` 同步 `mockReturnValue`。

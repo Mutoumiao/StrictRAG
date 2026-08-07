@@ -13,7 +13,7 @@
 
 ## 一句话
 
-Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员 + 分片只读 + 知识库设置 + 模型网关最小 + 用户/角色最小 + 部门最小** 已接；KB 手填 id，壳经 catalog **`clipMenuForShell`** 链已实现路由，**不是**完整运营台（无部门强制隔离 UI）。
+Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员 + 分片只读 + 知识库设置 + 模型网关最小 + 用户/角色最小 + 部门最小** 已接；KB 手填 id，壳经 catalog **`clipMenuForShell`** 链已实现路由，**不是**完整运营台（无部门强制隔离 UI）。包内有 RTL 红线测（壳/Guard/审批；**非** E2E）。
 
 ---
 
@@ -76,7 +76,9 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员 + 分�
 - 类型来自 `@strict-rag/contracts`；菜单/码来自 `@strict-rag/admin-catalog`
 - 样式：Tailwind v4（`postcss.config.mjs` · `src/app/globals.css` 引 `@strict-rag/ui/theme.css` + `@source`）；页面以 `className` + ui 原子为主，**无**大面积布局/色板 `style={{}}`
 - 构建：`next build --webpack`；`next.config` 含 `transpilePackages` + webpack `extensionAlias`（解析 ui 包内 `.js`→`.ts`）
-
+- **单元/组件测**（Vitest + jsdom + RTL）：`vitest.config.ts` · `src/test/{setup,test-utils}` · 同域 `*.test.ts(x)`  
+  - 现有：`admin-shell`（菜单按码）· `auth-guard`（`admin.shell`）· `approvals-workspace`（decide/scan 显隐）· `client-session` · `kb-context` · `map-biz-error`  
+  - **无** 文档/成员/分片/设置/模型/用户/角色/部门 工作区测 · **无** E2E
 ---
 
 ## 明确未做 / 边界
@@ -107,7 +109,7 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员 + 分�
 |----|------|------|
 | KB 手填 id | 演示门槛高 | 与 web 同类债 |
 | Soft Bento / pen 未像素对齐 | 观感非定稿 | 色板与原子在 `packages/ui`；本包只组合 |
-| 无 E2E | 手测 + api/catalog 单测 | 归档 task `08-05-p2c-approval-members-ui` · `08-07-b7-menu-clip-complete` |
+| 无 E2E · 多数运营页无 RTL | 改 members/chunks 等靠手测 | 壳/Guard/审批有红线测；catalog 仍有单测 |
 
 ---
 
@@ -119,6 +121,8 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员 + 分�
 | 文档 / 审批 / 成员 / 分片 / 设置 / 模型页 | `apps/admin/src/app/(ops)/documents|approvals|members|chunks|kb/settings|models/` |
 | API 封装 | `apps/admin/src/app/(ops)/{documents,approvals,members,chunks,kb/settings,models}/api.ts` · `lib/http.ts` · `auth/api.ts` |
 | 登录 / 守卫 | `apps/admin/src/app/login/page.tsx` · `components/auth-guard.tsx` |
+| 前端测 | `vitest.config.ts` · `src/test/` · `components/admin-shell.test.tsx` · `components/auth-guard.test.tsx` · `app/(ops)/approvals/_components/approvals-workspace.test.tsx` · `auth/client-session.test.ts` · `lib/kb-context.test.ts` · `lib/map-biz-error.test.ts` |
+| 命令 | `pnpm --filter @strict-rag/admin test`（`package.json` → `vitest run`） |
 | 样式入口 | `apps/admin/src/app/globals.css` · `postcss.config.mjs` · `package.json`（tailwind devDeps · `build --webpack`） |
 | 端口 | `apps/admin/package.json` → `next dev --port 3006` |
-| Task | `08-07-b3-model-providers`（完成后 archive）· 归档 `08-07-b7-menu-clip-complete` · `08-07-b2-kb-settings` · `08-06-b1-chunk-readonly` |
+| Task | 归档 `08-07-b7-menu-clip-complete` · `08-07-b5-departments-shell` · `08-07-b4-platform-users-roles` · `08-07-b3-model-providers` · `08-07-b2-kb-settings` · `08-06-b1-chunk-readonly` |

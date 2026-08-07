@@ -95,6 +95,19 @@ export function useKnowledgeAsk({ kbId, sessionId }: UseKnowledgeAskArgs) {
     }
   }, [status]);
 
+  // ponytail: ready 且仍 loading = 无 final，避免提问按钮永 disabled
+  useEffect(() => {
+    if (status !== 'ready') return;
+    setView((prev) => {
+      if (prev.type !== 'loading') return prev;
+      return {
+        type: 'error',
+        code: 'INTERNAL',
+        message: '流式响应未包含有效终态',
+      };
+    });
+  }, [status]);
+
   useEffect(() => {
     if (error) {
       setView({

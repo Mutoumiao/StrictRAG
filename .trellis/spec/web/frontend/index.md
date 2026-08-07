@@ -29,8 +29,11 @@
 - [ ] 无服务端密钥  
 - [ ] 不把会话历史当「证据」展示逻辑写死为可 citation  
 - [ ] 拒答态可见 reason/userMessage；禁止伪装成功答案  
+- [ ] 流：只信 `data-ask-final`；`ready` 且仍 loading 有 error 兜底（见 [quality-guidelines](./quality-guidelines.md) 状态机）  
+- [ ] 重试用 `lastQuestion`（非已空 `question`）  
 - [ ] 分层符合 [module-layering](./module-layering.md)  
 - [ ] **抽公共**：有无 A 类欠抽 / B 类过抽？ask 流与会话壳是否被错误合成上帝 hook？见 [§12.1](./module-layering.md)  
+- [ ] 改 ask/重试/session → 红线测仍绿；fixture 满足 `AuthSession`  
 - [ ] `pnpm --filter @strict-rag/web check-types` · `lint` · `test` · `build`（`next build --webpack`）  
 
 

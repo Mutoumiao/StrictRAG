@@ -10,6 +10,7 @@
 | scope | 产品检索 scope（如 `docTypes`）放在 **请求顶层** `scope`，**禁止**塞进 `options`（ADR-050） |
 | 流式终态 | **只信 `data-ask-final`**（`AskResponseSchema.safeParse` 通过后才更新 answered/abstained） |
 | 流式进度 | `data-status`（transient）仅驱动 loading phase；`phase=error` 可进错误态 |
+| 流结束无 final | `useChat` `status==='ready'` 且 `view` 仍为 `loading` → **必须**落 error（禁止永卡 loading / 提问 disabled） |
 | 重试 | 提交后会清空输入框 → **必须**保留 `lastQuestion`（或等价）；`onRetry` **禁止**只读已空的 `question` |
 | 禁止 | 自写 SSE 分帧；用 text-delta / 中间事件覆盖终态答案 |
 | 质量面板 | 禁止 UI 暴露 tauClaim 等调参给普通用户 |
@@ -40,6 +41,73 @@
 
 **反模式**：把 admin token 写入 web key；用运营码放行 web 管理能力；本地用历史消息拼 evidence 高亮当引用。
 
+## 前端测试（Vitest + RTL）· 可执行约定
+
+| 项 | 约定 |
+|----|------|
+| 运行 | `pnpm --filter @strict-rag/web test` |
+| 环境 | `vitest.config.ts`：`environment: 'jsdom'` · `include: ['src/**/*.test.{ts,tsx}']` · alias `@` → `src` |
+| 基建 | **仅** `src/test/`：`setup.ts`（jest-dom · cleanup · 清 storage）· re-export · fixtures |
+| 用例位置 | 与实现 **同域** `foo.test.ts(x)`（对齐 api/worker）；**禁止**镜像整棵 `src/` 的中央 `test/` |
+| 查询 / 交互 | `getByRole` / `getByLabelText` · `userEvent.setup()`；禁 `querySelector` 测行为 |
+| Provider | **无**全局假 `renderWithProviders`（当前无 QueryClient 等）；需要时在单测内包；直接 `render` |
+| 必测红线 | final schema · lastQuestion 重试 · ready 无 final · session key 与 admin 隔离 |
+| 勿堆 | 纯 `mapBizError` 样板、登录页冒烟、每个 thin CRUD 全路径；改到再补 |
+| E2E | 不放 `src/`；另目录/包；默认不进 `pnpm test` |
+
+### Session fixture（`saveClientSession`）
+
+`session` 须满足 contracts `AuthSession`（**非**自造 `{ expiresAt }`）：
+
+```ts
+session: {
+  sessionId: string;
+  userId: string;
+  app: 'web'; // admin 包用 'admin'
+  roles: string[];
+  permissions: string[];
+  expiresAtMs: number; // 正整数 ms，不是 ISO 字符串
+}
+```
+
+`tsc --noEmit` **会扫** `*.test.ts`（tsconfig include 全量）；fixture 形状错会红。
+
+### 必测断言点（web）
+
+| 场景 | 断言 |
+|------|------|
+| 合法 `data-ask-final` answered/abstained | `view.type` 对应；非法 payload → `error` + 文案含终态无效 |
+| `status`→`ready` 且仍 loading | `view.type==='error'`；先 final 再 ready **不**覆盖 answered |
+| AskPanel 重试 | 提交后 input 空；点重试仍 `ask(lastQuestion)` |
+| session key | 只写 `strict-rag:web:client-session`；不写 admin key |
+
+## 流式 view 状态机（`use-knowledge-ask`）
+
+**实现**：`apps/web/src/hooks/use-knowledge-ask.ts`  
+**view**：`idle | loading | answered | abstained | error`
+
+| 输入 | 结果 view |
+|------|-----------|
+| `data-status` phase≠error | `loading` + phase |
+| `data-status` phase=error | `error`（code/message） |
+| `data-ask-final` schema OK + status answered | `answered` |
+| `data-ask-final` schema OK + status abstained | `abstained` |
+| `data-ask-final` schema 失败 | `error` INTERNAL「流式终态载荷无效」 |
+| `useChat` status submitted/streaming | 保证进入/保持 loading |
+| `useChat` status **ready** 且当前仍 loading | **error** INTERNAL「流式响应未包含有效终态」 |
+| 已 answered/abstained 后再 ready | **不覆盖**（functional setView 仅 loading→error） |
+
+```ts
+// Correct：ready 兜底（只动 loading）
+if (status === 'ready') {
+  setView((prev) =>
+    prev.type === 'loading'
+      ? { type: 'error', code: 'INTERNAL', message: '流式响应未包含有效终态' }
+      : prev,
+  );
+}
+```
+
 ## 反模式
 
 - **Bad**：拒答卡片用 `destructive` / 红色系统错误样式（应 `abstain`）  
@@ -50,8 +118,11 @@
 - **Bad**：手写 `event: final` 解析或每个 SSE event 都 `setAnswer` 覆盖 final  
 - **Bad**：`data-ask-final` 不经 `AskResponseSchema` 盲 `as`  
 - **Bad**：`onSubmit` 先 `setQuestion('')`，`onRetry` 再读 `question` → 重试按钮死  
+- **Bad**：流结束 `status=ready` 仍 `view=loading` 且无兜底 → 提问按钮永久 disabled  
+- **Bad**：`renderWithProviders` 无 Provider 却假封装；中央 `test/` 镜像整 src  
 - **Good**：answered / abstained / 错误态三套明确 UI；只应用校验通过的 final payload  
 - **Good**：`lastQuestion` 记最近成功发起的文案；重试 `submitQuestion(lastQuestion \|\| question)`  
+- **Good**：同域 `*.test.ts(x)` + `src/test/` 仅基建  
 
 ## 模块分层反模式（摘要）
 
@@ -74,3 +145,23 @@
 **Cause**：提交时清空 input，重试仍读同一 state。
 
 **Fix**：独立 `lastQuestion`（或失败时回填输入框）；重试走与提交相同的 `ask(q)` 路径。
+
+**Prevention**：改 `ask-panel` 提交/重试路径必跑 `ask-panel.test.tsx` 中 lastQuestion 用例。
+
+### Common Mistake: 流结束无 final 卡在 loading
+
+**Symptom**：提问按钮长期 `处理中…` / disabled；无答案也无错误卡。
+
+**Cause**：`useChat` 已 `ready`，但从未收到合法 `data-ask-final`（断流、网关截断、解析失败）；仅靠 status=streaming 进 loading，无离开路径。
+
+**Fix**：`status==='ready'` 时若 `view.type==='loading'` → error「流式响应未包含有效终态」。有 final 后 view 已非 loading，ready **不得**覆盖 answered/abstained。
+
+**Prevention**：`use-knowledge-ask.test.ts` 覆盖「ready 仍 loading → error」与「final 后再 ready 保持 answered」。
+
+### Common Mistake: 测试 fixture 假 session 过 tsc
+
+**Symptom**：`pnpm check-types` 红，测却绿（vitest 不验完整类型）。
+
+**Cause**：`saveClientSession` 要 `AuthSession`（`app` · `permissions` · `expiresAtMs`），fixture 只写了 `roles` + ISO `expiresAt`。
+
+**Fix**：按上文 Session fixture 填全；web `app:'web'`，admin `app:'admin'`。

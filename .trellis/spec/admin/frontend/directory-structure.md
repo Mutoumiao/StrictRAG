@@ -4,7 +4,9 @@
 
 ```text
 apps/admin/
+  vitest.config.ts            # jsdom · 同域 *.test.ts(x)
   src/
+    test/                     # setup · re-export（非业务）
     env.client.ts
     lib/
       http.ts                 # 传输层（Bearer / refresh / 重试）
@@ -85,6 +87,7 @@ app/(ops)/<module>/
 5. **跨模块**：优先 import 对方 **`api`**；禁止复制 path；慎 import 对方 services。  
 6. **禁止**再建全站大杂烩 `src/api/`。  
 7. **store / hooks 目录 / types**：不需要不建。  
+8. **测试**：同域 `*.test.ts(x)`；`src/test/` 仅基建；E2E 不进 `src/`。见 [quality-guidelines · 前端测试](./quality-guidelines.md)。
 8. 新运营域：在 `app/(ops)/<module>/` 落树，不要塞进无关模块。  
 9. 域被 ≥2 无关路由依赖时 → 上提 `src/features/<domain>/`（见 module-layering §11）。  
 10. **抽公共时机**（欠抽 / 过抽）：见 [module-layering §12.1](./module-layering.md)；check 必查。

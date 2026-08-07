@@ -13,7 +13,7 @@
 
 ## 一句话
 
-Next.js 用户端：**登录 + 单轮问答（AI SDK 流）+ 会话列表/历史回放** 已接；KB 手填 id，无完整产品 IA，**无**连续追问/rewrite，**无**反馈提交 UI。
+Next.js 用户端：**登录 + 单轮问答（AI SDK 流）+ 会话列表/历史回放** 已接；KB 手填 id，无完整产品 IA，**无**连续追问/rewrite，**无**反馈提交 UI。包内有 RTL 红线测（**非** E2E）。
 
 ---
 
@@ -22,6 +22,7 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流）+ 会话列表/历史
 ### 鉴权壳
 - 登录页 · 客户端 session · `WebAuthGuard`（`src/components/auth-guard.tsx`）
 - 登出（本地清 session，无服务端 revoke）
+- 存储 key **仅** `strict-rag:web:client-session`（与 admin 隔离；有测）
 
 ### 问答 UI（S2-#8）
 - 选 KB（手填/记忆 `strict-rag:web:last-kb-id`）→ 提问
@@ -29,6 +30,7 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流）+ 会话列表/历史
 - 进度：`data-status`（transient）；终态：`data-ask-final` 经 `AskResponseSchema.safeParse` 后才进 answered/abstained；**不**手写 SSE 分帧
 - 三态：`answered` / `abstained` / 错误；引用仅 answered 非 chitchat 路径
 - 拒答/错误「重试」：`lastQuestion`（提交后清空输入框不导致重试死按钮）
+- **流结束无 final**：`useChat` `status==='ready'` 且仍 `loading` → error「流式响应未包含有效终态」（`use-knowledge-ask.ts`；有回归测）
 
 ### 会话薄壳（S2-#9）
 - 会话列表 · 新建 · 切换 · 历史消息回放
@@ -42,7 +44,9 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流）+ 会话列表/历史
 - 构建：`next build --webpack`；`next.config` 含 `transpilePackages` + webpack `extensionAlias`
 - 依赖：`ai` · `@ai-sdk/react`（catalog）
 - `src/api/feedback.ts` 仅 HTTP 封装；**无**反馈 UI
-
+- **单元/组件测**（Vitest + jsdom + RTL）：`vitest.config.ts` · `src/test/{setup,test-utils,fixtures}` · 同域 `*.test.ts(x)`  
+  - 现有：`use-knowledge-ask` · `ask-panel` · `sessions.services`（失败/部分失败）· `client-session` · `map-biz-error`  
+  - **无** 登录页测 · **无** Guard 测 · **无** E2E · **无** `lib/http` refresh 测
 ---
 
 ## 明确未做 / 边界
@@ -64,9 +68,8 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流）+ 会话列表/历史
 |----|------|------|
 | KB 手填 id | 演示门槛、易用性差 | 依赖运营/库管告知 id |
 | Soft Bento / pen 未像素对齐 | 观感非定稿 | 色板与原子在 `packages/ui`；本包只组合 |
-| 会话/错误态体验简陋 | 空/错态规格在文档，实现未全铺 | 功能地图 §4.16 |
-| 无 E2E / 无 hook 单测 | 主要靠 api 单测 + 手测 | 旧手写 SSE 单测已随协议删除 |
-| 流结束无 final 时可能停 loading | 边角 | 服务端 catch 已写 final；客户端未兜底 ready 无 final |
+| 会话/错误态体验简陋 | 空/错态规格在文档，实现未全铺 | 功能地图 §4.16；RTL 测行为不测像素 |
+| 无 E2E · 无 http refresh 测 · 无 Guard 测 | 跨页/401 路径靠手测 | 红线测见证据段；扩测改到再补 |
 
 ---
 
@@ -77,9 +80,11 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流）+ 会话列表/历史
 | 首页 / 登录 | `src/app/page.tsx` · `src/app/login/page.tsx` |
 | 鉴权 | `src/components/auth-guard.tsx` · `src/auth/api.ts` · `client-session.ts` |
 | 问答面板 | `src/components/ask-panel.tsx` |
-| ask 流 | `src/hooks/use-knowledge-ask.ts` · `src/api/ask.ts`（transport） · `ask-panel.tsx`（`lastQuestion`） |
-| 会话 / 反馈客户端 | `src/api/sessions.ts` · `src/api/feedback.ts`（无 UI） |
-| 传输 | `src/lib/http.ts` |
+| ask 流 | `src/hooks/use-knowledge-ask.ts`（含 ready 无 final 兜底）· `src/api/ask.ts` · `ask-panel.tsx`（`lastQuestion`） |
+| 会话 / 反馈客户端 | `src/api/sessions.ts` · `src/services/sessions.services.ts` · `src/api/feedback.ts`（无 UI） |
+| 前端测 | `vitest.config.ts` · `src/test/` · `hooks/use-knowledge-ask.test.ts` · `components/ask-panel.test.tsx` · `services/sessions.services.test.ts` · `auth/client-session.test.ts` · `lib/map-biz-error.test.ts` |
+| 命令 | `pnpm --filter @strict-rag/web test`（`package.json` → `vitest run`） |
+| 传输 | `src/lib/http.ts`（**尚无**单测） |
 | 样式入口 | `apps/web/src/app/globals.css` · `postcss.config.mjs` · `package.json`（tailwind · `build --webpack`） |
 | Task（归档） | `.trellis/tasks/archive/2026-08/08-05-p2-web-ask-ui/` · `08-05-p2-sessions-shell/` · `08-06-frontend-tailwind-shadcn/` |
 | 签字（归档） | `.trellis/tasks/archive/2026-08/08-05-phase-2-ask/sign-off.md` |

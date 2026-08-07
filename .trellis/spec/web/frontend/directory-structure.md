@@ -4,7 +4,9 @@
 
 ```text
 apps/web/
+  vitest.config.ts            # jsdom · 同域 *.test.ts(x)
   src/
+    test/                     # setup · re-export · fixtures（非业务）
     env.client.ts
     lib/
       http.ts                 # 传输层（Bearer / refresh / 重试）
@@ -60,7 +62,8 @@ apps/web/
 6. 组件通过明确路径引入；禁止页面/组件散落业务 path 的 `fetch`。  
 7. **store / 空 hooks 目录 / types**：不需要不建。  
 8. `page.tsx` 保持薄（路由 + 组合）。  
-9. **抽公共时机**（欠抽 / 过抽）：见 [module-layering §12.1](./module-layering.md)（与 admin 同纪律）；check 必查。
+9. **抽公共时机**（欠抽 / 过抽）：见 [module-layering §12.1](./module-layering.md)（与 admin 同纪律）；check 必查。  
+10. **测试**：行为测与源码同域 `*.test.ts(x)`；`src/test/` **只** setup/fixtures/re-export；禁止业务 import `*.test.*`；E2E 不进 `src/`。约定见 [quality-guidelines · 前端测试](./quality-guidelines.md)。
 
 ## 职责（产品）
 
