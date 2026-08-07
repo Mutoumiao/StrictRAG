@@ -73,6 +73,18 @@ export const MENU_TREE: readonly MenuNode[] = [
   },
 ] as const;
 
+/**
+ * 当前 admin 已落地路由（壳侧只展示这些 href，避免 404 菜单）。
+ * 新页落地时：先建 page，再把 href 加入此集合。
+ */
+export const ADMIN_IMPLEMENTED_HREFS: ReadonlySet<string> = new Set([
+  '/documents',
+  '/approvals',
+  '/members',
+  '/chunks',
+  '/kb/settings',
+]);
+
 /** 按有效码裁剪菜单（UI 层；不能替代 API 验码） */
 export function filterMenuByCodes(
   tree: readonly MenuNode[],
@@ -96,4 +108,41 @@ export function filterMenuByCodes(
     return out;
   };
   return walk(tree);
+}
+
+/** 收集树中所有叶子 href */
+export function collectMenuHrefs(nodes: readonly MenuNode[]): string[] {
+  const out: string[] = [];
+  for (const n of nodes) {
+    if (n.href) out.push(n.href);
+    if (n.children) out.push(...collectMenuHrefs(n.children));
+  }
+  return out;
+}
+
+/**
+ * 壳用：权限码裁剪 ∩ 已实现路由。
+ * super_admin 全码也不会露出未落地 href。
+ */
+export function clipMenuForShell(
+  codes: ReadonlySet<string>,
+  tree: readonly MenuNode[] = MENU_TREE,
+  implemented: ReadonlySet<string> = ADMIN_IMPLEMENTED_HREFS,
+): MenuNode[] {
+  const byCode = filterMenuByCodes(tree, codes);
+  const walk = (nodes: readonly MenuNode[]): MenuNode[] => {
+    const out: MenuNode[] = [];
+    for (const node of nodes) {
+      if (node.href && !implemented.has(node.href)) {
+        continue;
+      }
+      const children = node.children ? walk(node.children) : undefined;
+      if (node.children && (!children || children.length === 0) && !node.href) {
+        continue;
+      }
+      out.push({ ...node, children });
+    }
+    return out;
+  };
+  return walk(byCode);
 }

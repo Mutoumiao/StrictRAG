@@ -8,7 +8,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { MENU_TREE, filterMenuByCodes } from '@strict-rag/admin-catalog';
+import { clipMenuForShell } from '@strict-rag/admin-catalog';
 import { Button } from '@strict-rag/ui/components/ui/button';
 import { Input } from '@strict-rag/ui/components/ui/input';
 import { Label } from '@strict-rag/ui/components/ui/label';
@@ -27,24 +27,15 @@ export function AdminShell({ children }: { children: ReactNode }) {
     setKbId(readStoredKbId());
   }, []);
 
-  const menu = useMemo(() => {
-    const codes = new Set(me.permissions);
-    return filterMenuByCodes(MENU_TREE, codes);
+  // ponytail: 码裁剪 ∩ 已实现 href 全在 catalog；壳不再维护第二份白名单
+  const links = useMemo(() => {
+    const menu = clipMenuForShell(new Set(me.permissions));
+    return menu.flatMap((g) =>
+      (g.children ?? [])
+        .filter((n) => n.href)
+        .map((n) => ({ id: n.id, label: n.label, href: n.href! })),
+    );
   }, [me.permissions]);
-
-  // ponytail: catalog 仍是 SSOT；仅展示本切片已落地的 href，避免 404 菜单
-  const implemented = new Set([
-    '/documents',
-    '/approvals',
-    '/members',
-    '/chunks',
-    '/kb/settings',
-  ]);
-  const links = menu.flatMap((g) =>
-    (g.children ?? [])
-      .filter((n) => n.href && implemented.has(n.href))
-      .map((n) => ({ id: n.id, label: n.label, href: n.href! })),
-  );
 
   return (
     <div className="min-h-screen bg-background text-foreground">

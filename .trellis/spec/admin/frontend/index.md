@@ -14,7 +14,7 @@
 - [ ] 样式入口是否仅为 `./globals.css`（内 import ui theme；本 app `@source`）？  
 
 - [ ] 壳准入是否按 **`admin.shell`**（非旧 role 公式），且不靠前端藏路由？  
-- [ ] 菜单裁剪是否 `filterMenuByCodes` + 落地 href 白名单？  
+- [ ] 菜单裁剪是否 `clipMenuForShell(codes)`（catalog：`filterMenuByCodes` ∩ `ADMIN_IMPLEMENTED_HREFS`）？**禁止** shell 本地白名单？  
 - [ ] 后端 path 是否只在模块 `api.ts` / `auth/api`（services **禁止**写 URL）？  
 - [ ] 业务用例是否在 `services` / `*.services.ts`；hooks 是否仅 React 绑定且不与 services 双轨？  
 - [ ] `page.tsx` 是否保持薄组合；UI 是否不直接业务 `fetch`？  

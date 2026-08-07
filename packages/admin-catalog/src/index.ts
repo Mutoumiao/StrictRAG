@@ -25,6 +25,9 @@ export {
 } from './role-templates.js';
 
 export {
+  ADMIN_IMPLEMENTED_HREFS,
+  clipMenuForShell,
+  collectMenuHrefs,
   filterMenuByCodes,
   MENU_TREE,
   type MenuNode,

@@ -30,7 +30,10 @@ getRoleTemplate(code: string): RoleTemplate | undefined
 
 // menu-tree.ts
 MENU_TREE: readonly MenuNode[]
+ADMIN_IMPLEMENTED_HREFS: ReadonlySet<string>  // 已落地 admin 路由；新页须先 page 再登记
 filterMenuByCodes(tree, codes: ReadonlySet<string>): MenuNode[]
+clipMenuForShell(codes, tree?=MENU_TREE, implemented?=ADMIN_IMPLEMENTED_HREFS): MenuNode[]
+collectMenuHrefs(nodes): string[]  // 测试/调试
 ```
 
 ### 3. Contracts
@@ -55,6 +58,9 @@ filterMenuByCodes(tree, codes: ReadonlySet<string>): MenuNode[]
 
 **MenuNode**：`permission?: PermissionCode` 控制可见；缺省仅需已登录壳策略。
 
+**壳侧双闸**：`filterMenuByCodes`（有码才显）∩ `ADMIN_IMPLEMENTED_HREFS`（已落地才链）。  
+`clipMenuForShell` = 两闸合一；**禁止**在 `apps/admin` 再硬编码 href 白名单。
+
 ### 4. Validation & Error Matrix
 
 | 条件 | 结果 |
@@ -62,14 +68,17 @@ filterMenuByCodes(tree, codes: ReadonlySet<string>): MenuNode[]
 | 新码未进 `PERMISSION_DEFINITIONS` | **禁止**在 api/admin 字符串字面量放行 |
 | 菜单 permission 不在码表 | 编译/评审失败；filter 永不可见 |
 | 删码仍被 role 引用 | 须发版+迁移；禁止静默删（ADR-056） |
+| 新页已建但未进 `ADMIN_IMPLEMENTED_HREFS` | 有码也**不**进壳导航（防 404） |
+| 仅有码、页未落地 | catalog 可有 MENU_TREE 节点；壳经 clip 隐藏 |
 
 ### 5. Good / Base / Bad
 
 | 类 | 例 |
 |----|-----|
-| Good | 新模块先加 `PERMISSION_DEFINITIONS` → 模板绑码 → 菜单 → `requirePermission` |
+| Good | 新模块先加 `PERMISSION_DEFINITIONS` → 模板绑码 → 菜单 → page → `ADMIN_IMPLEMENTED_HREFS` → `requirePermission` |
 | Base | `PERMISSIONS` 导出 = 全部 code 字符串列表（兼容旧名） |
 | Bad | admin 本地 `const PERMISSIONS = [...]` 第二份 |
+| Bad | admin shell `const implemented = new Set([...])` 第二份白名单 |
 | Bad | api `if (code === 'doc.upload')` 字面量与 catalog 漂移 |
 
 ### 6. Tests Required
@@ -77,6 +86,8 @@ filterMenuByCodes(tree, codes: ReadonlySet<string>): MenuNode[]
 - catalog 导出非空；`super_admin` 默认码包含 `admin.shell` 与 `approval.decide`  
 - `doc_operator` 默认不含 `approval.decide`  
 - `filterMenuByCodes` 无码节点被裁掉  
+- `clipMenuForShell`：三角色可见 href ⊆ implemented；`super_admin` 全码仍不露 `/dashboard` 等未落地  
+- 空码 → clip 无叶子  
 
 （api `resolve.test.ts` 已覆盖模板求值。）
 
@@ -85,16 +96,18 @@ filterMenuByCodes(tree, codes: ReadonlySet<string>): MenuNode[]
 #### Wrong
 
 ```typescript
-// apps/admin
+// apps/admin — 第二份白名单 / 角色公式
 const canApprove = user.role === 'kb_admin'
+const implemented = new Set(['/documents', '/approvals'])
+const menu = filterMenuByCodes(MENU_TREE, codes).filter(...)
 ```
 
 #### Correct
 
 ```typescript
-import { filterMenuByCodes, MENU_TREE } from '@strict-rag/admin-catalog'
-const menu = filterMenuByCodes(MENU_TREE, new Set(me.permissions))
-// API 仍 requirePermission('approval.decide')
+import { clipMenuForShell } from '@strict-rag/admin-catalog'
+const menu = clipMenuForShell(new Set(me.permissions))
+// API 仍 requirePermission('approval.decide')；菜单可见 ≠ 授权
 ```
 
 ---
@@ -104,6 +117,7 @@ const menu = filterMenuByCodes(MENU_TREE, new Set(me.permissions))
 | 规则 | 说明 |
 |------|------|
 | 单一注册 | 新码只加本包 |
+| 落地 href SSOT | 只改 `ADMIN_IMPLEMENTED_HREFS`，禁止 shell 硬编码 |
 | 无 UI 运行时依赖 | 禁止 Next/Hono/React |
 | UI ≠ API | 菜单裁剪 ≠ 授权 |
 | 壳码 | `admin.shell` 进 admin |
