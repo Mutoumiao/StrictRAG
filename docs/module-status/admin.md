@@ -4,16 +4,16 @@
 |------|------|
 | 路径 | `apps/admin` |
 | 端口 | 3006 |
-| 成熟度 | **可演示**（S2c 运营薄壳：文档/审批/成员/分片/设置 + **模型网关最小**） |
+| 成熟度 | **可演示**（S2c 运营薄壳：文档/审批/成员/分片/设置/模型 + **用户/角色最小**） |
 | 默认依赖模式 | 鉴权=临时双 JWT + admin **dev-login**（经 api）· KB=手填 uuid · 菜单=`clipMenuForShell`（catalog SSOT） |
-| 关联模块 | API：`api` 文档/审批/成员/分片/设置/模型网关；菜单+权限码：`admin-catalog`；契约：`contracts`；样式：`ui` |
+| 关联模块 | API：`api` 文档/审批/成员/分片/设置/模型/用户角色；菜单+权限码：`admin-catalog`；契约：`contracts`；样式：`ui` |
 | 最近更新 | 2026-08-07 |
 | Spec | `.trellis/spec/admin/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · 审批/成员相关 API |
 
 ## 一句话
 
-Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员 + 分片只读 + 知识库设置 + 模型网关最小** 已接；KB 手填 id，壳经 catalog **`clipMenuForShell`** 链已实现路由，**不是**完整运营台。
+Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员 + 分片只读 + 知识库设置 + 模型网关最小 + 用户/角色最小** 已接；KB 手填 id，壳经 catalog **`clipMenuForShell`** 链已实现路由，**不是**完整运营台。
 
 ---
 
@@ -26,7 +26,7 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员 + 分�
 
 ### 运营壳（S2c · B7 菜单裁剪）
 - `AdminShell`：消费 `clipMenuForShell`（**无**本地 href 白名单）；落地 href SSOT 在 `admin-catalog`：`ADMIN_IMPLEMENTED_HREFS`
-- 当前六条：`/documents` · `/approvals` · `/members` · `/chunks` · `/kb/settings` · **`/models`**
+- 当前八条：`/documents` · `/approvals` · `/members` · `/chunks` · `/kb/settings` · `/models` · **`/users`** · **`/roles`**
 - KB 手填 + localStorage 记忆 `strict-rag:admin:last-kb-id`
 
 ### 文档
@@ -48,6 +48,11 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员 + 分�
 - 需 `model.gateway.manage`（默认仅 super_admin）；无码 403 态；path 仅 `models/api.ts`
 - Key **只写不回显**；**无**真 fetch-models 代理 UI · **无** KB 级绑定
 
+### 平台用户 / 角色（B4 最小）
+- `/users`：列表 · 新建（email/displayName/角色）· 启用禁用 · 改角色；需 `user.manage`；path 仅 `users/api.ts`
+- `/roles`：列表 · 新建自定义角色 · 权限码勾选保存；需 `role.perm.manage`；path 仅 `roles/api.ts`
+- **无**密码 UI · **无**部门归属 · 登录仍 dev-login 模板（DB 角色未接 JWT）
+
 ### 审批中心
 - `/approvals`：待审 / 已通过分栏
 - 有 `approval.decide` 时显示通过/驳回；有 `doc.upload` 时已通过可 `scan` 入队
@@ -60,7 +65,7 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员 + 分�
 ### 工程
 - 传输：`lib/http.ts`（Bearer + 单飞 refresh）；KB 偏好：`lib/kb-context.ts`（**非** HTTP 业务大杂烩）
 - 身份：`auth/api.ts`
-- 模块私有 API：`app/(ops)/{documents,approvals,members,chunks,kb/settings,models}/api.ts`（**无** `lib/admin-api.ts` / **无** `src/api/` 集中仓）
+- 模块私有 API：`app/(ops)/{documents,approvals,members,chunks,kb/settings,models,users,roles}/api.ts`（**无** `lib/admin-api.ts` / **无** `src/api/` 集中仓）
 - `lib/http` 含 `put`（平台绑定 PUT）
 - 类型来自 `@strict-rag/contracts`；菜单/码来自 `@strict-rag/admin-catalog`
 - 样式：Tailwind v4（`postcss.config.mjs` · `src/app/globals.css` 引 `@strict-rag/ui/theme.css` + `@source`）；页面以 `className` + ui 原子为主，**无**大面积布局/色板 `style={{}}`
@@ -74,7 +79,7 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员 + 分�
 
 | 项 | 说明 |
 |----|------|
-| 数据面板 · 用户/角色 · KB 设置全文（docTypes/分片/KB 模型绑定） | catalog 有菜单；模型网关仅 B3 最小；其余 **无 page**（clip 过滤；归 B4–B6 / 后续） |
+| 数据面板 · 部门 · KB 设置全文（docTypes/分片/KB 模型绑定） | catalog 有菜单；用户/角色已 B4 最小；其余 **无 page**（clip 过滤；归 B5–B6 / 后续） |
 | 历史 indexVersion 分片 UI | ADR-052 不做 |
 | 文档上传 UI | 列表只读；上传走 API/其它入口 |
 | 完整运营 IA / 多 KB 选择器 | 手填 uuid；非产品级库管体验 |

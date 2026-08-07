@@ -9,7 +9,7 @@ import {
 } from './menu-tree.js';
 import { defaultCodesForRoles } from './role-templates.js';
 
-const UNLANDED = ['/dashboard', '/users', '/roles'] as const;
+const UNLANDED = ['/dashboard'] as const;
 
 describe('defaultCodesForRoles', () => {
   it('doc_operator 无 approval.decide / member.manage', () => {
@@ -87,18 +87,22 @@ describe('clipMenuForShell', () => {
     }
   });
 
-  it('super_admin 含 /models；仍截断未落地 dashboard/users/roles', () => {
+  it('super_admin 含 /models /users /roles；仍截断未落地 dashboard', () => {
     const codes = defaultCodesForRoles(['super_admin']);
     const byCode = collectMenuHrefs(filterMenuByCodes(MENU_TREE, codes));
     for (const u of UNLANDED) {
       expect(byCode).toContain(u);
     }
     expect(byCode).toContain('/models');
+    expect(byCode).toContain('/users');
+    expect(byCode).toContain('/roles');
     const clipped = collectMenuHrefs(clipMenuForShell(codes));
     for (const u of UNLANDED) {
       expect(clipped).not.toContain(u);
     }
     expect(clipped).toContain('/models');
+    expect(clipped).toContain('/users');
+    expect(clipped).toContain('/roles');
     for (const h of ADMIN_IMPLEMENTED_HREFS) {
       expect(clipped).toContain(h);
     }

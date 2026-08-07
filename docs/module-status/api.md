@@ -4,8 +4,8 @@
 |------|------|
 | 路径 | `apps/api` |
 | 端口 | 4000 |
-| 成熟度 | **可演示**（P0/P1 入库 + S2 最小 ask + B1/B2/B3 最小运营 API；演示依赖 mock ES/Gateway） |
-| 默认依赖模式 | ES=`mock` · auth=临时双 JWT（`AUTH_ENFORCE` **默认 false**）· rewrite=强制关 · storage=`local` · Gateway 缺 URL→mock（**仍 env，未读 DB 绑定**）· `ASK_RATE_LIMIT_RPM=0` |
+| 成熟度 | **可演示**（P0/P1 入库 + S2 最小 ask + B1–B4 最小运营 API；演示依赖 mock ES/Gateway） |
+| 默认依赖模式 | ES=`mock` · auth=临时双 JWT（`AUTH_ENFORCE` **默认 false**）· rewrite=强制关 · storage=`local` · Gateway 缺 URL→mock（**仍 env，未读 DB 绑定**）· JWT **未**读 DB `user_roles` · `ASK_RATE_LIMIT_RPM=0` |
 | 关联模块 | 入库演示另需 `worker` + PG + Redis；契约 `@strict-rag/contracts` · schema `@strict-rag/db` |
 | 最近更新 | 2026-08-07 |
 | Spec | `.trellis/spec/api/backend/` |
@@ -54,6 +54,14 @@ Hono HTTP 后端：入库 API、临时双 JWT 鉴权、单轮 ask 图 / **AI SDK
 - 表 `model_providers` / `model_bindings`；测例 memory repo
 - **未**接 Gateway 运行时读 DB；**未** KB 级 bindings；**未**真 fetch-models 代理
 
+### 平台用户 / 角色（B4 · ADR-056 最小）
+- `GET/POST/PATCH /admin/users` · `POST …/users/:id/roles`
+- `GET/POST/PATCH /admin/roles` · `PUT …/roles/:id/permissions`
+- `GET /admin/permission-catalog`（`user.manage` **或** `role.perm.manage`）
+- 始终验码；`codes` ⊆ admin-catalog；最后 active `super_admin` 禁用/剥权 → 400；禁禁用系统 super_admin 角色
+- 表 `platform_roles` / `user_roles`；种子四系统角色；测例 memory repo
+- **未** JWT/dev-login 读 DB 角色；**无**密码字段 / bootstrap env；**无**部门归属
+
 ### 问答（S2 最小）
 - 同步 ask + AI SDK UI Message Stream（`data-status` / `data-ask-final`，**无**自写 `event: final`）；**线性状态机**（非 LangGraph.js）：检索 → 约束生成 → 验证 → 拒答（`graph/run.ts`）
 - 流异常：`execute` 抛错时仍写 `data-status phase=error` + `data-ask-final`（`reason=internal_guard`）；单测覆盖（`routes/ask.test.ts`）
@@ -74,8 +82,8 @@ Hono HTTP 后端：入库 API、临时双 JWT 鉴权、单轮 ask 图 / **AI SDK
 | 生产 ES+IK 检索 | `RETRIEVE_ES_MODE` 默认 `mock`；有 `http` 枚举但 **≠** 已宣称生产 ES（backlog B8） |
 | rewrite / 多轮指代 | `SESSION_REWRITE_ENABLED` P2 强制 false；会话历史 ≠ evidence |
 | CRAG / multi_hop | 未进本阶段 |
-| 完整 ACL / 部门隔离 | 仅 KB 成员 + 权限码骨架 |
-| 生产 IdP / 全量用户体系 | 临时双 JWT + dev-login |
+| 完整 ACL / 部门隔离 | 仅 KB 成员 + 权限码骨架；B4 无部门（B5） |
+| 生产 IdP / JWT 消费 DB 角色 | 临时双 JWT + dev-login roleTemplate；B4 管理面已落，登录未读 `user_roles` |
 
 ### 他包 UI / 产品面挂账（非本包义务）
 

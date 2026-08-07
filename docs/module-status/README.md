@@ -54,8 +54,8 @@
 | **入库闭环** | **可演示**（scan/embed/ES 默认 mock；本地存储） | `worker` | `api` · `db` · `contracts` | [worker](./worker.md) · [api · 入库](./api.md#入库p1) |
 | **问答 ask / 流** | **可演示**（单轮信任环；AI SDK UI Message Stream；检索默认 mock ES） | `api` | `web` · `contracts` · `db` | [api · 问答](./api.md#问答s2-最小) · [web](./web.md) |
 | **会话壳** | **可演示**（列表/历史回放；**rewrite 关**） | `api` | `web` · `db` · `contracts` | [api · 问答](./api.md#问答s2-最小) · [web](./web.md) |
-| **鉴权 / ACL** | **可联调**（临时双 JWT；KB 成员 + 权限码骨架） | `api` | `admin-catalog` · `admin` · `web` · `contracts` | [api · 鉴权](./api.md#鉴权与权限) · [admin-catalog](./admin-catalog.md) |
-| **admin 运营面** | **可演示**（S2c 审批/成员 + B1/B2 + **B3 模型网关最小** + B7 菜单 clip；全量运营面见 backlog） | `admin` | `api` · `admin-catalog` · `contracts` | [admin](./admin.md) · [admin-catalog](./admin-catalog.md) · backlog B4–B6 |
+| **鉴权 / ACL** | **可联调**（临时双 JWT；KB 成员 + 权限码骨架；**B4 用户/角色管理面**；JWT 未读 DB 角色） | `api` | `admin-catalog` · `admin` · `web` · `contracts` · `db` | [api · 鉴权](./api.md#鉴权与权限) · [api · 用户角色](./api.md) · [admin-catalog](./admin-catalog.md) |
+| **admin 运营面** | **可演示**（S2c 审批/成员 + B1–B4 最小 + B7 菜单 clip；部门/面板见 backlog） | `admin` | `api` · `admin-catalog` · `contracts` | [admin](./admin.md) · [admin-catalog](./admin-catalog.md) · backlog B5–B6 |
 | **反馈** | **可联调**（API 已有；web **无**反馈 UI） | `api` | `web`（未接 UI）· `db` | [api](./api.md) · [web](./web.md) |
 | **模型网关** | **可演示**（Provider CRUD + 平台绑定 + admin `/models`；**Gateway 运行时仍 env**；无 KB 绑定） | `api` | `admin` · `contracts` · `db` | [api · 模型供应商](./api.md) · [admin · 模型网关](./admin.md) · backlog 余量（运行时接线） |
 | **观测 / 评测** | **骨架**（进程内 metrics/tracer；无 L1 黄金集门禁） | `api` | — | [api](./api.md) · backlog B10 |

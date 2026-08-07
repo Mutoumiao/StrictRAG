@@ -1,7 +1,7 @@
 # @strict-rag/contracts · 共享契约库
 
 > 路径：`packages/contracts`  
-> 现状：BizCode/信封 + health + auth + ingest（含 **chunk 只读**）+ **ask 域** + **kb 设置**（settings GET data / PATCH body）均已落地。
+> 现状：BizCode/信封 + health + auth + ingest（含 **chunk 只读**）+ **ask 域** + **kb 设置** + **model-gateway** + **platform 用户/角色** 均已落地。
 
 ---
 

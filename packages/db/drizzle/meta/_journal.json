@@ -29,6 +29,13 @@
       "when": 1754524800000,
       "tag": "0003_b3_model_gateway",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1754611200000,
+      "tag": "0004_b4_platform_roles",
+      "breakpoints": true
     }
   ]
 }
