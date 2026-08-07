@@ -26,6 +26,7 @@ import { feedbackRoutes } from './routes/feedback.js';
 import { kbSettingsRoutes } from './routes/kb-settings.js';
 import { memberRoutes } from './routes/members.js';
 import { modelGatewayRoutes } from './routes/model-gateway.js';
+import { departmentsRoutes } from './routes/departments.js';
 import { platformUsersRolesRoutes } from './routes/platform-users-roles.js';
 import { sessionRoutes } from './routes/sessions.js';
 
@@ -77,6 +78,7 @@ export function createApp() {
   app.route('/api/v1', kbSettingsRoutes);
   app.route('/api/v1', modelGatewayRoutes);
   app.route('/api/v1', platformUsersRolesRoutes);
+  app.route('/api/v1', departmentsRoutes);
   app.route('/api/v1', sessionRoutes);
   app.route('/api/v1', feedbackRoutes);
   app.route('/api/v1', askRoutes);

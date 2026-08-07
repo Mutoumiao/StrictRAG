@@ -21,7 +21,7 @@
 - **权限码**：`PERMISSION_DEFINITIONS` / `PERMISSIONS` / `isPermissionCode`（platform + kb 作用域）
 - **角色模板**：`super_admin` · `kb_admin` · `doc_operator` · `web_consumer`；`defaultCodesForRoles` · `roleBypassesKbMembership`
 - **菜单树**：`MENU_TREE` + `filterMenuByCodes`（按有效码裁剪）
-- **壳 clip（B7 + B3 + B4）**：`ADMIN_IMPLEMENTED_HREFS` + `clipMenuForShell` + `collectMenuHrefs`；八条落地：`/documents` · `/approvals` · `/members` · `/chunks` · `/kb/settings` · `/models` · **`/users`** · **`/roles`**
+- **壳 clip（B7 + B3–B5）**：`ADMIN_IMPLEMENTED_HREFS` + `clipMenuForShell` + `collectMenuHrefs`；九条落地：`/documents` · `/approvals` · `/members` · `/chunks` · `/kb/settings` · `/models` · **`/users`** · **`/roles`** · **`/departments`**
 - 单测：`catalog.test.ts`（kb_admin 无 `/models`；super_admin 含 `/models` `/users` `/roles`；仍截断 `/dashboard`）
 
 ---
@@ -31,7 +31,7 @@
 | 项 | 说明 |
 |----|------|
 | 动态角色绑码运行时消费 | 模板是种子；B4 可写 DB 角色码；JWT 仍模板（api 债） |
-| 菜单项对应全量页面 | **users/roles/models 已落地**；dashboard/部门/面板等 clip 隐藏（B5–B6） |
+| 菜单项对应全量页面 | **users/roles/models/departments 已落地**；dashboard 等 clip 隐藏（B6） |
 | 替代 API 鉴权 | 前端裁剪只影响可见性 |
 
 ---

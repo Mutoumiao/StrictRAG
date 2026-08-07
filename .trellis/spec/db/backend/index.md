@@ -2,7 +2,7 @@
 
 > 路径：`packages/db`  
 > 消费者：`apps/api` · `apps/worker`（**必须**共用）  
-> 现状：KB/文档/chunk/manifest/embed/ingest_jobs + **ask_sessions / ask_traces / ask_feedback** + users；`query/retrieval-gate`；migrate 在 `drizzle/`。
+> 现状：KB/文档/chunk/manifest/embed/ingest_jobs + **ask_*** + users + **platform_roles/user_roles** + **departments/user_departments**；`query/retrieval-gate`；migrate 在 `drizzle/`。
 
 ---
 

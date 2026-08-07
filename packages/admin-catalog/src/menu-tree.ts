@@ -64,6 +64,12 @@ export const MENU_TREE: readonly MenuNode[] = [
         permission: 'role.perm.manage',
       },
       {
+        id: 'departments',
+        label: '部门',
+        href: '/departments',
+        permission: 'dept.manage',
+      },
+      {
         id: 'models',
         label: '模型网关',
         href: '/models',
@@ -86,6 +92,7 @@ export const ADMIN_IMPLEMENTED_HREFS: ReadonlySet<string> = new Set([
   '/models',
   '/users',
   '/roles',
+  '/departments',
 ]);
 
 /** 按有效码裁剪菜单（UI 层；不能替代 API 验码） */

@@ -3,7 +3,7 @@
 | 字段 | 内容 |
 |------|------|
 | 路径 | `packages/contracts` |
-| 成熟度 | **可联调**（支撑 P0/P1 入库 + S2 ask / 会话 / 反馈 / 成员 + B1–B4） |
+| 成熟度 | **可联调**（支撑 P0/P1 入库 + S2 ask / 会话 / 反馈 / 成员 + B1–B5） |
 | 默认依赖模式 | 纯库；无运行时开关 |
 | 关联模块 | 被 `api` · `worker` · `web` · `admin` 消费；错误码与信封全仓唯一源 |
 | 最近更新 | 2026-08-07 |
@@ -12,7 +12,7 @@
 
 ## 一句话
 
-共享 **Zod 契约 + 业务码 + 队列名 + ApiResponse 信封**：P1 入库、B1–B4 与 S2 ask/会话/反馈/成员路径已有契约；**不是**全产品域完整 OpenAPI 覆盖。
+共享 **Zod 契约 + 业务码 + 队列名 + ApiResponse 信封**：P1 入库、B1–B5 与 S2 ask/会话/反馈/成员路径已有契约；**不是**全产品域完整 OpenAPI 覆盖。
 
 ---
 
@@ -49,6 +49,9 @@
 
 ### 平台用户 / 角色（B4）
 - User / Role / Create·Patch / Assign roles / Put permissions / PermissionCatalog（`system/platform-users-roles.contract`）
+
+### 部门组织壳（B5）
+- Department / Create·Patch / TreeNode / UserDepartmentAssignment / PutUserDepartments / UserDepartmentsView（`system/departments.contract`）
 - **无** password 字段（strict）；role code snake_case
 
 ---
@@ -57,7 +60,7 @@
 
 | 项 | 说明 |
 |----|------|
-| 全量运营域契约 | 数据面板 / 部门树 / KB model-bindings 等未建或未完 |
+| 全量运营域契约 | 数据面板 / cross-grant / KB model-bindings 等未建或未完 |
 | 生产 OpenAPI 生成与发布 | 以 Zod 源码为准；无独立 swagger 发布流水线声明 |
 | 版本化兼容策略文档化 | 随能力增量扩；破坏变更须改 PRD 后动契约 |
 

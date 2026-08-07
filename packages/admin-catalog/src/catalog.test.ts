@@ -87,7 +87,7 @@ describe('clipMenuForShell', () => {
     }
   });
 
-  it('super_admin 含 /models /users /roles；仍截断未落地 dashboard', () => {
+  it('super_admin 含 /models /users /roles /departments；仍截断未落地 dashboard', () => {
     const codes = defaultCodesForRoles(['super_admin']);
     const byCode = collectMenuHrefs(filterMenuByCodes(MENU_TREE, codes));
     for (const u of UNLANDED) {
@@ -96,6 +96,7 @@ describe('clipMenuForShell', () => {
     expect(byCode).toContain('/models');
     expect(byCode).toContain('/users');
     expect(byCode).toContain('/roles');
+    expect(byCode).toContain('/departments');
     const clipped = collectMenuHrefs(clipMenuForShell(codes));
     for (const u of UNLANDED) {
       expect(clipped).not.toContain(u);
@@ -103,6 +104,7 @@ describe('clipMenuForShell', () => {
     expect(clipped).toContain('/models');
     expect(clipped).toContain('/users');
     expect(clipped).toContain('/roles');
+    expect(clipped).toContain('/departments');
     for (const h of ADMIN_IMPLEMENTED_HREFS) {
       expect(clipped).toContain(h);
     }

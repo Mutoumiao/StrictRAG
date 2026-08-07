@@ -3,7 +3,7 @@
 | 字段 | 内容 |
 |------|------|
 | 路径 | `packages/db` |
-| 成熟度 | **可联调**（P1 KB/入库 + S2 ask + B3 model_* + **B4 platform_roles/user_roles**；Drizzle → PG） |
+| 成熟度 | **可联调**（P1 KB/入库 + S2 ask + B3 model_* + B4 platform_roles + **B5 departments**；Drizzle → PG） |
 | 默认依赖模式 | 需 `DATABASE_URL`；时间列为本地格式串（见 ORM PRD） |
 | 关联模块 | `api` · `worker` 共用 client/schema；检索闸被 api retrieve 复用 |
 | 最近更新 | 2026-08-07 |
@@ -12,7 +12,7 @@
 
 ## 一句话
 
-Drizzle schema + client：**知识库/文档/分片/向量/入库任务/成员**、**ask 会话/轨迹/反馈**、**模型供应商/绑定** 与 **平台角色/用户角色** 表已落地；提供默认检索双闸谓词。**≠** 生产迁移运维全集或全文评测仓。
+Drizzle schema + client：**知识库/文档/分片/向量/入库任务/成员**、**ask 会话/轨迹/反馈**、**模型供应商/绑定**、**平台角色/用户角色** 与 **部门/用户部门** 表已落地；提供默认检索双闸谓词。**≠** 生产迁移运维全集或全文评测仓。
 
 ---
 
@@ -27,6 +27,7 @@ Drizzle schema + client：**知识库/文档/分片/向量/入库任务/成员**
 - `schema_meta` · `users`
 - **B3**：`model_providers` · `model_bindings`（migration `0003_b3_model_gateway`）
 - **B4**：`platform_roles` · `user_roles`（migration `0004_b4_platform_roles`；codes_json；tenant+code 唯一）
+- **B5**：`departments` · `user_departments`（migration `0005_b5_departments`；path 物化；is_primary/is_leader）
 
 ### Schema · kb（入库主轴）
 - `knowledge_bases` · `documents` · `chunks` · `chunk_manifests` · `chunk_embeddings`
@@ -46,7 +47,7 @@ Drizzle schema + client：**知识库/文档/分片/向量/入库任务/成员**
 
 | 项 | 说明 |
 |----|------|
-| 部门树 / 组织隔离表 | 未做；ACL 仍以成员+角色为主 |
+| 部门强制检索 / cross-grant / 文档 owner_dept | 组织表已落；检索 principals 与 grant 表未做 |
 | 评测集 / 黄金集表 | backlog B10 |
 | Mongo body / ES 索引本体 | **不在**本包；对象与稀疏索引在其它存储 |
 | 自动 migration 流水线产品化 | 有 schema；运维发布流程不在本状态文档夸大 |

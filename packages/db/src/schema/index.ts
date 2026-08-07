@@ -2,6 +2,8 @@ export { baseColumns } from './_shard/base-columns.js';
 export { schemaMeta } from './system/schema-meta.js';
 export { users } from './system/users.js';
 export { platformRoles, userRoles } from './system/platform-roles.js';
+export { departments, userDepartments } from './system/departments.js';
+
 export { modelProviders, type ModelProviderModelRow } from './system/model-providers.js';
 export { modelBindings } from './system/model-bindings.js';
 export { knowledgeBases } from './kb/knowledge-bases.js';

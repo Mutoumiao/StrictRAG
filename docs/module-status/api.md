@@ -4,8 +4,8 @@
 |------|------|
 | 路径 | `apps/api` |
 | 端口 | 4000 |
-| 成熟度 | **可演示**（P0/P1 入库 + S2 最小 ask + B1–B4 最小运营 API；演示依赖 mock ES/Gateway） |
-| 默认依赖模式 | ES=`mock` · auth=临时双 JWT（`AUTH_ENFORCE` **默认 false**）· rewrite=强制关 · storage=`local` · Gateway 缺 URL→mock（**仍 env，未读 DB 绑定**）· JWT **未**读 DB `user_roles` · `ASK_RATE_LIMIT_RPM=0` |
+| 成熟度 | **可演示**（P0/P1 入库 + S2 最小 ask + B1–B5 最小运营 API；演示依赖 mock ES/Gateway） |
+| 默认依赖模式 | ES=`mock` · auth=临时双 JWT（`AUTH_ENFORCE` **默认 false**）· rewrite=强制关 · storage=`local` · Gateway 缺 URL→mock（**仍 env，未读 DB 绑定**）· JWT **未**读 DB `user_roles` · **未** `DEPT_ACL_ENFORCE` 检索强制 · `ASK_RATE_LIMIT_RPM=0` |
 | 关联模块 | 入库演示另需 `worker` + PG + Redis；契约 `@strict-rag/contracts` · schema `@strict-rag/db` |
 | 最近更新 | 2026-08-07 |
 | Spec | `.trellis/spec/api/backend/` |
@@ -60,7 +60,15 @@ Hono HTTP 后端：入库 API、临时双 JWT 鉴权、单轮 ask 图 / **AI SDK
 - `GET /admin/permission-catalog`（`user.manage` **或** `role.perm.manage`）
 - 始终验码；`codes` ⊆ admin-catalog；最后 active `super_admin` 禁用/剥权 → 400；禁禁用系统 super_admin 角色
 - 表 `platform_roles` / `user_roles`；种子四系统角色；测例 memory repo
-- **未** JWT/dev-login 读 DB 角色；**无**密码字段 / bootstrap env；**无**部门归属
+- **未** JWT/dev-login 读 DB 角色；**无**密码字段 / bootstrap env
+
+### 部门组织壳（B5 · ADR-057 最小）
+- `GET/POST /admin/departments` · `GET …/tree` · `GET/PATCH/DELETE …/:deptId`
+- `GET/PUT /admin/users/:userId/departments`（主部门 + 兼任 + is_leader）
+- 树：`dept.manage`；归属：`user.manage`；始终验码
+- 禁环 · 禁用部门不可新挂用户 · DELETE 有子/有用户 → 400
+- 表 `departments` / `user_departments`；migration `0005_b5_departments`；测例 memory repo
+- **未** `DEPT_ACL_ENFORCE` 检索/预览强制 · **无**文档 `ownerDeptId`/visibility 滤 · **无** cross-grants
 
 ### 问答（S2 最小）
 - 同步 ask + AI SDK UI Message Stream（`data-status` / `data-ask-final`，**无**自写 `event: final`）；**线性状态机**（非 LangGraph.js）：检索 → 约束生成 → 验证 → 拒答（`graph/run.ts`）
@@ -82,7 +90,7 @@ Hono HTTP 后端：入库 API、临时双 JWT 鉴权、单轮 ask 图 / **AI SDK
 | 生产 ES+IK 检索 | `RETRIEVE_ES_MODE` 默认 `mock`；有 `http` 枚举但 **≠** 已宣称生产 ES（backlog B8） |
 | rewrite / 多轮指代 | `SESSION_REWRITE_ENABLED` P2 强制 false；会话历史 ≠ evidence |
 | CRAG / multi_hop | 未进本阶段 |
-| 完整 ACL / 部门隔离 | 仅 KB 成员 + 权限码骨架；B4 无部门（B5） |
+| 完整 ACL / 部门强制隔离 | 仅 KB 成员 + 权限码 + 组织壳可配；**检索仍成员全库**（B5 未开 DEPT_ACL） |
 | 生产 IdP / JWT 消费 DB 角色 | 临时双 JWT + dev-login roleTemplate；B4 管理面已落，登录未读 `user_roles` |
 
 ### 他包 UI / 产品面挂账（非本包义务）
@@ -92,7 +100,7 @@ Hono HTTP 后端：入库 API、临时双 JWT 鉴权、单轮 ask 图 / **AI SDK
 | KB 设置全文（docTypes/分片/KB 模型绑定）· ask mode 闸 · Gateway 读 DB | B2/B3 最小已落；ask 仍 env Gateway；KB 绑定未做 |
 | 历史 indexVersion 分片浏览 | ADR-052 明确 P2 不做 |
 | Mongo 权威 body | 现读 PG `body_text` 演示字段；真 Mongo → B9 |
-| 数据面板 · 部门壳 · 全量角色 UI | B4–B6；见 admin 与 backlog |
+| 数据面板 · cross-grant · 全量角色 UI | B6 / ADR-057 余量；见 admin 与 backlog |
 | 用户端反馈控件 | 本包有 feedback **API**；web 是否接 UI 见 `web.md` |
 
 ---
