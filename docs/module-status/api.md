@@ -78,6 +78,11 @@ Hono HTTP 后端：入库 API、临时双 JWT 鉴权、单轮 ask 图 / **AI SDK
 - Gateway 切片（`GATEWAY_MODE` mock/http；缺 URL→mock client）
 - 检索适配层（RRF/打分；`RETRIEVE_ES_MODE` **默认 mock**；`http` **运行即拒** `not implemented`，≠ 生产 ES）
 - 观测骨架：进程内 metrics · memory tracer · ask 限流（`ASK_RATE_LIMIT_RPM` 默认 0=关）· `/metrics` 无鉴权
+- **P0 红线单测挂账**（清单 `docs/testing/p0-redlines.md`；**非** L1 黄金集 / **非**远程 CI）：  
+  - **R7** `filterDocsForRetrieve` / `corpus.test.ts`（生产装载路径；db `retrieval-gate` 为底层附录）  
+  - **R8** graph min 否决 → abstained（`graph.test.ts`）  
+  - **R9** happy 必经 verify + 负向未完整 verify 不得 answered（同文件）  
+  - 关键 `it` 标题含 `R#:`；**不**要求测内 stub `AUTH_ENFORCE`
 
 ---
 
@@ -115,7 +120,7 @@ Hono HTTP 后端：入库 API、临时双 JWT 鉴权、单轮 ask 图 / **AI SDK
 | 观测未接真 Langfuse | 可演示级指标 | `LANGFUSE_ENABLED` 默认 false |
 | `/metrics` 无鉴权 | 生产需网关保护 | 注释已标明；无 contracts 线型 |
 | sessions / auth TokenPair / documents status 出口 `as` | D1 漂移面 | 类型标注为主；非全量 Schema.parse |
-| 集成测 / 黄金集门禁 | 以单测为主 | backlog B10 |
+| 集成测 / L1 黄金集门禁 / 远程 CI redline job | 以 Vitest 单测 + 本地 type/test 为主 | P0 表 ≠ L1；B10；AUTH enforce 测 → 总 backlog **QUAL-1**；可选 `R#:` 过滤见 `docs/testing/p0-redlines.md` |
 
 ---
 
@@ -132,10 +137,11 @@ Hono HTTP 后端：入库 API、临时双 JWT 鉴权、单轮 ask 图 / **AI SDK
 | 知识库设置 | `apps/api/src/routes/kb-settings.ts` · `services/kb-settings.ts` · `routes/kb-settings.test.ts` |
 | 模型网关 B3 | `apps/api/src/routes/model-gateway.ts` · `services/model-gateway.ts` · `routes/model-gateway.test.ts` |
 | 鉴权 / 成员 | `apps/api/src/auth/` · `routes/members.ts` |
-| Gateway 运行时 / 检索 | `apps/api/src/services/gateway/`（env）· `services/retrieve/` |
+| Gateway 运行时 / 检索 | `apps/api/src/services/gateway/`（env）· `services/retrieve/`（`corpus.ts` · `filterDocsForRetrieve`） |
 | 观测 | `apps/api/src/obs/` |
 | env 默认 | `apps/api/src/env.ts`（`RETRIEVE_ES_MODE=mock` · `AUTH_ENFORCE=false` · `SESSION_REWRITE_ENABLED=false`） |
 | 单测 | `apps/api/src/**/*.test.ts`（ask / graph / retrieve / chunks / kb-settings / members / feedback / sessions / obs 等） |
+| P0 红线 | `docs/testing/p0-redlines.md` · `services/retrieve/corpus.test.ts`（R7）· `graph/graph.test.ts`（R8/R9） |
 | Task（B1） | `.trellis/tasks/archive/2026-08/08-06-b1-chunk-readonly/` |
 | Task（B2） | `archive/…/08-07-b2-kb-settings/` |
 | Task（B3） | `.trellis/tasks/08-07-b3-model-providers/`（完成后 archive） |

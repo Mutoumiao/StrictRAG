@@ -211,7 +211,7 @@ describe('runAskGraph M2 generate+citations', () => {
 });
 
 describe('runAskGraph M3 verify+min+budget', () => {
-  it('in-kb happy path → answered verified', async () => {
+  it('R9: in-kb happy path → answered verified（必经 verify）', async () => {
     const r = await runAskGraph(baseInput(), deps({ chat: happyChat }));
     expect(r.status).toBe('answered');
     expect(r.reason).toBe('verified');
@@ -222,7 +222,7 @@ describe('runAskGraph M3 verify+min+budget', () => {
     expect(r.debug?.llmCalls).toBe(3);
   });
 
-  it('min veto: one low score → unsupported_claims', async () => {
+  it('R8: min veto: one low score → unsupported_claims', async () => {
     const r = await runAskGraph(
       baseInput({ tauClaim: 0.5 }),
       deps({
@@ -246,7 +246,7 @@ describe('runAskGraph M3 verify+min+budget', () => {
     expect(r.answer).toBe('');
   });
 
-  it('claim_split parse fail → claim_split_failed', async () => {
+  it('R9: claim_split parse fail → 未完整 verify 不得 answered', async () => {
     const r = await runAskGraph(
       baseInput(),
       deps({
@@ -260,6 +260,7 @@ describe('runAskGraph M3 verify+min+budget', () => {
         }),
       }),
     );
+    expect(r.status).not.toBe('answered');
     expect(r).toMatchObject({ status: 'abstained', reason: 'claim_split_failed' });
   });
 

@@ -93,7 +93,7 @@ describe('AskPanel', () => {
     await waitFor(() => expect(askMock).toHaveBeenCalledWith('第一次问题'));
   });
 
-  it('answered 展示引用；abstained 非系统错误', () => {
+  it('R2: answered 展示引用；abstained 非系统错误', () => {
     hookState.view = { type: 'answered', data: makeAnsweredFinal() };
     const { rerender } = render(<AskPanel />);
     expect(screen.getByText('依据文档：答案正文')).toBeInTheDocument();

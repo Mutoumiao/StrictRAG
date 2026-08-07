@@ -47,13 +47,46 @@
 |----|------|
 | 运行 | `pnpm --filter @strict-rag/web test` |
 | 环境 | `vitest.config.ts`：`environment: 'jsdom'` · `include: ['src/**/*.test.{ts,tsx}']` · alias `@` → `src` |
-| 基建 | **仅** `src/test/`：`setup.ts`（jest-dom · cleanup · 清 storage）· re-export · fixtures |
+| 基建 | **仅** `src/test/`：`setup.ts`（jest-dom · cleanup · 清 storage）· re-export；ask final **工厂 SSOT** 见下 |
 | 用例位置 | 与实现 **同域** `foo.test.ts(x)`（对齐 api/worker）；**禁止**镜像整棵 `src/` 的中央 `test/` |
 | 查询 / 交互 | `getByRole` / `getByLabelText` · `userEvent.setup()`；禁 `querySelector` 测行为 |
 | Provider | **无**全局假 `renderWithProviders`（当前无 QueryClient 等）；需要时在单测内包；直接 `render` |
-| 必测红线 | final schema · lastQuestion 重试 · ready 无 final · session key 与 admin 隔离 |
-| 勿堆 | 纯 `mapBizError` 样板、登录页冒烟、每个 thin CRUD 全路径；改到再补 |
+| 必测红线 | final schema · lastQuestion 重试 · ready 无 final · session key 与 admin 隔离 · **P0 表 R1–R4/R10** |
+| P0 清单 | 仓库 `docs/testing/p0-redlines.md`；关闭该行的关键 `it` 标题含 `R#:`（同文件其它 it 可不改） |
+| 勿堆 | 登录页冒烟、每个 thin CRUD 全路径、全站 E2E；改到再补 |
 | E2E | 不放 `src/`；另目录/包；默认不进 `pnpm test` |
+
+### Convention: ask final fixture SSOT（R10）
+
+**What**：`makeAnsweredFinal` / `makeAbstainedFinal` 权威工厂在 **`@strict-rag/contracts/testing`**（非主入口 `@strict-rag/contracts`）。
+
+**Why**：web/api/contracts 共用同一 payload，避免双份 JSON 分叉导致「双端都绿却跨层假绿」。
+
+**Example**：
+
+```ts
+// Good — 直接或经兼容 re-export
+import { makeAbstainedFinal } from '@strict-rag/contracts/testing';
+// apps/web/src/test/fixtures/ask.ts 仅 re-export 同工厂
+
+// Bad — apps 内再抄一份 AskResponse 字面量当「同源」
+```
+
+**Related**：contracts [directory-structure · testing 导出](../../contracts/library/directory-structure.md)；清单 R10。
+
+### Convention: client-session 读路径测对齐 IS（R4）
+
+**What**：`readClientSession` **不**按 `expiresAtMs` 失效；红线测断言 **clear / 坏 JSON / 从未写入 → null**。
+
+**Why**：按「过期应 null」写测会逼产品改代码或假绿；expires 产品闸属 follow-up（总 backlog **DEC-1**），非 R4。
+
+```ts
+// Good：坏 JSON → null 且清 key
+localStorage.setItem(WEB_KEY, '{not-json');
+expect(readClientSession()).toBeNull();
+
+// Bad：断言「expiresAtMs 已过 → null」而实现无此分支
+```
 
 ### Session fixture（`saveClientSession`）
 
@@ -74,12 +107,15 @@ session: {
 
 ### 必测断言点（web）
 
-| 场景 | 断言 |
-|------|------|
-| 合法 `data-ask-final` answered/abstained | `view.type` 对应；非法 payload → `error` + 文案含终态无效 |
-| `status`→`ready` 且仍 loading | `view.type==='error'`；先 final 再 ready **不**覆盖 answered |
-| AskPanel 重试 | 提交后 input 空；点重试仍 `ask(lastQuestion)` |
-| session key | 只写 `strict-rag:web:client-session`；不写 admin key |
+| 场景 | 断言 | P0 |
+|------|------|-----|
+| 合法 `data-ask-final` answered/abstained | `view.type` 对应；非法 payload → `error` + 文案含终态无效 | R10 同工厂 |
+| `status`→`ready` 且仍 loading | `view.type==='error'`；先 final 再 ready **不**覆盖 answered | **R1** |
+| AskPanel abstained | `role=alert` 含拒答语义；**非**普通答案正文 / 非系统崩溃文案 | **R2** |
+| mapBizError 已知 code | 文案含 `CODE:` + message | **R3** |
+| session clear / 坏 JSON / 无写入 | `readClientSession()` → null | **R4** |
+| AskPanel 重试 | 提交后 input 空；点重试仍 `ask(lastQuestion)` | — |
+| session key | 只写 `strict-rag:web:client-session`；不写 admin key | — |
 
 ## 流式 view 状态机（`use-knowledge-ask`）
 

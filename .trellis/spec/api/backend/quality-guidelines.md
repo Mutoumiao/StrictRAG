@@ -55,6 +55,41 @@ S2 细节与错误矩阵见 [ask-pipeline](./ask-pipeline.md)。
 - Prettier 仓库统一  
 - 包依赖版本 `catalog:` / `workspace:*`  
 
+## 测试红线（P0 · 可执行）
+
+> 清单 SSOT：`docs/testing/p0-redlines.md`（R1–R10）。  
+> 本地门禁：`pnpm check-types` && `pnpm test`。  
+> **R1–R10 不要求** 测内 stub `AUTH_ENFORCE`（中间件 enforce → 总 backlog **QUAL-1**）。
+
+| id | 锚点 | 断言要点 |
+|----|------|----------|
+| **R7** | `services/retrieve/corpus.ts` · `filterDocsForRetrieve` | 未 `ready∧active` **不得**进语料；测在 `corpus.test.ts`（**生产装载路径**） |
+| **R8** | `graph/graph.test.ts` min veto | 低分 claim → `abstained` / `unsupported_claims`，**非** answered |
+| **R9** | graph verify | happy：合法 draft 经 verify；**负向**：未完整 verify（如 claim_split 失败）→ `status !== 'answered'` |
+
+### Convention: 检索闸测钉生产路径（R7）
+
+**What**：P0 R7 的 **PASS 主锚**是 api `filterDocsForRetrieve`（corpus 装载），不是单独的 db 纯函数测。
+
+**Why**：`packages/db` 的 `isDefaultRetrievable` 绿 **拦不住** corpus 漏调/绕过；db 测仅作附录勾选。
+
+```ts
+// Good — R7 钉装载过滤
+filterDocsForRetrieve([{ status: 'ready', lifecycle: 'draft', ... }]) // 不含该 id
+
+// Bad — 只绿 db retrieval-gate 就标 R7 PASS，忽略 api 是否调用
+```
+
+### Convention: R9 禁止仅用 llmCalls 代理
+
+**What**：happy 路径可 assert `debug.llmCalls === 3`（generate+claim_split+judge），但 **必须**另有负向：短路 verify 链不得 `answered`。
+
+**Why**：多一次无意义 LLM 调用仍可能保持 `llmCalls===3` 形状；负向才锁「禁止未 verify 成功态」。
+
+### Convention: 红线 it 标题
+
+关闭 R7/R8/R9 的关键 `it` 标题含 `R7:` / `R8:` / `R9:`（同文件其它用例可不改）。
+
 ## 反模式
 
 - **Bad**：为 demo 在 api 同步跑 embed 全流程占死事件循环  
@@ -65,6 +100,8 @@ S2 细节与错误矩阵见 [ask-pipeline](./ask-pipeline.md)。
 - **Bad**：route 内展开 Prompt / ES DSL；rerank 失败仍 `answered`  
 - **Bad**：`SESSION_REWRITE_ENABLED=true` 或把历史当 evidence  
 - **Bad**：`RETRIEVE_ES_MODE=mock` 时对外说「生产 ES」  
+- **Bad**：R7 只认 db 纯函数、不认 corpus 装载测  
+- **Bad**：R9 仅 `llmCalls===3` 无负向「不得 answered」  
 - **Good**：重活入队 worker；api 只做受理与查询；权限以码为准  
 - **Good**：`STORAGE_LOCAL_DIR` 相对路径解析到 monorepo 根  
 - **Good**：ask 走 `executeAsk` → `runAskGraph`；同步 DTO ≡ 流式 `data-ask-final`

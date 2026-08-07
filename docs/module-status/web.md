@@ -13,7 +13,7 @@
 
 ## 一句话
 
-Next.js 用户端：**登录 + 单轮问答（AI SDK 流）+ 会话列表/历史回放** 已接；KB 手填 id，无完整产品 IA，**无**连续追问/rewrite，**无**反馈提交 UI。包内有 RTL 红线测（**非** E2E）。
+Next.js 用户端：**登录 + 单轮问答（AI SDK 流）+ 会话列表/历史回放** 已接；KB 手填 id，无完整产品 IA，**无**连续追问/rewrite，**无**反馈提交 UI。包内有 Vitest/RTL **P0 红线测**（R1–R4/R10；**非** E2E、**非** L1 黄金集）。
 
 ---
 
@@ -44,9 +44,11 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流）+ 会话列表/历史
 - 构建：`next build --webpack`；`next.config` 含 `transpilePackages` + webpack `extensionAlias`
 - 依赖：`ai` · `@ai-sdk/react`（catalog）
 - `src/api/feedback.ts` 仅 HTTP 封装；**无**反馈 UI
-- **单元/组件测**（Vitest + jsdom + RTL）：`vitest.config.ts` · `src/test/{setup,test-utils,fixtures}` · 同域 `*.test.ts(x)`  
-  - 现有：`use-knowledge-ask` · `ask-panel` · `sessions.services`（失败/部分失败）· `client-session` · `map-biz-error`  
-  - **无** 登录页测 · **无** Guard 测 · **无** E2E · **无** `lib/http` refresh 测
+- **单元/组件测**（Vitest + jsdom + RTL）：`vitest.config.ts` · `src/test/{setup,test-utils}` · 同域 `*.test.ts(x)`  
+  - ask final 工厂：**`@strict-rag/contracts/testing`**（`src/test/fixtures/ask.ts` 仅 re-export）  
+  - P0 挂账（`docs/testing/p0-redlines.md`）：**R1** ready 无 final · **R2** abstain UI · **R3** mapBizError · **R4** clear/坏 JSON/无 token → null（**非** expires 产品闸）· **R10** 同工厂  
+  - 其它：`sessions.services`（失败/部分失败）· lastQuestion 重试  
+  - **无** 登录页测 · **无** Guard 测 · **无** E2E · **无** `lib/http` refresh 测 · **无** 客户端 expires 自动失效
 ---
 
 ## 明确未做 / 边界
@@ -69,7 +71,7 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流）+ 会话列表/历史
 | KB 手填 id | 演示门槛、易用性差 | 依赖运营/库管告知 id |
 | Soft Bento / pen 未像素对齐 | 观感非定稿 | 色板与原子在 `packages/ui`；本包只组合 |
 | 会话/错误态体验简陋 | 空/错态规格在文档，实现未全铺 | 功能地图 §4.16；RTL 测行为不测像素 |
-| 无 E2E · 无 http refresh 测 · 无 Guard 测 | 跨页/401 路径靠手测 | 红线测见证据段；扩测改到再补 |
+| 无 E2E · 无 http refresh 测 · 无 Guard 测 · 无 expires 读闸 | 跨页/401/过期靠手测或 API | P0 见 `docs/testing/p0-redlines.md`；expires 客户端闸 → 总 backlog **DEC-1**（待产品确认） |
 
 ---
 
@@ -82,7 +84,8 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流）+ 会话列表/历史
 | 问答面板 | `src/components/ask-panel.tsx` |
 | ask 流 | `src/hooks/use-knowledge-ask.ts`（含 ready 无 final 兜底）· `src/api/ask.ts` · `ask-panel.tsx`（`lastQuestion`） |
 | 会话 / 反馈客户端 | `src/api/sessions.ts` · `src/services/sessions.services.ts` · `src/api/feedback.ts`（无 UI） |
-| 前端测 | `vitest.config.ts` · `src/test/` · `hooks/use-knowledge-ask.test.ts` · `components/ask-panel.test.tsx` · `services/sessions.services.test.ts` · `auth/client-session.test.ts` · `lib/map-biz-error.test.ts` |
+| 前端测 | `vitest.config.ts` · `src/test/` · `hooks/use-knowledge-ask.test.ts`（R1）· `components/ask-panel.test.tsx`（R2）· `auth/client-session.test.ts`（R4）· `lib/map-biz-error.test.ts`（R3）· `services/sessions.services.test.ts` · fixtures → `@strict-rag/contracts/testing` |
+| P0 清单 | `docs/testing/p0-redlines.md`（本包 R1–R4 · 协作 R10） |
 | 命令 | `pnpm --filter @strict-rag/web test`（`package.json` → `vitest run`） |
 | 传输 | `src/lib/http.ts`（**尚无**单测） |
 | 样式入口 | `apps/web/src/app/globals.css` · `postcss.config.mjs` · `package.json`（tailwind · `build --webpack`） |

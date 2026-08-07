@@ -265,7 +265,9 @@ return c.json(okEnvelope(response), httpStatus);
 ## 交叉引用
 
 - 质量红线：[guides/quality-redlines](../../guides/quality-redlines.md)  
+- P0 自动化清单：`docs/testing/p0-redlines.md`（R7 corpus · R8 min · R9 verify 负向）  
 - 鉴权成员闸：[auth-authorization](./auth-authorization.md)  
-- 契约：`packages/contracts/src/ask/*`  
-- 检索闸：`packages/db/src/query/retrieval-gate.ts`  
+- 契约：`packages/contracts/src/ask/*` · 测试工厂 `@strict-rag/contracts/testing`  
+- 检索闸纯函数：`packages/db/src/query/retrieval-gate.ts`（底层）  
+- 检索闸 **生产装载**：`apps/api/src/services/retrieve/corpus.ts` · `filterDocsForRetrieve`（P0 R7 主锚）  
 - IS 镜像：`docs/module-status/api.md`

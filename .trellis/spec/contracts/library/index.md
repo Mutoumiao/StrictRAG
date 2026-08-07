@@ -16,6 +16,8 @@
 - [ ] ask options 是否 **strict 白名单**；scope 是否顶层？  
 - [ ] 前端是否用 contracts 类型，且 **path 只落在** 模块 `api.ts`（admin）或 `src/api/*`（web），而非页面/services 内联？  
 - [ ] 导出是否走 `src/index.ts` 且使用 `.js` 扩展名（NodeNext）？  
+- [ ] 测试专用工厂是否走 **`@strict-rag/contracts/testing`**（不进主 index）？  
+- [ ] 改 `AskResponse` 是否同步 `ask/fixtures` + R10 schema 测？  
 
 ## Quality Check
 
@@ -30,8 +32,8 @@
 
 | 指南 | 说明 |
 |------|------|
-| [directory-structure](./directory-structure.md) | 目录与导出（含 ask 域） |
-| [contracts-patterns](./contracts-patterns.md) | BizCode · ApiResponse · Zod；与 PRD 错误码对齐 |
+| [directory-structure](./directory-structure.md) | 目录与导出（含 ask 域 · **`./testing`**） |
+| [contracts-patterns](./contracts-patterns.md) | BizCode · ApiResponse · Zod · testing 工厂；与 PRD 错误码对齐 |
 | （交叉）[api ask-pipeline](../../api/backend/ask-pipeline.md) | ask HTTP/图消费本包 schema |
 | （交叉）[api error-handling](../../api/backend/error-handling.md) | HTTP 映射与过渡表 |
 

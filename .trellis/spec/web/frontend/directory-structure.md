@@ -63,7 +63,7 @@ apps/web/
 7. **store / 空 hooks 目录 / types**：不需要不建。  
 8. `page.tsx` 保持薄（路由 + 组合）。  
 9. **抽公共时机**（欠抽 / 过抽）：见 [module-layering §12.1](./module-layering.md)（与 admin 同纪律）；check 必查。  
-10. **测试**：行为测与源码同域 `*.test.ts(x)`；`src/test/` **只** setup/fixtures/re-export；禁止业务 import `*.test.*`；E2E 不进 `src/`。约定见 [quality-guidelines · 前端测试](./quality-guidelines.md)。
+10. **测试**：行为测与源码同域 `*.test.ts(x)`；`src/test/` **只** setup / re-export；ask final 工厂权威在 `@strict-rag/contracts/testing`（`src/test/fixtures/ask.ts` 仅 re-export）；禁止业务 import `*.test.*`；E2E 不进 `src/`。约定见 [quality-guidelines · 前端测试](./quality-guidelines.md) · P0 `docs/testing/p0-redlines.md`。
 
 ## 职责（产品）
 

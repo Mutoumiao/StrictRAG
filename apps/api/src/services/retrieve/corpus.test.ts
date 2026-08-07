@@ -12,7 +12,7 @@ describe('filterDocsForRetrieve（语料装载双闸门）', () => {
     { id: 'f', status: 'failed', lifecycle: 'active', docType: 'hr' },
   ] as const;
 
-  it('excludes draft / superseded / non-ready', () => {
+  it('R7: excludes draft / superseded / non-ready（未双就绪∧active 被滤）', () => {
     const ids = filterDocsForRetrieve([...base]).map((d) => d.id);
     expect(ids).toEqual(['a', 'e']);
   });

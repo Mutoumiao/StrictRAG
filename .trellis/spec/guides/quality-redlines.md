@@ -74,4 +74,24 @@ Epic `08-05-phase-2-ask` 已关并归档；**≠** 路线图 Phase 2 全文。
 - 该改动是否让 **拒答变少** 却无对应 ADR？  
 - evidence 文本在 generate 与 verify 是否 **同一切片**？  
 - 失败路径是否有 **稳定 reason 码**（非吞掉异常）？  
-- 是否误开 rewrite 或把历史当 evidence？
+- 是否误开 rewrite 或把历史当 evidence？  
+- 是否触及 **P0 自动化红线表**（见下）却未更新/未绿测？
+
+---
+
+## P0 自动化红线（清单 · 思考触发）
+
+> **WHAT 语义**仍以 `prds/08-quality` 为准。  
+> **可勾选必绿表（工程）**：仓库 `docs/testing/p0-redlines.md`（R1–R10）。  
+> 本地合并前门禁：`pnpm check-types` && `pnpm test`（远程 CI 非本期强制）。
+
+开工/改 ask·检索·拒答·鉴权小模块前自问：
+
+- [ ] 是否改了 R1–R10 任一锚点实现？→ 对应 `R#:` 测须仍绿  
+- [ ] 检索闸改动是否只测了 `packages/db` 纯函数？→ **生产装载路径**（api `filterDocsForRetrieve` / corpus）是否仍被覆盖？  
+- [ ] verify 路径是否只有 happy `llmCalls` 计数？→ 是否有 **负向**「未完整 verify 不得 answered」？  
+- [ ] 跨层 final 形状是否双端各写一份 JSON？→ 应用 `@strict-rag/contracts/testing`  
+- [ ] 是否误以为 R 表要求 stub `AUTH_ENFORCE`？→ **不要求**（API 中间件 enforce → 总 backlog **QUAL-1**）  
+- [ ] 是否把 `mapBizError` 字符串当 `shouldRefresh` 断言？→ admin 应直测 `ApiHttpError` 字段  
+
+包级 HOW：web/admin [quality-guidelines](../web/frontend/quality-guidelines.md) · api [quality-guidelines](../api/backend/quality-guidelines.md) · contracts [directory-structure](../contracts/library/directory-structure.md)。

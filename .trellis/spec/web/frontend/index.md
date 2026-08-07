@@ -33,7 +33,8 @@
 - [ ] 重试用 `lastQuestion`（非已空 `question`）  
 - [ ] 分层符合 [module-layering](./module-layering.md)  
 - [ ] **抽公共**：有无 A 类欠抽 / B 类过抽？ask 流与会话壳是否被错误合成上帝 hook？见 [§12.1](./module-layering.md)  
-- [ ] 改 ask/重试/session → 红线测仍绿；fixture 满足 `AuthSession`  
+- [ ] 改 ask/重试/session → 红线测仍绿（P0 R1–R4/R10 · `docs/testing/p0-redlines.md`）；fixture 满足 `AuthSession`  
+- [ ] ask final 是否来自 `@strict-rag/contracts/testing`（禁止手抄双份）？  
 - [ ] `pnpm --filter @strict-rag/web check-types` · `lint` · `test` · `build`（`next build --webpack`）  
 
 

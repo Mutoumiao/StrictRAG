@@ -82,7 +82,7 @@ describe('useKnowledgeAsk', () => {
     expect(result.current.view).toEqual({ type: 'error', code: 'BUDGET', message: '超时' });
   });
 
-  it('ready 仍 loading → 错误兜底；有 final 后 ready 不覆盖', async () => {
+  it('R1: ready 仍 loading → 错误兜底；有 final 后 ready 不覆盖', async () => {
     const { result, rerender } = renderHook(() =>
       useKnowledgeAsk({ kbId: 'kb-1', sessionId: null }),
     );

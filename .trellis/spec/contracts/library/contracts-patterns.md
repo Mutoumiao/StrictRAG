@@ -108,7 +108,16 @@ export type HealthResponse = z.infer<typeof HealthResponseSchema>;
 
 业务拒答 → 常 HTTP **200** + `status: abstained`；协议错误才 `ApiFailure`。
 
-### 3.3 Query 接线（强制）
+### 3.3 测试工厂（`@strict-rag/contracts/testing`）
+
+| 规则 | 说明 |
+|------|------|
+| 位置 | `src/ask/fixtures.ts`；入口 `src/testing.ts`；**exports `./testing`** |
+| 禁止 | 写入主 `index.ts`；业务 import testing |
+| R10 | `AskResponseSchema.safeParse(make*Final())` 必须绿；web 拒答 UI 用同工厂 |
+| 清单 | `docs/testing/p0-redlines.md` |
+
+### 3.4 Query 接线（强制）
 
 ```typescript
 // Correct：contracts Query + 默认值在 route

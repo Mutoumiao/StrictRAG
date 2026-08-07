@@ -74,8 +74,9 @@
 | 环境 | `vitest.config.ts`：jsdom · `src/**/*.test.{ts,tsx}` · `@` → `src` |
 | 基建 | **仅** `src/test/`（setup · re-export）；用例 **同域** 并置 |
 | 查询 | role/label；菜单/按钮按 **permissions** 断言显隐 |
-| 必测红线 | `admin.shell` Guard · `clipMenuForShell` 菜单 · 审批 decide/scan 显隐 · session/KB key 隔离 |
-| 勿堆 | 每个运营页全 CRUD 冒烟；无行为变化的纯展示页 |
+| 必测红线 | `admin.shell` Guard · `clipMenuForShell` 菜单 · 审批 decide/scan 显隐 · session/KB key 隔离 · **P0 R5/R6** |
+| P0 清单 | `docs/testing/p0-redlines.md`；关键 `it` 标题 `R#:` |
+| 勿堆 | 每个运营页全 CRUD 冒烟；无行为变化的纯展示页；完整登录浏览器旅程 |
 
 ### Guard mock（Strict Mode）
 
@@ -90,6 +91,25 @@ new ApiHttpError(code, message, shouldRefresh: boolean)
 
 测 `mapBizError` / services 时必须传第三参（通常 `false`），否则 `tsc` 红。
 
+### Convention: R5 断言 `ApiHttpError` 字段（非 mapBizError）
+
+**What**：P0 **R5** = 构造后直接 assert `.code` / `.shouldRefresh`（见 `apps/admin/src/lib/http-error.test.ts`）。  
+**R6** = `mapBizError` 只保证展示字符串含 code（`mapBizError` **故意不**透出 `shouldRefresh`）。
+
+**Why**：经 `mapBizError` 测 shouldRefresh 永远失败或逼改生产 API 返回结构化对象（本期非目标）。
+
+```ts
+// Good — R5
+const err = new ApiHttpError('UNAUTHORIZED', 'please refresh', true);
+expect(err.shouldRefresh).toBe(true);
+
+// Bad — 用 mapBizError 字符串断言 shouldRefresh
+expect(mapBizError(err)).toContain('shouldRefresh');
+```
+
+### P0 红线标题
+
+关闭 R5/R6 的关键 `it` 标题含 `R5:` / `R6:`。清单：`docs/testing/p0-redlines.md`。
 ### Session / KB key
 
 | Key | 用途 |

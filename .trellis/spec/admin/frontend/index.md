@@ -29,7 +29,8 @@
 - [ ] 分层符合 [module-layering](./module-layering.md)  
 - [ ] **抽公共**：有无 A1～A4 欠抽（≥3 处同形纯逻辑、≥4 模块同步改协议、path/wire 复制）？有无 B1～B4 过抽（仅形状像就上帝 hook / options 丛林 / 空 hooks）？见 [§12.1](./module-layering.md)  
 - [ ] 改 Guard/菜单/审批显隐 → 红线测仍绿；Guard mock 用持续 resolve（非 once）  
-- [ ] `ApiHttpError` 三参；session fixture 含 `app`/`permissions`/`expiresAtMs`  
+- [ ] `ApiHttpError` 三参；R5 直测字段（非 mapBizError）；R6 文案；session fixture 含 `app`/`permissions`/`expiresAtMs`  
+- [ ] P0 清单 R5/R6：`docs/testing/p0-redlines.md`  
 - [ ] `pnpm --filter @strict-rag/admin check-types` · `lint` · `test` · `build`（`next build --webpack`）  
 
 

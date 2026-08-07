@@ -10,7 +10,7 @@
 
 - [ ] 任务是否属于已批准范围？（勿把 backlog B1–B11 静默塞进已关 S2 epic）  
 - [ ] DTO/错误码是否来自 `@strict-rag/contracts`，且对外 code 为 **PRD §4 短名**？  
-- [ ] 触及 ask / 检索 / 验证时是否读 [quality-redlines](../../guides/quality-redlines.md) + [ask-pipeline](./ask-pipeline.md)？  
+- [ ] 触及 ask / 检索 / 验证时是否读 [quality-redlines](../../guides/quality-redlines.md) + [ask-pipeline](./ask-pipeline.md) + `docs/testing/p0-redlines.md`（R7–R9）？  
 - [ ] 权限是否 **以码为准**（读 [auth-authorization](./auth-authorization.md)）？  
 - [ ] ask / sessions / members / **chunks** / **kb settings** / **model-gateway** / **users·roles** / **departments** 是否 **始终**验码（与 `AUTH_ENFORCE` 无关）？平台码无 kb 成员闸  
 - [ ] 新登录/refresh/会话/ask 字段是否改 contracts + 双端 http？  
@@ -23,7 +23,8 @@
 
 - [ ] `pnpm --filter @strict-rag/api check-types` · `lint` · `test`  
 - [ ] 鉴权改动含 resolve / token rotation 测试  
-- [ ] ask 改动含 graph/route 拒答与成员 403 断言  
+- [ ] ask 改动含 graph/route 拒答与成员 403 断言；R8/R9（含负向 verify）仍绿  
+- [ ] 检索闸改动：R7 钉 **corpus `filterDocsForRetrieve`**（非仅 db 纯函数）  
 - [ ] 改 AI SDK 流路径时：是否有 **execute throw → data-ask-final + internal_guard** 回归测？  
 - [ ] 新增/已有 `*QuerySchema` 是否在对应 GET route `safeParse`（禁止契约死代码）？  
 - [ ] 提交说明写清 S2 最小 / mock / 未做项；禁止「全文 Phase 2 完成」  

@@ -35,10 +35,20 @@ describe('web client-session', () => {
     expect(readClientSession()?.accessToken).toBe('at-1');
   });
 
-  it('clear 后读不到', () => {
+  it('R4: clear 后读不到', () => {
     saveClientSession(sample);
     clearClientSession();
     expect(readClientSession()).toBeNull();
     expect(localStorage.getItem(WEB_KEY)).toBeNull();
+  });
+
+  it('R4: 坏 JSON 读路径 → null', () => {
+    localStorage.setItem(WEB_KEY, '{not-json');
+    expect(readClientSession()).toBeNull();
+    expect(localStorage.getItem(WEB_KEY)).toBeNull();
+  });
+
+  it('R4: 从未写入 → null（无 token）', () => {
+    expect(readClientSession()).toBeNull();
   });
 });

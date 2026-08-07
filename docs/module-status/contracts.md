@@ -12,7 +12,7 @@
 
 ## 一句话
 
-共享 **Zod 契约 + 业务码 + 队列名 + ApiResponse 信封**：P1 入库、B1–B5 与 S2 ask/会话/反馈/成员路径已有契约；**不是**全产品域完整 OpenAPI 覆盖。
+共享 **Zod 契约 + 业务码 + 队列名 + ApiResponse 信封**：P1 入库、B1–B5 与 S2 ask/会话/反馈/成员路径已有契约；另有 **测试专用** `@strict-rag/contracts/testing`（ask final 工厂，**非**生产 API）。**不是**全产品域完整 OpenAPI 覆盖。
 
 ---
 
@@ -38,6 +38,11 @@
 - KB 成员 + 邀请/移除响应（`ask/member.contract`）
 - AuthMe / TokenPair（`auth/session.contract`）
 - 契约单测：`ask/ask.contract.test.ts`
+
+### 测试辅助（仅 Vitest 消费）
+- 导出子路径 **`@strict-rag/contracts/testing`** → `src/testing.ts`（**未**挂主 `index.ts`）
+- `makeAnsweredFinal` / `makeAbstainedFinal`（`ask/fixtures.ts`）；**R10**：`ask/fixtures.test.ts` 对 `AskResponseSchema.safeParse`
+- 消费方：web `src/test/fixtures/ask.ts` re-export；清单 `docs/testing/p0-redlines.md`
 
 ### 知识库设置（B2）
 - `KbSettings` / `PatchKbSettingsBodySchema`（strict 白名单 + modes 唯一）（`kb/kb-settings.contract`）
@@ -81,12 +86,14 @@
 
 | 类型 | 指针 |
 |------|------|
-| 入口导出 | `packages/contracts/src/index.ts` |
+| 入口导出 | `packages/contracts/src/index.ts` · 测试 `package.json` exports `./testing` → `src/testing.ts` |
+| ask fixtures | `src/ask/fixtures.ts` · `fixtures.test.ts`（R10） |
 | 业务码 | `packages/contracts/src/common/biz-code.ts` |
 | 队列 | `packages/contracts/src/async/queues.ts` |
 | ask 域 | `packages/contracts/src/ask/*` |
 | 入库 | `packages/contracts/src/ingest/document.contract.ts` |
 | 分片 | `packages/contracts/src/ingest/chunk.contract.ts` · `chunk.contract.test.ts` |
 | 知识库设置 | `packages/contracts/src/kb/kb-settings.contract.ts` · `kb-settings.contract.test.ts` |
-| 单测 | `packages/contracts/src/ask/ask.contract.test.ts` · `ingest/chunk.contract.test.ts` · `kb/kb-settings.contract.test.ts` |
+| 单测 | `packages/contracts/src/ask/ask.contract.test.ts` · `ask/fixtures.test.ts` · `ingest/chunk.contract.test.ts` · `kb/kb-settings.contract.test.ts` · 其它 `system/*` 域测 |
+| P0 清单 | `docs/testing/p0-redlines.md`（本包 R10 协作） |
 | Task（归档） | `.trellis/tasks/archive/2026-08/08-05-p2-contracts-schema/` · P0/P1 archive |

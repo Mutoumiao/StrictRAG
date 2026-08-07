@@ -36,7 +36,7 @@
 |------|------|
 | [guides/index.md](./guides/index.md) | 思考指南总入口 |
 | [monorepo-boundaries](./guides/monorepo-boundaries.md) | 包边界、依赖方向、禁止项 |
-| [quality-redlines](./guides/quality-redlines.md) | RAG 质量红线（拒答 / min / evidence） |
+| [quality-redlines](./guides/quality-redlines.md) | RAG 质量红线（拒答 / min / evidence）；P0 自动化表 → `docs/testing/p0-redlines.md` |
 | [phase-scaffold-rules](./guides/phase-scaffold-rules.md) | 骨架阶段允许做什么 |
 | [cross-layer-thinking-guide](./guides/cross-layer-thinking-guide.md) | 跨层数据流 |
 | [code-reuse-thinking-guide](./guides/code-reuse-thinking-guide.md) | 复用与防重复 |

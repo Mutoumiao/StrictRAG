@@ -73,8 +73,10 @@ apps/web     → packages/{contracts, ui}
 ## 共享契约规则
 
 - **错误码与 `ApiResponse` 信封只放** `packages/contracts`（见 `biz-code.ts` · `response.ts`）  
-- 按域增文件：`common/*` + `system/*` + 未来 `kb/*` · `ask/*` 等  
+- 按域增文件：`common/*` + `system/*` + `kb/*` · `ask/*` 等  
 - ESM 子路径导出用 `.js` 后缀：`export * from './common/biz-code.js'`（见 `packages/contracts/src/index.ts`）  
+- **测试工厂**：`@strict-rag/contracts/testing`（ask final fixtures）；**禁止**挂主 `"."` 入口；业务 runtime 勿 import  
+- P0 红线清单：`docs/testing/p0-redlines.md`（本地 `check-types` + `test`）  
 - UI：`import { cn } from '@strict-rag/ui/lib/utils'`；组件 `@strict-rag/ui/components/ui/*`（子路径 exports）  
 - UI 主题：`packages/ui/src/theme.css` 为 Tailwind v4 入口；app 只经 `globals.css` 引入（见 [ui · component-guidelines](../ui/frontend/component-guidelines.md)）  
 - Next 消费 NodeNext 包：`transpilePackages` + webpack `extensionAlias`（`.js`→`.ts`）；`next build --webpack`

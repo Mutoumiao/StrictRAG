@@ -20,7 +20,7 @@
 |------|----------|
 | [phase-scaffold-rules](./phase-scaffold-rules.md) | 任何实现任务开工前 |
 | [monorepo-boundaries](./monorepo-boundaries.md) | 新增包、跨包 import、放逻辑位置 |
-| [quality-redlines](./quality-redlines.md) | 检索 / 生成 / 验证 / 拒答 / 门禁 |
+| [quality-redlines](./quality-redlines.md) | 检索 / 生成 / 验证 / 拒答 / 门禁；**P0 自动化表指针** |
 | [cross-layer-thinking-guide](./cross-layer-thinking-guide.md) | 数据穿越 api↔db↔worker↔web |
 | [code-reuse-thinking-guide](./code-reuse-thinking-guide.md) | 改常量、抽 helper、复制粘贴前 |
 
@@ -44,7 +44,7 @@
 - [ ] 改阈值 / mode / citation 策略  
 - [ ] 「先答了再说」或「降级仍 answered」的诱惑  
 
-→ [quality-redlines](./quality-redlines.md) · `prds/08-quality/`
+→ [quality-redlines](./quality-redlines.md) · `prds/08-quality/` · 工程清单 `docs/testing/p0-redlines.md`
 
 ### 包边界
 
