@@ -17,7 +17,18 @@
     },
     "lint": {
       "dependsOn": ["^lint"],
-      "env": ["APP_ENV", "API_BASE_URL", "NEXT_PUBLIC_APP_ENV", "NEXT_PUBLIC_API_BASE_URL"]
+      "env": [
+        "APP_ENV",
+        "API_BASE_URL",
+        "NEXT_PUBLIC_APP_ENV",
+        "NEXT_PUBLIC_API_BASE_URL",
+        "L1_KB_ID",
+        "L1_MAX_CASES",
+        "L1_TENANT_ID",
+        "L1_USER_ID",
+        "L1_GOLD_PATH",
+        "L1_OUT_DIR"
+      ]
     },
     "check-types": {
       "dependsOn": ["^check-types"],
@@ -44,7 +55,13 @@
         "DATABASE_URL",
         "REDIS_URL",
         "TAU_CLAIM",
-        "NODE_ENV"
+        "NODE_ENV",
+        "L1_KB_ID",
+        "L1_MAX_CASES",
+        "L1_TENANT_ID",
+        "L1_USER_ID",
+        "L1_GOLD_PATH",
+        "L1_OUT_DIR"
       ]
     }
   }

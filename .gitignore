@@ -11,6 +11,9 @@ node_modules
 # Local object storage mock
 .data/
 
+# L1 eval last-run reports (fixtures/l1/sample-report.md is committed)
+artifacts/
+
 # Testing
 coverage
 

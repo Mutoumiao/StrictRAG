@@ -89,6 +89,40 @@ ask 演示：先 seed `kb_members` + Bearer；入库演示继续 `AUTH_ENFORCE=f
 
 目标身份可换 Better Auth；**TokenPair 形状 + 验码层**保持。
 
+## L1 黄金集批跑（B10 工程底座）
+
+> **工程 dogfood ≠ 业务签字**。`mode=mock` 时 2×2 数字禁止写入签字页。
+
+| 项 | 说明 |
+|----|------|
+| Gold | 仓根 `fixtures/l1/gold.yaml`（≥30；逻辑 doc id 见 `fixtures/l1/README.md`） |
+| 样例报告 | `fixtures/l1/sample-report.md` |
+| 最近跑 | `artifacts/l1-last-run.{json,md}`（gitignore） |
+| 矩阵 | `src/eval/l1-matrix.ts`（纯函数；单测进 CI） |
+| CLI | `src/scripts/run-l1-golden.ts` → **executeAsk + skipTrace**（禁止第二套图） |
+
+```bash
+# CI 默认：矩阵 + mock 集成测（不跑真 LLM）
+pnpm --filter @strict-rag/api test
+
+# 手动截断冒烟（N≥5 可文档；需已入库的 L1_KB_ID）
+L1_KB_ID=<kb-uuid> L1_MAX_CASES=5 \
+  pnpm --filter @strict-rag/api exec tsx src/scripts/run-l1-golden.ts
+
+# 全量 30（本地；真 Gateway / live ES 时数字才有签字参考意义）
+L1_KB_ID=<kb-uuid> pnpm --filter @strict-rag/api exec tsx src/scripts/run-l1-golden.ts
+```
+
+| 环境变量 | 用途 |
+|----------|------|
+| `L1_KB_ID` | **必填**（CLI）测试库 |
+| `L1_MAX_CASES` | 截断题数 |
+| `L1_TENANT_ID` / `L1_USER_ID` | 可选；脚本有默认 |
+| `L1_GOLD_PATH` / `L1_OUT_DIR` | 可选覆盖路径 |
+| `RETRIEVE_ES_MODE` | 报告头 mode：`mock` \| `live`（http） |
+
+完整签字规模 / `eval_runs` 表 → backlog **B10-followup**。
+
 ## 模型 Gateway（S2 · #4）
 
 路径：`src/services/gateway/`（chat / embed / rerank）。

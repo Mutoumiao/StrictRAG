@@ -1,0 +1,231 @@
+{
+  "version": 1,
+  "description": "L1 engineering seed (≥30). Not a business sign-off set. expectedDocIds bind to fixtures/ingest-samples logical ids — see fixtures/l1/README.md",
+  "cases": [
+    {
+      "id": "l1-ans-001",
+      "question": "根据样例文档01，企业制度样例正文的要点是什么？（题1）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/01-doc"
+      ],
+      "rubric": "答出样例文档相关制度要点即可；本窗不对 A 命中率设下限"
+    },
+    {
+      "id": "l1-ans-002",
+      "question": "根据样例文档02，企业制度样例正文的要点是什么？（题2）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/02-doc"
+      ],
+      "rubric": "答出样例文档相关制度要点即可；本窗不对 A 命中率设下限"
+    },
+    {
+      "id": "l1-ans-003",
+      "question": "根据样例文档03，企业制度样例正文的要点是什么？（题3）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/03-doc"
+      ],
+      "rubric": "答出样例文档相关制度要点即可；本窗不对 A 命中率设下限"
+    },
+    {
+      "id": "l1-ans-004",
+      "question": "根据样例文档04，企业制度样例正文的要点是什么？（题4）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/04-doc"
+      ],
+      "rubric": "答出样例文档相关制度要点即可；本窗不对 A 命中率设下限"
+    },
+    {
+      "id": "l1-ans-005",
+      "question": "根据样例文档05，企业制度样例正文的要点是什么？（题5）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/05-doc"
+      ],
+      "rubric": "答出样例文档相关制度要点即可；本窗不对 A 命中率设下限"
+    },
+    {
+      "id": "l1-ans-006",
+      "question": "根据样例文档06，企业制度样例正文的要点是什么？（题6）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/06-doc"
+      ],
+      "rubric": "答出样例文档相关制度要点即可；本窗不对 A 命中率设下限"
+    },
+    {
+      "id": "l1-ans-007",
+      "question": "根据样例文档07，企业制度样例正文的要点是什么？（题7）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/07-doc"
+      ],
+      "rubric": "答出样例文档相关制度要点即可；本窗不对 A 命中率设下限"
+    },
+    {
+      "id": "l1-ans-008",
+      "question": "根据样例文档08，企业制度样例正文的要点是什么？（题8）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/08-doc"
+      ],
+      "rubric": "答出样例文档相关制度要点即可；本窗不对 A 命中率设下限"
+    },
+    {
+      "id": "l1-ans-009",
+      "question": "根据样例文档09，企业制度样例正文的要点是什么？（题9）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/09-doc"
+      ],
+      "rubric": "答出样例文档相关制度要点即可；本窗不对 A 命中率设下限"
+    },
+    {
+      "id": "l1-ans-010",
+      "question": "根据样例文档10，企业制度样例正文的要点是什么？（题10）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/10-doc"
+      ],
+      "rubric": "答出样例文档相关制度要点即可；本窗不对 A 命中率设下限"
+    },
+    {
+      "id": "l1-ans-011",
+      "question": "根据样例文档01，企业制度样例正文的要点是什么？（题11）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/01-doc"
+      ],
+      "rubric": "答出样例文档相关制度要点即可；本窗不对 A 命中率设下限"
+    },
+    {
+      "id": "l1-ans-012",
+      "question": "根据样例文档02，企业制度样例正文的要点是什么？（题12）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/02-doc"
+      ],
+      "rubric": "答出样例文档相关制度要点即可；本窗不对 A 命中率设下限"
+    },
+    {
+      "id": "l1-ans-013",
+      "question": "根据样例文档03，企业制度样例正文的要点是什么？（题13）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/03-doc"
+      ],
+      "rubric": "答出样例文档相关制度要点即可；本窗不对 A 命中率设下限"
+    },
+    {
+      "id": "l1-ans-014",
+      "question": "根据样例文档04，企业制度样例正文的要点是什么？（题14）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/04-doc"
+      ],
+      "rubric": "答出样例文档相关制度要点即可；本窗不对 A 命中率设下限"
+    },
+    {
+      "id": "l1-ans-015",
+      "question": "根据样例文档05，企业制度样例正文的要点是什么？（题15）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/05-doc"
+      ],
+      "rubric": "答出样例文档相关制度要点即可；本窗不对 A 命中率设下限"
+    },
+    {
+      "id": "l1-una-001",
+      "question": "公司在火星分部的带薪年假政策是什么？（不可答合成题1）",
+      "type": "unanswerable",
+      "rubric": "语料无此信息，应拒答"
+    },
+    {
+      "id": "l1-una-002",
+      "question": "公司在火星分部的带薪年假政策是什么？（不可答合成题2）",
+      "type": "unanswerable",
+      "rubric": "语料无此信息，应拒答"
+    },
+    {
+      "id": "l1-una-003",
+      "question": "公司在火星分部的带薪年假政策是什么？（不可答合成题3）",
+      "type": "unanswerable",
+      "rubric": "语料无此信息，应拒答"
+    },
+    {
+      "id": "l1-una-004",
+      "question": "公司在火星分部的带薪年假政策是什么？（不可答合成题4）",
+      "type": "unanswerable",
+      "rubric": "语料无此信息，应拒答"
+    },
+    {
+      "id": "l1-una-005",
+      "question": "公司在火星分部的带薪年假政策是什么？（不可答合成题5）",
+      "type": "unanswerable",
+      "rubric": "语料无此信息，应拒答"
+    },
+    {
+      "id": "l1-una-006",
+      "question": "公司在火星分部的带薪年假政策是什么？（不可答合成题6）",
+      "type": "unanswerable",
+      "rubric": "语料无此信息，应拒答"
+    },
+    {
+      "id": "l1-una-007",
+      "question": "公司在火星分部的带薪年假政策是什么？（不可答合成题7）",
+      "type": "unanswerable",
+      "rubric": "语料无此信息，应拒答"
+    },
+    {
+      "id": "l1-una-008",
+      "question": "公司在火星分部的带薪年假政策是什么？（不可答合成题8）",
+      "type": "unanswerable",
+      "rubric": "语料无此信息，应拒答"
+    },
+    {
+      "id": "l1-una-009",
+      "question": "公司在火星分部的带薪年假政策是什么？（不可答合成题9）",
+      "type": "unanswerable",
+      "rubric": "语料无此信息，应拒答"
+    },
+    {
+      "id": "l1-una-010",
+      "question": "公司在火星分部的带薪年假政策是什么？（不可答合成题10）",
+      "type": "unanswerable",
+      "rubric": "语料无此信息，应拒答"
+    },
+    {
+      "id": "l1-una-011",
+      "question": "公司在火星分部的带薪年假政策是什么？（不可答合成题11）",
+      "type": "unanswerable",
+      "rubric": "语料无此信息，应拒答"
+    },
+    {
+      "id": "l1-una-012",
+      "question": "公司在火星分部的带薪年假政策是什么？（不可答合成题12）",
+      "type": "unanswerable",
+      "rubric": "语料无此信息，应拒答"
+    },
+    {
+      "id": "l1-fp-001",
+      "question": "既然员工年假统一为 90 天，那么新人入职当月如何折算？",
+      "type": "false_premise",
+      "rubric": "题面含假前提，应拒答或澄清而非顺着胡答"
+    },
+    {
+      "id": "l1-fp-002",
+      "question": "根据制度所有 draft 文档默认进入检索，如何关闭该开关？",
+      "type": "false_premise",
+      "rubric": "题面含假前提，应拒答或澄清而非顺着胡答"
+    },
+    {
+      "id": "l1-fp-003",
+      "question": "公司规定 superseded 文档可被 ask 引用，如何标注引用生命周期？",
+      "type": "false_premise",
+      "rubric": "题面含假前提，应拒答或澄清而非顺着胡答"
+    }
+  ]
+}
