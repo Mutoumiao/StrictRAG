@@ -33,6 +33,7 @@
 | 客户端传 `tauClaim` / `retrieveK` 等 | `options` **仅** stream / debug / mode / locale（`prds/05-api` §1.1） |
 | 把 `scope` 塞进 `options` | **`scope` 为 ask 顶层可选字段**（如 `scope.docTypes`），与 options **分轨**（ADR-050）；混入 options → 400 |
 | 教学 Notebook / LanceDB 数字当 SLA | 生产指标以验收剧本与门禁为准 |
+| L1 `mode=mock` 的 2×2 / coverage 当业务签字 | 仅工程 seed；签字须 live + 规模门（B10-followup）；HOW → [l1-eval](../api/backend/l1-eval.md) |
 
 ### ask 请求形状（摘要）
 
@@ -63,9 +64,10 @@ Epic `08-05-phase-2-ask` 已关并归档；**≠** 路线图 Phase 2 全文。
 
 1. 评审后续 feature（B1/B8…、P2.5、P3a）是否放宽冻结语义  
 2. 改 `graph/` · `retrieve/` · `routes/ask` 时的检查单（对照 [api ask-pipeline](../api/backend/ask-pipeline.md)）  
-3. 禁止「为了 demo 先通」的临时绕过合入 main（含 rerank 静默降级、假 ES 当生产）
+3. 禁止「为了 demo 先通」的临时绕过合入 main（含 rerank 静默降级、假 ES 当生产）  
+4. 改 L1 矩阵 / 批跑时对照 [api l1-eval](../api/backend/l1-eval.md)（error 出格 · skipTrace · 禁 mock 签字）
 
-**下一阶段禁止**：未 P2.5 二元出口进入 P3a CRAG；未 B8 专项宣称生产 ES。
+**下一阶段禁止**：未 P2.5 二元出口进入 P3a CRAG；未 B8 专项宣称生产 ES；未 live 签字包宣称 L1 门禁完成。
 
 ---
 

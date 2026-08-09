@@ -63,7 +63,7 @@
 | 项目级对外承诺 | 统一链接到 [交付控制台 §0](../../prds/12-delivery-guides/04-交付控制台.md)，本文件不写对外话术长段 |
 | 包文档尚未补齐时 | 矩阵仍可标注端到端状态；"详见"一栏指向已有的包文档，或标注"包状态待补" |
 
-### 能力矩阵（2026-08-07）
+### 能力矩阵（2026-08-09）
 
 | 能力域 | 端到端成熟度 | 主包 | 协作包 | 详见 |
 |--------|--------------|------|--------|------|
@@ -74,7 +74,7 @@
 | **admin 运营面** | **可演示**（S2c 审批/成员 + B1–B5 最小功能 + B7 菜单裁剪；数据面板见 backlog） | `admin` | `api` · `admin-catalog` · `contracts` | [admin](./admin.md) · [admin-catalog](./admin-catalog.md) · backlog B6 |
 | **反馈** | **可联调**（API 已实现；web 端**尚无**反馈 UI） | `api` | `web`（未接 UI）· `db` | [api](./api.md) · [web](./web.md) |
 | **模型网关** | **可演示**（供应商增删改查 + 平台级绑定 + admin `/models` 页面；**Gateway 运行时仍走环境变量配置**；无知识库级绑定） | `api` | `admin` · `contracts` · `db` | [api · 模型供应商](./api.md) · [admin · 模型网关](./admin.md) · backlog 余量（运行时接线） |
-| **观测 / 评测** | **骨架**（进程内 metrics/tracer；没有 L1 黄金集评测门禁） | `api` | — | [api](./api.md) · backlog B10 |
+| **观测 / 评测** | **可联调**（进程内 metrics/tracer；**L1 工程 seed**：gold=30 + CLI/`executeAsk(skipTrace)` + 2×2；**mock 禁签字**；无 `eval_runs` / 无默认 CI 真 LLM） | `api` | — | [api · L1 节](./api.md) · backlog B10 部分 · B10-followup |
 | **契约 / Schema 基座** | **可联调**（支撑 P1/S2 路径；随业务能力扩展） | `contracts` / `db` | 全部业务包 | [contracts](./contracts.md) · [db](./db.md) |
 | **工程工具链** | **生产向**（全仓共享的 eslint/tsconfig 基线；无业务完成度故事） | `eslint-config` · `typescript-config` | 全仓 · `ui` | [eslint-config](./eslint-config.md) · [typescript-config](./typescript-config.md) · [ui](./ui.md)（可联调 · S2 首批原子组件） |
 
@@ -149,6 +149,6 @@ task 完成
 - 项目总 backlog（活跃 · 调度 + 架构事项）：`.trellis/tasks/08-06-project-backlog/status.md`
 - P2 产品挂账（已归档 · 仅 B1–B11）：`.trellis/tasks/archive/2026-08/08-05-phase-2-backlog/status.md`
 - S2 epic 签字记录（已归档）：`.trellis/tasks/archive/2026-08/08-05-phase-2-ask/sign-off.md`
-- 工程约定（HOW）：`.trellis/spec/`（含 `api/backend/ask-pipeline.md`）
+- 工程约定（HOW）：`.trellis/spec/`（含 `api/backend/ask-pipeline.md` · `api/backend/l1-eval.md`）
 - 产品 SSOT（WHAT）：`prds/00–11/`
 - 包级显微镜（IS）：本目录下的 `<包>.md`

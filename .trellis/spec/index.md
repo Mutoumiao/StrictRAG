@@ -29,6 +29,7 @@
 |------|--------|
 | [ask-pipeline](./api/backend/ask-pipeline.md) | 改 ask / 图 / 检索 / SSE / Gateway / 会话 |
 | [auth-authorization](./api/backend/auth-authorization.md) | 改登录 / 权限码 / 成员闸 |
+| [l1-eval](./api/backend/l1-eval.md) | 改 L1 黄金集 / 2×2 矩阵 / 批跑 CLI / fixtures |
 
 ## 跨包思考指南
 

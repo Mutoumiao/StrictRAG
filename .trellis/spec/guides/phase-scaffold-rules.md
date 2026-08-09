@@ -22,7 +22,8 @@
 | `docker/` | PG+Redis 默认；es/mongo/rustfs profile | `docker/docker-compose.yml` |
 
 **默认边界**：`RETRIEVE_ES_MODE=mock` · Gateway 可 mock · `AUTH_ENFORCE` 默认 false · **rewrite 强制 false**。  
-**未做**：Better Auth 生产 IdP · 真 ES+IK（B8）· CRAG/multi_hop · 完整运营台 · L1 黄金集门禁。
+**未做**：Better Auth 生产 IdP · 真 ES+IK（B8）· CRAG/multi_hop · 完整运营台 · **L1 业务签字门禁**（live 签字规模 / 覆盖率闸）。  
+**部分**：B10 L1 **工程 seed**（`fixtures/l1` + `eval/l1-matrix` + CLI；mock 数字 **禁**签字）— HOW 见 [api l1-eval](../api/backend/l1-eval.md)。
 
 ---
 

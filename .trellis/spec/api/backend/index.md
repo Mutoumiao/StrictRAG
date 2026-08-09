@@ -1,7 +1,7 @@
 # @strict-rag/api · Hono HTTP 后端
 
 > 路径：`apps/api` · 目标端口 **4000**  
-> 现状：**P0/P1 入库** + **S2 最小 ask** + **B1–B4** + **B5 部门组织壳最小**（`dept.manage` / 用户归属）+ 身份/授权骨架。  
+> 现状：**P0/P1 入库** + **S2 最小 ask** + **B1–B4** + **B5 部门组织壳最小**（`dept.manage` / 用户归属）+ 身份/授权骨架 + **B10 L1 工程 seed**（CLI + 2×2 矩阵；**≠** 业务签字门禁）。  
 > 默认：`RETRIEVE_ES_MODE=mock` · `AUTH_ENFORCE=false` · `SESSION_REWRITE_ENABLED=false`（强制）· Gateway 缺 URL→mock（**运行时仍 env，未读 DB 绑定**）· **JWT 未读 DB user_roles** · **未** `DEPT_ACL_ENFORCE` 检索强制。
 
 ---
@@ -18,6 +18,7 @@
 - [ ] 是否避免 route 内 SQL / ES DSL / 长 Prompt？  
 - [ ] 是否误开 `SESSION_REWRITE_ENABLED` 或宣称生产 ES？  
 - [ ] 密钥是否仅服务端 env（JWT 禁止 prod 默认 dev-only）？  
+- [ ] 触及 L1 评测时是否读 [l1-eval](./l1-eval.md)（`skipTrace` · error 出格 · mock 禁签字 · turbo `L1_*`）？  
 
 ## Quality Check
 
@@ -46,6 +47,7 @@
 | [model-gateway](./model-gateway.md) | **B3 模型供应商/平台绑定** · `model.gateway.manage` · Key 不回显 · 类型/042 闸 |
 | [platform-users-roles](./platform-users-roles.md) | **B4 用户/角色** · `user.manage` / `role.perm.manage` · 最后超管 · codes ⊆ catalog |
 | [departments](./departments.md) | **B5 部门壳** · `dept.manage` / 用户归属 · 禁环 · **≠** DEPT_ACL 强制 |
+| [l1-eval](./l1-eval.md) | **B10 L1 工程 seed** · `eval/l1-matrix` · CLI `run-l1-golden` · fixtures · **≠** 业务签字 |
 
 ## 依赖（package.json）
 

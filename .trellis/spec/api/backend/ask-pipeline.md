@@ -262,10 +262,28 @@ return c.json(okEnvelope(response), httpStatus);
 
 ---
 
+## Design Decision: 批跑 / 单测使用 skipTrace
+
+**Context**：L1 黄金集与大量 graph 单测若落 `ask_traces`，污染库表且拖慢。
+
+**Decision**：`ExecuteAskDeps.skipTrace: true` 跳过 `saveAskTrace`；route 生产路径 **不**传（默认落库）。  
+L1 批跑 **强制** skipTrace；细节见 [l1-eval](./l1-eval.md)。
+
+```ts
+// Good — 评测 / 重注入单测
+await executeAsk(params, { skipTrace: true, graphDeps: { ... } });
+
+// Bad — 批跑默认落库
+await executeAsk(params); // 30+ 题 × 多次迭代 → traces 噪声
+```
+
+---
+
 ## 交叉引用
 
 - 质量红线：[guides/quality-redlines](../../guides/quality-redlines.md)  
 - P0 自动化清单：`docs/testing/p0-redlines.md`（R7 corpus · R8 min · R9 verify 负向）  
+- L1 黄金集工程 seed：[l1-eval](./l1-eval.md)  
 - 鉴权成员闸：[auth-authorization](./auth-authorization.md)  
 - 契约：`packages/contracts/src/ask/*` · 测试工厂 `@strict-rag/contracts/testing`  
 - 检索闸纯函数：`packages/db/src/query/retrieval-gate.ts`（底层）  

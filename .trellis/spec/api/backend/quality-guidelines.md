@@ -47,7 +47,8 @@
 | S2 最小 | ask 图/SSE · 会话壳 · 反馈 · Gateway 切片 · 检索 mock · 观测骨架 |
 
 S2 细节与错误矩阵见 [ask-pipeline](./ask-pipeline.md)。  
-下一刀：按 backlog（B1/B8…）**新建** feature 任务；禁止宣称全文 Phase 2 / 生产 ES。
+L1 工程 seed 见 [l1-eval](./l1-eval.md)（**≠** 业务签字门禁）。  
+下一刀：按 backlog（B6/B8…）**新建** feature 任务；禁止宣称全文 Phase 2 / 生产 ES / L1 签字完成。
 
 ## 编码风格
 
@@ -102,9 +103,13 @@ filterDocsForRetrieve([{ status: 'ready', lifecycle: 'draft', ... }]) // 不含�
 - **Bad**：`RETRIEVE_ES_MODE=mock` 时对外说「生产 ES」  
 - **Bad**：R7 只认 db 纯函数、不认 corpus 装载测  
 - **Bad**：R9 仅 `llmCalls===3` 无负向「不得 answered」  
+- **Bad**：L1 `mode=mock` 的 coverage/A–D 写入业务签字页或宣称「L1 门禁 PASS」  
+- **Bad**：L1 批跑省略 `skipTrace`（污染 ask_traces）或 CI 强制 live 全量 LLM  
+- **Bad**：把 `outcome=error` 塞进 A–D 扭曲覆盖率  
 - **Good**：重活入队 worker；api 只做受理与查询；权限以码为准  
 - **Good**：`STORAGE_LOCAL_DIR` 相对路径解析到 monorepo 根  
 - **Good**：ask 走 `executeAsk` → `runAskGraph`；同步 DTO ≡ 流式 `data-ask-final`
 - **Good**：GET list/query 用 contracts `*QuerySchema.safeParse`；非法 400
+- **Good**：L1 复用 `eval/l1-matrix` + CLI `runL1Golden`；CI 钉纯函数/注入测（见 [l1-eval](./l1-eval.md)）
 - **Bad**：自写 SSE 分帧 / 只推 `data-status` 无终态 final / 推未校验 text-delta 当答案
 - **Bad**：contracts 已有 QuerySchema，route 仍手写 `Number(query)` / status if 链

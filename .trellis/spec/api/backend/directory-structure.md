@@ -38,11 +38,25 @@ apps/api/src/
     ask/                   # executeAsk · session-guard · traces 落库
     gateway/               # chat · embed · rerank（mock|http；**未**读 model_bindings 表）
     retrieve/              # 混合检索 · 双闸门 · RRF · scoring
+  eval/
+    l1-matrix.ts           # L1 2×2 纯函数（A–D · coverage）；error 不计格
+    l1-matrix.test.ts
+  scripts/
+    run-l1-golden.ts       # L1 批跑 CLI：串行 executeAsk(skipTrace) → artifacts/
+    run-l1-golden.test.ts  # loadGold · mock execute 注入（CI 不跑 live LLM）
   obs/                     # metrics · rate-limit · memory/ask tracer
   gates/                   # 上传体积 · 审批 scan
   ready/checks.ts
   lib/response.ts · pg-error.ts
   logger.ts
+```
+
+仓根 fixture / 产物（非 `src/`）：
+
+```text
+fixtures/l1/gold.yaml      # JSON 形；≥30 seed（非签字规模）
+fixtures/l1/README.md · sample-report.md
+artifacts/                 # gitignore；l1-last-run.{json,md}
 ```
 
 ## 职责
@@ -53,6 +67,7 @@ apps/api/src/
 | 身份 | Bearer access；refresh rotation（见 [auth-authorization](./auth-authorization.md)） |
 | 授权 | 权限码；**禁止** role 字符串单独放行 |
 | Ask | 始终 KB 成员闸；SQL/图/Prompt 不在 route 内展开（见 [ask-pipeline](./ask-pipeline.md)） |
+| L1 评测 | 纯矩阵 + CLI 批跑；**非** HTTP 自调用；见 [l1-eval](./l1-eval.md) |
 | 入队 | BullMQ；重活在 worker |
 | 契约 | `@strict-rag/contracts` |
 | 流 | 依赖 `ai`（catalog）；见 [ask-pipeline](./ask-pipeline.md) 流协议 |
@@ -64,5 +79,6 @@ apps/api/src/
 | 脚本 | 说明 |
 |------|------|
 | `dev` / `start` | tsx 起服 :4000 |
-| `test` | vitest（auth · graph · ask · retrieve · chunks · sessions · feedback · obs …） |
+| `test` | vitest（auth · graph · ask · retrieve · chunks · sessions · feedback · obs · **eval/l1** · **scripts/run-l1-golden** …） |
 | `check-types` / `lint` | tsc · eslint |
+| L1 CLI（tsx） | `L1_KB_ID=… pnpm --filter @strict-rag/api exec tsx src/scripts/run-l1-golden.ts` |

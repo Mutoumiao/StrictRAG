@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（P1 知识库 / 入库 + S2 问答 + B3 model_* + B4 platform_roles + **B5 departments**；Drizzle → PostgreSQL） |
 | 默认依赖模式 | 需要 `DATABASE_URL`；时间列使用本地格式字符串（见 ORM PRD） |
 | 关联模块 | `api` 与 `worker` 共用 client / schema；检索闸门谓词被 api 的 retrieve 模块复用 |
-| 最近更新 | 2026-08-07 |
+| 最近更新 | 2026-08-09（确认：仍无 `eval_runs`；L1 文件账本在仓根 `fixtures/l1`，非本包） |
 | Spec | `.trellis/spec/db/` |
 | PRD | `prds/03-data` · `prds/02-engineering/02-orm-drizzle.md` |
 
@@ -48,7 +48,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量 / 入库任务 
 | 项 | 说明 |
 |----|------|
 | 部门强制检索 / 跨部门授权 / 文档 owner_dept | 组织表已落地；检索 principals 与授权（grant）表未做 |
-| 评测集 / 黄金集表 | backlog B10 |
+| 评测集 / 黄金集 **PG 表**（`eval_runs`） | **本包无表**。文件账本在仓根 `fixtures/l1` + api CLI（B10 部分 · 属 `api` IS）；表结构 → **B10-followup** |
 | Mongo 正文 / ES 索引本体 | **不在**本包；对象与稀疏索引在其它存储中 |
 | 自动 migration 流水线产品化 | schema 已有；运维发布流程不在本状态文档夸大描述 |
 

@@ -43,8 +43,9 @@
 - [ ] 任何 ask 路径、retrieve、generate、verify  
 - [ ] 改阈值 / mode / citation 策略  
 - [ ] 「先答了再说」或「降级仍 answered」的诱惑  
+- [ ] L1 黄金集 / 覆盖率 / 批跑 CLI / 是否把 mock 数字当签字  
 
-→ [quality-redlines](./quality-redlines.md) · `prds/08-quality/` · 工程清单 `docs/testing/p0-redlines.md`
+→ [quality-redlines](./quality-redlines.md) · `prds/08-quality/` · 工程清单 `docs/testing/p0-redlines.md` · [l1-eval](../api/backend/l1-eval.md)
 
 ### 包边界
 

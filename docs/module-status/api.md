@@ -4,16 +4,16 @@
 |------|------|
 | 路径 | `apps/api` |
 | 端口 | 4000 |
-| 成熟度 | **可演示**（P0/P1 入库 + S2 最小问答 + B1–B5 最小运营 API；演示依赖 mock ES / mock Gateway） |
-| 默认依赖模式 | ES 检索 = `mock` · 鉴权 = 临时双 JWT（`AUTH_ENFORCE` **默认关闭**）· rewrite = 强制关闭 · 对象存储 = `local` 本地目录 · Gateway 缺少 URL 时自动降级为 mock（**仍读环境变量，尚未读 DB 绑定**）· JWT **尚未**读取 DB 中的 `user_roles` · **未开启** `DEPT_ACL_ENFORCE` 检索强制 · `ASK_RATE_LIMIT_RPM=0`（限流关闭） |
-| 关联模块 | 入库演示还需要 `worker` + PostgreSQL + Redis；契约来自 `@strict-rag/contracts`，schema 来自 `@strict-rag/db` |
-| 最近更新 | 2026-08-07 |
-| Spec | `.trellis/spec/api/backend/` |
-| PRD | `prds/05-api` · `04-pipelines` · `09-security` |
+| 成熟度 | **可演示**（P0/P1 入库 + S2 最小问答 + B1–B5 最小运营 API + B10 L1 **工程 seed**；演示依赖 mock ES / mock Gateway；L1 **≠** 业务签字门禁） |
+| 默认依赖模式 | ES 检索 = `mock` · 鉴权 = 临时双 JWT（`AUTH_ENFORCE` **默认关闭**）· rewrite = 强制关闭 · 对象存储 = `local` 本地目录 · Gateway 缺少 URL 时自动降级为 mock（**仍读环境变量，尚未读 DB 绑定**）· JWT **尚未**读取 DB 中的 `user_roles` · **未开启** `DEPT_ACL_ENFORCE` 检索强制 · `ASK_RATE_LIMIT_RPM=0`（限流关闭） · L1 CLI 需显式 `L1_KB_ID`（`turbo.json` 已登记 `L1_*` 透传） |
+| 关联模块 | 入库演示还需要 `worker` + PostgreSQL + Redis；契约来自 `@strict-rag/contracts`，schema 来自 `@strict-rag/db`；L1 gold 在仓根 `fixtures/l1/`（非 DB 表） |
+| 最近更新 | 2026-08-09（B10 L1 工程 seed 与代码对齐；spec `l1-eval`） |
+| Spec | `.trellis/spec/api/backend/`（含 [l1-eval](../../.trellis/spec/api/backend/l1-eval.md)） |
+| PRD | `prds/05-api` · `04-pipelines` · `08-quality` · `09-security` |
 
 ## 一句话状态
 
-基于 Hono 的 HTTP 后端：入库 API、临时双 JWT 鉴权、单轮问答图 / **AI SDK UI Message Stream** 流式输出以及会话外壳均已落地；但检索默认使用 **mock ES**，鉴权**不是**生产级身份认证（IdP）。
+基于 Hono 的 HTTP 后端：入库 API、临时双 JWT 鉴权、单轮问答图 / **AI SDK UI Message Stream** 流式输出以及会话外壳均已落地；另有 **L1 黄金集工程 seed**（文件 gold + CLI 批跑 `executeAsk(skipTrace)` + 2×2 报告）。检索默认 **mock ES**，鉴权**不是**生产级 IdP；**mock L1 数字禁止当业务签字**。
 
 ---
 
@@ -84,6 +84,14 @@
   - **R9** 正常路径必须经过 verify 环节；负向用例中未完整执行 verify 时不得标记为 answered（同一文件）
   - 关键 `it` 用例标题带 `R#:` 前缀；**不**要求测试内部 stub `AUTH_ENFORCE`
 
+### 评测 L1 工程 seed（B10 · 部分 · ≠ 业务签字）
+- 仓根 `fixtures/l1/gold.yaml`：**30 题** seed（answerable 15 / unanswerable 12 / false_premise 3）；扩展名 yaml、**内容为 JSON**（零 yaml 依赖）；逻辑 `expectedDocIds` 见 `fixtures/l1/README.md`
+- 纯函数 `apps/api/src/eval/l1-matrix.ts`：2×2（A–D）+ `coverage=A/(A+B)`（分母 0→null）；`outcome=error` **不计格**，只增 `errorCount`；单测同目录
+- CLI `apps/api/src/scripts/run-l1-golden.ts`：串行 **`executeAsk` + `skipTrace: true`**（可注入 `execute` / `graphDeps`）→ 仓根 `artifacts/l1-last-run.{json,md}`（**gitignore**）；报告含 **`mode`: mock|live|unknown**（由 `RETRIEVE_ES_MODE` 推导）
+- 跑法：`L1_KB_ID=<uuid> pnpm --filter @strict-rag/api exec tsx src/scripts/run-l1-golden.ts`（可选 `L1_MAX_CASES` 等；见 `apps/api/README.md`）
+- CI 范围：矩阵纯测 + mock 注入测（`*.test.ts` 共 14 断言路径已绿）；**默认不**在 CI 跑真 LLM / 真 ES 全量；样例文 `fixtures/l1/sample-report.md`（非 live 签字数字）
+- **边界**：**禁止** `mode=mock` 的 coverage/A–D 写入业务签字页；无 `eval_runs` 表、无 worker-eval、无 L2/L3；签字规模扩集 → backlog **B10-followup**
+
 ---
 
 ## 明确未做 / 边界
@@ -105,8 +113,9 @@
 | 知识库设置全量项（docTypes / 分片策略 / KB 级模型绑定）、ask 模式闸门、Gateway 读 DB | B2/B3 最小集已落地；ask 仍使用环境变量配置的 Gateway；KB 级绑定未做 |
 | 按历史 indexVersion 浏览分片 | ADR-052 明确 P2 阶段不做 |
 | Mongo 作为正文权威存储 | 目前演示读取的是 PG 的 `body_text` 字段；接真 Mongo 见 B9 |
-| 数据面板、跨部门授权、全量角色管理 UI | B6 / ADR-057 的剩余范围；详见 admin 文档与 backlog |
+| 数据面板、跨部门授权、全量角色管理 UI | B6 薄壳 task 已开单（`08-09-b6-dashboard-shell`），**本包尚无** dashboard 只读 API 代码；ADR-057 其余范围见 admin / backlog |
 | 用户端反馈控件 | 本包只提供 feedback **API**；web 端是否接 UI 见 `web.md` |
+| L1 业务签字门禁 / live 覆盖率闸 / `eval_runs` | 仅有文件账本 + CLI；**不**宣称 L1 门禁 PASS；见 **B10-followup** |
 
 ---
 
@@ -120,7 +129,7 @@
 | 观测未接真实 Langfuse | 指标只有可演示级别 | `LANGFUSE_ENABLED` 默认 false |
 | `/metrics` 无鉴权 | 生产环境需要网关层保护 | 代码注释已标明；contracts 中没有对应的线型定义 |
 | sessions / auth TokenPair / documents status 出口使用 `as` 断言 | 存在 D1 类型漂移面 | 以类型标注为主，未做全量 Schema.parse 校验 |
-| 缺少集成测试 / L1 黄金集门禁 / 远程 CI 红线任务 | 目前以 Vitest 单测 + 本地类型检查 / 测试为主 | P0 红线表 ≠ L1 黄金集；见 B10；AUTH 强制开启的测试挂账在总 backlog **QUAL-1**；可选的 `R#:` 过滤方式见 `docs/testing/p0-redlines.md` |
+| L1 业务签字包 / 远程 CI 红线任务 / live 门禁数字 | 工程 seed 已有（gold=30 + CLI + 2×2 单测）；**mock 数字禁止签字**；无 `eval_runs`、无默认 CI 真 LLM | B10 **部分** · task `08-09-b10-l1-golden-min`；完整签字 → **B10-followup**；P0 红线表 ≠ L1；AUTH enforce 测 → **QUAL-1**；HOW → `.trellis/spec/api/backend/l1-eval.md` |
 
 ---
 
@@ -139,14 +148,17 @@
 | 鉴权 / 成员 | `apps/api/src/auth/` · `routes/members.ts` |
 | Gateway 运行时 / 检索 | `apps/api/src/services/gateway/`（走环境变量）· `services/retrieve/`（`corpus.ts` · `filterDocsForRetrieve`） |
 | 观测 | `apps/api/src/obs/` |
-| 环境变量默认值 | `apps/api/src/env.ts`（`RETRIEVE_ES_MODE=mock` · `AUTH_ENFORCE=false` · `SESSION_REWRITE_ENABLED=false`） |
-| 单测 | `apps/api/src/**/*.test.ts`（ask / graph / retrieve / chunks / kb-settings / members / feedback / sessions / obs 等） |
+| L1 工程 seed | `fixtures/l1/gold.yaml` · `README.md` · `sample-report.md` · `apps/api/src/eval/l1-matrix.ts` · `l1-matrix.test.ts` · `apps/api/src/scripts/run-l1-golden.ts` · `run-l1-golden.test.ts` · `apps/api/README.md`（L1 节）· `.gitignore`（`artifacts/`）· `turbo.json`（`L1_*` env） |
+| 环境变量默认值 | `apps/api/src/env.ts`（`RETRIEVE_ES_MODE=mock` · `AUTH_ENFORCE=false` · `SESSION_REWRITE_ENABLED=false`）；L1 CLI 另读 `L1_KB_ID` 等（**非** `env.ts` Zod 必填） |
+| 单测 | `apps/api/src/**/*.test.ts`（ask / graph / retrieve / chunks / kb-settings / members / feedback / sessions / obs / **eval/l1** / **scripts/run-l1-golden** 等） |
 | P0 红线 | `docs/testing/p0-redlines.md` · `services/retrieve/corpus.test.ts`（R7）· `graph/graph.test.ts`（R8/R9） |
 | Task（B1） | `.trellis/tasks/archive/2026-08/08-06-b1-chunk-readonly/` |
 | Task（B2） | `archive/…/08-07-b2-kb-settings/` |
 | Task（B3） | `.trellis/tasks/08-07-b3-model-providers/`（完成后归档） |
+| Task（B10 部分） | `.trellis/tasks/08-09-b10-l1-golden-min/`（工程 seed；**未**标业务完成） |
+| Task（B6 进行中） | `.trellis/tasks/08-09-b6-dashboard-shell/`（**尚无**本包 dashboard 实现证据） |
 | Task（已归档） | `.trellis/tasks/archive/2026-08/08-05-phase-2-ask/` · 子任务 `08-05-p2-*` 同目录 |
 | 签字记录（已归档） | `.trellis/tasks/archive/2026-08/08-05-phase-2-ask/sign-off.md` |
-| 总 backlog | `.trellis/tasks/08-06-project-backlog/status.md`（架构 / 穿插事项） |
+| 总 backlog | `.trellis/tasks/08-06-project-backlog/status.md`（B10 部分 · B10-followup · B6 进行中） |
 | 产品挂账（已归档） | `.trellis/tasks/archive/2026-08/08-05-phase-2-backlog/status.md`（B1–B11） |
-| 工程规范（HOW） | `.trellis/spec/api/backend/ask-pipeline.md` |
+| 工程规范（HOW） | `.trellis/spec/api/backend/ask-pipeline.md` · **`l1-eval.md`**（L1 契约） |
