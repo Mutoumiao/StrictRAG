@@ -59,13 +59,16 @@
 - Department / Create / Patch / TreeNode / UserDepartmentAssignment / PutUserDepartments / UserDepartmentsView（`system/departments.contract`）
 - **不含** password 字段（strict 模式）；role code 使用 snake_case 命名
 
+### 数据面板（B6）
+- `DashboardSummarySchema`：`kbCount` / `documentCount` / `pendingApprovalCount` / `processReady` / 可选 `askCount24h`（`system/dashboard.contract`）
+
 ---
 
 ## 明确未做 / 边界
 
 | 项 | 说明 |
 |----|------|
-| 全量运营域契约 | 数据面板 / 跨部门授权 / KB 级模型绑定等尚未建立或未完成 |
+| 全量运营域契约 | 跨部门授权 / KB 级模型绑定 / APM 时序等尚未建立 |
 | 生产 OpenAPI 生成与发布 | 以 Zod 源码为准；没有独立的 swagger 发布流水线声明 |
 | 版本化兼容策略文档化 | 契约随能力增量扩展；破坏性变更必须先改 PRD 再动契约 |
 

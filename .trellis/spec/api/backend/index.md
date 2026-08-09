@@ -1,7 +1,7 @@
 # @strict-rag/api · Hono HTTP 后端
 
 > 路径：`apps/api` · 目标端口 **4000**  
-> 现状：**P0/P1 入库** + **S2 最小 ask** + **B1–B4** + **B5 部门组织壳最小**（`dept.manage` / 用户归属）+ 身份/授权骨架 + **B10 L1 工程 seed**（CLI + 2×2 矩阵；**≠** 业务签字门禁）。  
+> 现状：**P0/P1 入库** + **S2 最小 ask** + **B1–B5** + **B6 数据面板薄壳**（`dashboard.view` 只读 summary）+ 身份/授权骨架 + **B10 L1 工程 seed**（CLI + 2×2 矩阵；**≠** 业务签字门禁）。  
 > 默认：`RETRIEVE_ES_MODE=mock` · `AUTH_ENFORCE=false` · `SESSION_REWRITE_ENABLED=false`（强制）· Gateway 缺 URL→mock（**运行时仍 env，未读 DB 绑定**）· **JWT 未读 DB user_roles** · **未** `DEPT_ACL_ENFORCE` 检索强制。
 
 ---
@@ -12,7 +12,7 @@
 - [ ] DTO/错误码是否来自 `@strict-rag/contracts`，且对外 code 为 **PRD §4 短名**？  
 - [ ] 触及 ask / 检索 / 验证时是否读 [quality-redlines](../../guides/quality-redlines.md) + [ask-pipeline](./ask-pipeline.md) + `docs/testing/p0-redlines.md`（R7–R9）？  
 - [ ] 权限是否 **以码为准**（读 [auth-authorization](./auth-authorization.md)）？  
-- [ ] ask / sessions / members / **chunks** / **kb settings** / **model-gateway** / **users·roles** / **departments** 是否 **始终**验码（与 `AUTH_ENFORCE` 无关）？平台码无 kb 成员闸  
+- [ ] ask / sessions / members / **chunks** / **kb settings** / **model-gateway** / **users·roles** / **departments** / **dashboard** 是否 **始终**验码（与 `AUTH_ENFORCE` 无关）？平台码无 kb 成员闸  
 - [ ] 新登录/refresh/会话/ask 字段是否改 contracts + 双端 http？  
 - [ ] DB 是否经 `@strict-rag/db`（禁止 app 私有 schema）？  
 - [ ] 是否避免 route 内 SQL / ES DSL / 长 Prompt？  
@@ -47,6 +47,7 @@
 | [model-gateway](./model-gateway.md) | **B3 模型供应商/平台绑定** · `model.gateway.manage` · Key 不回显 · 类型/042 闸 |
 | [platform-users-roles](./platform-users-roles.md) | **B4 用户/角色** · `user.manage` / `role.perm.manage` · 最后超管 · codes ⊆ catalog |
 | [departments](./departments.md) | **B5 部门壳** · `dept.manage` / 用户归属 · 禁环 · **≠** DEPT_ACL 强制 |
+| [dashboard](./dashboard.md) | **B6 数据面板薄壳** · `dashboard.view` · 只读 summary ≤5 · **≠** APM |
 | [l1-eval](./l1-eval.md) | **B10 L1 工程 seed** · `eval/l1-matrix` · CLI `run-l1-golden` · fixtures · **≠** 业务签字 |
 
 ## 依赖（package.json）

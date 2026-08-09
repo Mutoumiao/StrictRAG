@@ -49,6 +49,11 @@ apps/admin/
           api.ts
           services.ts
           _components/models-workspace.tsx
+        dashboard/            # B6 数据面板薄壳
+          page.tsx
+          api.ts
+          services.ts
+          _components/dashboard-workspace.tsx
 ```
 
 > **再扩展**（按需长出，禁止空建）：`hooks/` · 可选 `store.ts` · 按用例拆更多 `*.services.ts`。  

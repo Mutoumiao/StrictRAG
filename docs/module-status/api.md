@@ -4,11 +4,11 @@
 |------|------|
 | 路径 | `apps/api` |
 | 端口 | 4000 |
-| 成熟度 | **可演示**（P0/P1 入库 + S2 最小问答 + B1–B5 最小运营 API + B10 L1 **工程 seed**；演示依赖 mock ES / mock Gateway；L1 **≠** 业务签字门禁） |
+| 成熟度 | **可演示**（P0/P1 入库 + S2 最小问答 + B1–B6 最小运营 API + B10 L1 **工程 seed**；演示依赖 mock ES / mock Gateway；L1 **≠** 业务签字门禁） |
 | 默认依赖模式 | ES 检索 = `mock` · 鉴权 = 临时双 JWT（`AUTH_ENFORCE` **默认关闭**）· rewrite = 强制关闭 · 对象存储 = `local` 本地目录 · Gateway 缺少 URL 时自动降级为 mock（**仍读环境变量，尚未读 DB 绑定**）· JWT **尚未**读取 DB 中的 `user_roles` · **未开启** `DEPT_ACL_ENFORCE` 检索强制 · `ASK_RATE_LIMIT_RPM=0`（限流关闭） · L1 CLI 需显式 `L1_KB_ID`（`turbo.json` 已登记 `L1_*` 透传） |
 | 关联模块 | 入库演示还需要 `worker` + PostgreSQL + Redis；契约来自 `@strict-rag/contracts`，schema 来自 `@strict-rag/db`；L1 gold 在仓根 `fixtures/l1/`（非 DB 表） |
-| 最近更新 | 2026-08-09（B10 L1 工程 seed 与代码对齐；spec `l1-eval`） |
-| Spec | `.trellis/spec/api/backend/`（含 [l1-eval](../../.trellis/spec/api/backend/l1-eval.md)） |
+| 最近更新 | 2026-08-09（B6 dashboard summary 薄壳；B10 L1 seed） |
+| Spec | `.trellis/spec/api/backend/`（含 [dashboard](../../.trellis/spec/api/backend/dashboard.md) · [l1-eval](../../.trellis/spec/api/backend/l1-eval.md)） |
 | PRD | `prds/05-api` · `04-pipelines` · `08-quality` · `09-security` |
 
 ## 一句话状态
@@ -70,6 +70,11 @@
 - 数据表：`departments` / `user_departments`；migration `0005_b5_departments`；测试用内存仓库
 - **尚未**通过 `DEPT_ACL_ENFORCE` 对检索 / 预览做部门强制隔离；**没有**文档级 `ownerDeptId` / visibility 过滤；**没有**跨部门授权（cross-grants）
 
+### 数据面板（B6 · 薄壳 · 只读）
+- `GET /api/v1/admin/dashboard/summary`：始终 `requirePermission('dashboard.view')`
+- 指标 ≤5：`kbCount` / `documentCount` / `pendingApprovalCount` / `processReady`（`runReadyChecks`）/ `askCount24h`（`ask_traces` 24h count）
+- SQL 在 `services/dashboard.ts`；memory repo 便于单测；**无**写路径、**无** schema 变更、**≠** APM
+
 ### 问答（S2 最小集）
 - 同步 ask 接口 + AI SDK UI Message Stream 流式输出（使用 `data-status` / `data-ask-final` 数据部件，**没有**自写的 `event: final` 事件）；采用**线性状态机**（不是 LangGraph.js）：检索 → 约束生成 → 验证 → 拒答，实现见 `graph/run.ts`
 - 流式异常处理：`execute` 抛错时仍会写出 `data-status phase=error` 与 `data-ask-final`（`reason=internal_guard`）；有单测覆盖（`routes/ask.test.ts`）
@@ -113,7 +118,8 @@
 | 知识库设置全量项（docTypes / 分片策略 / KB 级模型绑定）、ask 模式闸门、Gateway 读 DB | B2/B3 最小集已落地；ask 仍使用环境变量配置的 Gateway；KB 级绑定未做 |
 | 按历史 indexVersion 浏览分片 | ADR-052 明确 P2 阶段不做 |
 | Mongo 作为正文权威存储 | 目前演示读取的是 PG 的 `body_text` 字段；接真 Mongo 见 B9 |
-| 数据面板、跨部门授权、全量角色管理 UI | B6 薄壳 task 已开单（`08-09-b6-dashboard-shell`），**本包尚无** dashboard 只读 API 代码；ADR-057 其余范围见 admin / backlog |
+| 跨部门授权、DEPT_ACL 强制 | B5 仅组织壳；ADR-057 检索强制未开 |
+| APM / 时序观测大盘 | B6 仅为 `GET /admin/dashboard/summary` 只读计数 + processReady，**不是**观测生产向 |
 | 用户端反馈控件 | 本包只提供 feedback **API**；web 端是否接 UI 见 `web.md` |
 | L1 业务签字门禁 / live 覆盖率闸 / `eval_runs` | 仅有文件账本 + CLI；**不**宣称 L1 门禁 PASS；见 **B10-followup** |
 
@@ -145,20 +151,21 @@
 | 分片只读 | `apps/api/src/routes/chunks.ts` · `services/chunks.ts` · `routes/chunks.test.ts` |
 | 知识库设置 | `apps/api/src/routes/kb-settings.ts` · `services/kb-settings.ts` · `routes/kb-settings.test.ts` |
 | 模型网关 B3 | `apps/api/src/routes/model-gateway.ts` · `services/model-gateway.ts` · `routes/model-gateway.test.ts` |
+| 数据面板 B6 | `apps/api/src/routes/dashboard.ts` · `services/dashboard.ts` · `routes/dashboard.test.ts` |
 | 鉴权 / 成员 | `apps/api/src/auth/` · `routes/members.ts` |
 | Gateway 运行时 / 检索 | `apps/api/src/services/gateway/`（走环境变量）· `services/retrieve/`（`corpus.ts` · `filterDocsForRetrieve`） |
 | 观测 | `apps/api/src/obs/` |
 | L1 工程 seed | `fixtures/l1/gold.yaml` · `README.md` · `sample-report.md` · `apps/api/src/eval/l1-matrix.ts` · `l1-matrix.test.ts` · `apps/api/src/scripts/run-l1-golden.ts` · `run-l1-golden.test.ts` · `apps/api/README.md`（L1 节）· `.gitignore`（`artifacts/`）· `turbo.json`（`L1_*` env） |
 | 环境变量默认值 | `apps/api/src/env.ts`（`RETRIEVE_ES_MODE=mock` · `AUTH_ENFORCE=false` · `SESSION_REWRITE_ENABLED=false`）；L1 CLI 另读 `L1_KB_ID` 等（**非** `env.ts` Zod 必填） |
-| 单测 | `apps/api/src/**/*.test.ts`（ask / graph / retrieve / chunks / kb-settings / members / feedback / sessions / obs / **eval/l1** / **scripts/run-l1-golden** 等） |
+| 单测 | `apps/api/src/**/*.test.ts`（含 **dashboard** / eval/l1 / ask / chunks 等） |
 | P0 红线 | `docs/testing/p0-redlines.md` · `services/retrieve/corpus.test.ts`（R7）· `graph/graph.test.ts`（R8/R9） |
 | Task（B1） | `.trellis/tasks/archive/2026-08/08-06-b1-chunk-readonly/` |
 | Task（B2） | `archive/…/08-07-b2-kb-settings/` |
 | Task（B3） | `.trellis/tasks/08-07-b3-model-providers/`（完成后归档） |
 | Task（B10 部分） | `.trellis/tasks/08-09-b10-l1-golden-min/`（工程 seed；**未**标业务完成） |
-| Task（B6 进行中） | `.trellis/tasks/08-09-b6-dashboard-shell/`（**尚无**本包 dashboard 实现证据） |
+| Task（B6 薄 · 归档） | `.trellis/tasks/archive/2026-08/08-09-b6-dashboard-shell/` · 证据见上「数据面板 B6」 |
 | Task（已归档） | `.trellis/tasks/archive/2026-08/08-05-phase-2-ask/` · 子任务 `08-05-p2-*` 同目录 |
 | 签字记录（已归档） | `.trellis/tasks/archive/2026-08/08-05-phase-2-ask/sign-off.md` |
-| 总 backlog | `.trellis/tasks/08-06-project-backlog/status.md`（B10 部分 · B10-followup · B6 进行中） |
+| 总 backlog | `.trellis/tasks/08-06-project-backlog/status.md`（B6 已完成薄 · B10 部分 · B10-followup） |
 | 产品挂账（已归档） | `.trellis/tasks/archive/2026-08/08-05-phase-2-backlog/status.md`（B1–B11） |
-| 工程规范（HOW） | `.trellis/spec/api/backend/ask-pipeline.md` · **`l1-eval.md`**（L1 契约） |
+| 工程规范（HOW） | `.trellis/spec/api/backend/ask-pipeline.md` · **`dashboard.md`** · **`l1-eval.md`** |

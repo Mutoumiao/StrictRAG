@@ -14,6 +14,11 @@ packages/contracts/
       response.ts       # ApiMeta / ApiResponse / buildSuccess|Failure
     system/
       health.contract.ts
+      dashboard.contract.ts       # B6 数据面板 summary（≤5 只读指标）
+      dashboard.contract.test.ts
+      departments.contract.ts     # B5
+      model-gateway.contract.ts   # B3
+      platform-users-roles.contract.ts  # B4
     auth/
       session.contract.ts   # TokenPair 等
     ingest/
@@ -42,7 +47,7 @@ packages/contracts/
 | 域目录 | 放什么 |
 |--------|--------|
 | `common/` | 横切：业务码、响应信封、分页等 |
-| `system/` | 健康检查、就绪、运维探针 |
+| `system/` | 健康/就绪 · **dashboard summary（B6）** · departments · model-gateway · platform 用户角色 |
 | `auth/` | 登录/TokenPair/会话身份 DTO |
 | `ingest/` | 入库文档 DTO + **分片只读** list/detail（body **与** 全部成功响应） |
 | `ask/` | ask / session / feedback / member / reason / SSE |

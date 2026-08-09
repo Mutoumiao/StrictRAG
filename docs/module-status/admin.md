@@ -4,16 +4,16 @@
 |------|------|
 | 路径 | `apps/admin` |
 | 端口 | 3006 |
-| 成熟度 | **可演示**（S2c 运营薄壳：文档 / 审批 / 成员 / 分片 / 设置 / 模型 + 用户 / 角色 + **部门最小集**） |
+| 成熟度 | **可演示**（S2c 运营薄壳：文档 / 审批 / 成员 / 分片 / 设置 / 模型 + 用户 / 角色 / 部门 + **数据面板薄壳**） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT + admin **dev-login**（经 api）· 知识库 = 手工填写 uuid · 菜单 = `clipMenuForShell` 裁剪（catalog 为 SSOT） |
-| 关联模块 | API 依赖：`api` 的文档 / 审批 / 成员 / 分片 / 设置 / 模型 / 用户角色 / 部门接口；菜单与权限码：`admin-catalog`；类型契约：`contracts`；样式：`ui` |
-| 最近更新 | 2026-08-07 |
+| 关联模块 | API 依赖：`api` 的文档 / 审批 / 成员 / 分片 / 设置 / 模型 / 用户角色 / 部门 / **dashboard summary**；菜单与权限码：`admin-catalog`；类型契约：`contracts`；样式：`ui` |
+| 最近更新 | 2026-08-09 |
 | Spec | `.trellis/spec/admin/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · 审批 / 成员相关 API |
 
 ## 一句话状态
 
-Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 + 分片只读 + 知识库设置 + 模型网关最小集 + 用户 / 角色最小集 + 部门最小集** 均已接通；知识库靠手填 id 指定，外壳通过 catalog 的 **`clipMenuForShell`** 只显示已落地的路由，**不是**完整的运营台（没有部门强制隔离相关 UI）。包内配有 Vitest / RTL 红线测试（覆盖外壳 / Guard / 审批 + **P0 R5/R6**；**不是** E2E 测试）。
+Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 + 分片只读 + 知识库设置 + 模型网关最小集 + 用户 / 角色 / 部门最小集 + 数据面板薄壳** 均已接通；知识库靠手填 id 指定，外壳通过 catalog 的 **`clipMenuForShell`** 只显示已落地的路由，**不是**完整的运营台（没有 APM 时序 / 部门强制隔离相关 UI）。包内配有 Vitest / RTL 红线测试（覆盖外壳 / Guard / 审批 / **dashboard 403** + **P0 R5/R6**；**不是** E2E 测试）。
 
 ---
 
@@ -26,8 +26,12 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 
 ### 运营外壳（S2c · B7 菜单裁剪）
 - `AdminShell`：消费 `clipMenuForShell` 的裁剪结果（**没有**本地 href 白名单）；已落地 href 的 SSOT 在 `admin-catalog` 的 `ADMIN_IMPLEMENTED_HREFS`
-- 当前落地九条路由：`/documents` · `/approvals` · `/members` · `/chunks` · `/kb/settings` · `/models` · **`/users`** · **`/roles`** · **`/departments`**
+- 当前落地十条路由：`/dashboard` · `/documents` · `/approvals` · `/members` · `/chunks` · `/kb/settings` · `/models` · `/users` · `/roles` · `/departments`
 - 知识库手填 id，并通过 localStorage 记忆 `strict-rag:admin:last-kb-id`
+
+### 数据面板（B6 薄壳）
+- `/dashboard`：只读 3–5 指标（kb / 文档 / 待审 / processReady / 近 24h 问答）；`page → services → api` 分层
+- 需要 `dashboard.view`；无码菜单隐藏、直链 **403 态**；**不是** APM / Grafana
 
 ### 文档
 - `/documents`：按知识库拉取文档列表；表格展示 status / approval / lifecycle 列（**只读刷新**；审批操作在审批页进行）
@@ -71,13 +75,13 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 ### 工程
 - 传输层：`lib/http.ts`（Bearer 认证 + 单飞 refresh 机制）；知识库偏好：`lib/kb-context.ts`（**不是** HTTP 业务大杂烩）
 - 身份：`auth/api.ts`
-- 模块私有 API：`app/(ops)/{documents,approvals,members,chunks,kb/settings,models,users,roles}/api.ts`（**没有** `lib/admin-api.ts`，也**没有** `src/api/` 集中仓库）
+- 模块私有 API：`app/(ops)/{dashboard,documents,approvals,members,chunks,kb/settings,models,users,roles,departments}/api.ts`（**没有** `lib/admin-api.ts`，也**没有** `src/api/` 集中仓库）
 - `lib/http` 包含 `put` 方法（用于平台绑定 PUT 请求）
 - 类型来自 `@strict-rag/contracts`；菜单 / 权限码来自 `@strict-rag/admin-catalog`
 - 样式：Tailwind v4（`postcss.config.mjs`；`src/app/globals.css` 引入 `@strict-rag/ui/theme.css` 并配置 `@source`）；页面以 `className` + ui 原子组件为主，**没有**大面积用 `style={{}}` 写布局 / 色板
 - 构建：`next build --webpack`；`next.config` 配置 `transpilePackages` + webpack `extensionAlias`（用于把 ui 包内的 `.js` 引用解析到 `.ts` 源码）
 - **单元 / 组件测试**（Vitest + jsdom + RTL）：`vitest.config.ts` · `src/test/{setup,test-utils}` · 各模块同域的 `*.test.ts(x)`
-  - 现有覆盖：`admin-shell`（菜单按权限码裁剪）· `auth-guard`（`admin.shell` 权限）· `approvals-workspace`（decide / scan 按钮显隐）· `client-session` · `kb-context` · `map-biz-error`（**R6**）· **`http-error`（R5：`ApiHttpError.code` / `shouldRefresh` 字段）**
+  - 现有覆盖：`admin-shell`（含 `dashboard.view` 菜单）· `dashboard-workspace`（403 / 指标）· `auth-guard` · `approvals-workspace` · R5/R6 等
   - P0 清单：`docs/testing/p0-redlines.md`（本包负责 R5–R6）
   - **没有**文档 / 成员 / 分片 / 设置 / 模型 / 用户 / 角色 / 部门各工作区测试；**没有** E2E；**没有** `lib/http` 全路径 refresh 集成测试
 
@@ -89,7 +93,8 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 
 | 项 | 说明 |
 |----|------|
-| 数据面板、知识库设置全量项（docTypes / 分片策略 / KB 级模型绑定） | catalog 中有对应菜单项；部门页已随 B5 落地最小集；其余**尚无页面**（被菜单裁剪隐藏；归 B6 / 后续阶段） |
+| 知识库设置全量项（docTypes / 分片策略 / KB 级模型绑定） | B2 最小已落地；全量项仍挂账 |
+| APM / 时序大盘 / 告警 | B6 仅为只读计数摘要，**不是**观测生产向 |
 | 按历史 indexVersion 浏览分片的 UI | ADR-052 明确不做 |
 | 文档上传 UI | 列表只读；上传走 API 或其他入口 |
 | 完整运营 IA / 多知识库选择器 | 目前手填 uuid；不是产品级的库管体验 |
@@ -120,12 +125,12 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 | 类型 | 指针 |
 |------|------|
 | 外壳 / 菜单裁剪 | `apps/admin/src/components/admin-shell.tsx` → `clipMenuForShell`；href SSOT：`packages/admin-catalog/src/menu-tree.ts` |
-| 文档 / 审批 / 成员 / 分片 / 设置 / 模型页 | `apps/admin/src/app/(ops)/documents|approvals|members|chunks|kb/settings|models/` |
-| API 封装 | `apps/admin/src/app/(ops)/{documents,approvals,members,chunks,kb/settings,models}/api.ts` · `lib/http.ts` · `auth/api.ts` |
+| 文档 / 审批 / 成员 / 分片 / 设置 / 模型 / 面板页 | `apps/admin/src/app/(ops)/documents|approvals|members|chunks|kb/settings|models|dashboard|departments|users|roles/` |
+| API 封装 | `apps/admin/src/app/(ops)/{dashboard,documents,...}/api.ts` · `lib/http.ts` · `auth/api.ts` |
 | 登录 / 守卫 | `apps/admin/src/app/login/page.tsx` · `components/auth-guard.tsx` |
-| 前端测试 | `vitest.config.ts` · `src/test/` · `components/admin-shell.test.tsx` · `components/auth-guard.test.tsx` · `app/(ops)/approvals/_components/approvals-workspace.test.tsx` · `auth/client-session.test.ts` · `lib/kb-context.test.ts` · `lib/map-biz-error.test.ts`（R6）· `lib/http-error.test.ts`（R5） |
+| 前端测试 | `vitest.config.ts` · `src/test/` · `components/admin-shell.test.tsx` · `app/(ops)/dashboard/_components/dashboard-workspace.test.tsx` · `approvals-workspace.test.tsx` · R5/R6 等 |
 | P0 清单 | `docs/testing/p0-redlines.md`（本包 R5–R6） |
 | 命令 | `pnpm --filter @strict-rag/admin test`（`package.json` → `vitest run`） |
 | 样式入口 | `apps/admin/src/app/globals.css` · `postcss.config.mjs` · `package.json`（tailwind devDeps · `build --webpack`） |
 | 端口 | `apps/admin/package.json` → `next dev --port 3006` |
-| Task | 已归档 `08-07-b7-menu-clip-complete` · `08-07-b5-departments-shell` · `08-07-b4-platform-users-roles` · `08-07-b3-model-providers` · `08-07-b2-kb-settings` · `08-06-b1-chunk-readonly` |
+| Task | B6 归档 `archive/2026-08/08-09-b6-dashboard-shell`；B1–B5 · B7 同目录已归档 |

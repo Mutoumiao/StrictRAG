@@ -26,6 +26,9 @@ apps/api/src/
     feedback.ts            # 反馈队列
     kb-settings.ts         # B2 知识库设置
     model-gateway.ts       # B3 模型供应商 + 平台绑定
+    platform-users-roles.ts # B4
+    departments.ts         # B5
+    dashboard.ts           # B6 数据面板只读 summary
   middleware/
     request-id.ts          # X-Request-Id
     timeout.ts             # 可关全局 timeout；ask except
@@ -34,6 +37,7 @@ apps/api/src/
   # secureHeaders / notFound 直接在 app.ts 内联
   services/
     documents.ts · chunks.ts · members.ts · sessions.ts · feedback.ts · kb-settings.ts · model-gateway.ts
+    platform-users-roles.ts · departments.ts · dashboard.ts
     db.ts · storage.ts · queue.ts
     ask/                   # executeAsk · session-guard · traces 落库
     gateway/               # chat · embed · rerank（mock|http；**未**读 model_bindings 表）
