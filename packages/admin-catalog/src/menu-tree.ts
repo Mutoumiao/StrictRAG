@@ -84,6 +84,7 @@ export const MENU_TREE: readonly MenuNode[] = [
  * 新页落地时：先建 page，再把 href 加入此集合。
  */
 export const ADMIN_IMPLEMENTED_HREFS: ReadonlySet<string> = new Set([
+  '/dashboard',
   '/documents',
   '/approvals',
   '/members',

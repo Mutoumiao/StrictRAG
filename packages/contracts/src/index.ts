@@ -15,4 +15,5 @@ export * from './kb/kb-settings.contract.js';
 export * from './system/model-gateway.contract.js';
 export * from './system/platform-users-roles.contract.js';
 export * from './system/departments.contract.js';
+export * from './system/dashboard.contract.js';
 

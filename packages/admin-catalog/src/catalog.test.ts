@@ -9,8 +9,6 @@ import {
 } from './menu-tree.js';
 import { defaultCodesForRoles } from './role-templates.js';
 
-const UNLANDED = ['/dashboard'] as const;
-
 describe('defaultCodesForRoles', () => {
   it('doc_operator 无 approval.decide / member.manage', () => {
     const codes = defaultCodesForRoles(['doc_operator']);
@@ -68,7 +66,7 @@ describe('clipMenuForShell', () => {
     expect(hrefs).toEqual(['/documents']);
   });
 
-  it('kb_admin 含五条已实现运营路由，无 /models（默认无 model.gateway.manage）', () => {
+  it('kb_admin 含五条已实现运营路由，无 /models /dashboard（默认无对应码）', () => {
     const codes = defaultCodesForRoles(['kb_admin']);
     const hrefs = collectMenuHrefs(clipMenuForShell(codes));
     expect(hrefs).toEqual(
@@ -82,29 +80,24 @@ describe('clipMenuForShell', () => {
     );
     expect(hrefs).toHaveLength(5);
     expect(hrefs).not.toContain('/models');
-    for (const u of UNLANDED) {
-      expect(hrefs).not.toContain(u);
-    }
+    expect(hrefs).not.toContain('/dashboard');
   });
 
-  it('super_admin 含 /models /users /roles /departments；仍截断未落地 dashboard', () => {
+  it('super_admin 含 /dashboard /models /users /roles /departments（均已落地）', () => {
     const codes = defaultCodesForRoles(['super_admin']);
     const byCode = collectMenuHrefs(filterMenuByCodes(MENU_TREE, codes));
-    for (const u of UNLANDED) {
-      expect(byCode).toContain(u);
-    }
+    expect(byCode).toContain('/dashboard');
     expect(byCode).toContain('/models');
     expect(byCode).toContain('/users');
     expect(byCode).toContain('/roles');
     expect(byCode).toContain('/departments');
     const clipped = collectMenuHrefs(clipMenuForShell(codes));
-    for (const u of UNLANDED) {
-      expect(clipped).not.toContain(u);
-    }
+    expect(clipped).toContain('/dashboard');
     expect(clipped).toContain('/models');
     expect(clipped).toContain('/users');
     expect(clipped).toContain('/roles');
     expect(clipped).toContain('/departments');
+    expect(ADMIN_IMPLEMENTED_HREFS.has('/dashboard')).toBe(true);
     for (const h of ADMIN_IMPLEMENTED_HREFS) {
       expect(clipped).toContain(h);
     }

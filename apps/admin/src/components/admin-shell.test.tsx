@@ -53,7 +53,7 @@ describe('AdminShell', () => {
     localStorage.clear();
   });
 
-  it('按码裁剪菜单；无码无审批；未落地 dashboard 不出现', () => {
+  it('按码裁剪菜单；无码无审批/数据面板；有 dashboard.view 出现「数据面板」', () => {
     me.permissions = ['admin.shell', 'doc.view'];
     const { rerender } = render(
       <AdminShell>
@@ -79,6 +79,18 @@ describe('AdminShell', () => {
     );
     expect(screen.getByRole('link', { name: '审批中心' })).toHaveAttribute('href', '/approvals');
     expect(screen.getByRole('link', { name: '成员' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: '数据面板' })).not.toBeInTheDocument();
+
+    me.permissions = ['admin.shell', 'dashboard.view'];
+    rerender(
+      <AdminShell>
+        <div>child</div>
+      </AdminShell>,
+    );
+    expect(screen.getByRole('link', { name: '数据面板' })).toHaveAttribute(
+      'href',
+      '/dashboard',
+    );
   });
 
   it('KB 输入写 admin last-kb-id', async () => {
