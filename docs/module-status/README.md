@@ -1,138 +1,154 @@
 # 模块状态文档 · Module Status
 
-> **用途**：一眼看清「某模块已经具备什么、卡在什么阶段、有什么债」。  
-> 供人工审查与 Agent 交接；**不是**接口契约。
+> **用途**：让读者一眼看清「某个模块已经具备了什么、目前卡在哪个阶段、还欠哪些技术债」。
+> 本文档供人工审查与 Agent 交接使用；它**不是**接口契约文档。
+
+## 常用术语（先读这里）
+
+文档中反复出现的缩写和行话，统一解释如下：
+
+| 术语 | 含义 |
+|------|------|
+| **SSOT** | 唯一事实来源（Single Source of Truth）。某个信息只在这一处维护，其他地方都引用它 |
+| **壳 / 薄壳** | 最小可用的功能骨架：主流程能跑通，但界面和能力都还不完整 |
+| **闸 / 门禁** | 强制校验点。例如"审批闸"指审批未通过就不允许进入下一步 |
+| **挂账** | 把未完成的事项登记进 backlog（待办清单）跟踪，而不是忘掉它 |
+| **clip / 裁剪** | 菜单裁剪：按"用户权限 ∩ 已实现页面"过滤出实际可见的菜单项 |
+| **双 JWT** | 临时鉴权方案：access token + refresh token 配对使用，**不是**生产级身份认证（IdP） |
+| **红线测（P0）** | 回归红线测试：一旦破坏就必须立即修复的关键行为测试 |
+| **P0 / P1 / S2 / B1–B11** | 交付阶段与 backlog 条目编号，口径与"交付控制台"、`phase-2-backlog` 一致 |
+| **ADR** | 架构决策记录（Architecture Decision Record） |
 
 ## 精准度原则（最高优先级）
 
-**模块状态文档 = 当前代码的可核对镜像。** 读者应能据此相信「仓库里真实有什么」，而不是「计划做什么」或「task 写过什么」。
+**模块状态文档是当前代码的"可核对镜像"。** 读者读完之后，应该能相信"仓库里真实存在什么"，而不是"计划要做什么"或"某个任务曾经写过什么"。
 
 | 要求 | 说明 |
 |------|------|
-| **代码为唯一准绳** | 「已具备」必须能在源码/测试/env 中指到证据路径 |
-| **task 只作辅证** | 帮助定范围、挂 task id；**不能**单独支撑成熟度升级 |
-| **宁缺毋滥** | 不确定 → 写「未做 / 待核实」或降档，禁止含糊乐观 |
-| **默认模式必写清** | mock / 临时鉴权 / 强制关闭的开关写进「默认依赖模式」 |
-| **有码即更** | 代码已变而状态文档未变 = 文档错误；更新时以现码覆盖旧描述 |
+| **代码是唯一准绳** | 凡写进"已具备"的能力，必须能在源码、测试或环境变量中指出对应的证据路径 |
+| **任务记录只作辅证** | task 可以帮助界定范围、挂载 task 编号，但**不能**仅凭 task 记录就提升成熟度评级 |
+| **宁缺毋滥** | 不确定的内容，写成"未做 / 待核实"，或者主动降档；禁止含糊其辞、盲目乐观 |
+| **默认模式必须写清** | mock 依赖、临时鉴权、被强制关闭的开关，都要写进"默认依赖模式"一栏 |
+| **代码变了文档就要跟着变** | 代码已变化而状态文档未更新，就视为文档错误；更新时以当前代码为准覆盖旧描述 |
 
-冲突时：**源码 > 状态文档旧文 > task/sign-off 叙事 > spec 顶部「现状」一句话**。
+各种描述发生冲突时，采信顺序为：**源码 > 状态文档旧文 > task / 签字记录（sign-off）的叙述 > spec 顶部的"现状"一句话**。
 
-## 权威顺序（冲突时）
+## 权威顺序（冲突时以谁为准）
 
-| 问什么 | 以谁为准 | 路径 |
-|--------|----------|------|
-| **IS · 现在有什么** | **源码为真；本文档须与之同步** | 源码 · `docs/module-status/` |
-| **HOW · 怎么写** | Trellis Spec | `.trellis/spec/` |
-| **WHAT · 产品语义 / 接口契约** | PRD SSOT | `prds/00–11/` |
+| 问题类型 | 以谁为准 | 路径 |
+|----------|----------|------|
+| **IS · 现在实际有什么** | **源码为真；本文档必须与源码保持同步** | 源码 · `docs/module-status/` |
+| **HOW · 代码应该怎么写** | Trellis Spec（工程规范） | `.trellis/spec/` |
+| **WHAT · 产品语义 / 接口契约** | PRD SSOT（产品需求唯一来源） | `prds/00–11/` |
 
-说明：
+补充说明：
 
-- `.trellis/spec` 顶部「现状 / 占位」**可能滞后**；写代码规范仍读 spec，**判断完成度不要以 spec 一句话现状为准**。
-- `prds/12-delivery-guides/` 是交付白话，**不是**接口契约。
-- 状态文档写错时以 **源码** 回写纠正；task/sign-off 仅作对照，禁止用本文档覆盖 PRD 冻结语义。
+- `.trellis/spec` 顶部的"现状 / 占位"描述**可能滞后**。写代码规范时仍然读 spec，但**判断完成度时，不要以 spec 顶部那一句"现状"为准**。
+- `prds/12-delivery-guides/` 是面向交付的通俗说明，**不是**接口契约。
+- 状态文档写错时，以**源码**为准回写纠正；task / sign-off 仅作对照。禁止用本文档覆盖 PRD 已冻结的产品语义。
 
 ## 能力域 × 包（导航索引）
 
-> **角色**：回答「端到端某能力齐了吗？」——**目录，不是第二套状态正文**。  
-> **主轴仍是包级文档**（`docs/module-status/<包>.md`）；矩阵只写一句话成熟度 + 包落点 + 深链。  
-> **禁止**在矩阵展开完整「已具备 / 未做 / 债」；细节与证据一律进包文档。
+> **角色定位**：回答"某项端到端能力齐不齐"——它是**目录，不是第二套状态正文**。
+> **正文仍以包级文档为主**（`docs/module-status/<包>.md`）；矩阵每格只写一句话成熟度 + 涉及的包 + 跳转链接。
+> **禁止**在矩阵里展开完整的"已具备 / 未做 / 技术债"清单；细节与证据一律写进包文档。
 
 ### 使用规则
 
 | 规则 | 说明 |
 |------|------|
-| 端到端成熟度 | **只在本矩阵写一次**；包文档写本包成熟度 |
-| 冲突 | 以 **代码 + 包文档** 为准，再回写矩阵 |
-| 延期能力 | **总 backlog** [project-backlog](../../.trellis/tasks/08-06-project-backlog/status.md)（调度 + ARCH）；产品 B1–B11 阶段挂账 [phase-2-backlog](../../.trellis/tasks/archive/2026-08/08-05-phase-2-backlog/status.md)；**不在此复抄全文** |
-| 项目级承诺 | 链 [交付控制台 §0](../../prds/12-delivery-guides/04-交付控制台.md)，不在此写对外话术长段 |
-| 包文档待补 | 矩阵仍可标端到端状态；「详见」指向已有包文或标注「包状态待补」 |
+| 端到端成熟度 | **只在本矩阵写一次**；各包文档只写本包自身的成熟度 |
+| 冲突处理 | 以**代码 + 包文档**为准，再回写本矩阵 |
+| 延期能力 | 登记在**总 backlog** [project-backlog](../../.trellis/tasks/08-06-project-backlog/status.md)（调度 + 架构事项）；产品侧 B1–B11 阶段挂账在 [phase-2-backlog](../../.trellis/tasks/archive/2026-08/08-05-phase-2-backlog/status.md)；**本文件不复抄全文** |
+| 项目级对外承诺 | 统一链接到 [交付控制台 §0](../../prds/12-delivery-guides/04-交付控制台.md)，本文件不写对外话术长段 |
+| 包文档尚未补齐时 | 矩阵仍可标注端到端状态；"详见"一栏指向已有的包文档，或标注"包状态待补" |
 
-### 矩阵（2026-08-07）
+### 能力矩阵（2026-08-07）
 
 | 能力域 | 端到端成熟度 | 主包 | 协作包 | 详见 |
 |--------|--------------|------|--------|------|
-| **入库闭环** | **可演示**（scan/embed/ES 默认 mock；本地存储） | `worker` | `api` · `db` · `contracts` | [worker](./worker.md) · [api · 入库](./api.md#入库p1) |
-| **问答 ask / 流** | **可演示**（单轮信任环；AI SDK UI Message Stream；检索默认 mock ES） | `api` | `web` · `contracts` · `db` | [api · 问答](./api.md#问答s2-最小) · [web](./web.md) |
-| **会话壳** | **可演示**（列表/历史回放；**rewrite 关**） | `api` | `web` · `db` · `contracts` | [api · 问答](./api.md#问答s2-最小) · [web](./web.md) |
-| **鉴权 / ACL** | **可联调**（临时双 JWT；KB 成员 + 权限码；B4 用户/角色 + **B5 部门壳**；JWT 未读 DB 角色；**未**部门检索强制） | `api` | `admin-catalog` · `admin` · `web` · `contracts` · `db` | [api · 鉴权](./api.md#鉴权与权限) · [api · 部门](./api.md) · [admin-catalog](./admin-catalog.md) |
-| **admin 运营面** | **可演示**（S2c 审批/成员 + B1–B5 最小 + B7 菜单 clip；数据面板见 backlog） | `admin` | `api` · `admin-catalog` · `contracts` | [admin](./admin.md) · [admin-catalog](./admin-catalog.md) · backlog B6 |
-| **反馈** | **可联调**（API 已有；web **无**反馈 UI） | `api` | `web`（未接 UI）· `db` | [api](./api.md) · [web](./web.md) |
-| **模型网关** | **可演示**（Provider CRUD + 平台绑定 + admin `/models`；**Gateway 运行时仍 env**；无 KB 绑定） | `api` | `admin` · `contracts` · `db` | [api · 模型供应商](./api.md) · [admin · 模型网关](./admin.md) · backlog 余量（运行时接线） |
-| **观测 / 评测** | **骨架**（进程内 metrics/tracer；无 L1 黄金集门禁） | `api` | — | [api](./api.md) · backlog B10 |
-| **契约 / Schema 基座** | **可联调**（支撑 P1/S2 路径；随能力扩展） | `contracts` / `db` | 全业务包 | [contracts](./contracts.md) · [db](./db.md) |
-| **工程 tooling** | **生产向**（共享 eslint/tsconfig；无业务完成度故事） | `eslint-config` · `typescript-config` | 全仓 · `ui` | [eslint-config](./eslint-config.md) · [typescript-config](./typescript-config.md) · [ui](./ui.md)（可联调 · S2 原子） |
+| **入库闭环** | **可演示**（扫描 / 向量 / ES 默认均为 mock；对象存储用本地目录） | `worker` | `api` · `db` · `contracts` | [worker](./worker.md) · [api · 入库](./api.md#入库p1) |
+| **问答 ask / 流式输出** | **可演示**（单轮信任环；AI SDK UI Message Stream；检索默认 mock ES） | `api` | `web` · `contracts` · `db` | [api · 问答](./api.md#问答s2-最小) · [web](./web.md) |
+| **会话外壳** | **可演示**（会话列表与历史回放已通；**rewrite 处于关闭状态**） | `api` | `web` · `db` · `contracts` | [api · 问答](./api.md#问答s2-最小) · [web](./web.md) |
+| **鉴权 / 访问控制（ACL）** | **可联调**（临时双 JWT；已支持 KB 成员校验与权限码；B4 用户/角色与 **B5 部门骨架**已落地；JWT 尚未读取 DB 角色；**未开启**部门级检索强制隔离） | `api` | `admin-catalog` · `admin` · `web` · `contracts` · `db` | [api · 鉴权](./api.md#鉴权与权限) · [api · 部门](./api.md) · [admin-catalog](./admin-catalog.md) |
+| **admin 运营面** | **可演示**（S2c 审批/成员 + B1–B5 最小功能 + B7 菜单裁剪；数据面板见 backlog） | `admin` | `api` · `admin-catalog` · `contracts` | [admin](./admin.md) · [admin-catalog](./admin-catalog.md) · backlog B6 |
+| **反馈** | **可联调**（API 已实现；web 端**尚无**反馈 UI） | `api` | `web`（未接 UI）· `db` | [api](./api.md) · [web](./web.md) |
+| **模型网关** | **可演示**（供应商增删改查 + 平台级绑定 + admin `/models` 页面；**Gateway 运行时仍走环境变量配置**；无知识库级绑定） | `api` | `admin` · `contracts` · `db` | [api · 模型供应商](./api.md) · [admin · 模型网关](./admin.md) · backlog 余量（运行时接线） |
+| **观测 / 评测** | **骨架**（进程内 metrics/tracer；没有 L1 黄金集评测门禁） | `api` | — | [api](./api.md) · backlog B10 |
+| **契约 / Schema 基座** | **可联调**（支撑 P1/S2 路径；随业务能力扩展） | `contracts` / `db` | 全部业务包 | [contracts](./contracts.md) · [db](./db.md) |
+| **工程工具链** | **生产向**（全仓共享的 eslint/tsconfig 基线；无业务完成度故事） | `eslint-config` · `typescript-config` | 全仓 · `ui` | [eslint-config](./eslint-config.md) · [typescript-config](./typescript-config.md) · [ui](./ui.md)（可联调 · S2 首批原子组件） |
 
-**矩阵未覆盖、且明确未交付的能力**（勿从「可演示」行外推）：生产 ES+IK、真 RustFS/Mongo、rewrite/连续追问、CRAG/multi_hop、**DEPT_ACL 检索强制**、KB 设置全文（docTypes/分片/模型绑定）、ask `allowedModes` 闸、历史 indexVersion 分片浏览等 → 见 backlog 与交付控制台 §0。
+**矩阵未覆盖、且明确尚未交付的能力**（请不要从"可演示"的行向外推断）：生产级 ES + IK 分词、真实的 RustFS / Mongo、rewrite / 连续追问、CRAG / multi_hop、**部门级检索强制隔离（DEPT_ACL）**、知识库设置全量项（docTypes / 分片策略 / 模型绑定）、ask 的 `allowedModes` 闸门、按历史 indexVersion 浏览分片等 → 详见 backlog 与交付控制台 §0。
 
 ## 目录约定
 
 | 路径 | 说明 |
 |------|------|
 | `docs/module-status/README.md` | 本索引 + **能力矩阵** + 写法约定 |
-| `docs/module-status/<包名>.md` | 单模块状态（**IS 主文档**；与 `.trellis/spec` 包键对齐） |
+| `docs/module-status/<包名>.md` | 单个模块的状态（**IS 主文档**；包名与 `.trellis/spec` 的包键对齐） |
 
-**主轴**：一包一文件（可被 skill 回写、可挂证据）。  
-**导航**：上文能力矩阵（派生索引；禁止独立写成完整能力状态文）。
+**主轴**：一个包对应一个文件（可被 skill 自动回写、可挂证据链接）。
+**导航**：使用上文的能力矩阵（它是派生索引；禁止把它独立扩写成完整的能力状态正文）。
 
-**包清单（与 monorepo / trellis spec 对齐）**：
+**包清单（与 monorepo 结构及 trellis spec 对齐）**：
 
-| 包 | 路径 | 状态文档 | 模板档 | 备注 |
-|----|------|:--------:|--------|------|
+| 包 | 路径 | 状态文档 | 模板档位 | 备注 |
+|----|------|:--------:|----------|------|
 | `api` | `apps/api` | [api.md](./api.md) | 完整六段 | ✅ |
 | `worker` | `apps/worker` | [worker.md](./worker.md) | 完整六段 | ✅ |
 | `web` | `apps/web` | [web.md](./web.md) | 完整六段 | ✅ |
 | `admin` | `apps/admin` | [admin.md](./admin.md) | 完整六段 | ✅ S2c 薄壳 |
-| `contracts` | `packages/contracts` | [contracts.md](./contracts.md) | 完整六段 | ✅ 按契约域 |
-| `db` | `packages/db` | [db.md](./db.md) | 完整六段 | ✅ 按 schema 域 |
+| `contracts` | `packages/contracts` | [contracts.md](./contracts.md) | 完整六段 | ✅ 按契约域组织 |
+| `db` | `packages/db` | [db.md](./db.md) | 完整六段 | ✅ 按 schema 域组织 |
 | `admin-catalog` | `packages/admin-catalog` | [admin-catalog.md](./admin-catalog.md) | 中等 | ✅ 权限码 + 菜单 |
-| `ui` | `packages/ui` | [ui.md](./ui.md) | 中等 | ✅ Soft Bento theme + 首批原子 |
-| `eslint-config` | `packages/eslint-config` | [eslint-config.md](./eslint-config.md) | 极瘦 | ✅ |
-| `typescript-config` | `packages/typescript-config` | [typescript-config.md](./typescript-config.md) | 极瘦 | ✅ |
+| `ui` | `packages/ui` | [ui.md](./ui.md) | 中等 | ✅ Soft Bento 主题 + 首批原子组件 |
+| `eslint-config` | `packages/eslint-config` | [eslint-config.md](./eslint-config.md) | 极简 | ✅ |
+| `typescript-config` | `packages/typescript-config` | [typescript-config.md](./typescript-config.md) | 极简 | ✅ |
 
 ## 成熟度标签（统一口径）
 
 | 标签 | 含义 |
 |------|------|
-| **骨架** | 能编译/起进程；业务能力几乎无 |
-| **可联调** | 主路径可跑，依赖 mock 或 dev 开关 |
-| **可演示** | 垂直切片可展示；**≠** 生产就绪 |
-| **生产向** | 真依赖、门禁、运维面齐备（当前仓库业务包很少到此）。**特例**：纯 tooling 包（eslint/tsconfig）表示「全仓在用的共享基线」，**不**表示业务 SLA |
+| **骨架** | 能编译、能起进程；但几乎没有业务能力 |
+| **可联调** | 主路径可以跑通，但依赖 mock 或开发开关 |
+| **可演示** | 有一条可以展示的垂直切片；**不等于**生产就绪 |
+| **生产向** | 真实依赖、质量门禁、运维面都已齐备（当前仓库的业务包很少达到这一档）。**特例**：纯工具链包（eslint/tsconfig）打此标签表示"全仓在用的共享基线"，**不**表示任何业务 SLA |
 
-**规则**：
+**使用规则**：
 
-- 元信息「成熟度」**只允许一个主标签**（四选一）。  
-- 补充说明写在括号内，例如：`**可演示**（依赖 mock ES）`。  
-- **禁止**写成 `可联调 / 可演示` 这类双标签。
+- 元信息里的"成熟度"**只允许填一个主标签**（四选一）。
+- 补充说明写在括号内，例如：`**可演示**（依赖 mock ES）`。
+- **禁止**写成 `可联调 / 可演示` 这类双标签并列。
 
-阶段话术：`P0` / `P1` / `S2 最小` 等与交付控制台、`phase-2-backlog` 一致；**禁止**把「S2 最小」写成「Phase 2 全文」。
+阶段话术：`P0` / `P1` / `S2 最小` 等编号与交付控制台、`phase-2-backlog` 保持一致；**禁止**把"S2 最小"写成"Phase 2 全文"。
 
 ## 单模块文档结构（固定）
 
-每份 `<包名>.md` 保持短、可扫：
+每份 `<包名>.md` 保持简短、可快速扫读，固定包含以下六段：
 
-1. **元信息表**（路径、成熟度、最近更新、spec/PRD 指针；建议含默认依赖模式）
+1. **元信息表**（路径、成熟度、最近更新、spec/PRD 指针；建议包含默认依赖模式）
 2. **一句话状态**
 3. **已具备能力**（按功能分类列点）
-4. **明确未做 / 边界**（本包能力边界；他包 UI 挂账另起一小节或交叉引用，勿糊在一起）
+4. **明确未做 / 边界**（本包自身的能力边界；属于其他包的 UI 挂账请另起一小节或交叉引用，不要混在一起）
 5. **技术债**
-6. **证据**（关键路径、单测、关联 task；路径尽量带 `apps|packages/<pkg>/…`）
+6. **证据**（关键路径、单测、关联 task；路径尽量写成 `apps|packages/<pkg>/…` 形式）
 
-更新时机（后续 skill 化）：
+更新时机（后续将 skill 化）：
 
 ```text
 task 完成
-  → 更新触达包的 docs/module-status/<包>.md
-  → 若端到端能力成熟度变化 → 只改上文矩阵对应行（不写长叙事）
-  → 延期/裁出能力 → backlog；对外承诺边界变化 → 交付控制台 §0
-  → 写法约定变化 → .trellis/spec
+  → 更新触及到的包的 docs/module-status/<包>.md
+  → 若端到端能力成熟度发生变化 → 只改上文矩阵的对应行（不写长篇叙述）
+  → 延期 / 被裁掉的能力 → 记入 backlog；对外承诺边界变化 → 交付控制台 §0
+  → 写法约定变化 → 改 .trellis/spec
 ```
 
 ## 交叉引用
 
-- 交付总览（项目望远镜）：`prds/12-delivery-guides/04-交付控制台.md` §0  
-- 项目总 backlog（活 · 调度 + ARCH）：`.trellis/tasks/08-06-project-backlog/status.md`  
-- P2 产品挂账（归档 · 仅 B1–B11）：`.trellis/tasks/archive/2026-08/08-05-phase-2-backlog/status.md`  
-- S2 epic 签字（归档）：`.trellis/tasks/archive/2026-08/08-05-phase-2-ask/sign-off.md`  
-- 工程约定（HOW）：`.trellis/spec/`（含 `api/backend/ask-pipeline.md`）  
-- 产品 SSOT（WHAT）：`prds/00–11/`  
-- 包显微镜（IS）：本目录 `<包>.md`
+- 交付总览（项目望远镜）：`prds/12-delivery-guides/04-交付控制台.md` §0
+- 项目总 backlog（活跃 · 调度 + 架构事项）：`.trellis/tasks/08-06-project-backlog/status.md`
+- P2 产品挂账（已归档 · 仅 B1–B11）：`.trellis/tasks/archive/2026-08/08-05-phase-2-backlog/status.md`
+- S2 epic 签字记录（已归档）：`.trellis/tasks/archive/2026-08/08-05-phase-2-ask/sign-off.md`
+- 工程约定（HOW）：`.trellis/spec/`（含 `api/backend/ask-pipeline.md`）
+- 产品 SSOT（WHAT）：`prds/00–11/`
+- 包级显微镜（IS）：本目录下的 `<包>.md`

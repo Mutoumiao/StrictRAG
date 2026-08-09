@@ -3,33 +3,33 @@
 | 字段 | 内容 |
 |------|------|
 | 路径 | `packages/ui` |
-| 成熟度 | **可联调**（S2 首批 shadcn 风格原子 + Soft Bento token；非完整设计系统） |
-| 默认依赖模式 | 纯库；**不**在本包跑 PostCSS 生产构建（class 由 admin/web 扫描生成） |
-| 关联模块 | `admin` · `web`（子路径 import）；`theme.css` 由 app `globals.css` 引入 |
+| 成熟度 | **可联调**（S2 首批 shadcn 风格原子组件 + Soft Bento 设计 token；不是完整设计系统） |
+| 默认依赖模式 | 纯库；**不**在本包内跑 PostCSS 生产构建（CSS 类由 admin / web 应用侧扫描生成） |
+| 关联模块 | 被 `admin` · `web` 以子路径方式引用；`theme.css` 由各应用的 `globals.css` 引入 |
 | 最近更新 | 2026-08-07 |
 
-## 一句话
+## 一句话状态
 
-共享 UI 库：`cn`、Tailwind v4 主题入口（Soft Bento 语义 token）、首批原子组件（Button/Input/Label/Textarea/Select/Table/Card/Badge/Alert）；**无**业务 fetch / 无密钥。
+共享 UI 库：提供 `cn` 工具、Tailwind v4 主题入口（Soft Bento 语义 token）、首批原子组件（Button / Input / Label / Textarea / Select / Table / Card / Badge / Alert）；**不含**业务请求逻辑，**不含**任何密钥。
 
 ## 已具备能力
 
-- `cn`：`packages/ui/src/lib/utils.ts` · 导出 `@strict-rag/ui/lib/utils`（及根 re-export）
-- `theme.css`：包内 `@import 'tailwindcss'` · `@source` 扫组件 · `@theme inline` · `:root`/`.dark` Soft Bento 色值；含 `primary`/`primary-hover`、`abstain`、`success`、`sidebar`/`rail` 等；旧名 `--sr-*` 作 alias
+- `cn` 类名合并工具：`packages/ui/src/lib/utils.ts`，导出路径 `@strict-rag/ui/lib/utils`（根部也有 re-export）
+- `theme.css`：包内 `@import 'tailwindcss'` · `@source` 扫描组件 · `@theme inline` · `:root` / `.dark` 的 Soft Bento 色值；包含 `primary` / `primary-hover`、`abstain`、`success`、`sidebar` / `rail` 等语义 token；旧名 `--sr-*` 保留为别名
 - 子路径组件（`package.json#exports`）：`button` · `input` · `label` · `textarea` · `select` · `table` · `card` · `badge` · `alert`
-- `class-variance-authority`：Button / Badge / Alert variants（含 `abstain` / `destructive` 分离）
-- 可聚焦控件 `forwardRef`：Button · Input · Label · Textarea · Select · Table 系列 · Card 系列（Badge/Alert 为无 ref 展示块）
-- Select：**native** `<select>` 封装，非 Radix
+- `class-variance-authority` 变体：Button / Badge / Alert（含 `abstain` 与 `destructive` 的分离变体）
+- 可聚焦控件使用 `forwardRef`：Button · Input · Label · Textarea · Select · Table 系列 · Card 系列（Badge / Alert 是无 ref 的纯展示块）
+- Select：基于**原生** `<select>` 封装，不依赖 Radix
 
 ## 明确未做 / 边界
 
 | 项 | 说明 |
 |----|------|
-| shadcn 全集 / Radix Dialog·Dropdown 等 | 未铺；按需再加 |
-| product.pen **像素**对齐 | 色值取 Soft Bento 方向；非全屏像素还原 |
-| ui 包内 Tailwind 独立构建产物 | 无；依赖 app PostCSS |
-| 暗色主题产品切换 UI | 仅有 `.dark` token 基线 |
-| 组件单测 / Storybook | 无 |
+| shadcn 全集 / Radix Dialog · Dropdown 等 | 尚未铺设；按需再添加 |
+| product.pen **像素级**对齐 | 色值采用 Soft Bento 方向；不是全屏像素还原 |
+| ui 包内独立的 Tailwind 构建产物 | 没有；依赖应用侧的 PostCSS 构建 |
+| 暗色主题的产品级切换 UI | 目前只有 `.dark` token 基线 |
+| 组件单测 / Storybook | 没有 |
 
 ## 证据
 
@@ -40,4 +40,4 @@
 | 主题 | `packages/ui/src/theme.css` |
 | 工具 | `packages/ui/src/lib/utils.ts` |
 | 消费方 | `apps/admin` · `apps/web`（`@strict-rag/ui/components/ui/*`） |
-| Task（归档） | `.trellis/tasks/archive/2026-08/08-06-frontend-tailwind-shadcn/` |
+| Task（已归档） | `.trellis/tasks/archive/2026-08/08-06-frontend-tailwind-shadcn/` |
