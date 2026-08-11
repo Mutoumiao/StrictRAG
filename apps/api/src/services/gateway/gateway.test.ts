@@ -206,6 +206,32 @@ describe('mock gateway chat/embed/rerank', () => {
     expect(mapGatewayFailureToAskReason(err!, 'chat')).toBe('internal_guard');
   });
 
+  it('QUAL-3: dual nodes — primary 失败则 fallback 成功', async () => {
+    const cfg = buildGatewayConfig({
+      APP_ENV: 'test',
+      GATEWAY_MODE: 'mock',
+      GATEWAY_BASE_URL: '',
+      GATEWAY_API_KEY: '',
+      RERANK_MIN_NODES: 2,
+      GATEWAY_MAX_ATTEMPTS: 1,
+    });
+    expect(cfg.rerankEndpoints).toHaveLength(2);
+    const seen: number[] = [];
+    const gw = createMockGateway(cfg, {
+      failRerank: (_attempt, endpointIndex) => {
+        seen.push(endpointIndex);
+        if (endpointIndex === 0) {
+          return new GatewayError('timeout', 'primary down', 'rerank');
+        }
+        return null;
+      },
+    });
+    const hits = await gw.rerank('hello world', ['hello there', 'other'], 2);
+    expect(hits.length).toBeGreaterThan(0);
+    expect(seen).toContain(0);
+    expect(seen).toContain(1);
+  });
+
   it('rerank full chain fail → map rerank_unavailable (no silent answered)', async () => {
     const cfg = buildGatewayConfig({
       APP_ENV: 'test',
