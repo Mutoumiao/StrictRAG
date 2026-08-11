@@ -14,10 +14,8 @@ import {
   refreshTokenPair,
 } from '../auth/identity/token-service.js';
 import { requireAuth, type AuthVariables } from '../auth/middleware.js';
-import {
-  canEnterAdminShell,
-  resolveEffectiveCodes,
-} from '../auth/permissions/resolve.js';
+import { canEnterAdminShell } from '../auth/permissions/resolve.js';
+import { ensureUserRoleCodes, hydrateAuthz } from '../auth/role-hydrate.js';
 import { env } from '../env.js';
 import { fail, ok } from '../lib/response.js';
 import { DEV_DEFAULT_TENANT, ensureUserByEmail } from '../services/members.js';
@@ -54,6 +52,17 @@ authRoutes.post('/admin/dev-login', async (c) => {
     platformRole: role === 'super_admin' ? 'platform_admin' : 'user',
   });
 
+  // B4-W bootstrap：dev-login 把模板角色写入 user_roles（DB 权威）
+  try {
+    await ensureUserRoleCodes({
+      userId: user.id,
+      tenantId: user.tenantId,
+      roleCodes: [role],
+    });
+  } catch {
+    // DB 未就绪时仍签发 JWT（claims 回退）；生产路径应有库
+  }
+
   const pair = await issueTokenPair({
     userId: user.id,
     app: 'admin',
@@ -62,8 +71,12 @@ authRoutes.post('/admin/dev-login', async (c) => {
     tenantId: user.tenantId,
   });
 
-  const effective = resolveEffectiveCodes({ roleCodes: [role] });
-  if (!canEnterAdminShell(effective)) {
+  const hydrated = await hydrateAuthz({
+    userId: user.id,
+    tenantId: user.tenantId,
+    claimsRoles: [role],
+  });
+  if (!canEnterAdminShell(hydrated.effectiveCodes)) {
     return fail(c, BizCode.FORBIDDEN, 'admin.shell required', 403);
   }
 
@@ -85,6 +98,16 @@ authRoutes.post('/web/dev-login', async (c) => {
     email: parsed.data.email,
     tenantId,
   });
+
+  try {
+    await ensureUserRoleCodes({
+      userId: user.id,
+      tenantId: user.tenantId,
+      roleCodes: [role],
+    });
+  } catch {
+    // 同 admin：DB 未就绪时 JWT claims 回退
+  }
 
   const pair = await issueTokenPair({
     userId: user.id,

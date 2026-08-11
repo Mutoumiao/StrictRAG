@@ -14,6 +14,7 @@ import {
   roleBypassesKbMembership,
 } from './permissions/resolve.js';
 import { AuthIdentityError, verifyBearerAccess } from './identity/token-service.js';
+import { hydrateAuthz } from './role-hydrate.js';
 import type { AuthPrincipal } from './types.js';
 
 export type AuthVariables = ApiVariables;
@@ -27,28 +28,35 @@ export type ResolveKbMember = (userId: string, kbId: string) => Promise<boolean>
 export const resolveKbMemberFromDb: ResolveKbMember = (userId, kbId) =>
   membersRepo.isMember(userId, kbId);
 
-function principalFromClaims(claims: {
+function appAllowed(app: AuthPrincipal['app'], expected?: ExpectedApp): boolean {
+  if (!expected) return true;
+  const list = Array.isArray(expected) ? expected : [expected];
+  return list.includes(app);
+}
+
+/** JWT 身份 + DB 角色 hydrate（B4-W） */
+async function principalFromVerifiedClaims(claims: {
   sub: string;
   sid: string;
   app: AuthPrincipal['app'];
   roles: string[];
   tenantId?: string;
   email?: string;
-}): AuthPrincipal {
-  return {
+}): Promise<{ auth: AuthPrincipal; effectiveCodes: Set<string> }> {
+  const hydrated = await hydrateAuthz({
+    userId: claims.sub,
+    tenantId: claims.tenantId,
+    claimsRoles: claims.roles,
+  });
+  const auth: AuthPrincipal = {
     userId: claims.sub,
     sessionId: claims.sid,
     app: claims.app,
-    roles: claims.roles,
+    roles: hydrated.roles,
     tenantId: claims.tenantId,
     email: claims.email,
   };
-}
-
-function appAllowed(app: AuthPrincipal['app'], expected?: ExpectedApp): boolean {
-  if (!expected) return true;
-  const list = Array.isArray(expected) ? expected : [expected];
-  return list.includes(app);
+  return { auth, effectiveCodes: hydrated.effectiveCodes };
 }
 
 async function ensureAuth(
@@ -59,9 +67,10 @@ async function ensureAuth(
   if (!auth) {
     try {
       const claims = await verifyBearerAccess(c.req.header('authorization'), expectedApp);
-      auth = principalFromClaims(claims);
+      const resolved = await principalFromVerifiedClaims(claims);
+      auth = resolved.auth;
       c.set('auth', auth);
-      c.set('effectiveCodes', resolveEffectiveCodes({ roleCodes: auth.roles }));
+      c.set('effectiveCodes', resolved.effectiveCodes);
     } catch (err) {
       const message = err instanceof AuthIdentityError ? err.message : 'unauthorized';
       return { ok: false, status: 401, message };
@@ -85,9 +94,9 @@ export const attachAuthMiddleware = createMiddleware<{
   }
   try {
     const claims = await verifyBearerAccess(authorization);
-    const principal = principalFromClaims(claims);
-    c.set('auth', principal);
-    c.set('effectiveCodes', resolveEffectiveCodes({ roleCodes: principal.roles }));
+    const resolved = await principalFromVerifiedClaims(claims);
+    c.set('auth', resolved.auth);
+    c.set('effectiveCodes', resolved.effectiveCodes);
   } catch {
     c.set('auth', null);
     c.set('effectiveCodes', new Set());

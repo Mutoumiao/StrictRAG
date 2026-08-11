@@ -83,6 +83,22 @@ refreshTokenPair(refreshToken, expectedApp?): Promise<TokenPairResponse>
 verifyBearerAccess(authorizationHeader, expectedApp?): Promise<AccessTokenClaims>
 ```
 
+#### 角色 hydrate（B4-W）
+
+```typescript
+// apps/api/src/auth/role-hydrate.ts
+hydrateAuthz({ userId, tenantId?, claimsRoles, nowMs? }): Promise<HydratedAuthz>
+// 身份 = JWT；roles / effectiveCodes = DB user_roles∪platform_roles.codesJson（启用）
+// 缓存 ≤5s 进程内；写路径 invalidateRoleCache(userId|全表)
+// 单实例假设：多实例无共享失效 → 最多 ~5s 脏读
+// dev/test 且无 DB 绑定时回退 claims（兼容 JWT 单测）；production 空绑 = 空权限
+ensureUserRoleCodes({ userId, tenantId?, roleCodes, repo? }) // dev-login bootstrap
+setRoleAuthzLoader(fn | null) // 测例注入
+```
+
+中间件：`attachAuth` / `ensureAuth` 验 JWT 后调用 `hydrateAuthz`，**覆盖** `auth.roles` 与 `effectiveCodes`。  
+写路径：`platform-users-roles` 改绑 / 改角色码 → `invalidateRoleCache`。
+
 #### Access JWT claims
 
 | claim | 类型 | 说明 |
@@ -273,7 +289,7 @@ http：`UNAUTHORIZED` → **单飞** refresh → 重试；失败 `clearClientSes
 |------|------|------|
 | 同秒 refresh 后 access 字符串相同（测试误失败） | JWT 无 jti 且 iat 相同 | access 签发必须 `setJti(uuidv7())` |
 | demo-ingest 全 401 | 误开 `AUTH_ENFORCE` 且业务已挂 requireAuth | 本地保持 false，或脚本带 token |
-| 改角色后仍旧权限 | 只信 access 内嵌列表、未 refresh | 续签重算；或 access TTL 短 + 敏感操作查库 |
+| 改角色后仍旧权限 | 只信 access 内嵌列表、未 invalidate | B4-W：`invalidateRoleCache` + 每请求 hydrate；缓存 ≤5s |
 | admin 能进但 API 403 | 正常（UI≠API）或码未挂模板 | 查 catalog 模板绑码 |
 
 ---
@@ -286,6 +302,7 @@ packages/admin-catalog/src/{permissions,role-templates,menu-tree}.ts
 apps/api/src/auth/
   identity/{jwt,refresh-store,token-service}.ts
   permissions/resolve.ts
+  role-hydrate.ts          # B4-W DB 角色 + ≤5s 缓存
   middleware.ts
   types.ts
 apps/api/src/routes/auth.ts

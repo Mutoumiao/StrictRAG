@@ -70,7 +70,7 @@
 | **入库闭环** | **可演示**（扫描 / 向量 / ES 默认均为 mock；对象存储用本地目录） | `worker` | `api` · `db` · `contracts` | [worker](./worker.md) · [api · 入库](./api.md#入库p1) |
 | **问答 ask / 流式输出** | **可演示**（单轮信任环；AI SDK UI Message Stream；检索默认 mock ES） | `api` | `web` · `contracts` · `db` | [api · 问答](./api.md#问答s2-最小) · [web](./web.md) |
 | **会话外壳** | **可演示**（会话列表与历史回放已通；**rewrite 处于关闭状态**） | `api` | `web` · `db` · `contracts` | [api · 问答](./api.md#问答s2-最小) · [web](./web.md) |
-| **鉴权 / 访问控制（ACL）** | **可联调**（临时双 JWT；已支持 KB 成员校验与权限码；B4 用户/角色与 **B5 部门骨架**已落地；JWT 尚未读取 DB 角色；**未开启**部门级检索强制隔离） | `api` | `admin-catalog` · `admin` · `web` · `contracts` · `db` | [api · 鉴权](./api.md#鉴权与权限) · [api · 部门](./api.md) · [admin-catalog](./admin-catalog.md) |
+| **鉴权 / 访问控制（ACL）** | **可联调**（临时双 JWT；KB 成员 + 权限码；**B4-W** 每请求 DB 角色 hydrate；B5 部门骨架；`AUTH_ENFORCE` 默认关；**未开启**部门级检索强制隔离） | `api` | `admin-catalog` · `admin` · `web` · `contracts` · `db` | [api · 鉴权](./api.md#鉴权与权限) · [api · 部门](./api.md) · [admin-catalog](./admin-catalog.md) |
 | **admin 运营面** | **可演示**（S2c 审批/成员 + B1–B6 最小功能 + B7 菜单裁剪；数据面板为只读薄壳非 APM） | `admin` | `api` · `admin-catalog` · `contracts` | [admin](./admin.md) · [admin-catalog](./admin-catalog.md) · [api · dashboard](./api.md) |
 | **反馈** | **可联调**（API 已实现；web 端**尚无**反馈 UI） | `api` | `web`（未接 UI）· `db` | [api](./api.md) · [web](./web.md) |
 | **模型网关** | **可演示**（供应商 CRUD + 平台绑定；**B3-W 运行时读 platform 绑定**，env 回退；无知识库级绑定） | `api` | `admin` · `contracts` · `db` | [api](./api.md) · [admin · 模型网关](./admin.md) · B2-W（KB 绑定） |

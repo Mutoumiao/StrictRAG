@@ -2,7 +2,7 @@
 
 > 路径：`apps/api/src/routes/platform-users-roles.ts` · `services/platform-users-roles.ts`  
 > PRD：`prds/05-api` §2.11 · ADR-056  
-> 切片：**最小**（CRUD + 授码 + 最后超管闸）；**≠** JWT 读 DB 角色 / bootstrap env / 部门
+> 切片：CRUD + 授码 + 最后超管闸；**B4-W** 已接线 JWT 每请求 DB hydrate（见 `auth-authorization.md` · `role-hydrate.ts`）
 
 ---
 
@@ -84,11 +84,11 @@ if (auth.roles.includes('super_admin')) { /* 放行写用户 */ }
 ```typescript
 routes.post('/admin/users', requirePermission('user.manage'), handler)
 // 最后超管：wouldRemoveLastSuperAdmin(...) → RULE_VIOLATION
-// 登录仍 roleTemplate；DB 角色为管理面（债：JWT 消费 DB）
+// 写绑后 invalidateRoleCache；请求侧 hydrateAuthz 读 user_roles
 ```
 
 ### Design Decision: 超管判定
 
 **Context**：ADR-056 最后超管保护。  
 **Decision**：以角色 **code === `super_admin`**（启用）且用户 **active** 计数；不单靠权限码并集（避免自定义全码角色误判为「系统超管」种子）。  
-**债**：dev-login / JWT 仍写死 roleTemplate，不读 `user_roles`。
+**B4-W**：dev-login 经 `ensureUserRoleCodes` 写入 `user_roles`；中间件每请求 hydrate（≤5s 缓存 + 写失效）。

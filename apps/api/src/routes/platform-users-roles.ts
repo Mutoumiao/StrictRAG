@@ -12,6 +12,7 @@ import {
 import { Hono } from 'hono';
 
 import { requirePermission, type AuthVariables } from '../auth/middleware.js';
+import { invalidateRoleCache } from '../auth/role-hydrate.js';
 import { fail, ok } from '../lib/response.js';
 import { childLogger } from '../logger.js';
 import {
@@ -30,6 +31,11 @@ import {
   wouldRemoveLastSuperAdmin,
   type PlatformUsersRolesRepo,
 } from '../services/platform-users-roles.js';
+
+/** 写角色绑定后失效 hydrate 缓存（B4-W 写路径 invalidate） */
+function afterUserRolesWritten(userId: string): void {
+  invalidateRoleCache(userId);
+}
 
 export type PlatformUsersRolesRouteDeps = {
   repo?: PlatformUsersRolesRepo;
@@ -154,6 +160,8 @@ export function createPlatformUsersRolesRoutes(
       codesJson: codesJson ?? patch.codesJson,
       updatedBy: auth?.userId,
     });
+    // 角色定义变更影响多用户：整表失效（单实例 ≤5s 亦可；写路径更干净）
+    invalidateRoleCache();
     childLogger({ requestId: c.get('requestId'), userId: auth?.userId }).info(
       { event: 'platform_role_patch', roleId, code: cur.code },
       'platform role patched',
@@ -182,6 +190,7 @@ export function createPlatformUsersRolesRoutes(
       codesJson: codesCheck.codes,
       updatedBy: auth?.userId,
     });
+    invalidateRoleCache();
     childLogger({ requestId: c.get('requestId'), userId: auth?.userId }).info(
       {
         event: 'platform_role_permissions',
@@ -241,6 +250,7 @@ export function createPlatformUsersRolesRoutes(
     });
     if (input.roleIds.length > 0) {
       await repo.setUserRoles(tenantId, created.id, input.roleIds, auth?.userId);
+      afterUserRolesWritten(created.id);
     }
     const roleIds = await repo.listRoleIdsForUser(created.id);
     childLogger({ requestId: c.get('requestId'), userId: auth?.userId }).info(
@@ -315,6 +325,7 @@ export function createPlatformUsersRolesRoutes(
     });
     if (patch.roleIds !== undefined) {
       await repo.setUserRoles(tenantId, userId, nextRoleIds, auth?.userId);
+      afterUserRolesWritten(userId);
     }
     const roleIds = await repo.listRoleIdsForUser(userId);
     childLogger({ requestId: c.get('requestId'), userId: auth?.userId }).info(
@@ -365,6 +376,7 @@ export function createPlatformUsersRolesRoutes(
       return fail(c, BizCode.RULE_VIOLATION, 'cannot remove or disable the last active super_admin', 400);
     }
     await repo.setUserRoles(tenantId, userId, parsed.data.roleIds, auth?.userId);
+    afterUserRolesWritten(userId);
     const roleIds = await repo.listRoleIdsForUser(userId);
     childLogger({ requestId: c.get('requestId'), userId: auth?.userId }).info(
       {

@@ -60,7 +60,7 @@
 - `GET /admin/permission-catalog`（需要 `user.manage` **或** `role.perm.manage` 之一）
 - 始终做权限码校验；`codes` 必须是 admin-catalog 的子集；最后一个可用的 `super_admin` 被禁用或剥离权限时返回 400；系统内置的 super_admin 角色禁止禁用
 - 数据表：`platform_roles` / `user_roles`；内置四个系统角色种子数据；测试用内存仓库
-- **尚未**让 JWT / dev-login 读取 DB 角色；**没有**密码字段，也没有 bootstrap 环境变量
+- **B4-W 已接线**：中间件每请求 `hydrateAuthz`（`user_roles` + 启用角色 `codesJson`）；≤5s 进程缓存 + 写路径 `invalidateRoleCache`（**单实例假设**）；dev-login `ensureUserRoleCodes` bootstrap；dev/test 无绑定时回退 JWT claims；**没有**密码字段 / 生产 IdP
 
 ### 部门组织骨架（B5 · ADR-057 最小集）
 - `GET / POST /admin/departments`、`GET …/tree`、`GET / PATCH /DELETE …/:deptId`
@@ -110,7 +110,7 @@
 | rewrite / 多轮指代消解 | `SESSION_REWRITE_ENABLED` 在 P2 阶段强制为 false；会话历史**不等于**检索证据 |
 | CRAG / multi_hop | 未进入本阶段范围 |
 | 完整 ACL / 部门强制隔离 | 目前只有 KB 成员校验 + 权限码 + 可配置的组织骨架；**检索仍是成员可见全库**（B5 未开启 DEPT_ACL） |
-| 生产 IdP / JWT 消费 DB 角色 | 目前是临时双 JWT + dev-login 的角色模板；B4 管理面已落地，但登录链路尚未读取 `user_roles` |
+| 生产 IdP | 仍是临时双 JWT；**B4-W** 已读 `user_roles` hydrate（≠ Better Auth / 密码登录） |
 
 ### 其他包的 UI / 产品面挂账（非本包义务）
 
