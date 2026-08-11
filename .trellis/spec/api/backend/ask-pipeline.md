@@ -15,7 +15,7 @@
 | 改 ask 请求/响应字段 | 先改 `@strict-rag/contracts` `ask/*` |
 | 改检索闸 / sparse 模式 | `RETRIEVE_ES_MODE` + `packages/db` `isDefaultRetrievable` |
 | 改图节点 / 拒答 reason | `graph/run.ts` · `graph/reasons.ts` · contracts `AskReason` |
-| 改 Gateway 调用 | `services/gateway/**`；密钥仅 env |
+| 改 Gateway 调用 | `services/gateway/**`；密钥 env 或 DB provider；ask 用 `getGatewayForTenant` |
 | 开会话 / 反馈 API | `routes/sessions` · `routes/feedback`；rewrite 仍禁止 |
 | 开生产 ES / rewrite | **另建 feature**；B8 / P2.5+；禁止静默打开 |
 
@@ -24,7 +24,7 @@
 | 允许 | 禁止（本阶段） |
 |------|----------------|
 | 单轮 route→retrieve→generate→verify→finalize | CRAG / multi_hop / 官方 LangGraph 图（线性状态机即可） |
-| mock sparse + Gateway mock\|http | 宣称生产 ES+IK 已上（`http` 枚举预留 ≠ 已交付） |
+| mock sparse（默认）或 OPS-1 `http` ES 切片 + Gateway mock\|http | 宣称生产 ES+IK 全文/多租户已上（≠ B8） |
 | 会话列表/详情壳 · `rewriteUsed=false` | `SESSION_REWRITE_ENABLED=true`（启动失败） |
 | 进程内 metrics / memory tracer | 完整 Langfuse 生产接线阻塞 ask |
 
@@ -86,7 +86,7 @@ routes/ask.ts
 | `executeAsk(params, deps?)` | `services/ask/execute.ts` | 业务入口；HTTP 200/409 决策 |
 | `runAskGraph(input, deps)` | `graph/run.ts` | 状态机；产出 `AskGraphResult` |
 | `runRetrieve(...)` | `services/retrieve` | ready∧active · RRF · rerank |
-| `getGateway()` | `services/gateway` | mock \| http client |
+| `getGateway()` / `getGatewayForTenant` | `services/gateway` | env 单例；ask 主路径 tenant + platform 绑定 |
 | `isDefaultRetrievable` | `@strict-rag/db` | **唯一**默认检索闸谓词 |
 
 #### 图结果 → HTTP
@@ -132,7 +132,7 @@ routes/ask.ts
 | Key | 默认 | 说明 |
 |-----|------|------|
 | `TAU_CLAIM` | `0.5` | 验证门槛 **唯一**源；禁止客户端覆盖 |
-| `RETRIEVE_ES_MODE` | `mock` | `http` 预留；未实现 B8 前运行即拒或未交付 |
+| `RETRIEVE_ES_MODE` | `mock` | `http` = ES sparse 切片（OPS-1；需 `ELASTICSEARCH_URL`）；失败 loud，禁回落 mock |
 | `GATEWAY_MODE` | 空→按 URL 推断 | 无 `GATEWAY_BASE_URL` → mock |
 | `SESSION_REWRITE_ENABLED` | `false` | **`true` → 启动失败** |
 | `ASK_RATE_LIMIT_RPM` | `0` | 0=关闭 |
@@ -155,7 +155,7 @@ routes/ask.ts
 | claim min 不达标 | `abstained`（min 否决） |
 | 非法 citation 剥光 | 拒答路径；不进 answered |
 | Gateway 超时/错误 | 映射 `mapGatewayFailureToAskReason`；稳定 reason |
-| `RETRIEVE_ES_MODE=http` 未实现 | 不得 silent fallback 到假 ES 还宣称生产 |
+| `RETRIEVE_ES_MODE=http` ES 失败/无 URL | `internal_guard`；不得 silent fallback mock 冒充 live |
 
 ### 5. Good / Base / Bad Cases
 
@@ -256,7 +256,7 @@ return c.json(okEnvelope(response), httpStatus);
 
 **Context**：生产 ES+IK（B8）未交付；P1 入库 ES 亦为 mock。
 
-**Decision**：`RETRIEVE_ES_MODE=default mock`（PG chunk 文本替身）；`http` 枚举预留。
+**Decision**：`RETRIEVE_ES_MODE=default mock`（PG chunk 文本替身）；`http` = OPS-1 ES BM25 切片（`es-sparse.ts`）；全文 B8 仍延期。
 
 **禁止话术**：「生产 Elasticsearch 已上」。
 

@@ -159,10 +159,48 @@ describe('runRetrieve dual gate via corpus', () => {
     expect(r).toMatchObject({ ok: false, reason: 'rerank_unavailable' });
   });
 
-  it('http es mode refuses (B8 not claimed)', async () => {
+  it('http es mode without sparseSearch → internal_guard (no mock fallback)', async () => {
     const r = await runRetrieve(
       { kbId: 'kb1', question: 'leave', membership: 'member' },
       deps([chunk('c1', 'leave')], { esMode: 'http' }),
+    );
+    expect(r).toMatchObject({ ok: false, reason: 'internal_guard' });
+  });
+
+  it('http es mode with sparseSearch returns live meta', async () => {
+    const corpus = [
+      chunk('c1', 'employee leave policy allows 15 days annual leave'),
+      chunk('c2', 'office wifi password is printed on the wall'),
+    ];
+    const r = await runRetrieve(
+      {
+        kbId: 'kb1',
+        question: 'annual leave policy',
+        membership: 'member',
+        rerankTopN: 2,
+      },
+      deps(corpus, {
+        esMode: 'http',
+        sparseSearch: async () => ['c1', 'c2'],
+      }),
+    );
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.meta.esMode).toBe('http');
+      expect(r.meta.sparseHits).toBeGreaterThan(0);
+      expect(r.evidence.some((e) => e.chunkId === 'c1')).toBe(true);
+    }
+  });
+
+  it('http sparseSearch throw → internal_guard (no mock fallback)', async () => {
+    const r = await runRetrieve(
+      { kbId: 'kb1', question: 'leave', membership: 'member' },
+      deps([chunk('c1', 'leave')], {
+        esMode: 'http',
+        sparseSearch: async () => {
+          throw new Error('es down');
+        },
+      }),
     );
     expect(r).toMatchObject({ ok: false, reason: 'internal_guard' });
   });

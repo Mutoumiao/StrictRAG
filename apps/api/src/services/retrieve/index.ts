@@ -2,6 +2,13 @@ export { rrfFuse } from './rrf.js';
 export { cosine, sparseOverlapScore, rankByScore } from './scoring.js';
 export { loadCorpusFromDb, hasRetrievableDocs, filterDocsForRetrieve } from './corpus.js';
 export {
+  searchSparseEs,
+  ensureSparseIndex,
+  bulkIndexSparse,
+  esConfigFromEnv,
+  EsSparseError,
+} from './es-sparse.js';
+export {
   runRetrieve,
   retrieve,
   createDefaultRetrieveDeps,
@@ -20,4 +27,6 @@ export type {
   RetrieveFail,
   CorpusLoader,
   RetrieveDeps,
+  SparseSearcher,
 } from './types.js';
+export type { EsSparseConfig, EsSparseSearchInput } from './es-sparse.js';

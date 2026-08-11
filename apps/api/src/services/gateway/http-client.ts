@@ -4,7 +4,12 @@ import {
   type GatewayPurpose,
 } from './errors.js';
 import type { GatewayConfig } from './resolve.js';
-import { resolveChatModel, resolveEmbedModel, resolveRerankModel } from './resolve.js';
+import {
+  resolveChatModel,
+  resolveEmbedModel,
+  resolveEndpoint,
+  resolveRerankModel,
+} from './resolve.js';
 import { withSameModelRetry } from './retry.js';
 import type { ChatRequest, ChatResult, GatewayClient, RerankHit } from './types.js';
 
@@ -78,11 +83,12 @@ async function httpJson(params: {
 export function createHttpGateway(options: HttpGatewayOptions): GatewayClient {
   const { cfg } = options;
   const fetchImpl = options.fetchImpl ?? globalThis.fetch;
-  const base = cfg.baseUrl.replace(/\/$/, '');
 
   return {
     async chat(req: ChatRequest): Promise<ChatResult> {
       const model = resolveChatModel(cfg, req.purpose, req.model);
+      const { baseUrl, apiKey } = resolveEndpoint(cfg, 'chat');
+      const base = baseUrl.replace(/\/$/, '');
       const timeoutMs = req.timeoutMs ?? cfg.timeoutMs;
       const started = Date.now();
       return withSameModelRetry({
@@ -92,7 +98,7 @@ export function createHttpGateway(options: HttpGatewayOptions): GatewayClient {
           const data = (await httpJson({
             fetchImpl,
             url: `${base}/chat/completions`,
-            apiKey: cfg.apiKey,
+            apiKey,
             timeoutMs,
             purpose: 'chat',
             attempt,
@@ -136,6 +142,8 @@ export function createHttpGateway(options: HttpGatewayOptions): GatewayClient {
 
     async embed(texts: string[], model?: string): Promise<number[][]> {
       const m = resolveEmbedModel(cfg, model);
+      const { baseUrl, apiKey } = resolveEndpoint(cfg, 'embed');
+      const base = baseUrl.replace(/\/$/, '');
       return withSameModelRetry({
         purpose: 'embed',
         maxAttempts: cfg.maxAttempts,
@@ -149,7 +157,7 @@ export function createHttpGateway(options: HttpGatewayOptions): GatewayClient {
           const data = (await httpJson({
             fetchImpl,
             url: `${base}/embeddings`,
-            apiKey: cfg.apiKey,
+            apiKey,
             timeoutMs: cfg.timeoutMs,
             purpose: 'embed',
             attempt,
@@ -170,8 +178,10 @@ export function createHttpGateway(options: HttpGatewayOptions): GatewayClient {
 
     async rerank(query: string, passages: string[], topN = 10, model?: string): Promise<RerankHit[]> {
       const m = resolveRerankModel(cfg, model);
+      const { baseUrl, apiKey } = resolveEndpoint(cfg, 'rerank');
+      const fallbackBase = baseUrl.replace(/\/$/, '');
       const endpoints =
-        cfg.rerankEndpoints.length > 0 ? cfg.rerankEndpoints : [base];
+        cfg.rerankEndpoints.length > 0 ? cfg.rerankEndpoints : [fallbackBase];
       let last: GatewayError | undefined;
 
       for (let ei = 0; ei < endpoints.length; ei++) {
@@ -190,7 +200,7 @@ export function createHttpGateway(options: HttpGatewayOptions): GatewayClient {
               const data = (await httpJson({
                 fetchImpl,
                 url: `${ep}/rerank`,
-                apiKey: cfg.apiKey,
+                apiKey,
                 timeoutMs: cfg.timeoutMs,
                 purpose: 'rerank',
                 attempt,

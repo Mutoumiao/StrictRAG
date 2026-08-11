@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { askFeedback, askSessions, askTraces, kbMembers, users } from '../index.js';
+import {
+  askFeedback,
+  askSessions,
+  askTraces,
+  evalRuns,
+  kbMembers,
+  users,
+} from '../index.js';
 
 describe('phase2 ask schema exports', () => {
   it('exposes users / members / sessions / traces / feedback tables', () => {
@@ -15,5 +22,12 @@ describe('phase2 ask schema exports', () => {
     expect(askTraces.sessionId).toBeDefined();
     expect(askTraces.evidenceSnapshot).toBeDefined();
     expect(askTraces.requestId).toBeDefined();
+  });
+
+  it('eval_runs has retrieve_mode and matrix columns', () => {
+    expect(evalRuns).toBeDefined();
+    expect(evalRuns.retrieveMode).toBeDefined();
+    expect(evalRuns.matrixA).toBeDefined();
+    expect(evalRuns.reportJson).toBeDefined();
   });
 });

@@ -8,6 +8,7 @@ import {
 import { env } from '../../env.js';
 import { recordRerank } from '../../obs/metrics.js';
 import { loadCorpusFromDb } from './corpus.js';
+import { EsSparseError, esConfigFromEnv, searchSparseEs } from './es-sparse.js';
 import { rrfFuse } from './rrf.js';
 import { cosine, rankByScore, sparseOverlapScore } from './scoring.js';
 import type {
@@ -46,9 +47,12 @@ export async function runRetrieve(
     return fail('kb_not_ready', 'no ready∧active documents in kb');
   }
 
-  // http 真 ES 未交付（B8）；禁止 silent 空结果冒充
-  if (deps.esMode === 'http') {
-    return fail('internal_guard', 'RETRIEVE_ES_MODE=http not implemented (backlog B8)');
+  // http 无 sparseSearch → loud fail（禁止回落 mock 冒充 live）
+  if (deps.esMode === 'http' && !deps.sparseSearch) {
+    return fail(
+      'internal_guard',
+      'RETRIEVE_ES_MODE=http requires sparseSearch (set ELASTICSEARCH_URL; see docs/ops/live-retrieve-profile.md)',
+    );
   }
 
   const retrieveK = input.retrieveK ?? DEFAULT_RETRIEVE_K;
@@ -76,14 +80,32 @@ export async function runRetrieve(
     throw err;
   }
 
-  // --- sparse (mock：进程内 token 重叠；对齐生产 ES 接口形状) ---
-  const sparseScored = corpus
-    .filter((c) => c.text.length > 0)
-    .map((c) => ({
-      id: c.chunkId,
-      score: sparseOverlapScore(input.question, c.text),
-    }));
-  const sparseRanked = rankByScore(sparseScored).slice(0, retrieveK);
+  // --- sparse：mock=进程内 token 重叠；http=ES BM25（OPS-1 切片）---
+  let sparseRanked: string[];
+  if (deps.esMode === 'http') {
+    try {
+      sparseRanked = await deps.sparseSearch!({
+        kbId: input.kbId,
+        question: input.question,
+        size: retrieveK,
+      });
+      // 仅保留语料内 id（ACL/闸门以 PG corpus 为准）
+      sparseRanked = sparseRanked.filter((id) => byId.has(id)).slice(0, retrieveK);
+    } catch (err) {
+      // ponytail: any sparse failure is loud guard — never fall back to mock token overlap
+      const kind = err instanceof EsSparseError ? err.kind : 'error';
+      const msg = err instanceof Error ? err.message : String(err);
+      return fail('internal_guard', `ES sparse failed (${kind}): ${msg}`);
+    }
+  } else {
+    const sparseScored = corpus
+      .filter((c) => c.text.length > 0)
+      .map((c) => ({
+        id: c.chunkId,
+        score: sparseOverlapScore(input.question, c.text),
+      }));
+    sparseRanked = rankByScore(sparseScored).slice(0, retrieveK);
+  }
 
   if (denseRanked.length === 0 && sparseRanked.length === 0) {
     return fail('low_retrieval', 'no hybrid candidates');
@@ -163,14 +185,19 @@ export async function runRetrieve(
   };
 }
 
-/** 生产默认 deps：PG corpus + Gateway */
+/** 生产默认 deps：PG corpus + Gateway；http 时注入 ES sparse */
 export function createDefaultRetrieveDeps(gateway: GatewayClient): RetrieveDeps {
   const esMode = env.RETRIEVE_ES_MODE;
+  const esCfg = esMode === 'http' ? esConfigFromEnv(env) : null;
   return {
     loadCorpus: loadCorpusFromDb,
     embed: (texts) => gateway.embed(texts),
     rerank: (query, passages, topN) => gateway.rerank(query, passages, topN),
     esMode,
+    sparseSearch:
+      esMode === 'http' && esCfg
+        ? (input) => searchSparseEs(esCfg, input)
+        : undefined,
   };
 }
 

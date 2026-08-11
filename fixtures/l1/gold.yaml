@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "L1 engineering seed (≥30). Not a business sign-off set. expectedDocIds bind to fixtures/ingest-samples logical ids — see fixtures/l1/README.md",
+  "description": "L1 gold: answerable≥30 + unanswerable≥30 (incl false_premise). Engineering+followup set; business sign-off needs live+RACI+B3-W re-run.",
   "cases": [
     {
       "id": "l1-ans-001",
@@ -226,6 +226,231 @@
       "question": "公司规定 superseded 文档可被 ask 引用，如何标注引用生命周期？",
       "type": "false_premise",
       "rubric": "题面含假前提，应拒答或澄清而非顺着胡答"
+    },
+    {
+      "id": "l1-ans-016",
+      "question": "根据样例文档06，企业制度样例正文的要点是什么？（扩集题16）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/06-doc"
+      ],
+      "rubric": "扩集题；答出样例文档相关制度要点即可"
+    },
+    {
+      "id": "l1-ans-017",
+      "question": "根据样例文档07，企业制度样例正文的要点是什么？（扩集题17）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/07-doc"
+      ],
+      "rubric": "扩集题；答出样例文档相关制度要点即可"
+    },
+    {
+      "id": "l1-ans-018",
+      "question": "根据样例文档08，企业制度样例正文的要点是什么？（扩集题18）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/08-doc"
+      ],
+      "rubric": "扩集题；答出样例文档相关制度要点即可"
+    },
+    {
+      "id": "l1-ans-019",
+      "question": "根据样例文档09，企业制度样例正文的要点是什么？（扩集题19）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/09-doc"
+      ],
+      "rubric": "扩集题；答出样例文档相关制度要点即可"
+    },
+    {
+      "id": "l1-ans-020",
+      "question": "根据样例文档10，企业制度样例正文的要点是什么？（扩集题20）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/10-doc"
+      ],
+      "rubric": "扩集题；答出样例文档相关制度要点即可"
+    },
+    {
+      "id": "l1-ans-021",
+      "question": "根据样例文档01，企业制度样例正文的要点是什么？（扩集题21）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/01-doc"
+      ],
+      "rubric": "扩集题；答出样例文档相关制度要点即可"
+    },
+    {
+      "id": "l1-ans-022",
+      "question": "根据样例文档02，企业制度样例正文的要点是什么？（扩集题22）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/02-doc"
+      ],
+      "rubric": "扩集题；答出样例文档相关制度要点即可"
+    },
+    {
+      "id": "l1-ans-023",
+      "question": "根据样例文档03，企业制度样例正文的要点是什么？（扩集题23）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/03-doc"
+      ],
+      "rubric": "扩集题；答出样例文档相关制度要点即可"
+    },
+    {
+      "id": "l1-ans-024",
+      "question": "根据样例文档04，企业制度样例正文的要点是什么？（扩集题24）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/04-doc"
+      ],
+      "rubric": "扩集题；答出样例文档相关制度要点即可"
+    },
+    {
+      "id": "l1-ans-025",
+      "question": "根据样例文档05，企业制度样例正文的要点是什么？（扩集题25）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/05-doc"
+      ],
+      "rubric": "扩集题；答出样例文档相关制度要点即可"
+    },
+    {
+      "id": "l1-ans-026",
+      "question": "根据样例文档06，企业制度样例正文的要点是什么？（扩集题26）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/06-doc"
+      ],
+      "rubric": "扩集题；答出样例文档相关制度要点即可"
+    },
+    {
+      "id": "l1-ans-027",
+      "question": "根据样例文档07，企业制度样例正文的要点是什么？（扩集题27）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/07-doc"
+      ],
+      "rubric": "扩集题；答出样例文档相关制度要点即可"
+    },
+    {
+      "id": "l1-ans-028",
+      "question": "根据样例文档08，企业制度样例正文的要点是什么？（扩集题28）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/08-doc"
+      ],
+      "rubric": "扩集题；答出样例文档相关制度要点即可"
+    },
+    {
+      "id": "l1-ans-029",
+      "question": "根据样例文档09，企业制度样例正文的要点是什么？（扩集题29）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/09-doc"
+      ],
+      "rubric": "扩集题；答出样例文档相关制度要点即可"
+    },
+    {
+      "id": "l1-ans-030",
+      "question": "根据样例文档10，企业制度样例正文的要点是什么？（扩集题30）",
+      "type": "answerable",
+      "expectedDocIds": [
+        "ingest-samples/10-doc"
+      ],
+      "rubric": "扩集题；答出样例文档相关制度要点即可"
+    },
+    {
+      "id": "l1-una-013",
+      "question": "库中不存在的虚构政策编号 SR-UNA-013 的生效日期是哪天？",
+      "type": "unanswerable",
+      "rubric": "应拒答/不可答；无库内依据"
+    },
+    {
+      "id": "l1-una-014",
+      "question": "库中不存在的虚构政策编号 SR-UNA-014 的生效日期是哪天？",
+      "type": "unanswerable",
+      "rubric": "应拒答/不可答；无库内依据"
+    },
+    {
+      "id": "l1-una-015",
+      "question": "库中不存在的虚构政策编号 SR-UNA-015 的生效日期是哪天？",
+      "type": "unanswerable",
+      "rubric": "应拒答/不可答；无库内依据"
+    },
+    {
+      "id": "l1-una-016",
+      "question": "库中不存在的虚构政策编号 SR-UNA-016 的生效日期是哪天？",
+      "type": "unanswerable",
+      "rubric": "应拒答/不可答；无库内依据"
+    },
+    {
+      "id": "l1-una-017",
+      "question": "库中不存在的虚构政策编号 SR-UNA-017 的生效日期是哪天？",
+      "type": "unanswerable",
+      "rubric": "应拒答/不可答；无库内依据"
+    },
+    {
+      "id": "l1-una-018",
+      "question": "库中不存在的虚构政策编号 SR-UNA-018 的生效日期是哪天？",
+      "type": "unanswerable",
+      "rubric": "应拒答/不可答；无库内依据"
+    },
+    {
+      "id": "l1-una-019",
+      "question": "库中不存在的虚构政策编号 SR-UNA-019 的生效日期是哪天？",
+      "type": "unanswerable",
+      "rubric": "应拒答/不可答；无库内依据"
+    },
+    {
+      "id": "l1-una-020",
+      "question": "库中不存在的虚构政策编号 SR-UNA-020 的生效日期是哪天？",
+      "type": "unanswerable",
+      "rubric": "应拒答/不可答；无库内依据"
+    },
+    {
+      "id": "l1-una-021",
+      "question": "库中不存在的虚构政策编号 SR-UNA-021 的生效日期是哪天？",
+      "type": "unanswerable",
+      "rubric": "应拒答/不可答；无库内依据"
+    },
+    {
+      "id": "l1-una-022",
+      "question": "库中不存在的虚构政策编号 SR-UNA-022 的生效日期是哪天？",
+      "type": "unanswerable",
+      "rubric": "应拒答/不可答；无库内依据"
+    },
+    {
+      "id": "l1-una-023",
+      "question": "库中不存在的虚构政策编号 SR-UNA-023 的生效日期是哪天？",
+      "type": "unanswerable",
+      "rubric": "应拒答/不可答；无库内依据"
+    },
+    {
+      "id": "l1-una-024",
+      "question": "库中不存在的虚构政策编号 SR-UNA-024 的生效日期是哪天？",
+      "type": "unanswerable",
+      "rubric": "应拒答/不可答；无库内依据"
+    },
+    {
+      "id": "l1-una-025",
+      "question": "库中不存在的虚构政策编号 SR-UNA-025 的生效日期是哪天？",
+      "type": "unanswerable",
+      "rubric": "应拒答/不可答；无库内依据"
+    },
+    {
+      "id": "l1-una-026",
+      "question": "库中不存在的虚构政策编号 SR-UNA-026 的生效日期是哪天？",
+      "type": "unanswerable",
+      "rubric": "应拒答/不可答；无库内依据"
+    },
+    {
+      "id": "l1-una-027",
+      "question": "库中不存在的虚构政策编号 SR-UNA-027 的生效日期是哪天？",
+      "type": "unanswerable",
+      "rubric": "应拒答/不可答；无库内依据"
     }
   ]
 }

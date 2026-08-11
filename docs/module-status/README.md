@@ -73,8 +73,8 @@
 | **鉴权 / 访问控制（ACL）** | **可联调**（临时双 JWT；已支持 KB 成员校验与权限码；B4 用户/角色与 **B5 部门骨架**已落地；JWT 尚未读取 DB 角色；**未开启**部门级检索强制隔离） | `api` | `admin-catalog` · `admin` · `web` · `contracts` · `db` | [api · 鉴权](./api.md#鉴权与权限) · [api · 部门](./api.md) · [admin-catalog](./admin-catalog.md) |
 | **admin 运营面** | **可演示**（S2c 审批/成员 + B1–B6 最小功能 + B7 菜单裁剪；数据面板为只读薄壳非 APM） | `admin` | `api` · `admin-catalog` · `contracts` | [admin](./admin.md) · [admin-catalog](./admin-catalog.md) · [api · dashboard](./api.md) |
 | **反馈** | **可联调**（API 已实现；web 端**尚无**反馈 UI） | `api` | `web`（未接 UI）· `db` | [api](./api.md) · [web](./web.md) |
-| **模型网关** | **可演示**（供应商增删改查 + 平台级绑定 + admin `/models` 页面；**Gateway 运行时仍走环境变量配置**；无知识库级绑定） | `api` | `admin` · `contracts` · `db` | [api · 模型供应商](./api.md) · [admin · 模型网关](./admin.md) · backlog 余量（运行时接线） |
-| **观测 / 评测** | **可联调**（进程内 metrics/tracer；**L1 工程 seed**：gold=30 + CLI/`executeAsk(skipTrace)` + 2×2；**mock 禁签字**；无 `eval_runs` / 无默认 CI 真 LLM） | `api` | — | [api · L1 节](./api.md) · backlog B10 部分 · B10-followup |
+| **模型网关** | **可演示**（供应商 CRUD + 平台绑定；**B3-W 运行时读 platform 绑定**，env 回退；无知识库级绑定） | `api` | `admin` · `contracts` · `db` | [api](./api.md) · [admin · 模型网关](./admin.md) · B2-W（KB 绑定） |
+| **观测 / 评测** | **可联调**（进程内 metrics/tracer；**L1 工程 seed** + **OPS-1 live profile**（`retrieve_mode`/`signoffEligible`；http=ES sparse 切片）；`eval_runs` 可 `L1_PERSIST_EVAL` 落库；**mock 禁签字**；无默认 CI 真 LLM / **无**业务签字真跑数字） | `api` | `db` | [api · L1 节](./api.md) · [db · eval_runs](./db.md) · [live profile](../ops/live-retrieve-profile.md) · B10 / OPS-1 |
 | **契约 / Schema 基座** | **可联调**（支撑 P1/S2 路径；随业务能力扩展） | `contracts` / `db` | 全部业务包 | [contracts](./contracts.md) · [db](./db.md) |
 | **工程工具链** | **生产向**（全仓共享的 eslint/tsconfig 基线；无业务完成度故事） | `eslint-config` · `typescript-config` | 全仓 · `ui` | [eslint-config](./eslint-config.md) · [typescript-config](./typescript-config.md) · [ui](./ui.md)（可联调 · S2 首批原子组件） |
 

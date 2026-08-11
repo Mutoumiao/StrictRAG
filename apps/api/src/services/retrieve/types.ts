@@ -71,9 +71,21 @@ export type CorpusLoader = (input: {
   scope?: RetrieveScope;
 }) => Promise<CorpusChunk[]>;
 
+/** http 模式 sparse：返回有序 chunkId；失败应抛错（禁止静默空） */
+export type SparseSearcher = (input: {
+  kbId: string;
+  question: string;
+  size: number;
+}) => Promise<string[]>;
+
 export type RetrieveDeps = {
   loadCorpus: CorpusLoader;
   embed: (texts: string[]) => Promise<number[][]>;
   rerank: (query: string, passages: string[], topN: number) => Promise<{ index: number; score: number }[]>;
   esMode: 'mock' | 'http';
+  /**
+   * RETRIEVE_ES_MODE=http 必填（生产 createDefaultRetrieveDeps 注入）。
+   * 缺省且 esMode=http → internal_guard（禁止回落 mock）。
+   */
+  sparseSearch?: SparseSearcher;
 };

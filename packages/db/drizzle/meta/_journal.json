@@ -43,6 +43,13 @@
       "when": 1754697600000,
       "tag": "0005_b5_departments",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1754937600000,
+      "tag": "0006_b10_eval_runs",
+      "breakpoints": true
     }
   ]
 }

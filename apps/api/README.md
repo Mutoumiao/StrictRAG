@@ -91,15 +91,17 @@ ask 演示：先 seed `kb_members` + Bearer；入库演示继续 `AUTH_ENFORCE=f
 
 ## L1 黄金集批跑（B10 工程底座）
 
-> **工程 dogfood ≠ 业务签字**。`mode=mock` 时 2×2 数字禁止写入签字页。
+> **工程 dogfood ≠ 业务签字**。`retrieve_mode=mock` 时 2×2 数字禁止写入签字页。  
+> 签字 live profile（OPS-1）：[`docs/ops/live-retrieve-profile.md`](../../docs/ops/live-retrieve-profile.md)。
 
 | 项 | 说明 |
 |----|------|
 | Gold | 仓根 `fixtures/l1/gold.yaml`（≥30；逻辑 doc id 见 `fixtures/l1/README.md`） |
 | 样例报告 | `fixtures/l1/sample-report.md` |
-| 最近跑 | `artifacts/l1-last-run.{json,md}`（gitignore） |
+| 最近跑 | `artifacts/l1-last-run.{json,md}`（gitignore；含 `retrieve_mode` / `signoffEligible`） |
 | 矩阵 | `src/eval/l1-matrix.ts`（纯函数；单测进 CI） |
 | CLI | `src/scripts/run-l1-golden.ts` → **executeAsk + skipTrace**（禁止第二套图） |
+| ES 探针 | `src/scripts/seed-es-sparse-probe.ts`（http 模式 bulk 种子） |
 
 ```bash
 # CI 默认：矩阵 + mock 集成测（不跑真 LLM）
@@ -109,7 +111,8 @@ pnpm --filter @strict-rag/api test
 L1_KB_ID=<kb-uuid> L1_MAX_CASES=5 \
   pnpm --filter @strict-rag/api exec tsx src/scripts/run-l1-golden.ts
 
-# 全量 30（本地；真 Gateway / live ES 时数字才有签字参考意义）
+# live（须 ES + RETRIEVE_ES_MODE=http；见 live-retrieve-profile）
+# 全量 30 签字规模 → B10-followup
 L1_KB_ID=<kb-uuid> pnpm --filter @strict-rag/api exec tsx src/scripts/run-l1-golden.ts
 ```
 
@@ -119,9 +122,12 @@ L1_KB_ID=<kb-uuid> pnpm --filter @strict-rag/api exec tsx src/scripts/run-l1-gol
 | `L1_MAX_CASES` | 截断题数 |
 | `L1_TENANT_ID` / `L1_USER_ID` | 可选；脚本有默认 |
 | `L1_GOLD_PATH` / `L1_OUT_DIR` | 可选覆盖路径 |
-| `RETRIEVE_ES_MODE` | 报告头 mode：`mock` \| `live`（http） |
+| `RETRIEVE_ES_MODE` | 报告 `retrieve_mode`：`mock` \| `live`（http） |
+| `ELASTICSEARCH_URL` / `ELASTIC_INDEX` | live sparse；默认 index=`strict_rag_dev` |
+| `L1_PERSIST_EVAL` | `1`/`true` 时写入 PG `eval_runs`（需 migration `0006`） |
 
-完整签字规模 / `eval_runs` 表 → backlog **B10-followup**。
+`eval_runs` 账本（B10-followup 工程）：表 `@strict-rag/db` · migration `packages/db/drizzle/0006_b10_eval_runs.sql`。  
+业务签字真跑仍须 live + **B3-W 后重跑**；mock 行 `signoff_eligible=0`。
 
 ## 模型 Gateway（S2 · #4）
 

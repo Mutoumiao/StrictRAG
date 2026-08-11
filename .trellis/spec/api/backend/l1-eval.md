@@ -2,7 +2,7 @@
 
 > 路径：`apps/api/src/eval/` · `apps/api/src/scripts/run-l1-golden.ts` · 仓根 `fixtures/l1/`  
 > 产品语义：`prds/08-quality`（覆盖率 / 2×2）· 任务 `08-08-b10-l1-golden-set`  
-> **本窗状态**：工程底座 **已落地**；业务签字包 / live 门禁 / L2·L3 / `eval_runs` 表 **未做**。
+> **本窗状态**：工程底座 **已落地**；OPS-1 live profile + `retrieve_mode`/`signoffEligible`；B10-followup **工程**（`eval_runs` 表 + gold 60 + `L1_PERSIST_EVAL`）已部分；**业务签字真跑** / L2·L3 **未做**。
 
 ---
 
@@ -12,7 +12,7 @@
 
 - Trigger：新增 CLI 入口、env 键、跨层（fixture → script → `executeAsk` → graph）、可执行错误矩阵。
 - 目标：串行批跑黄金题，产出 **mode 标注** 的 2×2 矩阵与覆盖率；CI 只钉 **纯函数 + mock 注入**，不跑 live LLM。
-- 非目标：B6 看板、worker-eval 队列、L2/L3、签字规模（可答≥30 且 不可答≥30 见 **B10-followup**）。
+- 非目标：B6 看板、worker-eval 队列、L2/L3；题面已扩≥30+30，**live 真跑数字**仍见 B10-followup 余量。
 
 ### 2. Signatures
 
@@ -48,7 +48,7 @@ await executeAsk(params, { skipTrace: true, ...opts.executeDeps });
 | `expectedChunkIds?` | string[] | 可选 |
 | `rubric?` | string | 可选 |
 
-Seed 规模：约 15 / 12 / 3（合计 ≥30）；签字规模 **非本窗**。
+Seed 规模：可答 30 + 不可答类 30（含 `false_premise`）；**mock 数字禁签字**。
 
 #### 2×2 格映射（error 不计格）
 
@@ -65,7 +65,10 @@ Seed 规模：约 15 / 12 / 3（合计 ≥30）；签字规模 **非本窗**。
 
 | 字段 | 约束 |
 |------|------|
-| `mode` | `'mock' \| 'live' \| 'unknown'` ← `resolveEvalMode(RETRIEVE_ES_MODE)` |
+| `mode` | `'mock' \| 'live' \| 'unknown'` ← `resolveEvalMode(RETRIEVE_ES_MODE)`（历史字段） |
+| `retrieve_mode` | 与 `mode` 同步（OPS-1 签字归因） |
+| `signoffEligible` | 仅 `live` → `true`；**≠** 自动业务签字 |
+| `evalRunId?` | `L1_PERSIST_EVAL` 写入 `eval_runs` 后的 id |
 | `ranAt` | ISO 字符串 |
 | `caseCount` / `errorCount` | number |
 | `matrix` | `{ A,B,C,D }` |
@@ -73,7 +76,7 @@ Seed 规模：约 15 / 12 / 3（合计 ≥30）；签字规模 **非本窗**。
 | `cases[]` | 每题 `id,type,outcome,cell,reason?,errorMessage?` |
 | `kbId` | 本跑使用的 KB |
 
-`mode` 规则：`RETRIEVE_ES_MODE===mock` → `mock`；`===http` → `live`；其余 → `unknown`。  
+`mode`/`retrieve_mode` 规则：`RETRIEVE_ES_MODE===mock` → `mock`；`===http` → `live`；其余 → `unknown`。  
 `undefined` 时读 `env.RETRIEVE_ES_MODE`（单测须 **显式** 传入 esMode，勿依赖进程 env 偶发值）。
 
 #### 环境键（CLI）
@@ -86,8 +89,9 @@ Seed 规模：约 15 / 12 / 3（合计 ≥30）；签字规模 **非本窗**。
 | `L1_OUT_DIR` | 否 | `<repo>/artifacts` | |
 | `L1_TENANT_ID` | 否 | 固定 dev uuid | |
 | `L1_USER_ID` | 否 | 固定 dev uuid | |
+| `L1_PERSIST_EVAL` | 否 | 关 | `1`/`true` → insert `eval_runs`（db migration 0006） |
 
-> **Turbo**：`turbo.json` 的 `lint` / `test` **globalPassThroughEnv**（或 task env）须声明 `L1_*`，否则 turbo 会拦 undeclared env。新增 `L1_*` 时同步改 turbo。
+> **Turbo**：`turbo.json` 的 `lint` / `test` task env 须声明 `L1_*`（含 `L1_PERSIST_EVAL`）；新增键同步改 turbo。
 
 #### 产物与 git
 
@@ -110,6 +114,8 @@ type RunL1Options = {
   /** 注入假 execute，避免 live LLM */
   execute?: (params: ExecuteAskParams, deps?: ExecuteAskDeps) => Promise<ExecuteAskResult>;
   executeDeps?: ExecuteAskDeps;
+  /** 写入 PG eval_runs；默认看 L1_PERSIST_EVAL */
+  persistEval?: boolean;
 };
 ```
 
@@ -192,7 +198,7 @@ for (const c of cases) {
 
 **Decision**：选项 2。CLI 与 route 共享同一业务入口；route 仍只调 `executeAsk`。
 
-**Extensibility**：B6 看板只读报告 artifact / 未来 `eval_runs` 表；批跑逻辑仍可复用 `runL1Golden`。
+**Extensibility**：B6 看板只读报告 artifact / `eval_runs` 表（`L1_PERSIST_EVAL`）；批跑逻辑仍可复用 `runL1Golden`。
 
 ---
 
@@ -263,4 +269,6 @@ for (const c of cases) {
 - 目录：[directory-structure](./directory-structure.md)  
 - Fixture 说明：`fixtures/l1/README.md` · 跑法：`apps/api/README.md`  
 - IS：`docs/module-status/api.md` · backlog B10 挂账 `08-06-project-backlog`  
-- 未做：B6 壳 · B10-followup 签字规模 · eval_runs · worker-eval · L2/L3  
+- 已做（工程）：`eval_runs` 表 + `persistEvalRun` / `L1_PERSIST_EVAL` · gold≥60 · OPS-1 `retrieve_mode`/`signoffEligible`  
+- 未做：B10-followup **业务签字真跑数字** · worker-eval · L2/L3  
+

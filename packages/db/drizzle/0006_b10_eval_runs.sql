@@ -1,0 +1,23 @@
+CREATE TABLE IF NOT EXISTS "eval_runs" (
+	"id" uuid PRIMARY KEY NOT NULL,
+	"created_at" timestamp(0),
+	"created_by" varchar(64),
+	"updated_at" timestamp(0),
+	"updated_by" varchar(64),
+	"tenant_id" uuid,
+	"kb_id" uuid NOT NULL,
+	"run_type" text DEFAULT 'golden_2x2' NOT NULL,
+	"retrieve_mode" text NOT NULL,
+	"signoff_eligible" text DEFAULT '0' NOT NULL,
+	"gold_path" text,
+	"case_count" integer DEFAULT 0 NOT NULL,
+	"matrix_a" integer DEFAULT 0 NOT NULL,
+	"matrix_b" integer DEFAULT 0 NOT NULL,
+	"matrix_c" integer DEFAULT 0 NOT NULL,
+	"matrix_d" integer DEFAULT 0 NOT NULL,
+	"coverage" real,
+	"error_count" integer DEFAULT 0 NOT NULL,
+	"ran_at" text NOT NULL,
+	"report_json" jsonb,
+	"notes" text
+);

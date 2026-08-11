@@ -5,9 +5,9 @@
 | 路径 | `apps/api` |
 | 端口 | 4000 |
 | 成熟度 | **可演示**（P0/P1 入库 + S2 最小问答 + B1–B6 最小运营 API + B10 L1 **工程 seed**；演示依赖 mock ES / mock Gateway；L1 **≠** 业务签字门禁） |
-| 默认依赖模式 | ES 检索 = `mock` · 鉴权 = 临时双 JWT（`AUTH_ENFORCE` **默认关闭**）· rewrite = 强制关闭 · 对象存储 = `local` 本地目录 · Gateway 缺少 URL 时自动降级为 mock（**仍读环境变量，尚未读 DB 绑定**）· JWT **尚未**读取 DB 中的 `user_roles` · **未开启** `DEPT_ACL_ENFORCE` 检索强制 · `ASK_RATE_LIMIT_RPM=0`（限流关闭） · L1 CLI 需显式 `L1_KB_ID`（`turbo.json` 已登记 `L1_*` 透传） |
-| 关联模块 | 入库演示还需要 `worker` + PostgreSQL + Redis；契约来自 `@strict-rag/contracts`，schema 来自 `@strict-rag/db`；L1 gold 在仓根 `fixtures/l1/`（非 DB 表） |
-| 最近更新 | 2026-08-09（B6 dashboard summary 薄壳；B10 L1 seed） |
+| 默认依赖模式 | ES 检索 = `mock` · 鉴权 = 临时双 JWT（`AUTH_ENFORCE` **默认关闭**）· rewrite = 强制关闭 · 对象存储 = `local` 本地目录 · Gateway 缺 URL→mock；**B3-W** ask 读 platform 绑定（失败回退 env；KB 绑定未做）· JWT **尚未**读取 DB 中的 `user_roles` · **未开启** `DEPT_ACL_ENFORCE` 检索强制 · `ASK_RATE_LIMIT_RPM=0`（限流关闭） · L1 CLI 需显式 `L1_KB_ID`（`turbo.json` 已登记 `L1_*` / `L1_PERSIST_EVAL`） |
+| 关联模块 | 入库演示还需要 `worker` + PostgreSQL + Redis；契约来自 `@strict-rag/contracts`，schema 来自 `@strict-rag/db`（含 `eval_runs`）；L1 gold / RACI 在仓根 `fixtures/l1/` |
+| 最近更新 | 2026-08-11（OPS-1 live sparse；B3-W Gateway 读 platform 绑定；B10 eval_runs） |
 | Spec | `.trellis/spec/api/backend/`（含 [dashboard](../../.trellis/spec/api/backend/dashboard.md) · [l1-eval](../../.trellis/spec/api/backend/l1-eval.md)） |
 | PRD | `prds/05-api` · `04-pipelines` · `08-quality` · `09-security` |
 
@@ -52,7 +52,7 @@
 - 始终强制 `requirePermission('model.gateway.manage')`；GET 响应**永不**回显 `apiKey`，只返回 `hasApiKey` 标志
 - 绑定类型校验 + judge 与 judge_aux 不可混用（ADR-042）；删除仍被引用的供应商会返回 400
 - 数据表：`model_providers` / `model_bindings`；测试用内存仓库（memory repo）
-- **尚未**让 Gateway 运行时读取 DB 绑定；**未做**知识库级绑定；**未做**真实的 fetch-models 代理
+- **B3-W 已接线**：运行时 `getGatewayForTenant` 读 platform 绑定（env 回退）；**未做**知识库级绑定（B2-W）；**未做**真实的 fetch-models 代理
 
 ### 平台用户 / 角色（B4 · ADR-056 最小集）
 - `GET / POST / PATCH /admin/users`，`POST …/users/:id/roles` 分配角色
@@ -80,8 +80,8 @@
 - 流式异常处理：`execute` 抛错时仍会写出 `data-status phase=error` 与 `data-ask-final`（`reason=internal_guard`）；有单测覆盖（`routes/ask.test.ts`）
 - 会话列表 / 详情外壳（**rewrite 强制关闭**，把 `SESSION_REWRITE_ENABLED` 设为 `true` 会导致启动失败）；list 接口的 query 参数绑定 `SessionListQuerySchema` 校验
 - 反馈提交 / 管理队列 API（`routes/feedback`）；queue 接口的 query 参数绑定 `FeedbackQueueQuerySchema` 校验
-- Gateway 切片（`GATEWAY_MODE` 支持 mock / http；缺少 URL 时自动降级为 mock client）
-- 检索适配层（RRF 融合 / 打分；`RETRIEVE_ES_MODE` **默认 mock**；`http` 模式**运行即拒绝**，报 `not implemented`，**不等于**已接入生产 ES）
+- Gateway 切片（`GATEWAY_MODE` mock/http；**B3-W**：ask 走 `getGatewayForTenant` = env + platform `model_bindings`，`bindingSource=env|mixed`；缺绑定回退 env；≤5s 缓存；**KB 级绑定未接线**；Key 不进日志）
+- 检索适配层（RRF 融合 / 打分；`RETRIEVE_ES_MODE` **默认 mock**；`http` = ES BM25 sparse **切片**（`es-sparse.ts` + `ELASTICSEARCH_URL`；缺 URL / ES 失败 loud fail，**禁止**回落 mock）；**不等于**生产 ES+IK / 多租户 Router（B8））
 - 观测骨架：进程内 metrics、内存 tracer、ask 限流（`ASK_RATE_LIMIT_RPM` 默认 0 即关闭）、`/metrics` 端点无鉴权
 - **P0 红线单测已挂账**（清单见 `docs/testing/p0-redlines.md`；**不是** L1 黄金集评测、**也不是**远程 CI 门禁）：
   - **R7** `filterDocsForRetrieve` / `corpus.test.ts`（生产装载路径；db 包的 `retrieval-gate` 为底层附录）
@@ -90,12 +90,13 @@
   - 关键 `it` 用例标题带 `R#:` 前缀；**不**要求测试内部 stub `AUTH_ENFORCE`
 
 ### 评测 L1 工程 seed（B10 · 部分 · ≠ 业务签字）
-- 仓根 `fixtures/l1/gold.yaml`：**30 题** seed（answerable 15 / unanswerable 12 / false_premise 3）；扩展名 yaml、**内容为 JSON**（零 yaml 依赖）；逻辑 `expectedDocIds` 见 `fixtures/l1/README.md`
+- 仓根 `fixtures/l1/gold.yaml`：**≥60 题**（answerable 30 + 不可答类 30）；扩展名 yaml、**内容为 JSON**（零 yaml 依赖）；逻辑 `expectedDocIds` 见 `fixtures/l1/README.md`；业务题面 RACI → `fixtures/l1/RACI.md`
 - 纯函数 `apps/api/src/eval/l1-matrix.ts`：2×2（A–D）+ `coverage=A/(A+B)`（分母 0→null）；`outcome=error` **不计格**，只增 `errorCount`；单测同目录
-- CLI `apps/api/src/scripts/run-l1-golden.ts`：串行 **`executeAsk` + `skipTrace: true`**（可注入 `execute` / `graphDeps`）→ 仓根 `artifacts/l1-last-run.{json,md}`（**gitignore**）；报告含 **`mode`: mock|live|unknown**（由 `RETRIEVE_ES_MODE` 推导）
+- CLI `apps/api/src/scripts/run-l1-golden.ts`：串行 **`executeAsk` + `skipTrace: true`**（可注入 `execute` / `graphDeps`）→ 仓根 `artifacts/l1-last-run.{json,md}`（**gitignore**）；报告含 **`retrieve_mode` / `mode`: mock|live|unknown** + **`signoffEligible`**（仅 live=true；由 `RETRIEVE_ES_MODE` 推导）
+- 签字 live profile（OPS-1）：`docs/ops/live-retrieve-profile.md`；探针 `src/scripts/seed-es-sparse-probe.ts`（PG→ES bulk）
 - 跑法：`L1_KB_ID=<uuid> pnpm --filter @strict-rag/api exec tsx src/scripts/run-l1-golden.ts`（可选 `L1_MAX_CASES` 等；见 `apps/api/README.md`）
-- CI 范围：矩阵纯测 + mock 注入测（`*.test.ts` 共 14 断言路径已绿）；**默认不**在 CI 跑真 LLM / 真 ES 全量；样例文 `fixtures/l1/sample-report.md`（非 live 签字数字）
-- **边界**：**禁止** `mode=mock` 的 coverage/A–D 写入业务签字页；无 `eval_runs` 表、无 worker-eval、无 L2/L3；签字规模扩集 → backlog **B10-followup**
+- CI 范围：矩阵纯测 + mock 注入测 + es-sparse 单元测；**默认不**在 CI 跑真 LLM / 真 ES 全量；样例文 `fixtures/l1/sample-report.md`（非 live 签字数字）
+- **边界**：**禁止** `retrieve_mode=mock` 的 coverage/A–D 写入业务签字页；`eval_runs` 可 `L1_PERSIST_EVAL=1` 写入（db migration 0006）；无 worker-eval、无 L2/L3；**签字真跑** 待 live∧B3-W（B10-followup 余量）
 
 ---
 
@@ -105,7 +106,7 @@
 
 | 项 | 说明 |
 |----|------|
-| 生产级 ES + IK 分词检索 | `RETRIEVE_ES_MODE` 默认 `mock`；虽然有 `http` 枚举值，但**不等于**已宣称接入生产 ES（backlog B8） |
+| 生产级 ES + IK 分词 / 多租户 | `http` 切片可签字归因（OPS-1）；默认仍 `mock`；**≠** 全文 B8（IK、Router、入库双写） |
 | rewrite / 多轮指代消解 | `SESSION_REWRITE_ENABLED` 在 P2 阶段强制为 false；会话历史**不等于**检索证据 |
 | CRAG / multi_hop | 未进入本阶段范围 |
 | 完整 ACL / 部门强制隔离 | 目前只有 KB 成员校验 + 权限码 + 可配置的组织骨架；**检索仍是成员可见全库**（B5 未开启 DEPT_ACL） |
@@ -115,13 +116,13 @@
 
 | 项 | 说明 |
 |----|------|
-| 知识库设置全量项（docTypes / 分片策略 / KB 级模型绑定）、ask 模式闸门、Gateway 读 DB | B2/B3 最小集已落地；ask 仍使用环境变量配置的 Gateway；KB 级绑定未做 |
+| 知识库设置全量项（docTypes / 分片策略 / KB 级模型绑定）、ask 模式闸门 | B2/B3 最小集已落地；**B3-W** ask 已读 platform `model_bindings`（env 回退）；**KB 级绑定未做**（B2-W） |
 | 按历史 indexVersion 浏览分片 | ADR-052 明确 P2 阶段不做 |
 | Mongo 作为正文权威存储 | 目前演示读取的是 PG 的 `body_text` 字段；接真 Mongo 见 B9 |
 | 跨部门授权、DEPT_ACL 强制 | B5 仅组织壳；ADR-057 检索强制未开 |
 | APM / 时序观测大盘 | B6 仅为 `GET /admin/dashboard/summary` 只读计数 + processReady，**不是**观测生产向 |
 | 用户端反馈控件 | 本包只提供 feedback **API**；web 端是否接 UI 见 `web.md` |
-| L1 业务签字门禁 / live 覆盖率闸 / `eval_runs` | 仅有文件账本 + CLI；**不**宣称 L1 门禁 PASS；见 **B10-followup** |
+| L1 业务签字门禁 / live 覆盖率闸 / 真跑数字 | 文件账本 + 可选 `eval_runs` 落库（`L1_PERSIST_EVAL`）；**不**宣称 L1 门禁 PASS；签字真跑见 **B10-followup** 余量 |
 
 ---
 
@@ -135,7 +136,7 @@
 | 观测未接真实 Langfuse | 指标只有可演示级别 | `LANGFUSE_ENABLED` 默认 false |
 | `/metrics` 无鉴权 | 生产环境需要网关层保护 | 代码注释已标明；contracts 中没有对应的线型定义 |
 | sessions / auth TokenPair / documents status 出口使用 `as` 断言 | 存在 D1 类型漂移面 | 以类型标注为主，未做全量 Schema.parse 校验 |
-| L1 业务签字包 / 远程 CI 红线任务 / live 门禁数字 | 工程 seed 已有（gold=30 + CLI + 2×2 单测）；**mock 数字禁止签字**；无 `eval_runs`、无默认 CI 真 LLM | B10 **部分** · task `08-09-b10-l1-golden-min`；完整签字 → **B10-followup**；P0 红线表 ≠ L1；AUTH enforce 测 → **QUAL-1**；HOW → `.trellis/spec/api/backend/l1-eval.md` |
+| L1 业务签字包 / 远程 CI 红线任务 / live 门禁数字 | 工程：gold≥60 + CLI + 2×2 + `eval_runs`（`L1_PERSIST_EVAL`）+ OPS-1 live 切片；**mock 数字禁止签字**；无默认 CI 真 LLM；**无**业务签字真跑归档 | B10 seed `08-09-b10-l1-golden-min` · followup **部分** `08-11-b10-followup-eval-runs`；P0 红线表 ≠ L1；AUTH enforce 测 → **QUAL-1**；HOW → `.trellis/spec/api/backend/l1-eval.md` |
 
 ---
 
@@ -153,9 +154,9 @@
 | 模型网关 B3 | `apps/api/src/routes/model-gateway.ts` · `services/model-gateway.ts` · `routes/model-gateway.test.ts` |
 | 数据面板 B6 | `apps/api/src/routes/dashboard.ts` · `services/dashboard.ts` · `routes/dashboard.test.ts` |
 | 鉴权 / 成员 | `apps/api/src/auth/` · `routes/members.ts` |
-| Gateway 运行时 / 检索 | `apps/api/src/services/gateway/`（走环境变量）· `services/retrieve/`（`corpus.ts` · `filterDocsForRetrieve`） |
+| Gateway 运行时 / 检索 | `apps/api/src/services/gateway/`（`getGatewayForTenant` · `bindings.ts` · `resolve.ts`）· `services/retrieve/`（`corpus.ts` · `es-sparse.ts` · `filterDocsForRetrieve`） |
 | 观测 | `apps/api/src/obs/` |
-| L1 工程 seed | `fixtures/l1/gold.yaml` · `README.md` · `sample-report.md` · `apps/api/src/eval/l1-matrix.ts` · `l1-matrix.test.ts` · `apps/api/src/scripts/run-l1-golden.ts` · `run-l1-golden.test.ts` · `apps/api/README.md`（L1 节）· `.gitignore`（`artifacts/`）· `turbo.json`（`L1_*` env） |
+| L1 工程 seed / followup 工程 | `fixtures/l1/gold.yaml` · `RACI.md` · `README.md` · `apps/api/src/eval/l1-matrix.ts` · `scripts/run-l1-golden.ts` · `scripts/seed-es-sparse-probe.ts` · `packages/db/src/schema/ask/eval-runs.ts` · `docs/ops/live-retrieve-profile.md` · `turbo.json`（`L1_*` / `L1_PERSIST_EVAL`） |
 | 环境变量默认值 | `apps/api/src/env.ts`（`RETRIEVE_ES_MODE=mock` · `AUTH_ENFORCE=false` · `SESSION_REWRITE_ENABLED=false`）；L1 CLI 另读 `L1_KB_ID` 等（**非** `env.ts` Zod 必填） |
 | 单测 | `apps/api/src/**/*.test.ts`（含 **dashboard** / eval/l1 / ask / chunks 等） |
 | P0 红线 | `docs/testing/p0-redlines.md` · `services/retrieve/corpus.test.ts`（R7）· `graph/graph.test.ts`（R8/R9） |

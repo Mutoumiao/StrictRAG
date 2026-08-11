@@ -6,6 +6,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { evalRuns } from '@strict-rag/db';
 import { uuidv7 } from 'uuidv7';
 
 import {
@@ -25,6 +26,7 @@ import {
   type ExecuteAskParams,
   type ExecuteAskResult,
 } from '../services/ask/index.js';
+import { getDb } from '../services/db.js';
 
 export type GoldCase = {
   id: string;
@@ -45,7 +47,12 @@ export type L1CaseRow = {
 };
 
 export type L1Report = {
+  /** 与 retrieve_mode 同义（历史字段） */
   mode: 'mock' | 'live' | 'unknown';
+  /** OPS-1：签字归因字段；与 mode 同步 */
+  retrieve_mode: 'mock' | 'live' | 'unknown';
+  /** mock 一律 false；仅 live 可考虑进签字包（仍须人审） */
+  signoffEligible: boolean;
   ranAt: string;
   caseCount: number;
   matrix: L1Matrix;
@@ -53,6 +60,8 @@ export type L1Report = {
   errorCount: number;
   cases: L1CaseRow[];
   kbId: string;
+  /** 写入 eval_runs 后的 id（可选） */
+  evalRunId?: string;
 };
 
 export type RunL1Options = {
@@ -65,7 +74,38 @@ export type RunL1Options = {
   /** 可注入（单测 mock graph） */
   execute?: (params: ExecuteAskParams, deps?: ExecuteAskDeps) => Promise<ExecuteAskResult>;
   executeDeps?: ExecuteAskDeps;
+  /** 写入 PG eval_runs；默认看 L1_PERSIST_EVAL */
+  persistEval?: boolean;
 };
+
+/** 将 L1 报告插入 eval_runs；返回 id */
+export async function persistEvalRun(
+  report: L1Report,
+  opts: { goldPath?: string; tenantId?: string; notes?: string },
+): Promise<string> {
+  const id = uuidv7();
+  const db = getDb();
+  await db.insert(evalRuns).values({
+    id,
+    tenantId: opts.tenantId ?? null,
+    kbId: report.kbId,
+    runType: 'golden_2x2',
+    retrieveMode: report.retrieve_mode,
+    signoffEligible: report.signoffEligible ? '1' : '0',
+    goldPath: opts.goldPath ?? null,
+    caseCount: report.caseCount,
+    matrixA: report.matrix.A,
+    matrixB: report.matrix.B,
+    matrixC: report.matrix.C,
+    matrixD: report.matrix.D,
+    coverage: report.coverage,
+    errorCount: report.errorCount,
+    ranAt: report.ranAt,
+    reportJson: report,
+    notes: opts.notes ?? null,
+  });
+  return id;
+}
 
 export class GoldLoadError extends Error {
   constructor(message: string) {
@@ -171,14 +211,16 @@ export function formatReportMd(report: L1Report): string {
   const lines = [
     '# L1 last run',
     '',
-    `> **mode: ${report.mode}** — mock 数字禁止写入业务签字页`,
+    `> **retrieve_mode: ${report.retrieve_mode}** — mock 数字禁止写入业务签字页（signoffEligible=${report.signoffEligible}）`,
     '',
     `| 字段 | 值 |`,
     `|------|-----|`,
     `| ranAt | ${report.ranAt} |`,
     `| kbId | ${report.kbId} |`,
     `| caseCount | ${report.caseCount} |`,
-    `| mode | **${report.mode}** |`,
+    `| retrieve_mode | **${report.retrieve_mode}** |`,
+    `| mode | ${report.mode} |`,
+    `| signoffEligible | ${report.signoffEligible} |`,
     `| errorCount | ${report.errorCount} |`,
     `| coverage | ${cov} |`,
     '',
@@ -248,8 +290,12 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
     });
   }
 
+  const mode = resolveEvalMode();
   const report: L1Report = {
-    mode: resolveEvalMode(),
+    mode,
+    retrieve_mode: mode,
+    // ponytail: live≠自动签字；仅挡 mock 静默进包
+    signoffEligible: mode === 'live',
     ranAt: new Date().toISOString(),
     caseCount: rows.length,
     matrix,
@@ -258,6 +304,26 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
     cases: rows,
     kbId: opts.kbId,
   };
+
+  const wantPersist =
+    opts.persistEval === true ||
+    (opts.persistEval !== false &&
+      (process.env.L1_PERSIST_EVAL === '1' || process.env.L1_PERSIST_EVAL === 'true'));
+  if (wantPersist) {
+    try {
+      report.evalRunId = await persistEvalRun(report, {
+        goldPath: opts.goldPath,
+        tenantId,
+        notes: mode === 'mock' ? 'mock run — not for business sign-off' : undefined,
+      });
+    } catch (err) {
+      console.error(
+        'persist eval_runs failed (report files still written):',
+        err instanceof Error ? err.message : err,
+      );
+    }
+  }
+
   writeL1Report(opts.outDir, report);
   return report;
 }
@@ -289,6 +355,9 @@ async function main(): Promise<void> {
       JSON.stringify(
         {
           mode: report.mode,
+          retrieve_mode: report.retrieve_mode,
+          signoffEligible: report.signoffEligible,
+          evalRunId: report.evalRunId ?? null,
           caseCount: report.caseCount,
           matrix: report.matrix,
           coverage: report.coverage,

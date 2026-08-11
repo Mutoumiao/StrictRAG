@@ -7,6 +7,7 @@
 | 路径 | 说明 |
 |------|------|
 | `gold.yaml` | ≥30 题 SSOT（内容为 JSON 形，零依赖解析；扩展名按 design 冻结） |
+| `RACI.md` | **B10-RACI**：业务/测试 owner + 题面审核记录；**挡业务签字页** |
 | `sample-report.md` | 可提交样例报告（非真实 live 签字数字） |
 | 仓根 `artifacts/l1-last-run.{json,md}` | 最近一次 CLI 输出（gitignore） |
 
@@ -29,7 +30,8 @@
 | `false_premise` | 3 | 假前提（不可答子集） |
 | **合计** | **≥30** | 可答:不可答 ≈ 1:1 |
 
-签字规模（可答≥30 且 不可答≥30）见总 backlog **B10-followup**，**非本窗**。
+签字规模题面：`gold.yaml` 已扩至 **可答 30 + 不可答类 30**（含 `false_premise`）。  
+**真跑数字** 须 `retrieve_mode=live` 且 B3-W 后重跑 → 总 backlog **B10-followup**；`L1_PERSIST_EVAL=1` 写入 `eval_runs`。
 
 ## 跑法
 

@@ -2,7 +2,7 @@
 
 > 路径：`apps/api` · 目标端口 **4000**  
 > 现状：**P0/P1 入库** + **S2 最小 ask** + **B1–B5** + **B6 数据面板薄壳**（`dashboard.view` 只读 summary）+ 身份/授权骨架 + **B10 L1 工程 seed**（CLI + 2×2 矩阵；**≠** 业务签字门禁）。  
-> 默认：`RETRIEVE_ES_MODE=mock` · `AUTH_ENFORCE=false` · `SESSION_REWRITE_ENABLED=false`（强制）· Gateway 缺 URL→mock（**运行时仍 env，未读 DB 绑定**）· **JWT 未读 DB user_roles** · **未** `DEPT_ACL_ENFORCE` 检索强制。
+> 默认：`RETRIEVE_ES_MODE=mock` · `AUTH_ENFORCE=false` · `SESSION_REWRITE_ENABLED=false`（强制）· Gateway 缺 URL→mock；**B3-W** ask 运行时 `getGatewayForTenant` 读 platform 绑定（失败回退 env；KB 绑定 → B2-W）· **JWT 未读 DB user_roles** · **未** `DEPT_ACL_ENFORCE` 检索强制。
 
 ---
 

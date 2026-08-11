@@ -6,13 +6,13 @@
 | 成熟度 | **可联调**（P1 知识库 / 入库 + S2 问答 + B3 model_* + B4 platform_roles + **B5 departments**；Drizzle → PostgreSQL） |
 | 默认依赖模式 | 需要 `DATABASE_URL`；时间列使用本地格式字符串（见 ORM PRD） |
 | 关联模块 | `api` 与 `worker` 共用 client / schema；检索闸门谓词被 api 的 retrieve 模块复用 |
-| 最近更新 | 2026-08-09（确认：仍无 `eval_runs`；L1 文件账本在仓根 `fixtures/l1`，非本包） |
+| 最近更新 | 2026-08-11（`eval_runs` 表 + migration 0006；L1 文件 gold 仍在 `fixtures/l1`） |
 | Spec | `.trellis/spec/db/` |
 | PRD | `prds/03-data` · `prds/02-engineering/02-orm-drizzle.md` |
 
 ## 一句话状态
 
-Drizzle schema + client：**知识库 / 文档 / 分片 / 向量 / 入库任务 / 成员**、**问答会话 / 轨迹 / 反馈**、**模型供应商 / 绑定**、**平台角色 / 用户角色** 以及 **部门 / 用户部门** 表均已落地；并提供默认的检索双闸门谓词。**不等于**生产级迁移运维全集，也不是全文评测仓库。
+Drizzle schema + client：**知识库 / 文档 / 分片 / 向量 / 入库任务 / 成员**、**问答会话 / 轨迹 / 反馈 / eval_runs**、**模型供应商 / 绑定**、**平台角色 / 用户角色** 以及 **部门 / 用户部门** 表均已落地；并提供默认的检索双闸门谓词。**不等于**生产级迁移运维全集，也不是业务签字真跑完成。
 
 ---
 
@@ -35,6 +35,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量 / 入库任务 
 
 ### Schema · ask（S2）
 - `ask_sessions` · `ask_traces`（含 evidence 快照类型）· `ask_feedback`
+- **B10-followup**：`eval_runs`（`retrieve_mode` / 2×2 矩阵 / `report_json`；migration `0006_b10_eval_runs`）
 - schema 单测：`schema/ask/ask-schema.test.ts`
 
 ### 查询谓词
@@ -48,7 +49,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量 / 入库任务 
 | 项 | 说明 |
 |----|------|
 | 部门强制检索 / 跨部门授权 / 文档 owner_dept | 组织表已落地；检索 principals 与授权（grant）表未做 |
-| 评测集 / 黄金集 **PG 表**（`eval_runs`） | **本包无表**。文件账本在仓根 `fixtures/l1` + api CLI（B10 部分 · 属 `api` IS）；表结构 → **B10-followup** |
+| 业务签字 live 真跑数字 | 表 `eval_runs` 已有；题面 gold≥60；**真跑**须 api live profile + B3-W 后重跑（属运行时 / B10-followup 余量） |
 | Mongo 正文 / ES 索引本体 | **不在**本包；对象与稀疏索引在其它存储中 |
 | 自动 migration 流水线产品化 | schema 已有；运维发布流程不在本状态文档夸大描述 |
 
@@ -70,7 +71,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量 / 入库任务 
 |------|------|
 | 导出 | `packages/db/src/index.ts` · `schema/index.ts` |
 | 知识库表 | `packages/db/src/schema/kb/*` |
-| 问答表 | `packages/db/src/schema/ask/*` |
+| 问答 / 评测表 | `packages/db/src/schema/ask/*` · `eval-runs.ts` · migration `drizzle/0006_b10_eval_runs.sql` |
 | 检索闸门 | `packages/db/src/query/retrieval-gate.ts` · `retrieval-gate.test.ts` |
 | Client | `packages/db/src/client.ts` |
 | Task（已归档） | `.trellis/tasks/archive/2026-08/08-05-p2-contracts-schema/` · `08-04-p1-kb-doc-schema` 等 |

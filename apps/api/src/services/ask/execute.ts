@@ -11,7 +11,7 @@ import {
 import { env } from '../../env.js';
 import { childLogger } from '../../logger.js';
 import { createAskTracer, recordAskResult } from '../../obs/index.js';
-import { getGateway } from '../gateway/index.js';
+import { getGateway, getGatewayForTenant } from '../gateway/index.js';
 import { createDefaultRetrieveDeps } from '../retrieve/index.js';
 import { saveAskTrace } from './traces.js';
 
@@ -110,14 +110,17 @@ export async function executeAsk(
 
   const graphDeps: GraphDeps =
     deps.graphDeps ??
-    (() => {
-      const gw = getGateway();
+    (await (async () => {
+      // B3-W：ask 主路径读 tenant platform 绑定；失败由 getGatewayForTenant 回退 env
+      const gw = params.tenantId
+        ? await getGatewayForTenant(params.tenantId)
+        : getGateway();
       return {
         chat: chatFromGateway(gw),
         retrieveDeps: createDefaultRetrieveDeps(gw),
         tracer: obs.tracer,
       };
-    })();
+    })());
 
   // 注入 tracer（测例自带 graphDeps 时合并，除非 skip）
   if (!deps.skipDefaultTracer && deps.graphDeps && !deps.graphDeps.tracer) {

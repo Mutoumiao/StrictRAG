@@ -145,6 +145,22 @@ describe('resolveEvalMode', () => {
   });
 });
 
+describe('persistEvalRun gate', () => {
+  it('default path does not require DB when persistEval false', async () => {
+    const dir = tmp();
+    const goldPath = goldFile(dir, [{ id: '1', question: 'q', type: 'answerable' }]);
+    const report = await runL1Golden({
+      goldPath,
+      outDir: path.join(dir, 'out'),
+      kbId: 'kb',
+      persistEval: false,
+      execute: async () => abstained(),
+    });
+    expect(report.evalRunId).toBeUndefined();
+    expect(report.matrix.B).toBe(1);
+  });
+});
+
 describe('runL1Golden mock graphDeps path', () => {
   it('serial loop → matrix + report files with required fields', async () => {
     const dir = tmp();
@@ -179,6 +195,8 @@ describe('runL1Golden mock graphDeps path', () => {
     expect(report.errorCount).toBe(1);
     expect(report.coverage).toBe(0.5);
     expect(report.mode).toMatch(/mock|live|unknown/);
+    expect(report.retrieve_mode).toBe(report.mode);
+    expect(report.signoffEligible).toBe(report.mode === 'live');
     expect(report.kbId).toBe('kb-test');
     expect(report.cases.some((c) => c.outcome === 'error')).toBe(true);
 
@@ -187,11 +205,13 @@ describe('runL1Golden mock graphDeps path', () => {
     expect(json.errorCount).toBe(1);
     expect(json.cases).toHaveLength(5);
     expect(json).toHaveProperty('mode');
+    expect(json).toHaveProperty('retrieve_mode');
+    expect(json).toHaveProperty('signoffEligible');
     expect(json).toHaveProperty('ranAt');
     expect(json).toHaveProperty('coverage');
 
     const md = readFileSync(path.join(outDir, 'l1-last-run.md'), 'utf8');
-    expect(md).toContain('mode:');
+    expect(md).toContain('retrieve_mode:');
     expect(md).toContain('A=1');
     expect(md).toContain('errorCount');
   });
@@ -220,6 +240,8 @@ describe('writeL1Report', () => {
     const dir = tmp();
     const report: L1Report = {
       mode: 'mock',
+      retrieve_mode: 'mock',
+      signoffEligible: false,
       ranAt: '2026-08-09T00:00:00.000Z',
       caseCount: 0,
       matrix: { A: 0, B: 0, C: 0, D: 0 },

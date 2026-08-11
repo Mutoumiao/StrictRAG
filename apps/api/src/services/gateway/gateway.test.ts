@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import {
   GatewayError,
+  applyBindingsToGatewayConfig,
   buildGatewayConfig,
   createHttpGateway,
   createMockGateway,
   mapGatewayFailureToAskReason,
+  resolveChatModel,
   withSameModelRetry,
 } from './index.js';
 
@@ -27,6 +29,7 @@ describe('buildGatewayConfig', () => {
       GATEWAY_API_KEY: '',
     });
     expect(cfg.mode).toBe('mock');
+    expect(cfg.bindingSource).toBe('env');
     expect(cfg.rerankEndpoints.length).toBeGreaterThanOrEqual(1);
   });
 
@@ -51,6 +54,61 @@ describe('buildGatewayConfig', () => {
     });
     expect(cfg.rerankEndpoints).toHaveLength(2);
     expect(cfg.rerankMinNodes).toBe(2);
+  });
+});
+
+describe('applyBindingsToGatewayConfig (B3-W)', () => {
+  const providerId = '01900000-0000-7000-8000-0000000000aa';
+  const providers = [
+    {
+      id: providerId,
+      baseUrl: 'http://db-gw.local/v1',
+      apiKeyEnc: 'secret-from-db',
+      enabled: 1,
+      timeoutMs: 30_000,
+      modelsJson: [
+        { name: 'db-chat', type: 'llm', enabled: true },
+        { name: 'db-embed', type: 'embedding', enabled: true, dimensions: 16 },
+        { name: 'db-rerank', type: 'rerank', enabled: true },
+      ],
+    },
+  ];
+
+  it('platform bindings override models and mark mixed', () => {
+    const envCfg = buildGatewayConfig({
+      APP_ENV: 'test',
+      GATEWAY_MODE: 'http',
+      GATEWAY_BASE_URL: 'http://env.local/v1',
+      GATEWAY_API_KEY: 'env-key',
+      GATEWAY_CHAT_MODEL: 'env-chat',
+      RERANK_MIN_NODES: 1,
+    });
+    const cfg = applyBindingsToGatewayConfig(envCfg, {
+      providers,
+      bindings: [
+        { purpose: 'generate', primaryRef: `${providerId}#db-chat` },
+        { purpose: 'embed', primaryRef: `${providerId}#db-embed` },
+        { purpose: 'rerank', primaryRef: `${providerId}#db-rerank` },
+      ],
+    });
+    expect(cfg.bindingSource).toBe('mixed');
+    expect(cfg.models.chat).toBe('db-chat');
+    expect(cfg.models.embed).toBe('db-embed');
+    expect(resolveChatModel(cfg, 'generate')).toBe('db-chat');
+    expect(cfg.purposeEndpoints?.chat?.baseUrl).toBe('http://db-gw.local/v1');
+    expect(cfg.purposeEndpoints?.chat?.apiKey).toBe('secret-from-db');
+  });
+
+  it('empty bindings → env fallback', () => {
+    const envCfg = buildGatewayConfig({
+      APP_ENV: 'test',
+      GATEWAY_BASE_URL: '',
+      GATEWAY_API_KEY: '',
+      RERANK_MIN_NODES: 1,
+    });
+    const cfg = applyBindingsToGatewayConfig(envCfg, { providers, bindings: [] });
+    expect(cfg.bindingSource).toBe('env');
+    expect(cfg.models.chat).toBe(envCfg.models.chat);
   });
 });
 

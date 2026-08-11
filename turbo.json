@@ -27,7 +27,8 @@
         "L1_TENANT_ID",
         "L1_USER_ID",
         "L1_GOLD_PATH",
-        "L1_OUT_DIR"
+        "L1_OUT_DIR",
+        "L1_PERSIST_EVAL"
       ]
     },
     "check-types": {
@@ -61,7 +62,8 @@
         "L1_TENANT_ID",
         "L1_USER_ID",
         "L1_GOLD_PATH",
-        "L1_OUT_DIR"
+        "L1_OUT_DIR",
+        "L1_PERSIST_EVAL"
       ]
     }
   }

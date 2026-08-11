@@ -40,14 +40,15 @@ apps/api/src/
     platform-users-roles.ts · departments.ts · dashboard.ts
     db.ts · storage.ts · queue.ts
     ask/                   # executeAsk · session-guard · traces 落库
-    gateway/               # chat · embed · rerank（mock|http；**未**读 model_bindings 表）
-    retrieve/              # 混合检索 · 双闸门 · RRF · scoring
+    gateway/               # chat · embed · rerank；B3-W：bindings.ts + getGatewayForTenant
+    retrieve/              # 混合检索 · 双闸门 · RRF · es-sparse（OPS-1 http 切片）
   eval/
     l1-matrix.ts           # L1 2×2 纯函数（A–D · coverage）；error 不计格
     l1-matrix.test.ts
   scripts/
-    run-l1-golden.ts       # L1 批跑 CLI：串行 executeAsk(skipTrace) → artifacts/
+    run-l1-golden.ts       # L1 批跑 CLI：串行 executeAsk(skipTrace) → artifacts/；可选 persist eval_runs
     run-l1-golden.test.ts  # loadGold · mock execute 注入（CI 不跑 live LLM）
+    seed-es-sparse-probe.ts # OPS-1：PG chunks → ES bulk + sample search
   obs/                     # metrics · rate-limit · memory/ask tracer
   gates/                   # 上传体积 · 审批 scan
   ready/checks.ts
@@ -58,8 +59,9 @@ apps/api/src/
 仓根 fixture / 产物（非 `src/`）：
 
 ```text
-fixtures/l1/gold.yaml      # JSON 形；≥30 seed（非签字规模）
-fixtures/l1/README.md · sample-report.md
+fixtures/l1/gold.yaml      # JSON 形；≥60（ans30+una30；非签字真跑）
+fixtures/l1/RACI.md · README.md · sample-report.md
+docs/ops/live-retrieve-profile.md
 artifacts/                 # gitignore；l1-last-run.{json,md}
 ```
 
