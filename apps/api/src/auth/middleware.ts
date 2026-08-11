@@ -205,13 +205,23 @@ export const requirePermission = (code: string, options?: PermOptions) =>
   });
 
 /**
+ * AUTH_ENFORCE 运行时读取（QUAL-1）：支持测例 `vi.stubEnv` 临时打开并还原。
+ * 未设 process.env 时回退模块加载时的 `env.AUTH_ENFORCE`（默认 false，禁止改仓库默认 on）。
+ */
+export function isAuthEnforceEnabled(): boolean {
+  const raw = process.env.AUTH_ENFORCE;
+  if (raw === 'true' || raw === 'false') return raw === 'true';
+  return env.AUTH_ENFORCE;
+}
+
+/**
  * AUTH_ENFORCE=true：登录 + 权限码；false：放行（demo-ingest）。
  * 业务入库路由统一挂这个，避免假开关。
  * 打开时 kb scope 走默认 kb_members 校验（与成员 API 同源）。
  */
 export const requirePermissionWhenEnforced = (code: string, options?: PermOptions) =>
   createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
-    if (!env.AUTH_ENFORCE) {
+    if (!isAuthEnforceEnabled()) {
       await next();
       return;
     }

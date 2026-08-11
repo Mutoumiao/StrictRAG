@@ -61,7 +61,7 @@
 - 始终做权限码校验；`codes` 必须是 admin-catalog 的子集；最后一个可用的 `super_admin` 被禁用或剥离权限时返回 400；系统内置的 super_admin 角色禁止禁用
 - 数据表：`platform_roles` / `user_roles`；内置四个系统角色种子数据；测试用内存仓库
 - **B4-W 已接线**：中间件每请求 `hydrateAuthz`（`user_roles` + 启用角色 `codesJson`）；≤5s 进程缓存 + 写路径 `invalidateRoleCache`（**单实例假设**）；dev-login `ensureUserRoleCodes` bootstrap；dev/test 无绑定时回退 JWT claims；**没有**密码字段 / 生产 IdP
-
+- **QUAL-1**：`AUTH_ENFORCE=true` 时 `requirePermissionWhenEnforced` 无 Bearer → 401 `UNAUTHORIZED`（`auth-enforce.redline.test.ts` + `vi.stubEnv`）；**默认仍关**
 ### 部门组织骨架（B5 · ADR-057 最小集）
 - `GET / POST /admin/departments`、`GET …/tree`、`GET / PATCH /DELETE …/:deptId`
 - `GET / PUT /admin/users/:userId/departments`（主部门 + 兼任部门 + is_leader 标志）

@@ -169,8 +169,8 @@ Refresh JWT：`sub` · `sid` · `app` · `jti`（落库/内存状态，用于 ro
 | `JWT_REFRESH_SECRET` | `dev-only-refresh-secret-change-me` | 同上 |
 | `ACCESS_TOKEN_TTL_SEC` | `900` | int > 0 |
 | `REFRESH_TOKEN_TTL_SEC` | `604800` | int > 0 |
-| `AUTH_ENFORCE` | `false` | `true` 时文档/KB 路由 `requirePermissionWhenEnforced`；默认 false 保 demo-ingest |
-
+| `AUTH_ENFORCE` | `false` | `true` 时文档/KB 路由 `requirePermissionWhenEnforced`；默认 false 保 demo-ingest；**禁止**改仓库默认 on |
+| （运行时） | `isAuthEnforceEnabled()` | 读 `process.env.AUTH_ENFORCE`（支持 `vi.stubEnv`）→ 回退模块 `env`；QUAL-1 红线测 |
 #### Hono Variables
 
 ```typescript
@@ -218,6 +218,8 @@ Refresh JWT：`sub` · `sid` · `app` · `jti`（落库/内存状态，用于 ro
 |------|--------|
 | `auth/permissions/resolve.test.ts` | super_admin 全码；doc_operator 无 approval.decide；web_consumer 无 shell；union/deny；kb 成员 AND |
 | `auth/identity/token-service.test.ts` | issue+verify；refresh 轮换 access 不同；replay 抛 `AuthIdentityError`；app 错配拒绝 |
+| `auth/role-hydrate.test.ts` | B4-W DB 覆盖 JWT、缓存/invalidate、bootstrap、成员 403 |
+| `auth/auth-enforce.redline.test.ts` | QUAL-1：`vi.stubEnv` enforce=true 无 Bearer → 401 UNAUTHORIZED；默认仍关；unstub 还原 |
 | 路由（建议补） | dev-login 400 体；/me 无 token 401；refresh replay 401 |
 | 前端（建议补） | http 在 `UNAUTHORIZED` 时只并发一次 refresh |
 
