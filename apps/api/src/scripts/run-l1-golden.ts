@@ -6,7 +6,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { evalRuns } from '@strict-rag/db';
+import { evalRuns, formatLocalDateTime } from '@strict-rag/db';
 import { uuidv7 } from 'uuidv7';
 
 import {
@@ -78,15 +78,18 @@ export type RunL1Options = {
   persistEval?: boolean;
 };
 
-/** 将 L1 报告插入 eval_runs；返回 id */
-export async function persistEvalRun(
+/** 报告 ranAt(ISO) → 写库本地格式串；纯函数便于单测 */
+export function evalRunDbRanAt(ranAtIso: string): string {
+  const d = new Date(ranAtIso);
+  return formatLocalDateTime(Number.isNaN(d.getTime()) ? new Date() : d);
+}
+
+/** insert 行形状（不含 id）；纯映射，DB I/O 在 persistEvalRun */
+export function buildEvalRunInsert(
   report: L1Report,
   opts: { goldPath?: string; tenantId?: string; notes?: string },
-): Promise<string> {
-  const id = uuidv7();
-  const db = getDb();
-  await db.insert(evalRuns).values({
-    id,
+): Omit<typeof evalRuns.$inferInsert, 'id' | 'createdAt' | 'updatedAt'> {
+  return {
     tenantId: opts.tenantId ?? null,
     kbId: report.kbId,
     runType: 'golden_2x2',
@@ -100,9 +103,23 @@ export async function persistEvalRun(
     matrixD: report.matrix.D,
     coverage: report.coverage,
     errorCount: report.errorCount,
-    ranAt: report.ranAt,
+    // 报告 artifact 仍用 ISO；写库列走本地串（db guidelines）
+    ranAt: evalRunDbRanAt(report.ranAt),
     reportJson: report,
     notes: opts.notes ?? null,
+  };
+}
+
+/** 将 L1 报告插入 eval_runs；返回 id */
+export async function persistEvalRun(
+  report: L1Report,
+  opts: { goldPath?: string; tenantId?: string; notes?: string },
+): Promise<string> {
+  const id = uuidv7();
+  const db = getDb();
+  await db.insert(evalRuns).values({
+    id,
+    ...buildEvalRunInsert(report, opts),
   });
   return id;
 }

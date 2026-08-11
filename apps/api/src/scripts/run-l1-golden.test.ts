@@ -8,6 +8,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { ExecuteAskParams, ExecuteAskResult } from '../services/ask/index.js';
 import {
   GoldLoadError,
+  buildEvalRunInsert,
+  evalRunDbRanAt,
   loadGold,
   resolveEvalMode,
   runL1Golden,
@@ -95,19 +97,20 @@ function abstained(): ExecuteAskResult {
 }
 
 describe('loadGold', () => {
-  it('loads repo fixtures/l1/gold.yaml (≥30, type mix)', () => {
+  it('loads repo fixtures/l1/gold.yaml (≥30 ans + ≥30 unanswerable-class)', () => {
     // real shipped fixture path
     const p = path.resolve(
       path.dirname(fileURLToPath(import.meta.url)),
       '../../../../fixtures/l1/gold.yaml',
     );
     const cases = loadGold(p);
-    expect(cases.length).toBeGreaterThanOrEqual(30);
     const by = { answerable: 0, unanswerable: 0, false_premise: 0 };
     for (const c of cases) by[c.type] += 1;
-    expect(by.answerable).toBeGreaterThan(0);
-    expect(by.unanswerable).toBeGreaterThan(0);
+    expect(by.answerable).toBeGreaterThanOrEqual(30);
+    // unanswerable-class = unanswerable + false_premise
+    expect(by.unanswerable + by.false_premise).toBeGreaterThanOrEqual(30);
     expect(by.false_premise).toBeGreaterThanOrEqual(3);
+    expect(cases.length).toBeGreaterThanOrEqual(60);
   });
 
   it('loads JSON-shaped gold', () => {
@@ -161,6 +164,57 @@ describe('persistEvalRun gate', () => {
   });
 });
 
+describe('buildEvalRunInsert / evalRunDbRanAt', () => {
+  it('maps report → insert row; ran_at is local format not ISO-Z', () => {
+    const report: L1Report = {
+      mode: 'mock',
+      retrieve_mode: 'mock',
+      signoffEligible: false,
+      ranAt: '2026-08-09T12:34:56.000Z',
+      caseCount: 2,
+      matrix: { A: 1, B: 0, C: 0, D: 1 },
+      coverage: 1,
+      errorCount: 0,
+      cases: [],
+      kbId: '01900000-0000-7000-8000-0000000000aa',
+    };
+    const row = buildEvalRunInsert(report, {
+      goldPath: '/g.yaml',
+      tenantId: '01900000-0000-7000-8000-000000000001',
+      notes: 'mock run — not for business sign-off',
+    });
+    expect(row.retrieveMode).toBe('mock');
+    expect(row.signoffEligible).toBe('0');
+    expect(row.matrixA).toBe(1);
+    expect(row.matrixD).toBe(1);
+    expect(row.caseCount).toBe(2);
+    expect(row.goldPath).toBe('/g.yaml');
+    expect(row.notes).toContain('mock');
+    expect(row.ranAt).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+    expect(row.ranAt).not.toContain('T');
+    expect(row.ranAt).not.toContain('Z');
+    expect(evalRunDbRanAt(report.ranAt)).toBe(row.ranAt);
+    // mock → not signoff
+    expect(report.signoffEligible).toBe(false);
+  });
+
+  it('live signoffEligible maps to text 1', () => {
+    const report: L1Report = {
+      mode: 'live',
+      retrieve_mode: 'live',
+      signoffEligible: true,
+      ranAt: '2026-08-09T00:00:00.000Z',
+      caseCount: 0,
+      matrix: { A: 0, B: 0, C: 0, D: 0 },
+      coverage: null,
+      errorCount: 0,
+      cases: [],
+      kbId: 'k',
+    };
+    expect(buildEvalRunInsert(report, {}).signoffEligible).toBe('1');
+  });
+});
+
 describe('runL1Golden mock graphDeps path', () => {
   it('serial loop → matrix + report files with required fields', async () => {
     const dir = tmp();
@@ -186,6 +240,7 @@ describe('runL1Golden mock graphDeps path', () => {
       goldPath,
       outDir,
       kbId: 'kb-test',
+      persistEval: false,
       execute,
     });
 
@@ -228,6 +283,7 @@ describe('runL1Golden mock graphDeps path', () => {
       outDir: path.join(dir, 'out'),
       kbId: 'kb',
       maxCases: 2,
+      persistEval: false,
       execute: async () => abstained(),
     });
     expect(report.caseCount).toBe(2);

@@ -69,7 +69,7 @@ Seed 规模：可答 30 + 不可答类 30（含 `false_premise`）；**mock 数�
 | `retrieve_mode` | 与 `mode` 同步（OPS-1 签字归因） |
 | `signoffEligible` | 仅 `live` → `true`；**≠** 自动业务签字 |
 | `evalRunId?` | `L1_PERSIST_EVAL` 写入 `eval_runs` 后的 id |
-| `ranAt` | ISO 字符串 |
+| `ranAt` | ISO 字符串（artifact / report_json）；**写库** `eval_runs.ran_at` 用 `formatLocalDateTime`（`evalRunDbRanAt`） |
 | `caseCount` / `errorCount` | number |
 | `matrix` | `{ A,B,C,D }` |
 | `coverage` | `number \| null` |
