@@ -67,8 +67,26 @@ export const CompleteUploadResponseSchema = z.object({
   byteSize: z.number().int().nonnegative(),
   approvalStatus: ApprovalStatusSchema,
   status: DocumentStatusSchema,
+  /** B12：落库策略码 */
+  chunkStrategy: z.string().min(1).optional(),
 });
 export type CompleteUploadResponse = z.infer<typeof CompleteUploadResponseSchema>;
+
+/** POST …/documents/:docId/reindex · B12 多策略时 body 必带 chunkStrategy */
+export const ReindexDocumentBodySchema = z.object({
+  chunkStrategy: z.string().min(1).max(64).optional(),
+});
+export type ReindexDocumentBody = z.infer<typeof ReindexDocumentBodySchema>;
+
+export const ReindexDocumentResponseSchema = z.object({
+  docId: z.string().uuid(),
+  enqueued: z.literal(true),
+  jobId: z.string().min(1),
+  stage: z.literal('chunk'),
+  chunkStrategy: z.string().min(1),
+  strategyChanged: z.boolean(),
+});
+export type ReindexDocumentResponse = z.infer<typeof ReindexDocumentResponseSchema>;
 
 export const PatchLifecycleBodySchema = z.object({
   lifecycle: LifecycleSchema,

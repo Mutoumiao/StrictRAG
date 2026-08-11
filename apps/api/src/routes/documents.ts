@@ -13,8 +13,10 @@ import {
   type Lifecycle,
   type PatchLifecycleResponse,
   type PutObjectResponse,
+  type ReindexDocumentResponse,
   type UploadUrlResponse,
   PatchLifecycleBodySchema,
+  ReindexDocumentBodySchema,
   UploadUrlBodySchema,
 } from '@strict-rag/contracts';
 import { Hono } from 'hono';
@@ -26,7 +28,10 @@ import { checkUploadByteSize } from '../gates/upload-size.js';
 import { fail, ok } from '../lib/response.js';
 import { childLogger } from '../logger.js';
 import type { ApiVariables } from '../middleware/request-id.js';
-import { resolveRequiredChunkStrategy } from '../services/chunk-strategies.js';
+import {
+  listChunkStrategies,
+  resolveDocumentChunkStrategy,
+} from '../services/chunk-strategies.js';
 import { documentRepo } from '../services/documents.js';
 import { enqueueIngest } from '../services/queue.js';
 import { effectiveMaxUploadBytes, getStorage } from '../services/storage.js';
@@ -195,8 +200,11 @@ documentRoutes.post(
     );
   }
 
-  // B12：分片策略必选（注册表校验；默认 structure_paragraph）
-  const strategyGate = resolveRequiredChunkStrategy(body.data.chunkStrategy);
+  // B12：策略解析（无显式 body 时保留 doc 已有策略，禁止静默切）
+  const strategyGate = resolveDocumentChunkStrategy({
+    existing: doc.chunkStrategy,
+    requested: body.data.chunkStrategy,
+  });
   if (!strategyGate.ok) {
     return fail(c, BizCode.VALIDATION_ERROR, strategyGate.message, 400);
   }
@@ -212,6 +220,8 @@ documentRoutes.post(
       kbId,
       chunkStrategy: strategyGate.code,
       explicit: Boolean(body.data.chunkStrategy),
+      retained: strategyGate.retained,
+      changed: strategyGate.changed,
     },
     'chunk strategy selected on complete',
   );
@@ -221,8 +231,75 @@ documentRoutes.post(
     byteSize: head.byteSize,
     approvalStatus: 'pending',
     status: 'uploaded',
+    chunkStrategy: strategyGate.code,
   };
   return ok(c, data);
+  },
+);
+
+/**
+ * POST /api/v1/documents/:docId/reindex — B12
+ * 多策略时 body.chunkStrategy **必选**；无显式变更则保留旧策略。
+ */
+documentRoutes.post(
+  '/documents/:docId/reindex',
+  requirePermissionWhenEnforced('doc.reindex'),
+  async (c) => {
+    const docId = c.req.param('docId');
+    const parsed = ReindexDocumentBodySchema.safeParse(await c.req.json().catch(() => ({})));
+    if (!parsed.success) {
+      return fail(c, BizCode.VALIDATION_ERROR, 'invalid body', 400, parsed.error.flatten());
+    }
+
+    const doc = await documentRepo.getDoc(docId);
+    if (!doc) {
+      return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
+    }
+
+    // 多策略并存 → reindex 强制显式传策略（必选）
+    const multi = listChunkStrategies().length > 1;
+    const strategyGate = resolveDocumentChunkStrategy({
+      existing: doc.chunkStrategy,
+      requested: parsed.data.chunkStrategy,
+      requireExplicit: multi,
+    });
+    if (!strategyGate.ok) {
+      return fail(c, BizCode.VALIDATION_ERROR, strategyGate.message, 400);
+    }
+
+    if (strategyGate.changed) {
+      await documentRepo.setChunkStrategy(docId, strategyGate.code);
+    }
+
+    const jobId = (await enqueueIngest({
+      docId: doc.id,
+      kbId: doc.kbId,
+      tenantId: doc.tenantId,
+      stage: 'chunk',
+    })) ?? `local-${docId}`;
+
+    childLogger({ requestId: c.get('requestId') }).info(
+      {
+        event: 'chunk_strategy_reindex',
+        docId,
+        chunkStrategy: strategyGate.code,
+        strategyChanged: strategyGate.changed,
+        retained: strategyGate.retained,
+        jobId,
+      },
+      'reindex enqueued with chunk strategy',
+    );
+
+    const data: ReindexDocumentResponse = {
+      docId,
+      enqueued: true,
+      jobId,
+      stage: 'chunk',
+      chunkStrategy: strategyGate.code,
+      strategyChanged: strategyGate.changed,
+    };
+    // 与 scan 入队一致：200 信封（ok 不接受 202）
+    return ok(c, data);
   },
 );
 

@@ -58,7 +58,7 @@ export function resolveRequiredChunkStrategy(
 }
 
 /**
- * 旧文档不自动切：仅当 explicit 新策略且与当前不同才返回「可改」；
+ * 旧文档不自动切：仅当 explicit 新策略且与当前不同才返回 false（应覆盖）；
  * 自动/隐式路径应调用本函数并拒绝静默覆盖。
  */
 export function shouldRetainExistingStrategy(params: {
@@ -71,4 +71,59 @@ export function shouldRetainExistingStrategy(params: {
   // 无显式变更意图 → 保留旧策略
   if (!params.explicitChange) return true;
   return false;
+}
+
+/**
+ * complete / reindex 共用：解析最终写入策略。
+ * - 请求未带 strategy → 保留已有（无则默认）；仍须注册
+ * - 请求带 strategy → 须注册；仅 explicit 才覆盖旧值
+ * - reindex 且 `requireExplicitWhenMulti=true` 且注册表 >1：必须显式传（多策略必选）
+ */
+export function resolveDocumentChunkStrategy(params: {
+  existing: string | null | undefined;
+  requested: string | null | undefined;
+  /** reindex 多策略时强制 body 必带 */
+  requireExplicit?: boolean;
+}):
+  | { ok: true; code: string; retained: boolean; changed: boolean }
+  | { ok: false; message: string } {
+  const explicit = Boolean(params.requested?.trim());
+  if (params.requireExplicit && !explicit) {
+    return {
+      ok: false,
+      message: `chunkStrategy is required on reindex (registered: ${[...REGISTRY.keys()].join(',')})`,
+    };
+  }
+
+  const requestedGate = resolveRequiredChunkStrategy(params.requested);
+  if (!requestedGate.ok) return requestedGate;
+
+  const retain = shouldRetainExistingStrategy({
+    existing: params.existing,
+    next: requestedGate.code,
+    explicitChange: explicit,
+  });
+
+  // 保留旧策略时，若旧值存在则用之（可能与 default 不同）；否则用解析结果
+  const code = retain && params.existing?.trim()
+    ? params.existing.trim()
+    : retain
+      ? (params.existing ?? requestedGate.code)
+      : requestedGate.code;
+
+  // 保留路径仍须注册（防脏数据）
+  if (!isRegisteredChunkStrategy(code)) {
+    return {
+      ok: false,
+      message: `existing chunkStrategy not registered: ${code}`,
+    };
+  }
+
+  const prev = params.existing ?? DEFAULT_CHUNK_STRATEGY;
+  return {
+    ok: true,
+    code,
+    retained: retain,
+    changed: prev !== code,
+  };
 }

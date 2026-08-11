@@ -4,6 +4,7 @@ import {
   DEFAULT_CHUNK_STRATEGY,
   isRegisteredChunkStrategy,
   listChunkStrategies,
+  resolveDocumentChunkStrategy,
   resolveRequiredChunkStrategy,
   shouldRetainExistingStrategy,
 } from './chunk-strategies.js';
@@ -39,5 +40,36 @@ describe('B12 chunk strategies', () => {
         explicitChange: true,
       }),
     ).toBe(false);
+  });
+
+  it('resolveDocumentChunkStrategy：无显式请求保留旧策略', () => {
+    const r = resolveDocumentChunkStrategy({
+      existing: 'fixed_window',
+      requested: undefined,
+    });
+    expect(r).toMatchObject({ ok: true, code: 'fixed_window', retained: true, changed: false });
+  });
+
+  it('resolveDocumentChunkStrategy：显式可改策略', () => {
+    const r = resolveDocumentChunkStrategy({
+      existing: 'fixed_window',
+      requested: 'heading_sections',
+    });
+    expect(r).toMatchObject({
+      ok: true,
+      code: 'heading_sections',
+      retained: false,
+      changed: true,
+    });
+  });
+
+  it('reindex 多策略 requireExplicit：未传 → 失败', () => {
+    const r = resolveDocumentChunkStrategy({
+      existing: 'fixed_window',
+      requested: undefined,
+      requireExplicit: true,
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.message).toContain('required on reindex');
   });
 });

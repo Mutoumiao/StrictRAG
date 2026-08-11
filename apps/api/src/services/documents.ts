@@ -112,4 +112,12 @@ export const documentRepo = {
   async setLifecycle(docId: string, lifecycle: string) {
     await getDb().update(documents).set({ lifecycle }).where(eq(documents.id, docId));
   },
+
+  /** B12：显式改策略（reindex 覆盖时） */
+  async setChunkStrategy(docId: string, chunkStrategy: string) {
+    await getDb()
+      .update(documents)
+      .set({ chunkStrategy })
+      .where(eq(documents.id, docId));
+  },
 };
