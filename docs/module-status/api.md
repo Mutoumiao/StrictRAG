@@ -121,7 +121,7 @@
 | Mongo 作为正文权威存储 | 目前演示读取的是 PG 的 `body_text` 字段；接真 Mongo 见 B9 |
 | 跨部门授权、DEPT_ACL 强制 | B5 仅组织壳；ADR-057 检索强制未开 |
 | APM / 时序观测大盘 | B6 仅为 `GET /admin/dashboard/summary` 只读计数 + processReady，**不是**观测生产向 |
-| 用户端反馈控件 | 本包只提供 feedback **API**；web 端是否接 UI 见 `web.md` |
+| 用户端反馈控件 | **B13**：web 答后提交 + admin `/feedback` 队列（`feedback.queue`）；SLA 见 `docs/ops/feedback-sla.md` |
 | L1 业务签字门禁 / live 覆盖率闸 / 真跑数字 | 文件账本 + 可选 `eval_runs` 落库（`L1_PERSIST_EVAL`）；**不**宣称 L1 门禁 PASS；签字真跑见 **B10-followup** 余量 |
 
 ---
