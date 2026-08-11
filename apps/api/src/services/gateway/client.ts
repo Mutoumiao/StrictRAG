@@ -54,31 +54,39 @@ export function getGateway(): GatewayClient {
 }
 
 /**
- * B3-W：tenant 级 gateway = env + platform 绑定。
+ * B3-W / B2-W：gateway = env + platform 绑定（+ 可选 KB 覆盖）。
  * 失败回退 env（不抛，保证 ask 可继续 mock/env）。
  */
-export async function getGatewayForTenant(tenantId: string): Promise<GatewayClient> {
+export async function getGatewayForTenant(
+  tenantId: string,
+  kbId?: string,
+): Promise<GatewayClient> {
   const now = Date.now();
-  const hit = tenantCache.get(tenantId);
+  const cacheKey = kbId ? `${tenantId}::${kbId}` : tenantId;
+  const hit = tenantCache.get(cacheKey);
   if (hit && now - hit.at < TENANT_TTL_MS) {
     return hit.client;
   }
   const envCfg = buildGatewayConfig(envSlice());
   let cfg = envCfg;
   try {
-    const snap = await loadPlatformBindingSnapshot(tenantId);
+    const snap = await loadPlatformBindingSnapshot(tenantId, undefined, kbId);
     cfg = applyBindingsToGatewayConfig(envCfg, snap);
   } catch {
     cfg = envCfg;
   }
   const client = createGateway(cfg);
-  tenantCache.set(tenantId, { at: now, client, cfg });
+  tenantCache.set(cacheKey, { at: now, client, cfg });
   return client;
 }
 
-export async function getGatewayConfigForTenant(tenantId: string): Promise<GatewayConfig> {
-  await getGatewayForTenant(tenantId);
-  return tenantCache.get(tenantId)?.cfg ?? buildGatewayConfig(envSlice());
+export async function getGatewayConfigForTenant(
+  tenantId: string,
+  kbId?: string,
+): Promise<GatewayConfig> {
+  await getGatewayForTenant(tenantId, kbId);
+  const cacheKey = kbId ? `${tenantId}::${kbId}` : tenantId;
+  return tenantCache.get(cacheKey)?.cfg ?? buildGatewayConfig(envSlice());
 }
 
 /** 测试用：清单例 */

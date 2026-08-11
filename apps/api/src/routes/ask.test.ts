@@ -94,6 +94,11 @@ function buildApp(opts: {
         opts.kbExists === false || id !== KB
           ? null
           : { id: KB, tenantId: '01900000-0000-7000-8000-000000000001' },
+      // 默认不打真库 settings（全量 mode 默认）；B2-W 闸测见 ask.mode-gate.test.ts
+      settingsRepo: {
+        get: async () => null,
+        update: async () => null,
+      },
       execute: (opts.execute as typeof import('../services/ask/index.js').executeAsk) ??
         fixedExecute(sampleAnswered()),
       resolveOwnedSession: owned

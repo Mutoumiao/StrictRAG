@@ -30,6 +30,8 @@ export const KbSettingsSchema = z.object({
   description: z.string().nullable().optional(),
   allowedModes: z.array(AskModeSchema).min(1),
   defaultMode: AskModeSchema,
+  /** KB 允许的 doc_type 枚举；空数组 = 未限制（ask scope 任意） */
+  docTypes: z.array(z.string().min(1).max(64)).max(32).default([]),
   qualitySnapshot: QualitySnapshotSchema,
   sessionRewrite: SessionRewriteLockSchema,
 });
@@ -51,6 +53,8 @@ export const PatchKbSettingsBodySchema = z
       })
       .optional(),
     defaultMode: AskModeSchema.optional(),
+    /** 写入允许的 doc_type 列表；[] 表示清除限制 */
+    docTypes: z.array(z.string().min(1).max(64)).max(32).optional(),
   })
   .strict()
   .refine((v) => Object.keys(v).length > 0, { message: '至少提供一个可写字段' });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { mergeBindingRows } from './bindings.js';
 import {
   GatewayError,
   applyBindingsToGatewayConfig,
@@ -54,6 +55,20 @@ describe('buildGatewayConfig', () => {
     });
     expect(cfg.rerankEndpoints).toHaveLength(2);
     expect(cfg.rerankMinNodes).toBe(2);
+  });
+});
+
+describe('mergeBindingRows (B2-W KB 覆盖 platform)', () => {
+  it('同 purpose KB 覆盖 platform', () => {
+    const merged = mergeBindingRows(
+      [
+        { purpose: 'generate', primaryRef: 'p1#a' },
+        { purpose: 'embed', primaryRef: 'p1#e' },
+      ],
+      [{ purpose: 'generate', primaryRef: 'p1#kb-chat' }],
+    );
+    expect(merged.find((b) => b.purpose === 'generate')?.primaryRef).toBe('p1#kb-chat');
+    expect(merged.find((b) => b.purpose === 'embed')?.primaryRef).toBe('p1#e');
   });
 });
 

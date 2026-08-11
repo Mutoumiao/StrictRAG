@@ -111,9 +111,9 @@ export async function executeAsk(
   const graphDeps: GraphDeps =
     deps.graphDeps ??
     (await (async () => {
-      // B3-W：ask 主路径读 tenant platform 绑定；失败由 getGatewayForTenant 回退 env
+      // B3-W/B2-W：platform 绑定 + KB 覆盖；失败由 getGatewayForTenant 回退 env
       const gw = params.tenantId
-        ? await getGatewayForTenant(params.tenantId)
+        ? await getGatewayForTenant(params.tenantId, params.kbId)
         : getGateway();
       return {
         chat: chatFromGateway(gw),

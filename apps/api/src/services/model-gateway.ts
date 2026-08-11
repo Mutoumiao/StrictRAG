@@ -84,13 +84,14 @@ export type ModelGatewayRepo = {
   ): Promise<ProviderRow | null>;
   deleteProvider(tenantId: string, id: string): Promise<boolean>;
   listPlatformBindings(tenantId: string): Promise<BindingRow[]>;
+  /** B2-W：scope=kb 的绑定（scopeId=kbId） */
+  listKbBindings(tenantId: string, kbId: string): Promise<BindingRow[]>;
   replacePlatformBindings(
     tenantId: string,
     rows: Array<{ purpose: string; primaryRef: string; fallbackRefs: string[] }>,
     updatedBy?: string,
   ): Promise<BindingRow[]>;
 };
-
 function toModels(items: ModelItem[]): ModelProviderModelRow[] {
   return items.map((m) => ({
     name: m.name,
@@ -323,6 +324,11 @@ export function createMemoryModelGatewayRepo(
         .filter((b) => b.tenantId === tenantId && b.scope === 'platform')
         .map((b) => ({ ...b, fallbackRefs: [...b.fallbackRefs] }));
     },
+    async listKbBindings(tenantId, kbId) {
+      return bindings
+        .filter((b) => b.tenantId === tenantId && b.scope === 'kb' && b.scopeId === kbId)
+        .map((b) => ({ ...b, fallbackRefs: [...b.fallbackRefs] }));
+    },
     async replacePlatformBindings(tenantId, rows, updatedBy) {
       bindings = bindings.filter((b) => !(b.tenantId === tenantId && b.scope === 'platform'));
       const now = formatLocalDateTime();
@@ -455,6 +461,20 @@ export const modelGatewayRepo: ModelGatewayRepo = {
           eq(modelBindings.tenantId, tenantId),
           eq(modelBindings.scope, 'platform'),
           eq(modelBindings.scopeId, ''),
+        ),
+      );
+    return rows.map(mapBinding);
+  },
+  async listKbBindings(tenantId, kbId) {
+    const db = getDb();
+    const rows = await db
+      .select()
+      .from(modelBindings)
+      .where(
+        and(
+          eq(modelBindings.tenantId, tenantId),
+          eq(modelBindings.scope, 'kb'),
+          eq(modelBindings.scopeId, kbId),
         ),
       );
     return rows.map(mapBinding);

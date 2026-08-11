@@ -28,6 +28,14 @@ import {
   type ResolveOwnedSession,
 } from '../services/ask/session-guard.js';
 import { documentRepo } from '../services/documents.js';
+import {
+  assertScopeDocTypesAllowed,
+  kbSettingsRepo,
+  parseDocTypesFromConfig,
+  parseModesFromConfig,
+  resolveAskMode,
+  type KbSettingsRepo,
+} from '../services/kb-settings.js';
 
 export type AskRouteDeps = {
   resolveKbMember?: ResolveKbMember;
@@ -39,8 +47,9 @@ export type AskRouteDeps = {
   resolveOwnedSession?: ResolveOwnedSession;
   /** 限流；默认按 env.ASK_RATE_LIMIT_RPM */
   checkRateLimit?: (userId: string, kbId: string) => RateLimitResult;
+  /** B2-W：读 KB 设置（mode/docTypes）；测例可注入 memory */
+  settingsRepo?: KbSettingsRepo;
 };
-
 /**
  * POST /api/v1/knowledge-bases/:kbId/ask
  * 同步 JSON + AI SDK UI Message Stream（Accept: text/event-stream 或 options.stream=true）。
@@ -51,6 +60,7 @@ export function createAskRoutes(deps: AskRouteDeps = {}) {
   const memberMw = requireKbMember({ resolveKbMember: deps.resolveKbMember });
   const run = deps.execute ?? executeAsk;
   const getKb = deps.getKb ?? ((id: string) => documentRepo.getKb(id));
+  const settings = deps.settingsRepo ?? kbSettingsRepo;
   const resolveSession = deps.resolveOwnedSession ?? resolveOwnedSessionDefault;
   const checkLimit =
     deps.checkRateLimit ??
@@ -85,8 +95,44 @@ export function createAskRoutes(deps: AskRouteDeps = {}) {
       return fail(c, BizCode.UNAUTHORIZED, 'authentication required', 401);
     }
 
+    // B2-W：allowedModes / defaultMode / docTypes 闸
+    // 读库失败 → 全量默认（不阻断 ask；测例无 PG 时同）
+    let settingsRow: Awaited<ReturnType<KbSettingsRepo['get']>> = null;
+    try {
+      settingsRow = await settings.get(kbId);
+    } catch {
+      settingsRow = null;
+    }
+    const modes = parseModesFromConfig(settingsRow?.configJson ?? {});
+    const modeGate = resolveAskMode({
+      requested: parsed.data.options?.mode,
+      allowedModes: modes.allowedModes,
+      defaultMode: modes.defaultMode,
+    });
+    if (!modeGate.ok) {
+      return fail(c, BizCode.VALIDATION_ERROR, modeGate.message, 400);
+    }
+    const kbDocTypes = parseDocTypesFromConfig(settingsRow?.configJson ?? {});
+    const docTypeGate = assertScopeDocTypesAllowed({
+      scopeDocTypes: parsed.data.scope?.docTypes,
+      kbDocTypes,
+    });
+    if (!docTypeGate.ok) {
+      return fail(c, BizCode.VALIDATION_ERROR, docTypeGate.message, 400, {
+        invalid: docTypeGate.invalid,
+      });
+    }
+
+    const askBody = {
+      ...parsed.data,
+      options: {
+        ...parsed.data.options,
+        mode: modeGate.mode,
+      },
+    };
+
     // 有 sessionId：须存在且本人本 KB；不跑 rewrite（P2）
-    const sessionId = parsed.data.sessionId ?? null;
+    const sessionId = askBody.sessionId ?? null;
     if (sessionId) {
       const owned = await resolveSession({
         sessionId,
@@ -100,7 +146,6 @@ export function createAskRoutes(deps: AskRouteDeps = {}) {
 
     const membership = roleBypassesKbMembership(auth.roles) ? 'super_admin' : 'member';
     const tenantId = auth.tenantId ?? kb.tenantId;
-
     const log = childLogger({
       requestId,
       kbId,
@@ -131,7 +176,7 @@ export function createAskRoutes(deps: AskRouteDeps = {}) {
           tenantId,
           userId: auth.userId,
           membership,
-          body: parsed.data,
+          body: askBody,
         },
         deps.executeDeps,
       );
@@ -154,7 +199,7 @@ export function createAskRoutes(deps: AskRouteDeps = {}) {
               tenantId,
               userId: auth.userId,
               membership,
-              body: parsed.data,
+              body: askBody,
             },
             deps.executeDeps,
           );

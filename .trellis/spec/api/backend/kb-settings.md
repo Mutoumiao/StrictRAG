@@ -16,7 +16,8 @@
 | 禁写质量键 / rewrite 开 | 客户端改 τ 或误开 rewrite → 400 |
 | admin 设置页联调 | 始终验码；无 AUTH_ENFORCE 旁路 |
 
-**不在范围**：docTypes CRUD UI、分片策略弹窗（053）、模型绑定（055）、**ask 侧 `allowedModes` 闸**（配置可存；ask 消费另开）、τ 发布流（046）。
+**B2-W 已接线**：ask 入口 `mode∈allowedModes` + `defaultMode`；`config_json.docTypes` 读写 + scope 子集闸；Gateway KB 绑定覆盖 platform（`loadPlatformBindingSnapshot(tenant, repo, kbId)`）。  
+**仍不在**：分片策略弹窗（B12）、admin 模型绑定 KB 写 UI、τ 发布流（046）。
 
 ### 2. Signatures
 
@@ -110,6 +111,6 @@ sessionRewrite: { enabledDefault: false, locked: true }
 
 | 项 | 说明 |
 |----|------|
-| ask `options.mode ∉ allowedModes` → 400 | §2.1.1 mode 行；配置已存，ask 入口未读 `config_json` |
 | gatePackageId / effectiveAt 真值 | 现恒 null；签字包流属 ADR-046 |
-| docTypes / 分片 / 模型绑定分区 | ADR-054 其余；B 外或后续 task |
+| 分片策略 UI | B12 |
+| admin 写 KB 级 model_bindings UI | 运行时 resolve 已接；运营写 UI 可后置 |

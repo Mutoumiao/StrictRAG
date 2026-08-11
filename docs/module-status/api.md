@@ -80,8 +80,8 @@
 - 流式异常处理：`execute` 抛错时仍会写出 `data-status phase=error` 与 `data-ask-final`（`reason=internal_guard`）；有单测覆盖（`routes/ask.test.ts`）
 - 会话列表 / 详情外壳（**rewrite 强制关闭**，把 `SESSION_REWRITE_ENABLED` 设为 `true` 会导致启动失败）；list 接口的 query 参数绑定 `SessionListQuerySchema` 校验
 - 反馈提交 / 管理队列 API（`routes/feedback`）；queue 接口的 query 参数绑定 `FeedbackQueueQuerySchema` 校验
-- Gateway 切片（`GATEWAY_MODE` mock/http；**B3-W**：ask 走 `getGatewayForTenant` = env + platform `model_bindings`，`bindingSource=env|mixed`；缺绑定回退 env；≤5s 缓存；**KB 级绑定未接线**；Key 不进日志）
-- 检索适配层（RRF 融合 / 打分；`RETRIEVE_ES_MODE` **默认 mock**；`http` = ES BM25 sparse **切片**（`es-sparse.ts` + `ELASTICSEARCH_URL`；缺 URL / ES 失败 loud fail，**禁止**回落 mock）；**不等于**生产 ES+IK / 多租户 Router（B8））
+- Gateway 切片（`GATEWAY_MODE` mock/http；**B3-W/B2-W**：ask 走 `getGatewayForTenant(tenant, kbId)` = env + platform + **KB 覆盖** `model_bindings`；`bindingSource=env|mixed`；缺绑定回退 env；≤5s 缓存；Key 不进日志）
+- **B2-W**：ask 入口 `mode∈allowedModes` / `defaultMode`；settings `docTypes` 读写 + scope 子集闸；质量 τ 仍拒写- 检索适配层（RRF 融合 / 打分；`RETRIEVE_ES_MODE` **默认 mock**；`http` = ES BM25 sparse **切片**（`es-sparse.ts` + `ELASTICSEARCH_URL`；缺 URL / ES 失败 loud fail，**禁止**回落 mock）；**不等于**生产 ES+IK / 多租户 Router（B8））
 - 观测骨架：进程内 metrics、内存 tracer、ask 限流（`ASK_RATE_LIMIT_RPM` 默认 0 即关闭）、`/metrics` 端点无鉴权
 - **P0 红线单测已挂账**（清单见 `docs/testing/p0-redlines.md`；**不是** L1 黄金集评测、**也不是**远程 CI 门禁）：
   - **R7** `filterDocsForRetrieve` / `corpus.test.ts`（生产装载路径；db 包的 `retrieval-gate` 为底层附录）

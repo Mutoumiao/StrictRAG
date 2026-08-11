@@ -154,8 +154,8 @@ function findEnabledModel(
 }
 
 /**
- * 将 platform 绑定叠到 env 配置（单一 resolve SSOT）。
- * 顺序：DB primary ref → env 回退。KB 级未接线（见 design）。
+ * 将绑定叠到 env 配置（单一 resolve SSOT）。
+ * 调用方已按 KB→platform 合并 bindings；此处 DB primary ref → env 回退。
  */
 export function applyBindingsToGatewayConfig(
   envCfg: GatewayConfig,

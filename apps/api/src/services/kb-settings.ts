@@ -55,6 +55,58 @@ export function parseModesFromConfig(config: Record<string, unknown> | null | un
   return { allowedModes, defaultMode };
 }
 
+/** config_json.docTypes；空/缺省 = 无限制 */
+export function parseDocTypesFromConfig(
+  config: Record<string, unknown> | null | undefined,
+): string[] {
+  const raw = config?.docTypes;
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const v of raw) {
+    if (typeof v === 'string' && v.length > 0 && v.length <= 64) out.push(v);
+  }
+  return out;
+}
+
+/**
+ * B2-W：ask 入口档位闸。
+ * 请求未带 mode → defaultMode；带了必须 ∈ allowedModes。
+ */
+export function resolveAskMode(params: {
+  requested?: AskMode;
+  allowedModes: readonly AskMode[];
+  defaultMode: AskMode;
+}): { ok: true; mode: AskMode } | { ok: false; message: string } {
+  const mode = params.requested ?? params.defaultMode;
+  if (!params.allowedModes.includes(mode)) {
+    return {
+      ok: false,
+      message: `mode not allowed: ${mode} (allowed: ${params.allowedModes.join(',')})`,
+    };
+  }
+  return { ok: true, mode };
+}
+
+/**
+ * B2-W：scope.docTypes 须 ⊆ KB 允许列表（KB 列表为空 = 不限制）。
+ */
+export function assertScopeDocTypesAllowed(params: {
+  scopeDocTypes?: readonly string[];
+  kbDocTypes: readonly string[];
+}): { ok: true } | { ok: false; message: string; invalid: string[] } {
+  if (!params.kbDocTypes.length || !params.scopeDocTypes?.length) {
+    return { ok: true };
+  }
+  const allowed = new Set(params.kbDocTypes);
+  const invalid = params.scopeDocTypes.filter((t) => !allowed.has(t));
+  if (invalid.length === 0) return { ok: true };
+  return {
+    ok: false,
+    message: `scope.docTypes not allowed: ${invalid.join(',')}`,
+    invalid,
+  };
+}
+
 export function buildKbSettingsView(input: {
   row: KbSettingsRow;
   quality: QualitySnapshot;
@@ -66,6 +118,7 @@ export function buildKbSettingsView(input: {
     description: input.row.description,
     allowedModes,
     defaultMode,
+    docTypes: parseDocTypesFromConfig(input.row.configJson ?? {}),
     qualitySnapshot: input.quality,
     sessionRewrite: { enabledDefault: false, locked: true },
   };
@@ -88,11 +141,13 @@ export function mergeKbSettingsPatch(
     }
   | { ok: false; message: string } {
   const prev = parseModesFromConfig(row.configJson ?? {});
+  const prevDocTypes = parseDocTypesFromConfig(row.configJson ?? {});
   const nextName = body.name !== undefined ? body.name : row.name;
   const nextDesc =
     body.description !== undefined ? body.description : (row.description ?? null);
   const nextAllowed = body.allowedModes ?? prev.allowedModes;
   const nextDefault = body.defaultMode ?? prev.defaultMode;
+  const nextDocTypes = body.docTypes !== undefined ? body.docTypes : prevDocTypes;
 
   if (!nextAllowed.includes(nextDefault)) {
     return {
@@ -105,6 +160,7 @@ export function mergeKbSettingsPatch(
     ...(row.configJson ?? {}),
     allowedModes: nextAllowed,
     defaultMode: nextDefault,
+    docTypes: nextDocTypes,
   };
 
   const diff: Record<string, { from: unknown; to: unknown }> = {};
@@ -117,6 +173,9 @@ export function mergeKbSettingsPatch(
   }
   if (nextDefault !== prev.defaultMode) {
     diff.defaultMode = { from: prev.defaultMode, to: nextDefault };
+  }
+  if (JSON.stringify(nextDocTypes) !== JSON.stringify(prevDocTypes)) {
+    diff.docTypes = { from: prevDocTypes, to: nextDocTypes };
   }
 
   return {
