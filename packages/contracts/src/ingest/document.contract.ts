@@ -53,6 +53,11 @@ export type UploadUrlResponse = z.infer<typeof UploadUrlResponseSchema>;
 export const CompleteUploadBodySchema = z.object({
   /** 可选：客户端声称的 size；服务端以对象实际大小为准 */
   declaredByteSize: z.number().int().nonnegative().optional(),
+  /**
+   * B12：分片策略码（须已注册）；省略时服务端用默认 structure_paragraph。
+   * 多策略并存时客户端应显式传。
+   */
+  chunkStrategy: z.string().min(1).max(64).optional(),
 });
 export type CompleteUploadBody = z.infer<typeof CompleteUploadBodySchema>;
 

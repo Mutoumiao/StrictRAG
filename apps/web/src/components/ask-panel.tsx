@@ -22,6 +22,7 @@ import { Textarea } from '@strict-rag/ui/components/ui/textarea';
 import { cn } from '@strict-rag/ui/lib/utils';
 import { useRouter } from 'next/navigation';
 
+import { createAskFeedback } from '@/api/feedback';
 import { logoutLocal } from '@/auth/services';
 import { useWebAuth } from '@/components/auth-guard';
 import { useKnowledgeAsk } from '@/hooks/use-knowledge-ask';
@@ -317,6 +318,53 @@ function sessionBtnClass(active: boolean) {
   );
 }
 
+function FeedbackBar({ requestId }: { requestId: string }) {
+  const [state, setState] = useState<'idle' | 'sending' | 'ok' | 'err'>('idle');
+  const [msg, setMsg] = useState<string | null>(null);
+
+  async function send(rating: 'up' | 'down') {
+    setState('sending');
+    setMsg(null);
+    try {
+      await createAskFeedback(requestId, { rating });
+      setState('ok');
+      setMsg(rating === 'up' ? '已提交：有帮助' : '已提交：无帮助');
+    } catch (e) {
+      setState('err');
+      setMsg(e instanceof Error ? e.message : '提交失败');
+    }
+  }
+
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+      <span className="text-xs text-muted-foreground">本次回答反馈</span>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        disabled={state === 'sending' || state === 'ok'}
+        onClick={() => void send('up')}
+      >
+        有帮助
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        disabled={state === 'sending' || state === 'ok'}
+        onClick={() => void send('down')}
+      >
+        无帮助
+      </Button>
+      {msg ? (
+        <span className={cn('text-xs', state === 'err' ? 'text-destructive' : 'text-muted-foreground')}>
+          {msg}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 function AnsweredCard({ data }: { data: AskResponse }) {
   const isChitchat = data.answerKind === 'chitchat' || data.reason === 'chitchat';
   return (
@@ -353,6 +401,7 @@ function AnsweredCard({ data }: { data: AskResponse }) {
           {data.latencyMs} ms · {data.requestId}
         </p>
       ) : null}
+      {data.requestId ? <FeedbackBar requestId={data.requestId} /> : null}
     </Alert>
   );
 }
@@ -369,6 +418,7 @@ function AbstainedCard({ data }: { data: AskResponse }) {
       <p className="mt-2 mb-0 text-xs text-muted-foreground">
         这是业务结果，不是系统崩溃。可调整问题表述或补充入库后重试。
       </p>
+      {data.requestId ? <FeedbackBar requestId={data.requestId} /> : null}
       {data.suggestedActions && data.suggestedActions.length > 0 ? (
         <ul className="mt-3 mb-0 list-disc pl-[18px] text-[13px]">
           {data.suggestedActions.map((a) => (

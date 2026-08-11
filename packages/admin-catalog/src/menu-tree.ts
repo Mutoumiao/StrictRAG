@@ -50,6 +50,12 @@ export const MENU_TREE: readonly MenuNode[] = [
         href: '/kb/settings',
         permission: 'kb.config.write',
       },
+      {
+        id: 'feedback',
+        label: '反馈队列',
+        href: '/feedback',
+        permission: 'feedback.queue',
+      },
     ],
   },
   {
@@ -90,6 +96,7 @@ export const ADMIN_IMPLEMENTED_HREFS: ReadonlySet<string> = new Set([
   '/members',
   '/chunks',
   '/kb/settings',
+  '/feedback',
   '/models',
   '/users',
   '/roles',

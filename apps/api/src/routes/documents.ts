@@ -24,7 +24,9 @@ import { requirePermissionWhenEnforced } from '../auth/middleware.js';
 import { canBecomeActive, canEnqueueScan, scanDeniedCode } from '../gates/approval-scan.js';
 import { checkUploadByteSize } from '../gates/upload-size.js';
 import { fail, ok } from '../lib/response.js';
+import { childLogger } from '../logger.js';
 import type { ApiVariables } from '../middleware/request-id.js';
+import { resolveRequiredChunkStrategy } from '../services/chunk-strategies.js';
 import { documentRepo } from '../services/documents.js';
 import { enqueueIngest } from '../services/queue.js';
 import { effectiveMaxUploadBytes, getStorage } from '../services/storage.js';
@@ -193,7 +195,26 @@ documentRoutes.post(
     );
   }
 
-  await documentRepo.markCompletePending(docId, head.byteSize);
+  // B12：分片策略必选（注册表校验；默认 structure_paragraph）
+  const strategyGate = resolveRequiredChunkStrategy(body.data.chunkStrategy);
+  if (!strategyGate.ok) {
+    return fail(c, BizCode.VALIDATION_ERROR, strategyGate.message, 400);
+  }
+
+  await documentRepo.markCompletePending(docId, head.byteSize, {
+    chunkStrategy: strategyGate.code,
+  });
+
+  childLogger({ requestId: c.get('requestId') }).info(
+    {
+      event: 'chunk_strategy_selected',
+      docId,
+      kbId,
+      chunkStrategy: strategyGate.code,
+      explicit: Boolean(body.data.chunkStrategy),
+    },
+    'chunk strategy selected on complete',
+  );
 
   const data: CompleteUploadResponse = {
     docId,

@@ -66,7 +66,7 @@ describe('clipMenuForShell', () => {
     expect(hrefs).toEqual(['/documents']);
   });
 
-  it('kb_admin 含五条已实现运营路由，无 /models /dashboard（默认无对应码）', () => {
+  it('kb_admin 含已实现运营路由（含反馈），无 /models /dashboard（默认无对应码）', () => {
     const codes = defaultCodesForRoles(['kb_admin']);
     const hrefs = collectMenuHrefs(clipMenuForShell(codes));
     expect(hrefs).toEqual(
@@ -76,9 +76,10 @@ describe('clipMenuForShell', () => {
         '/members',
         '/chunks',
         '/kb/settings',
+        '/feedback',
       ]),
     );
-    expect(hrefs).toHaveLength(5);
+    expect(hrefs).toHaveLength(6);
     expect(hrefs).not.toContain('/models');
     expect(hrefs).not.toContain('/dashboard');
   });

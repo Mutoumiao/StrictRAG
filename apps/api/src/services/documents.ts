@@ -69,7 +69,11 @@ export const documentRepo = {
   },
 
 
-  async markCompletePending(docId: string, byteSize: number) {
+  async markCompletePending(
+    docId: string,
+    byteSize: number,
+    opts?: { chunkStrategy?: string },
+  ) {
     await getDb()
       .update(documents)
       .set({
@@ -78,6 +82,9 @@ export const documentRepo = {
         status: 'uploaded',
         errorCode: null,
         errorMessage: null,
+        ...(opts?.chunkStrategy !== undefined
+          ? { chunkStrategy: opts.chunkStrategy }
+          : {}),
       })
       .where(eq(documents.id, docId));
   },
