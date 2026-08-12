@@ -5,9 +5,9 @@
 | 路径 | `apps/web` |
 | 端口 | 3005 |
 | 成熟度 | **可演示**（S2 用户端薄壳） |
-| 默认依赖模式 | 鉴权 = 临时双 JWT（经 api）· 问答默认走 AI SDK UI Message Stream · rewrite = 关闭（服务端强制）· 知识库 = 手工填写 id |
-| 关联模块 | ask 流 / 会话：`api`；类型：`contracts`；样式 / 组件：`ui` |
-| 最近更新 | 2026-08-12（B13 FeedbackBar） |
+| 默认依赖模式 | 鉴权 = 临时双 JWT（经 api）· `NEXT_PUBLIC_API_BASE_URL` 默认 `http://127.0.0.1:4000` · 问答 AI SDK UI Message Stream · rewrite = **服务端强制关**（本包无开关控件）· 知识库 = 手工填写 id |
+| 关联模块 | ask 流 / 会话 / 反馈提交：`api`；类型：`contracts`；样式 / 组件：`ui` |
+| 最近更新 | 2026-08-12（B13 FeedbackBar；IS 全量核对） |
 | Spec | `.trellis/spec/web/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · ask 流相关 API |
 
@@ -43,7 +43,7 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列�
 - 样式：Tailwind v4（`postcss.config.mjs`；`src/app/globals.css` 引入 ui 主题并配置 `@source`）；`ask-panel` / 登录页使用 Button · Input · Label · Textarea · Card · Badge · Alert（含 `variant="abstain"`）等原子组件；**没有**大面积用 `style={{}}` 写布局 / 色板
 - 构建：`next build --webpack`；`next.config` 配置 `transpilePackages` + webpack `extensionAlias`
 - 依赖：`ai` · `@ai-sdk/react`（版本由 catalog 统一管理）
-- **B13**：`FeedbackBar`（`ask-panel.tsx`）答后 up/down → `src/api/feedback.ts`
+- **B13**：`FeedbackBar`（`ask-panel.tsx`）在 answered/abstained 且有 `requestId` 时展示 up/down → `src/api/feedback.ts` → `POST /api/v1/ask/{requestId}/feedback`（**无** FeedbackBar 专用 RTL 用例）
 - **单元 / 组件测试**（Vitest + jsdom + RTL）：`vitest.config.ts` · `src/test/{setup,test-utils}` · 各模块同域的 `*.test.ts(x)`
   - ask final 工厂来自 **`@strict-rag/contracts/testing`**（`src/test/fixtures/ask.ts` 只做 re-export）
   - P0 挂账（`docs/testing/p0-redlines.md`）：**R1** ready 状态但无 final · **R2** 拒答 UI · **R3** mapBizError · **R4** clear / 坏 JSON / 无 token 时返回 null（**不是** expires 产品闸门）· **R10** 同一工厂
@@ -90,5 +90,4 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列�
 | 命令 | `pnpm --filter @strict-rag/web test`（`package.json` → `vitest run`） |
 | 传输层 | `src/lib/http.ts`（**尚无**单测） |
 | 样式入口 | `apps/web/src/app/globals.css` · `postcss.config.mjs` · `package.json`（tailwind · `build --webpack`） |
-| Task（已归档） | `.trellis/tasks/archive/2026-08/08-05-p2-web-ask-ui/` · `08-05-p2-sessions-shell/` · `08-06-frontend-tailwind-shadcn/` |
-| 签字记录（已归档） | `.trellis/tasks/archive/2026-08/08-05-phase-2-ask/sign-off.md` |
+| Task（辅证 · 归档） | `08-05-p2-web-ask-ui` · `08-05-p2-sessions-shell` · `08-06-frontend-tailwind-shadcn` · `08-11-b13-feedback-ui` |

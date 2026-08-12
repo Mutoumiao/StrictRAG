@@ -3,44 +3,52 @@
 | 字段 | 内容 |
 |------|------|
 | 路径 | `packages/db` |
-| 成熟度 | **可联调**（P1 知识库 / 入库 + S2 问答 + B3 model_* + B4 platform_roles + **B5 departments**；Drizzle → PostgreSQL） |
-| 默认依赖模式 | 需要 `DATABASE_URL`；时间列使用本地格式字符串（见 ORM PRD） |
-| 关联模块 | `api` 与 `worker` 共用 client / schema；检索闸门谓词被 api 的 retrieve 模块复用 |
-| 最近更新 | 2026-08-11（`eval_runs` 表 + migration 0006；L1 文件 gold 仍在 `fixtures/l1`） |
-| Spec | `.trellis/spec/db/` |
+| 成熟度 | **可联调**（schema + client + 检索谓词底座；**无**业务服务层） |
+| 默认依赖模式 | 需要调用方提供 `DATABASE_URL`；时间列使用本地格式字符串（见 ORM PRD） |
+| 关联模块 | `api` 与 `worker` 共用 client / schema；检索闸门谓词被 api retrieve 复用 |
+| 最近更新 | 2026-08-12（澄清：embedding=jsonb 非 pgvector 列 · `ingest_jobs` 仅表壳 · 检索闸不含 indexVersion） |
+| Spec | `.trellis/spec/db/backend/` |
 | PRD | `prds/03-data` · `prds/02-engineering/02-orm-drizzle.md` |
 
 ## 一句话状态
 
-Drizzle schema + client：**知识库 / 文档 / 分片 / 向量 / 入库任务 / 成员**、**问答会话 / 轨迹 / 反馈 / eval_runs**、**模型供应商 / 绑定**、**平台角色 / 用户角色** 以及 **部门 / 用户部门** 表均已落地；并提供默认的检索双闸门谓词。**不等于**生产级迁移运维全集，也不是业务签字真跑完成。
+Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库任务表壳 / 成员**、**问答会话 / 轨迹 / 反馈 / eval_runs**、**模型供应商 / 绑定**、**平台角色（codes_json）/ 用户角色** 以及 **部门 / 用户部门** 表均已落地；并提供默认检索双闸谓词（`ready ∧ active`）。**不等于**生产级迁移运维全集、运行时任务账本已写、或权限三表终态。
 
 ---
 
 ## 已具备能力
 
 ### Client / 工具
-- `createDb`（`client.ts`；可选 `statementTimeoutMs` / `lockTimeoutMs` 参数，传 0 表示不设置）
-- 分端默认值：api 15s / 10s · worker 0（ARCH-P0-4）
-- `formatLocalDateTime`（写库时间使用本地格式串）
+- `createDb`（`client.ts`；可选 `statementTimeoutMs` / `lockTimeoutMs`，传 0 表示不设置）
+- 分端约定：api 15s/10s · worker 0（ARCH-P0-4；调用方传入）
+- `formatLocalDateTime`（写库时间本地格式串）
+- 包导出：`.` · `./schema` · `./client`（`package.json`）
 
 ### Schema · system
-- `schema_meta` · `users`
+- `schema_meta` · `users`（含兼容锚点 `platformRole` 文本字段）
 - **B3**：`model_providers` · `model_bindings`（migration `0003_b3_model_gateway`）
-- **B4**：`platform_roles` · `user_roles`（migration `0004_b4_platform_roles`；权限码存 codes_json；tenant + code 联合唯一）
-- **B5**：`departments` · `user_departments`（migration `0005_b5_departments`；path 物化存储；is_primary / is_leader 标志）
+- **B4**：`platform_roles` · `user_roles`（migration `0004_b4_platform_roles`；权限码存 **`codes_json` string[]**；**无** permission / role_permission / grant 三表）
+- **B5**：`departments` · `user_departments`（migration `0005_b5_departments`）
 
 ### Schema · kb（入库主轴）
-- `knowledge_bases` · `documents` · `chunks` · `chunk_manifests` · `chunk_embeddings`
-- `ingest_jobs` · `kb_members`
+- `knowledge_bases` · `documents`（含 **`chunkStrategy` / `chunkStrategyParams`**）· `chunks` · `chunk_manifests`
+- `chunk_embeddings`：**`embedding` 列为 jsonb `number[]`**（演示 mock 向量；**不是** native pgvector/`vector` 列）
+- `ingest_jobs`：**仅 schema 表定义**；`apps/` **零运行时读写**（账本未启用）
+- `kb_members`
 
 ### Schema · ask（S2）
 - `ask_sessions` · `ask_traces`（含 evidence 快照类型）· `ask_feedback`
-- **B10-followup**：`eval_runs`（`retrieve_mode` / 2×2 矩阵 / `report_json`；migration `0006_b10_eval_runs`）
+- **B10-followup**：`eval_runs`（`retrieve_mode` / 2×2 / `report_json` / `signoff_eligible` 等；migration `0006_b10_eval_runs`）
 - schema 单测：`schema/ask/ask-schema.test.ts`
 
+### Migrations（journal 7 条）
+- `0000_phase0_schema_meta` → `0006_b10_eval_runs`（`drizzle/meta/_journal.json`）
+- 脚本：`db:generate` / `db:migrate` / `db:studio`（运维产品化流水线 **不**在本包宣称）
+
 ### 查询谓词
-- 默认检索闸门：`status=ready ∧ lifecycle=active`（`query/retrieval-gate.ts` + 单测）
-- 供 api 的 retrieve 模块复用，避免路由内散落闸门条件
+- 默认检索闸门：`status==='ready' && lifecycle==='active'`（`query/retrieval-gate.ts` + 单测）
+- **实现不含** `indexVersion` 过滤（以代码为准；文件头若写 indexVersion 属注释债）
+- 供 api retrieve 复用，避免路由内散落闸门条件
 
 ---
 
@@ -48,10 +56,13 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量 / 入库任务 
 
 | 项 | 说明 |
 |----|------|
-| 部门强制检索 / 跨部门授权 / 文档 owner_dept | 组织表已落地；检索 principals 与授权（grant）表未做 |
-| 业务签字 live 真跑数字 | 表 `eval_runs` 已有；题面 gold≥60；**真跑**须 api live profile + B3-W 后重跑（属运行时 / B10-followup 余量） |
-| Mongo 正文 / ES 索引本体 | **不在**本包；对象与稀疏索引在其它存储中 |
-| 自动 migration 流水线产品化 | schema 已有；运维发布流程不在本状态文档夸大描述 |
+| 部门强制检索 / 跨部门授权 / 文档 owner_dept | 组织表已落地；检索 principals 与 grant 表未做 |
+| 权限三表终态 | 现为 `codes_json` 过渡；迁表须 ADR |
+| `ingest_jobs` 运行时账本 | 表有、服务无 |
+| 业务签字 live 真跑数字 | 表 `eval_runs` 可落库；真跑属 api/ops |
+| Mongo 正文 / ES 索引本体 | **不在**本包 |
+| 原生 pgvector 列 + ANN 索引 | 当前 jsonb mock 向量 |
+| 自动 migration 流水线产品化 | 仅有 drizzle-kit 脚本 |
 
 ---
 
@@ -59,9 +70,12 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量 / 入库任务 
 
 | 债 | 影响 | 备注 |
 |----|------|------|
-| pgvector 维度与 mock embed 对齐 | 假向量可以入库、可以检索演示 | 切真实模型时必须对齐向量维度 |
-| 时间串使用本地格式 | 跨时区展示需要约定 | 见 ORM PRD |
-| schema 变更与 PRD 需要双写 | 漏改容易漂移 | 改表前先改 PRD / ADR |
+| embedding 为 jsonb mock 维 | 假向量可入库、可演示；切真模型须改列/维数策略 | 与 worker dims=8 对齐演示 |
+| 「pgvector」口头称呼易误导 | 源码是 jsonb，不是 pgvector 扩展列 | 写 IS/对外说明时用 jsonb |
+| `retrieval-gate` 注释 vs 实现 | 注释若提 indexVersion 而代码未滤 | **以代码为准** |
+| `ingest_jobs` 空壳表 | 易被当成「任务账本已落地」 | 须与 worker 债对照 |
+| 时间串本地格式 | 跨时区展示需约定 | 见 ORM PRD |
+| schema 与 PRD 双写 | 漏改易漂移 | 改表前先 ADR/PRD |
 
 ---
 
@@ -70,8 +84,10 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量 / 入库任务 
 | 类型 | 指针 |
 |------|------|
 | 导出 | `packages/db/src/index.ts` · `schema/index.ts` |
-| 知识库表 | `packages/db/src/schema/kb/*` |
+| 知识库表 | `packages/db/src/schema/kb/*`（`documents.ts` · `chunk-embeddings.ts` · `ingest-jobs.ts`） |
 | 问答 / 评测表 | `packages/db/src/schema/ask/*` · `eval-runs.ts` · migration `drizzle/0006_b10_eval_runs.sql` |
+| 平台 / 部门 | `schema/system/platform-roles.ts` · `departments.ts` |
 | 检索闸门 | `packages/db/src/query/retrieval-gate.ts` · `retrieval-gate.test.ts` |
-| Client | `packages/db/src/client.ts` |
-| Task（已归档） | `.trellis/tasks/archive/2026-08/08-05-p2-contracts-schema/` · `08-04-p1-kb-doc-schema` 等 |
+| Client | `packages/db/src/client.ts` · `time.ts` |
+| Journal | `packages/db/drizzle/meta/_journal.json` |
+| Task（辅证 · 已归档） | `08-04-p1-kb-doc-schema` · `08-05-p2-contracts-schema` · `08-11-b10-followup-eval-runs` 等 |

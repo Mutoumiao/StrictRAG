@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（权限码 + 角色模板 + 菜单树 + **外壳裁剪 SSOT**） |
 | 默认依赖模式 | 纯库；无运行时开关 |
 | 关联模块 | 被 `api` 的权限求值和 `admin` 的菜单裁剪消费；**不能**替代服务端权限校验 |
-| 最近更新 | 2026-08-09 |
+| 最近更新 | 2026-08-12（`ADMIN_IMPLEMENTED_HREFS` 含 `/feedback` · 11 条） |
 | Spec / ADR | ADR-051 · ADR-056 · `.trellis/spec/admin-catalog/library/catalog-ssot.md` |
 | PRD | `prds/09-security` 权限相关 |
 
@@ -21,8 +21,9 @@
 - **权限码**：`PERMISSION_DEFINITIONS` / `PERMISSIONS` / `isPermissionCode`（覆盖 platform 与 kb 两个作用域）
 - **角色模板**：`super_admin` · `kb_admin` · `doc_operator` · `web_consumer`；配套 `defaultCodesForRoles` · `roleBypassesKbMembership`
 - **菜单树**：`MENU_TREE` + `filterMenuByCodes`（按有效权限码裁剪）
-- **外壳裁剪（B7 + B3–B6）**：`ADMIN_IMPLEMENTED_HREFS` + `clipMenuForShell` + `collectMenuHrefs`；已落地十条：`/dashboard` · `/documents` · `/approvals` · `/members` · `/chunks` · `/kb/settings` · `/models` · `/users` · `/roles` · `/departments`
-- 单测：`catalog.test.ts`（kb_admin 无 `/models` `/dashboard`；super_admin clip 含 `/dashboard` 等全部已落地 href）
+- **外壳裁剪（B7 + B3–B6 + B13）**：`ADMIN_IMPLEMENTED_HREFS` + `clipMenuForShell` + `collectMenuHrefs`；已落地 **十一条**：`/dashboard` · `/documents` · `/approvals` · `/members` · `/chunks` · `/kb/settings` · `/models` · `/users` · `/roles` · `/departments` · **`/feedback`**
+- 菜单树 `MENU_TREE` 含 `/feedback`（码 `feedback.queue`）；kb_admin 模板含 `feedback.queue`
+- 单测：`catalog.test.ts`（kb_admin clip 含 `/feedback` 等；super_admin clip 覆盖全部 `ADMIN_IMPLEMENTED_HREFS`）
 
 ---
 
@@ -44,4 +45,4 @@
 | 权限 / 角色 / 菜单 | `permissions.ts` · `role-templates.ts` · `menu-tree.ts` |
 | 单测 | `packages/admin-catalog/src/catalog.test.ts` |
 | 消费方 | `apps/admin/src/components/admin-shell.tsx` · `apps/api/src/auth/permissions/` |
-| Task | B6 归档 `archive/2026-08/08-09-b6-dashboard-shell`（`/dashboard`）；B7 / B3 等同 archive |
+| Task（辅证 · 归档） | `08-09-b6-dashboard-shell` · `08-11-b13-feedback-ui` · B7 等 |

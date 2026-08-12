@@ -63,24 +63,24 @@
 | 项目级对外承诺 | 统一链接到 [交付控制台 §0](../../prds/12-delivery-guides/04-交付控制台.md)，本文件不写对外话术长段 |
 | 包文档尚未补齐时 | 矩阵仍可标注端到端状态；"详见"一栏指向已有的包文档，或标注"包状态待补" |
 
-### 能力矩阵（2026-08-09）
+### 能力矩阵（2026-08-12 · 08-11/08-12 全量核对）
 
 | 能力域 | 端到端成熟度 | 主包 | 协作包 | 详见 |
 |--------|--------------|------|--------|------|
-| **入库闭环** | **可演示**（扫描 / 向量 / ES 默认均为 mock；对象存储用本地目录） | `worker` | `api` · `db` · `contracts` | [worker](./worker.md) · [api · 入库](./api.md#入库p1) |
-| **问答 ask / 流式输出** | **可演示**（单轮信任环；AI SDK UI Message Stream；检索默认 mock ES） | `api` | `web` · `contracts` · `db` | [api · 问答](./api.md#问答s2-最小) · [web](./web.md) |
-| **会话外壳** | **可演示**（会话列表与历史回放已通；**rewrite 处于关闭状态**） | `api` | `web` · `db` · `contracts` | [api · 问答](./api.md#问答s2-最小) · [web](./web.md) |
-| **鉴权 / 访问控制（ACL）** | **可联调**（临时双 JWT；KB 成员 + 权限码；**B4-W** 每请求 DB 角色 hydrate；B5 部门骨架；`AUTH_ENFORCE` 默认关；**未开启**部门级检索强制隔离） | `api` | `admin-catalog` · `admin` · `web` · `contracts` · `db` | [api · 鉴权](./api.md#鉴权与权限) · [api · 部门](./api.md) · [admin-catalog](./admin-catalog.md) |
-| **admin 运营面** | **可演示**（S2c 审批/成员 + B1–B6 最小功能 + B7 菜单裁剪；数据面板为只读薄壳非 APM） | `admin` | `api` · `admin-catalog` · `contracts` | [admin](./admin.md) · [admin-catalog](./admin-catalog.md) · [api · dashboard](./api.md) |
-| **反馈** | **可联调**（API + **B13** web 提交 / admin 队列 UI） | `api` | `web` · `admin` · `db` | [api](./api.md) · [web](./web.md) · [admin](./admin.md) |
-| **模型网关** | **可演示**（供应商 CRUD + 平台绑定；**B3-W/B2-W** 运行时 env+platform+KB 覆盖；admin KB 写 UI 可 defer） | `api` | `admin` · `contracts` · `db` | [api](./api.md) · [admin · 模型网关](./admin.md) |
-| **观测 / 评测** | **可联调**（进程内 metrics/tracer；**L1 工程 seed** + **OPS-1 live profile**（`retrieve_mode`/`signoffEligible`；http=ES sparse 切片）；`eval_runs` 可 `L1_PERSIST_EVAL` 落库；**mock 禁签字**；无默认 CI 真 LLM / **无**业务签字真跑数字） | `api` | `db` | [api · L1 节](./api.md) · [db · eval_runs](./db.md) · [live profile](../ops/live-retrieve-profile.md) · B10 / OPS-1 |
-| **契约 / Schema 基座** | **可联调**（支撑 P1/S2 路径；随业务能力扩展） | `contracts` / `db` | 全部业务包 | [contracts](./contracts.md) · [db](./db.md) |
-| **工程工具链** | **生产向**（全仓共享的 eslint/tsconfig 基线；无业务完成度故事） | `eslint-config` · `typescript-config` | 全仓 · `ui` | [eslint-config](./eslint-config.md) · [typescript-config](./typescript-config.md) · [ui](./ui.md)（可联调 · S2 首批原子组件） |
+| **入库闭环** | **可演示**（scan/embed/ES **默认 mock**；本地对象；**仅** `structure_paragraph`；dual-ready 后 `lifecycle` 仍 **draft**；staging/prod worker 当前无合法扫描配置） | `worker` | `api` · `db` · `contracts` | [worker](./worker.md) · [api · 入库](./api.md) |
+| **问答 ask / 流式输出** | **可演示**（单轮信任环；AI SDK UI Message Stream；检索默认 mock ES；`http`=sparse 切片可签字归因，**≠** 生产 ES+IK） | `api` | `web` · `contracts` · `db` | [api · 问答](./api.md) · [web](./web.md) |
+| **会话外壳** | **可演示**（列表 / 历史回放；**rewrite 强制关**） | `api` | `web` · `db` · `contracts` | [api](./api.md) · [web](./web.md) |
+| **鉴权 / 访问控制（ACL）** | **可联调**（临时双 JWT；KB 成员 + 权限码；**B4-W** DB `codes_json` hydrate；B5 部门骨架；`AUTH_ENFORCE` 默认关；**无** DEPT_ACL 检索强制） | `api` | `admin-catalog` · `admin` · `web` · `contracts` · `db` | [api · 鉴权](./api.md) · [admin-catalog](./admin-catalog.md) |
+| **admin 运营面** | **可演示**（S2c + B1–B6 最小 + B7 裁剪 + **B13 反馈队列**；href **11** 条；面板只读非 APM） | `admin` | `api` · `admin-catalog` · `contracts` | [admin](./admin.md) · [admin-catalog](./admin-catalog.md) |
+| **反馈** | **可联调**（API + **B13** web 答后提交 / admin 队列 patch） | `api` | `web` · `admin` · `db` | [web](./web.md) · [admin](./admin.md) · [api](./api.md) |
+| **模型网关** | **可演示**（供应商 CRUD + **platform** 绑定；运行时 env+platform+**KB 读覆盖**；**无** KB 绑定 HTTP 写；admin KB 写 UI defer） | `api` | `admin` · `contracts` · `db` | [api](./api.md) · [admin](./admin.md) |
+| **观测 / 评测** | **可联调**（进程内 metrics/tracer；L1 工程 seed + OPS-1 live profile；`eval_runs` 可选落库；**mock 禁签字**；无默认 CI 真 LLM / **无**业务签字真跑数字） | `api` | `db` | [api](./api.md) · [db](./db.md) · [live profile](../ops/live-retrieve-profile.md) |
+| **契约 / Schema 基座** | **可联调**（P1/S2 + B1–B6 + **B12 策略码 / IngestJobData**；db 表壳含 `eval_runs` / `ingest_jobs` 未写运行时） | `contracts` / `db` | 全部业务包 | [contracts](./contracts.md) · [db](./db.md) |
+| **工程工具链** | **生产向**（全仓 eslint/tsconfig 基线；无业务完成度故事） | `eslint-config` · `typescript-config` | 全仓 · `ui` | [eslint-config](./eslint-config.md) · [typescript-config](./typescript-config.md) · [ui](./ui.md) |
 
-**矩阵未覆盖、且明确尚未交付的能力**（请不要从「可演示」的行向外推断）：生产级 ES + IK、真实 RustFS / Mongo、rewrite / 连续追问、CRAG / multi_hop、**部门级检索强制隔离（DEPT_ACL）**、admin 设置全量 UI、按历史 indexVersion 浏览分片等 → 详见 backlog 与交付控制台 §0。  
-**安全债（不挡当前主线 · 生产前必清）**：**QUAL-2 真杀毒**（现阶段 mock；DEC-SCAN 2026-08-12 已裁决）→ 债面 [worker · 技术债](./worker.md#技术债)。  
-（**已交付勿再列未做**：B2-W mode/docTypes 闸、B4-W hydrate、B12 策略闸、B13 feedback UI。）
+**矩阵未覆盖、且明确尚未交付的能力**（请不要从「可演示」的行向外推断）：生产级 ES + IK、真实 RustFS / Mongo、rewrite / 连续追问、CRAG / multi_hop、**部门级检索强制隔离（DEPT_ACL）**、权限三表终态、入库 `ingest_jobs` 账本/分布式锁、admin 设置全量 UI（docTypes/策略/KB 绑定写）、按历史 indexVersion 浏览分片等 → 详见 [08-06 backlog](../../.trellis/tasks/08-06-project-backlog/status.md) 与交付控制台 §0。  
+**安全债（不挡当前主线 · 生产前必清）**：**QUAL-2 真杀毒**（现阶段 mock；DEC-SCAN 已裁决）→ [worker · 技术债](./worker.md)。  
+（**已交付勿再列未做**：B2-W mode/docTypes 闸、B4-W hydrate、B12 策略闸、B13 feedback UI、08-12 SPEC-HOW 挂账 archive。）
 
 ## 目录约定
 
