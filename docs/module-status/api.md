@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（P0/P1 入库 + S2 最小问答 + B1–B6 最小运营 API + B10 L1 **工程 seed** + B12 策略闸 + B13 反馈 API；演示依赖 mock ES / 常 mock Gateway；L1 **≠** 业务签字门禁） |
 | 默认依赖模式 | ES 检索 = `RETRIEVE_ES_MODE=mock` · 鉴权 = 临时双 JWT（`AUTH_ENFORCE` **默认 `false`**）· rewrite = `SESSION_REWRITE_ENABLED` 默认 false 且 **true→启动失败** · 对象存储 = `local` · Gateway 缺 URL→mock；**B3-W/B2-W** ask 读 platform + **KB scope 绑定覆盖（只读 list，无 PUT KB 绑定 HTTP）** · **B4-W** 每请求 DB `user_roles` hydrate · **无** `DEPT_ACL_ENFORCE` env · `ASK_RATE_LIMIT_RPM=0` · L1 CLI 需显式 `L1_KB_ID`（可选 `L1_PERSIST_EVAL`） |
 | 关联模块 | 入库演示还需要 `worker` + PostgreSQL + Redis；契约 `@strict-rag/contracts`（含 `IMPLEMENTED_CHUNK_STRATEGIES` / `IngestJobData`）；schema `@strict-rag/db`（含 `eval_runs`）；L1 gold / RACI 在仓根 `fixtures/l1/` |
-| 最近更新 | 2026-08-12（全量 IS 核对：B12/B4-W/B2-W/B13/L1/OPS-1 + 08-12 策略/入队 SSOT；澄清 KB 绑定写路径与 hydrate 3s） |
+| 最近更新 | 2026-08-12（ARCH-P1b-2 管理写路径 `admin-write-audit` 中间件；全量 IS 核对：B12/B4-W/B2-W/B13/L1/OPS-1） |
 | Spec | `.trellis/spec/api/backend/`（含 [dashboard](../../.trellis/spec/api/backend/dashboard.md) · [l1-eval](../../.trellis/spec/api/backend/l1-eval.md)） |
 | PRD | `prds/05-api` · `04-pipelines` · `08-quality` · `09-security` |
 
@@ -23,6 +23,7 @@
 - 健康检查 `/health`、就绪检查 `/ready`（含依赖项检查）、`/metrics` 指标骨架
 - request-id 中间件、Pino 日志、环境变量校验
 - **ARCH-P0 运行时硬化**：`onError` / `notFound` 统一标准错误信封；PostgreSQL 约束冲突兜底映射；`secureHeaders` 安全头 + 可关闭的 `timeout` 超时中间件（ask 路由除外）+ JSON `bodyLimit` 请求体限制（上传路由除外）；`createDb` 按 api 端配置超时；SIGINT/SIGTERM 信号到来时正确关闭 DB 连接与队列
+- **ARCH-P1b-2 管理写操作日志**：`middleware/admin-write-audit.ts` 在 auth 之后对成员/审批/lifecycle/`/admin/*` 写/KB settings PATCH 打 `event:admin_write`（Pino；**不**落审计表；排除 GET/ask/auth）
 
 ### 鉴权与权限
 - 双 JWT（access token + refresh token）、dev-login 开发登录、`AUTH_ENFORCE` 总开关（默认关闭）

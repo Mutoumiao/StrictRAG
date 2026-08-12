@@ -12,6 +12,7 @@ import { env, toHealthEnv } from './env.js';
 import { fail } from './lib/response.js';
 import { childLogger } from './logger.js';
 import { attachAuthMiddleware } from './auth/middleware.js';
+import { adminWriteAuditMiddleware } from './middleware/admin-write-audit.js';
 import { jsonBodyLimitMiddleware } from './middleware/body-limit.js';
 import { onErrorHandler } from './middleware/on-error.js';
 import { requestIdMiddleware, type ApiVariables } from './middleware/request-id.js';
@@ -31,7 +32,7 @@ import { departmentsRoutes } from './routes/departments.js';
 import { platformUsersRolesRoutes } from './routes/platform-users-roles.js';
 import { sessionRoutes } from './routes/sessions.js';
 
-/** requestId → secureHeaders → timeout → bodyLimit → auth → routes → notFound/onError */
+/** requestId → secureHeaders → timeout → bodyLimit → auth → adminWriteAudit → routes → notFound/onError */
 export function createApp() {
   const app = new Hono<{ Variables: ApiVariables }>();
 
@@ -40,6 +41,7 @@ export function createApp() {
   app.use('*', requestTimeoutMiddleware);
   app.use('*', jsonBodyLimitMiddleware);
   app.use('*', attachAuthMiddleware);
+  app.use('*', adminWriteAuditMiddleware);
 
   app.get('/health', (c) => {
     const body: HealthResponse = {

@@ -5,7 +5,7 @@
 ```text
 apps/api/src/
   index.ts                 # 启动 + SIGINT/SIGTERM → closeDb/closeQueue
-  app.ts                   # createApp：requestId → secure → timeout → bodyLimit → auth → routes → notFound/onError
+  app.ts                   # createApp：requestId → secure → timeout → bodyLimit → auth → adminWriteAudit → routes → notFound/onError
   env.ts                   # Zod env（+ API_REQUEST_TIMEOUT_MS · API_JSON_BODY_LIMIT_BYTES …）
   auth/
     types.ts
@@ -36,6 +36,7 @@ apps/api/src/
     timeout.ts             # 可关全局 timeout；ask except
     body-limit.ts          # JSON 体限；上传/complete except
     on-error.ts            # 全局 throw 兜底
+    admin-write-audit.ts   # ARCH-P1b-2 管理写路径 Pino 操作日志（不落表）
   # secureHeaders / notFound 直接在 app.ts 内联
   services/
     documents.ts · chunks.ts · chunk-strategies.ts  # B12 注册表

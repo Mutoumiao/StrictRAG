@@ -28,10 +28,24 @@ requestId, tenantId, userId, kbId?, sessionId?
 | info | 请求完成、入队成功、启动/ready 状态 |
 | debug | 仅开发；生产默认关 |
 
+## 管理写路径操作日志（ARCH-P1b-2）
+
+| 项 | 约定 |
+|----|------|
+| 入口 | `apps/api/src/middleware/admin-write-audit.ts`（挂在 **auth 之后**） |
+| 覆盖 | 成员 invite/remove · 文档 approve/reject · lifecycle · `/api/v1/admin/*` 写 · KB settings PATCH |
+| 排除 | GET · `POST …/ask` · `/api/v1/auth/*` · health/ready/metrics |
+| 事件 | `event: 'admin_write'` + `method` / `path` / `status` / `durationMs` |
+| 上下文 | `requestId` · `userId?` · `tenantId?` · `kbId?`（路径可解析时） |
+| 存储 | **仅 Pino**；**不**落审计表、**不**记 body / Authorization |
+
+判定与 payload 纯函数可单测：`shouldAuditAdminWrite` · `buildAdminWritePayload` · `assertNoSensitiveLogKeys`。
+
 ## 禁止
 
 - 日志打印 JWT、密码、Provider API Key、文档全文敏感体  
 - 业务路径继续用 `console.log` / `console.error` 当主日志（统一 Pino）
+- 为操作日志新建审计表或第二套日志库
 
 ## 与观测
 
