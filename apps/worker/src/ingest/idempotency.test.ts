@@ -77,13 +77,15 @@ describe('retryable 矩阵 · R-I-idem-4', () => {
     expect(classifyIngestBullOutcome('MALWARE')).not.toBe('retry');
   });
 
-  it('EMBED_FAILED / ES_* 可重试 → BullMQ retry', () => {
+  it('EMBED_FAILED / ES_* / DOC_LOCK_BUSY 可重试 → BullMQ retry', () => {
     expect(isIngestErrorRetryable('EMBED_FAILED')).toBe(true);
     expect(classifyIngestBullOutcome('EMBED_FAILED')).toBe('retry');
     expect(isIngestErrorRetryable('ES_INDEX_FAILED')).toBe(true);
     expect(classifyIngestBullOutcome('ES_INDEX_FAILED')).toBe('retry');
     expect(isIngestErrorRetryable('ES_RECONCILE_FAILED')).toBe(true);
     expect(classifyIngestBullOutcome('ES_RECONCILE_FAILED')).toBe('retry');
+    expect(isIngestErrorRetryable('DOC_LOCK_BUSY')).toBe(true);
+    expect(classifyIngestBullOutcome('DOC_LOCK_BUSY')).toBe('retry');
   });
 
   it('未知码 fail-closed 不可重试；成功无码 complete', () => {

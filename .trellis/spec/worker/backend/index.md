@@ -20,7 +20,7 @@
 
 - [ ] `pnpm --filter @strict-rag/worker check-types` · `lint` · `test`  
 - [ ] 失败任务可观测；retryable 与 [ingest-idempotency §4](./ingest-idempotency.md) 方向一致  
-- [ ] 提交说明勿写「生产杀毒已上 / QUAL-2 完成 / 生产级幂等锁与账本已齐」（最小幂等见幂等文 §5）  
+- [ ] 提交说明勿写「生产杀毒已上 / QUAL-2 完成 / 生产级 Redlock 与完整账本已齐」（最小幂等/账本/锁见幂等文 §5）  
 
 ---
 

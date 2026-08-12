@@ -7,7 +7,7 @@
 | 成熟度 | **可联调**（P1 入库状态机；**仅** development/test + mock 栈可起；**staging/production 当前无合法扫描配置**） |
 | 默认依赖模式 | `APP_ENV=development` · 扫描 = `mock_clean` · 向量 = `mock`（dims=8）· ES 索引 = `mock`（枚举仅 `mock\|fail`，**无 live/http**）· 对象存储 = 本地目录 `STORAGE_LOCAL_DIR`（默认 `.data/objects`） |
 | 关联模块 | 由 `api` 入队触发；写库走 `@strict-rag/db`；队列名 / job payload / 可执行策略集来自 `@strict-rag/contracts`；运行需要 Redis + PostgreSQL |
-| 最近更新 | 2026-08-12（`ingest_jobs` 阶段账本最小写 · job-ledger；锁仍欠；dual-ready 仍 draft） |
+| 最近更新 | 2026-08-12（同 doc Redis 锁最小 · `doc-lock`；账本最小已有；dual-ready 仍 draft） |
 | Spec | `.trellis/spec/worker/backend/` |
 | PRD | `prds/06-async` · `prds/04-pipelines/01-offline-ingest.md` |
 
@@ -44,10 +44,11 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 
 ### 幂等 / 重试（X-04 最小）
 - `idempotency.ts`：带 `indexVersion` + 有 manifest → **resume_embed，禁重分块**；有 version 无 manifest → `NO_MANIFEST`
-- 可重试（普通 Error → BullMQ attempts）：`EMBED_FAILED` / `ES_INDEX_FAILED` / `ES_RECONCILE_FAILED` 等
+- 可重试（普通 Error → BullMQ attempts）：`EMBED_FAILED` / `ES_INDEX_FAILED` / `ES_RECONCILE_FAILED` / `DOC_LOCK_BUSY` 等
 - 不可重试（`UnrecoverableError`）：`MALWARE` / `NOT_APPROVED` / `UNSUPPORTED_CHUNK_STRATEGY` 等（`bull-outcome.ts`）
 - 未知 errorCode **fail-closed 不重试**
-- **账本最小**：`job-ledger.ts` 每 stage insert `running` → end `succeeded`/`failed`（写失败 warn 不阻断）；**未做** 分布式锁 / 并行双 job 互斥 / api 入队写 / 查询 API
+- **账本最小**：`job-ledger.ts` 每 stage insert `running` → end `succeeded`/`failed`（写失败 warn 不阻断）；**未做** api 入队写 / 查询 API
+- **同 doc 锁最小**：`doc-lock.ts` Redis `SET NX EX` + token 安全释放；`index.ts` 持锁再跑 stage；抢锁失败 `DOC_LOCK_BUSY` 可重试；**非** Redlock
 
 ### 基础设施
 - 环境变量校验、Pino 日志、与 api 共用 `@strict-rag/db`
@@ -65,7 +66,7 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 | 真 RustFS / Mongo 正文 | 本地目录 + `mongoDocId=local:` |
 | OCR / 复杂版式 | 仅标 `needs_ocr`，不续跑 OCR 引擎 |
 | HTTP API | **禁止**业务 HTTP |
-| `ingest_jobs` 完整运维账本 | **最小 stage 写已有**；无锁 / 无查询面 / 无 api 入队 `queued` |
+| `ingest_jobs` 完整运维账本 | **最小 stage 写已有**；无查询面 / 无 api 入队 `queued` |
 | dual-ready 自动 `lifecycle=active` | 终态 draft；检索默认可检索性另闸 |
 
 ---
@@ -77,7 +78,7 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 | **【安全债 · QUAL-2】真杀毒未接** | 生产收真实上传前必须清 | **DEC-SCAN**：dev 允许 mock；**X-01/X-02 已焊**。清债 = 真引擎 + `on` 健康检查放行 prod + 审计 + 剧本 M。**禁止**宣称已生产杀毒 |
 | **prod-like 无法合法启动** | staging/production 既禁 mock 又禁未接的 `on` | 进生产前必须 QUAL-2 放行路径 |
 | mock 扫描 + mock 向量 + mock ES | 入库「可演示 ≠ 生产可信」 | 与 api 检索 mock 同源问题族 |
-| **幂等+账本最小已接 · 锁仍欠** | stage 行可写；并行双 job 无锁；无运维查询面 | HOW `ingest-idempotency.md` · `job-ledger.ts` · task `08-12-ingest-jobs-ledger-min` |
+| **幂等+账本+锁最小已接 · 运维查询仍欠** | stage 行可写；同 doc SET NX 互斥；无运维查询面 / 非 Redlock | HOW `ingest-idempotency.md` · `job-ledger.ts` · `doc-lock.ts` · task `08-12-ingest-doc-lock-min` |
 | 入库 ES 无 live 枚举 | 切真索引须改 env/代码专项验收 | 勿与 api `RETRIEVE_ES_MODE=http` 混谈 |
 | 分块策略极简 | 检索质量上限低 | 扩策略：先 worker 实现 + 扩 contracts `IMPLEMENTED_*` |
 | `GATEWAY_*` 死配置 | 易误读「已接网关 embed」 | pipeline 未用 |
@@ -92,9 +93,9 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 | 入口 / 队列 | `apps/worker/src/index.ts` · `queues.ts` · `db.ts` |
 | 流水线 | `apps/worker/src/ingest/pipeline.ts` · `es-store.ts` |
 | 扫描闸 | `apps/worker/src/scan-mode-policy.ts` · `scan-mode-policy.test.ts` · `env.ts` superRefine |
-| 幂等 / 重试 | `ingest/idempotency.ts` · `idempotency.test.ts` · `bull-outcome.ts` · `bull-outcome.test.ts` |
+| 幂等 / 重试 / 锁 | `ingest/idempotency.ts` · `doc-lock.ts` · `job-ledger.ts` · 对应 `*.test.ts` · `bull-outcome.ts` |
 | 策略 SSOT | `packages/contracts/src/ingest/chunk-strategy.ts`（`IMPLEMENTED_*`） |
 | job 契约 | `packages/contracts/src/async/ingest-job.ts` |
 | 环境变量默认值 | `apps/worker/src/env.ts` |
 | 单测 | `pipeline.test.ts` 等——**不是**入库 E2E |
-| Task（辅证 · 已归档） | `08-04-p1-*` · `08-12-spec-w1-scan-failclosed` · `08-12-spec-w1-chunk-strategy-truth` · `08-12-spec-w1-ingest-idempotency-impl` · QUAL-2：`08-11-qual-scan-engine` |
+| Task（辅证 · 已归档） | `08-04-p1-*` · `08-12-spec-w1-scan-failclosed` · `08-12-spec-w1-chunk-strategy-truth` · `08-12-spec-w1-ingest-idempotency-impl` · `08-12-ingest-jobs-ledger-min` · `08-12-ingest-doc-lock-min` · QUAL-2：`08-11-qual-scan-engine` |

@@ -75,10 +75,10 @@
 | **反馈** | **可联调**（API + **B13** web 答后提交 / admin 队列 patch） | `api` | `web` · `admin` · `db` | [web](./web.md) · [admin](./admin.md) · [api](./api.md) |
 | **模型网关** | **可演示**（供应商 CRUD + **platform** 绑定；运行时 env+platform+**KB 读覆盖**；**无** KB 绑定 HTTP 写；admin KB 写 UI defer） | `api` | `admin` · `contracts` · `db` | [api](./api.md) · [admin](./admin.md) |
 | **观测 / 评测** | **可联调**（进程内 metrics/tracer；L1 工程 seed + OPS-1 live profile；`eval_runs` 可选落库；**mock 禁签字**；无默认 CI 真 LLM / **无**业务签字真跑数字） | `api` | `db` | [api](./api.md) · [db](./db.md) · [live profile](../ops/live-retrieve-profile.md) |
-| **契约 / Schema 基座** | **可联调**（P1/S2 + B1–B6 + **B12 策略码 / IngestJobData**；`eval_runs` 可落；`ingest_jobs` worker 最小 stage 写、锁仍欠） | `contracts` / `db` | 全部业务包 | [contracts](./contracts.md) · [db](./db.md) |
+| **契约 / Schema 基座** | **可联调**（P1/S2 + B1–B6 + **B12 策略码 / IngestJobData**；`eval_runs` 可落；`ingest_jobs` worker 最小 stage 写；同 doc Redis 锁最小） | `contracts` / `db` | 全部业务包 | [contracts](./contracts.md) · [db](./db.md) |
 | **工程工具链** | **生产向**（全仓 eslint/tsconfig 基线；无业务完成度故事） | `eslint-config` · `typescript-config` | 全仓 · `ui` | [eslint-config](./eslint-config.md) · [typescript-config](./typescript-config.md) · [ui](./ui.md) |
 
-**矩阵未覆盖、且明确尚未交付的能力**（请不要从「可演示」的行向外推断）：生产级 ES + IK、真实 RustFS / Mongo、rewrite / 连续追问、CRAG / multi_hop、**部门级检索强制隔离（DEPT_ACL）**、权限三表终态、入库 `ingest_jobs` 分布式锁/完整运维账本（stage 最小写已有）、admin 设置全量 UI（docTypes/策略/KB 绑定写）、按历史 indexVersion 浏览分片等 → 详见 [08-06 backlog](../../.trellis/tasks/08-06-project-backlog/status.md) 与交付控制台 §0。  
+**矩阵未覆盖、且明确尚未交付的能力**（请不要从「可演示」的行向外推断）：生产级 ES + IK、真实 RustFS / Mongo、rewrite / 连续追问、CRAG / multi_hop、**部门级检索强制隔离（DEPT_ACL）**、权限三表终态、入库 `ingest_jobs` 完整运维查询面（stage 最小写 + 同 doc SET NX 锁最小已有；非 Redlock）、admin 设置全量 UI（docTypes/策略/KB 绑定写）、按历史 indexVersion 浏览分片等 → 详见 [08-06 backlog](../../.trellis/tasks/08-06-project-backlog/status.md) 与交付控制台 §0。  
 **安全债（不挡当前主线 · 生产前必清）**：**QUAL-2 真杀毒**（现阶段 mock；DEC-SCAN 已裁决）→ [worker · 技术债](./worker.md)。  
 （**已交付勿再列未做**：B2-W mode/docTypes 闸、B4-W hydrate、B12 策略闸、B13 feedback UI、08-12 SPEC-HOW 挂账 archive。）
 

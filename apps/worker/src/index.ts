@@ -13,6 +13,7 @@ import { Redis } from 'ioredis';
 import { closeDb } from './db.js';
 import { env } from './env.js';
 import { assertIngestBullOutcome } from './ingest/bull-outcome.js';
+import { createIoredisDocLock, withDocLock } from './ingest/doc-lock.js';
 import { runIngestStage } from './ingest/pipeline.js';
 import { logger } from './logger.js';
 import {
@@ -77,11 +78,16 @@ async function main() {
     },
   });
 
+  const docLock = createIoredisDocLock(redisForQueue);
+
   const ingestWorker = new Worker<IngestJobData>(
     QUEUE_NAMES.INGEST,
     async (job) => {
       logger.info({ jobId: job.id, data: job.data }, 'ingest job started');
-      const result = await runIngestStage(job.data);
+      // INGEST-LOCK：同 doc 互斥；抢锁失败 → DOC_LOCK_BUSY 可重试（不进 pipeline）
+      const result = await withDocLock(docLock, job.data.docId, () =>
+        runIngestStage(job.data),
+      );
       if (result.next) {
         await ingestQueue.add(result.next.stage, result.next);
         logger.info({ next: result.next.stage, docId: job.data.docId }, 'chained next stage');

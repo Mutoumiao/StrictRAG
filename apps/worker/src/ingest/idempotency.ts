@@ -24,6 +24,8 @@ export const RETRYABLE_INGEST_CODES = [
   'EMBED_FAILED',
   'ES_INDEX_FAILED',
   'ES_RECONCILE_FAILED',
+  /** 同 doc 锁被占；BullMQ attempts/backoff 后再抢 */
+  'DOC_LOCK_BUSY',
 ] as const;
 
 const NON_RETRYABLE = new Set<string>(NON_RETRYABLE_INGEST_CODES);
