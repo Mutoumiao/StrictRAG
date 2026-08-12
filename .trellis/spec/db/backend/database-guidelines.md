@@ -77,6 +77,17 @@ isDefaultRetrievable({ status, lifecycle })
 | 消费者 | `apps/api` retrieve **必须**复用；禁止 route/service 私写平行谓词 |
 | 单测 | `retrieval-gate.test.ts` 护栏 |
 
+### 权限表 · Schema Delta（X-10）
+
+| 表 | 职责 | 与 PRD 偏差 |
+|----|------|-------------|
+| `platform_roles` | 角色元数据 + **`codes_json`** 内嵌权限码 | 非独立 role_permissions 表（**过渡**；DEC-X1） |
+| `user_roles` | 用户↔角色 | 对齐 |
+| （无）`permissions` 表 | 码字典在 **admin-catalog 包** | 不落 PG 字典表 |
+
+Runtime 放行 HOW → [api auth-authorization](../../api/backend/auth-authorization.md)「Runtime Truth」。  
+**禁止**在 db 包复制权限码字符串全集。
+
 ### Ask 表（S2 + B10）
 
 | 表/模块 | 用途 |

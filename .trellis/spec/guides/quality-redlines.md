@@ -34,7 +34,7 @@
 | 把 `scope` 塞进 `options` | **`scope` 为 ask 顶层可选字段**（如 `scope.docTypes`），与 options **分轨**（ADR-050）；混入 options → 400 |
 | 教学 Notebook / LanceDB 数字当 SLA | 生产指标以验收剧本与门禁为准 |
 | L1 `mode=mock` 的 2×2 / coverage 当业务签字 | 仅工程 seed；签字须 live + 规模门；HOW → [l1-eval](../api/backend/l1-eval.md) |
-| `INGEST_SCAN_MODE=on` / mock 当生产杀毒完成 | QUAL-2 = **安全债**（DEC-SCAN）；HOW → [worker quality](../worker/backend/quality-guidelines.md) |
+| `INGEST_SCAN_MODE=on` / mock 当生产杀毒完成 | QUAL-2 = **安全债**；`on` 未接引擎 **启动失败**；prod 禁 mock（X-01/X-02）；HOW → [worker quality](../worker/backend/quality-guidelines.md) |
 | staging/prod 单节点 rerank 冒充双节点 | `RERANK_MIN_NODES` + fallback；全失败拒答；HOW → [model-gateway](../api/backend/model-gateway.md) §9 |
 | 多策略 reindex 静默 default strategy | 须显式 `chunkStrategy` 或 400；HOW → [chunk-strategies](../api/backend/chunk-strategies.md) |
 
@@ -55,6 +55,35 @@
 用户可见 `answered` 响应中，`citations[]` **只能**含本轮 evidence 内 id。  
 全文 `INSUFFICIENT_EVIDENCE` → 不进 verify → `model_abstained`。  
 细节与分档：`prds/08-quality/01-verification-and-abstention.md`。
+
+---
+
+## verify 触发细节（X-16 · 对照 `graph/run.ts`）
+
+> 与 [ask-pipeline S2 图边表](../api/backend/ask-pipeline.md) 配套。改 judge / claim_split / 预算时 **必读**。
+
+| 主题 | 规则 | Wrong | Correct |
+|------|------|-------|---------|
+| **合法 draft 必 verify** | generate 产出合法 draft+citations 后 **禁止**直接 `answered`；必须 claim_split → verify | `return finalize(verified)` 在 generate 后 | 走 claim_split → batch judge → 全过才 verified |
+| **judge-only 不够** | 仅有 judge 分数、**无** claim 列表不得 verified | 跳过 claim_split 用全文当 1 claim | claim_split 产出结构化 claims；失败 → `claim_split_failed` |
+| **批 judge** | S2：**一次** judge 调用对全部 claims 打分（+ 解析失败可再 1 次）；**禁止**无预算地 per-claim 无限 fan-out | 每 claim 单独 chat 且不 `tryChargeLlm` | `judgeUserPrompt(claims, evidence)` 批处理；重试仍计 LLM |
+| **maxLLMCalls** | 任何 chat（generate / claim_split / judge / 重试）前 `tryChargeLlm`；不足 → `budget_exhausted` | 重试 judge 不计数 | `chargeAndChat` 统一计数；mode 表见 ask-pipeline |
+| **空 claims** | `parseClaimSplitOutput` **拒**空数组（throw → `claim_split_failed`）；即使漏网，`allPass` 要求 `claims.length > 0` | 空 claims + mean 分数当 verified | 空 / 无合法 chunk → `claim_split_failed` 或 `unsupported_claims` |
+| **min 否决** | `minSupport = min(scores)`；**每一** claim ≥ `tauClaim` 才 verified | `mean(scores) >= τ` 洗白 | `scores.every(s => s >= tauClaim)` |
+| **τ 源** | 仅服务端 `TAU_CLAIM` / `input.tauClaim` | 客户端 `options.tauClaim` | contracts options **无**该字段 |
+| **历史 ≠ evidence** | judge/generate 文本 **仅**本轮 `state.evidence` | 把 session 原文拼进 judge user | evidence_snapshot 与 retrieve 同源 |
+
+### 负向断言（实现/评审最低集）
+
+| ID | 断言 |
+|----|------|
+| V-neg-1 | generate 后 mock 直接 finalize verified → **禁止**（代码路径不存在） |
+| V-neg-2 | claim_split 空 claims → **非** answered |
+| V-neg-3 | 一 claim 低于 τ、其余满分 → `unsupported_claims` |
+| V-neg-4 | 耗尽 maxLLMCalls 于 judge 重试前 → `budget_exhausted`，非 verified |
+| V-neg-5 | P0 R9：未完整 verify 不得 answered（`docs/testing/p0-redlines.md`） |
+
+证据：`apps/api/src/graph/graph.test.ts` · `run.ts` verify 段 · `parse.ts` empty claims throw。
 
 ---
 

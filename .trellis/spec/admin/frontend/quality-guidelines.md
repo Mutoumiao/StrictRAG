@@ -134,7 +134,7 @@ expect(mapBizError(err)).toContain('shouldRefresh');
 | 场景 | 断言 |
 |------|------|
 | 无本地会话 / 无 `admin.shell` | `router.replace('/login')`；不渲染子树 |
-| 仅 `doc.view` | 有「文档」链；无「审批中心」；无未落地「数据面板」 |
+| 仅 `doc.view` | 有「文档」链；无「审批中心」；**无**「数据面板」（缺 `dashboard.view`，非「面板未实现」） |
 | 审批有 view 无 decide | 列表可出；**无**「通过」「驳回」 |
 | 有 decide | 可点「通过」且 `applyApprovalAction(kb, id, 'approve')` |
 | 有 `doc.upload` + approved | 有「入队 scan」 |

@@ -20,14 +20,16 @@
 
 ## 技术约定
 
-- `cn` / 组件 / theme → `@strict-rag/ui`（契约见 [ui · component-guidelines](../../ui/frontend/component-guidelines.md)）  
+- `cn` / 组件：**子路径优先** `@strict-rag/ui/lib/utils` · `@strict-rag/ui/components/ui/*`（契约见 [ui · component-guidelines](../../ui/frontend/component-guidelines.md)）  
 - 三态视觉：answered → `success`；**abstained → `abstain`**；error → `destructive`（拒答 ≠ 系统红）  
 - 入口：`globals.css` import ui theme + `@source`；`layout` 只引 globals  
 - 构建：`next build --webpack` + `extensionAlias`  
 - ESLint：`next-js` 配置  
 - 与 admin **拆包**：勿把管理页塞进 web  
 - 类型：`AskRequest` / `AskResponse` / BizCode 来自 `@strict-rag/contracts`  
-- 流客户端：`@ai-sdk/react` `useChat` + `ai` `DefaultChatTransport`（`src/api/ask.ts` · `hooks/use-knowledge-ask.ts`）
+- 流客户端：`@ai-sdk/react` `useChat` + `ai` `DefaultChatTransport`（`src/api/ask.ts` · `hooks/use-knowledge-ask.ts`）  
+- **env / 密钥**：浏览器包 **仅** `NEXT_PUBLIC_*`（经 `env.client.ts`）；**禁止** `DATABASE_URL`、JWT secret、Provider Key、ES/Mongo 凭据进 web；API base 只经 `env.client` + `lib/http` / transport  
+- **依赖**：不得 import `@strict-rag/db`；不得浏览器直连 ES/PG（见 [monorepo-boundaries](../../guides/monorepo-boundaries.md)）
 
 ## 会话与 HTTP（已落地）
 
@@ -39,10 +41,12 @@
 | refresh URL | `POST /api/v1/auth/web/token/refresh` |
 | 消费者 | 默认 `web_consumer`（无 `admin.shell`）；ask 靠 **KB 成员**，不靠运营码 |
 | 会话 API | `src/api/sessions.ts` → api sessions 路由 |
+| 会话编排 | `src/services/sessions.services.ts`（无 path） |
 | 反馈 API | `src/api/feedback.ts` · UI：`ask-panel` FeedbackBar |
 | 身份 API | `src/auth/api.ts` |
+| 客户端 env | `env.client.ts` → 仅公开 API base 等 `NEXT_PUBLIC_*` |
 
-**反模式**：把 admin token 写入 web key；用运营码放行 web 管理能力；本地用历史消息拼 evidence 高亮当引用。
+**反模式**：把 admin token 写入 web key；用运营码放行 web 管理能力；本地用历史消息拼 evidence 高亮当引用；把服务端密钥写进 `NEXT_PUBLIC_*` 或任意 web 源码。
 
 ## 前端测试（Vitest + RTL）· 可执行约定
 

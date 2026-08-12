@@ -1,15 +1,16 @@
 # db · 目录结构
 
-## 当前（P1 + S2 schema）
+## 当前（对齐 `packages/db/src`）
 
 ```text
 packages/db/
   package.json            # db:generate · db:migrate 等
-  drizzle/                # 迁移 SQL（评审入口）
+  drizzle/                # 迁移 SQL（评审入口；0000–0006+）
   src/
     index.ts              # 导出 client / schema / query helpers
-    client.ts
-    time.ts               # 本地格式串写库
+    client.ts             # createDb（分端 timeout）
+    time.ts               # 本地格式串写库 · uuid 辅助
+    time.test.ts
     query/
       retrieval-gate.ts   # isDefaultRetrievable：ready ∧ active
       retrieval-gate.test.ts
@@ -17,14 +18,30 @@ packages/db/
       index.ts
       _shard/base-columns.ts
       system/
-        schema-meta.ts · users.ts
+        schema-meta.ts
+        users.ts
+        platform-roles.ts   # platform_roles · user_roles（codes_json 现状）
+        departments.ts      # departments · user_departments（B5 壳）
+        model-providers.ts
+        model-bindings.ts
       kb/
-        knowledge-bases.ts · documents.ts · chunks.ts
-        chunk-embeddings.ts · chunk-manifests.ts
-        kb-members.ts · ingest-jobs.ts
+        knowledge-bases.ts
+        documents.ts
+        chunks.ts
+        chunk-embeddings.ts
+        chunk-manifests.ts
+        kb-members.ts
+        ingest-jobs.ts
       ask/
-        ask-sessions.ts · ask-traces.ts · ask-feedback.ts
+        ask-sessions.ts
+        ask-traces.ts
+        ask-feedback.ts
+        eval-runs.ts        # B10-followup 工程
+        ask-schema.test.ts
 ```
+
+> **完成度 / 相对 PRD 缺表** → `docs/module-status/db.md` + [database-guidelines](./database-guidelines.md)。  
+> 本树是路径导航，**非**产品 schema SSOT（WHAT 在 `prds/03-data`）。
 
 ## 规则
 
@@ -32,8 +49,9 @@ packages/db/
 |------|------|
 | 唯一 ORM | Drizzle + postgres-js；禁 Prisma |
 | 共用 | api 与 worker **必须**依赖本包；禁止双份 schema |
-| 检索闸 | P2 retrieve **必须**复用 `isDefaultRetrievable`（ADR-038） |
+| 检索闸 | retrieve **必须**复用 `isDefaultRetrievable`（ADR-038）；indexVersion/ACL/scope 等在 api retrieve 叠加 |
 | 时间 / ID | 本地格式串写库；uuid v7（见 database-guidelines） |
+| 新表 | 先 PRD/ADR（冻结语义）→ schema 文件 → generate migrate → 双端消费 |
 
 ## 脚本
 

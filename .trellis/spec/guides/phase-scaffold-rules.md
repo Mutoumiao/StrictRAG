@@ -1,29 +1,24 @@
-# 阶段脚手架规则（Phase Scaffold）
+# 阶段门禁规则（允许 / 禁止边界）
 
-> 适用：当前仓库状态（**P0/P1 入库** + **S2 最小 ask** + **08-11 工程项归档**）。  
+> 适用：写代码前的 **允许做什么 / 禁止宣称什么**。  
 > 权威分期：`prds/10-delivery/01-phased-roadmap.md` · 项目导航：`CLAUDE.md`。  
 > 已关 epic：`archive/2026-08/08-05-phase-2-ask`（S2 最小，≠ 全文 Phase 2）。  
-> 08-11 归档：`archive/2026-08/08-11-*`（含 QUAL-2 **延期安全债**）。总 backlog：`08-06-project-backlog/status.md`。
+> 总调度：`08-06-project-backlog/status.md` · HOW 债：`08-12-spec-arch-review-backlog`。
 
 ---
 
-## 当前事实（代码实态）
+## 阶段摘要（非完成度 SSOT）
 
-| 单元 | 现状 | 证据 |
-|------|------|------|
-| `apps/api` | 入库 + 鉴权 hydrate + ask + B1–B6 + B12 策略 + B13 feedback + Gateway resolve + L1 CLI | `apps/api/src/**` |
-| `apps/worker` | BullMQ + ingest；**mock scan**（真杀毒债） | `apps/worker/src/**` |
-| `apps/web` | S2 ask UI + B13 反馈提交 | `apps/web/src/**` |
-| `apps/admin` | S2c 薄页 + B1–B6 + 反馈队列 | `apps/admin/src/**` |
-| `packages/contracts` | BizCode · 信封 · auth · ingest · ask 域 | `packages/contracts/src/**` |
-| `packages/db` | schema + migrate + retrieval-gate + ask + **eval_runs** | `packages/db/src/**` |
-| `packages/ui` | `cn()` + `theme.css` | `packages/ui/src/**` |
-| `packages/admin-catalog` | 权限码 + 角色模板 + 菜单 | `packages/admin-catalog/src/**` |
-| `docker/` | PG+Redis 默认；es/mongo/rustfs profile | `docker/docker-compose.yml` |
+> **完成度 / 已具备 / 债** 以 **源码 + [`docs/module-status/`](../../../docs/module-status/README.md)** 为准。  
+> 本节只给 Agent 快速边界；**禁止**用本表抬成熟度或替代 module-status。
 
-**默认边界**：`RETRIEVE_ES_MODE=mock` · Gateway 可 mock · `AUTH_ENFORCE=false` · **rewrite 强制 false** · `INGEST_SCAN_MODE=mock_clean`。  
-**未做**：Better Auth 生产 IdP · 真 ES+IK（B8）· **真杀毒（QUAL-2）** · CRAG/multi_hop · 完整运营台 · **L1 业务签字真跑**。  
-**已做工程（非签字）**：B10 L1 seed + `eval_runs` + OPS-1 profile — HOW [l1-eval](../api/backend/l1-eval.md)。
+| 维度 | 摘要（细节 → module-status） |
+|------|------------------------------|
+| 已落地主轴 | P0/P1 入库 · S2 最小 ask · S2c 运营薄页 · 若干接线/策略/反馈 |
+| 默认依赖 | ES mock · Gateway 可 mock · `AUTH_ENFORCE` 默认关 · rewrite 强制关 · scan `mock_clean` |
+| 明确未做 / 债 | 生产 ES+IK（B8）· 真杀毒（QUAL-2）· L1 业务签字真跑 · CRAG/multi_hop · 完整运营台 · Better Auth 生产 IdP |
+
+**IS 入口**：[`docs/module-status/README.md`](../../../docs/module-status/README.md)（能力矩阵 + 包文）。
 
 ---
 
@@ -31,15 +26,16 @@
 
 ### 已交付阶段（维护 / 修 bug / 加深单测）
 
-- P0 骨架 · P1 S1 入库 · **S2 最小 ask** 的维护与诚实边界内增强  
+- P0/P1 入库 · **S2 最小 ask** · S2c 薄页 在诚实边界内的维护与单测加深  
 - 交付文档 / `docs/module-status` 回写（非 `00–11` 契约）  
-- 按 backlog **新建** Trellis feature 后实现 B1/B8 等
+- 按总 backlog **新建** Trellis feature 后实现 **未完成** 项（例：B8 · QUAL-2 · B10 签字真跑 · DEPT_ACL UI）
 
 ### 新能力编码（须）
 
 1. 有明确 task（勿 silently 塞进已归档 epic）  
 2. 触及 ask 时读 [quality-redlines](./quality-redlines.md) + [ask-pipeline](../api/backend/ask-pipeline.md)  
 3. 改冻结语义：ADR → PRD → 再编码  
+4. 判断「齐了吗」只查 **module-status + 源码**，不查本文件历史表
 
 ---
 

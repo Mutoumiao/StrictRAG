@@ -1,10 +1,11 @@
 # StrictRAG · Trellis Spec 索引
 
-> 本目录是 **HOW 写代码** 的工程约定库。产品语义与接口契约以 **`prds/00–11`** 为 SSOT；冲突以 PRD 为准。
+> 本目录是 **HOW 写代码** 的工程约定库。产品语义与接口契约以 **`prds/00–11`** 为 SSOT；冲突以 PRD 为准。  
+> **完成度 / 已具备 / 债（IS）** 以 **源码 + [`docs/module-status/`](../../docs/module-status/README.md)** 为准；下列阶段句是导航摘要，**不是**第二套完成度 SSOT。
 
-**仓库阶段**：**P0/P1 入库** + **S2 最小 ask** + **08-11 工程归档**（B2-W/B3-W/B4-W · B12 · B13 · QUAL-1/3 · OPS-1/2 · B10 工程 seed；QUAL-2 = mock 扫描**安全债**）。  
+**仓库阶段（摘要）**：**P0/P1 入库** + **S2 最小 ask** + 08-11 工程项（接线/策略/反馈/部分 QUAL·OPS；QUAL-2 = mock 扫描**安全债**）。细节 → module-status。  
 **默认依赖**：ES/`RETRIEVE_ES_MODE=mock` · Gateway 可 mock · `AUTH_ENFORCE` 默认关 · **rewrite 强制关** · `INGEST_SCAN_MODE=mock_clean`。  
-**明确不等于**：路线图 Phase 2 全文 · 生产 ES+IK · 真杀毒引擎 · L1 业务签字真跑 · CRAG/multi_hop。全局调度见活任务 `08-06-project-backlog`。
+**明确不等于**：路线图 Phase 2 全文 · 生产 ES+IK · 真杀毒引擎 · L1 业务签字真跑 · CRAG/multi_hop。全局调度：`08-06-project-backlog` · HOW 债：`08-12-spec-arch-review-backlog`。
 
 ---
 
@@ -38,7 +39,8 @@
 
 | 指南 | 何时读 |
 |------|--------|
-| [worker quality](./worker/backend/quality-guidelines.md) | 入库状态机 · **DEC-SCAN 扫描债** · 队列/存储禁项 |
+| [worker quality](./worker/backend/quality-guidelines.md) | 入库状态机 · 扫描闸 · 策略执行 |
+| [ingest-idempotency](./worker/backend/ingest-idempotency.md) | 入库幂等/重试（X-04）· 禁重试重分块 |
 
 ## 跨包思考指南
 
@@ -47,7 +49,7 @@
 | [guides/index.md](./guides/index.md) | 思考指南总入口 |
 | [monorepo-boundaries](./guides/monorepo-boundaries.md) | 包边界、依赖方向、禁止项 |
 | [quality-redlines](./guides/quality-redlines.md) | RAG 质量红线（拒答 / min / evidence）；P0 自动化表 → `docs/testing/p0-redlines.md` |
-| [phase-scaffold-rules](./guides/phase-scaffold-rules.md) | 骨架阶段允许做什么 |
+| [phase-scaffold-rules](./guides/phase-scaffold-rules.md) | 阶段门禁：允许/禁止（非 IS SSOT） |
 | [cross-layer-thinking-guide](./guides/cross-layer-thinking-guide.md) | 跨层数据流 |
 | [code-reuse-thinking-guide](./guides/code-reuse-thinking-guide.md) | 复用与防重复 |
 

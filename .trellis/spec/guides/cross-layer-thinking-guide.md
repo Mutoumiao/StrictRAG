@@ -6,26 +6,41 @@
 
 ## 典型数据流
 
-### 在线 ask（目标架构，Phase 2+）
+### 在线 ask（S2 已接线 · 目标形状）
 
 ```text
-web/admin → HTTP/SSE → api (auth 验码 · options 白名单 · scope 顶层分轨)
-  → LangGraph: route → retrieve → generate → verify → finalize
-  → packages/db (traces · sessions) · ES/PG 检索 · Gateway
-  → 响应信封 packages/contracts
+web → HTTP + AI SDK UI Message Stream → api
+  (auth 验码 · options 白名单 · scope 顶层分轨)
+  → 线性图: route → retrieve → generate → verify → finalize
+  → packages/db (traces · sessions) · 检索 · Gateway
+  → 终态 data-ask-final（contracts AskResponse）；信封 packages/contracts
 ```
 
-### 离线入库（目标架构，Phase 1+）
+| 已接线（S2） | 仍 mock / 未做（禁止当生产完成） |
+|--------------|----------------------------------|
+| ask HTTP + 流式终态 · 会话壳 · 反馈 | ES 默认 `RETRIEVE_ES_MODE=mock` |
+| 检索闸 ready∧active · Gateway 可 resolve | rewrite **强制关**；非 CRAG/multi_hop |
+| contracts ask 域 · web AI SDK 消费 | L1 业务签字真跑；生产 ES+IK（B8） |
+
+流协议细节 → [ask-pipeline](../api/backend/ask-pipeline.md)（`data-ask-final` · 禁自研 SSE final）。  
+完成度细节 → `docs/module-status/`（**非**本文件 SSOT）。
+
+### 离线入库（P1 已接线 · 目标形状）
 
 ```text
-admin 上传 → api 入队 → worker: scan → parse → chunk → embed → es_index
-  → packages/db 状态机 · Mongo body · RustFS 对象 · ES 索引
-  → 双就绪才 ready；active 才进默认检索
+admin/api 上传 complete → 入队 → worker: scan → parse → chunk → embed → es_index
+  → packages/db 状态机 · 正文/向量（现阶段多在 PG）· 对象存储 · ES
+  → 双就绪才 ready；lifecycle active 才进默认检索
 ```
 
-### 当前骨架
+| 已接线（P1） | 仍 mock / 债 |
+|--------------|--------------|
+| 审批闸 · scan 状态机 · chunk/manifest · embed→es 串行 | mock/off 仅 dev；`on`/prod mock **fail-closed**（X-01/X-02）；真引擎 QUAL-2 |
+| mock ES 按 docId+indexVersion | Mongo body / 真 RustFS 生产路径延期 |
+| 策略码写入 + 执行 ⊆ contracts `IMPLEMENTED_*`（X-03 已封） | roadmap 码（fixed_window 等）不可写、不可静默段落切 |
 
-跨层链路 **尚未接线**。新增代码时仍须按目标边界落文件，避免日后大搬家。
+入库 HOW → [worker quality](../worker/backend/quality-guidelines.md)。  
+新增代码仍须按边界落文件（route 禁 SQL/ES DSL/长 Prompt），避免平行实现。
 
 ---
 

@@ -104,6 +104,48 @@ createDbRoleAuthzLoader(repo)
 
 > **Gotcha**：单测若未 `setRoleAuthzLoader`，hydrate **不会**打 PG（避免 departments 等测例被半开连接挂死）。需要 DB 语义时必须 inject。
 
+#### 权限数据模型 · Runtime Truth（X-10 · DEC-X1 默认）
+
+> **DEC-X1 默认（未开 ADR 前）**：以 **现状 schema + hydrate** 为 Runtime Truth 焊死 HOW；**不**假装已落地 PRD 理想三表。终态若迁三表 → **须 ADR → 改 PRD → 再改 schema**。
+
+| 层 | 真相 | 非真相 |
+|----|------|--------|
+| **码字典 SSOT** | `@strict-rag/admin-catalog` `PERMISSION_DEFINITIONS` | contracts / 前端硬编码全集 |
+| **角色模板（种子默认）** | admin-catalog `ROLE_TEMPLATES` | JWT `roles` 列表本身 |
+| **运行时有效码** | PG：`user_roles` ⋈ 启用的 `platform_roles.codes_json` → `hydrateAuthz` | access JWT 内嵌 roles 当放行条件 |
+| **身份** | access JWT `sub` / `sid` / `app` | — |
+
+##### Schema Delta（有意偏差 · 已接受过渡）
+
+| PRD/理想（摘要） | 当前 schema | 代理行为 |
+|------------------|-------------|---------|
+| 角色 ↔ 权限 规范化关联表 | **`platform_roles.codes_json: string[]`** | 角色行内嵌码数组；写路径校验 ⊆ catalog |
+| 用户 ↔ 角色 | `user_roles` 多对多 | **已对齐** |
+| 每次请求算有效码 | `hydrateAuthz` + ≤5s 缓存 | **已对齐**（多实例脏读 ≤TTL） |
+| JWT 带全量 codes | JWT **仅** roles 模板锚点 | 放行看 hydrate 后 `effectiveCodes` |
+
+##### 放行判定（Runtime）
+
+```text
+Bearer access 验签
+  → hydrateAuthz（DB 优先；超时/dev 空绑规则见上）
+  → requirePermission(code) / requireKbMember
+  → 菜单 clip：admin-catalog filterMenuByCodes(effectiveCodes)
+```
+
+| 禁项 | 正确 |
+|------|------|
+| 只信 JWT `roles` 字符串放行 | 信 `effectiveCodes`（hydrate 后） |
+| 在 api 复制第二份权限码表 | 改 catalog + DB 角色 `codes_json` |
+| 把 `codes_json` 当终态却写「已符合 PRD 三表」 | HOW 标明过渡；迁表走 DEC-X1 ADR |
+| 改角色后不 `invalidateRoleCache` | 写路径必失效 |
+
+##### 交叉
+
+- catalog：[admin-catalog catalog-ssot](../../admin-catalog/library/catalog-ssot.md)  
+- schema：`packages/db/src/schema/system/platform-roles.ts`  
+- 产品终态确认：挂账 **DEC-X1**（确认前勿当三表已交付）
+
 #### Access JWT claims
 
 | claim | 类型 | 说明 |

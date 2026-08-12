@@ -1,13 +1,13 @@
 # admin · 目录结构
 
-## 当前
+## 当前（对齐源码 · S2c + B1–B6 薄页 + B13）
 
 ```text
 apps/admin/
   vitest.config.ts            # jsdom · 同域 *.test.ts(x)
   src/
     test/                     # setup · re-export（非业务）
-    env.client.ts
+    env.client.ts             # 仅 NEXT_PUBLIC_*
     lib/
       http.ts                 # 传输层（Bearer / refresh / 重试）
       kb-context.ts           # 当前 KB 选择（localStorage）
@@ -23,41 +23,28 @@ apps/admin/
       login/page.tsx          # 薄：表单 UI → auth/services
       (ops)/
         layout.tsx
-        documents/
-          page.tsx            # 薄：组合 DocumentsWorkspace
-          api.ts
-          list.services.ts
-          _components/documents-workspace.tsx
-        approvals/
-          page.tsx
-          api.ts              # 跨模块 re-export listDocuments
-          services.ts
-          _components/approvals-workspace.tsx
-        members/
-          page.tsx
-          api.ts
-          services.ts
-          _components/members-workspace.tsx
-        chunks/
-          page.tsx            # B1 分片只读
-          api.ts              # list/detail path；listDocuments re-export from documents
-          services.ts
-          _components/chunks-workspace.tsx
-        kb/settings/          # B2 知识库设置
-        models/               # B3 模型网关（供应商 + 平台绑定）
-          page.tsx
-          api.ts
-          services.ts
-          _components/models-workspace.tsx
+        documents/            # 文档列表 / 上传入口
+        approvals/            # 审批
+        members/              # KB 成员
+        chunks/               # B1 分片只读
+        kb/settings/          # B2 知识库设置（薄）
+        models/               # B3 模型供应商 + 平台绑定（薄）
+        users/                # B4 平台用户
+        roles/                # B4 角色
+        departments/          # B5 部门组织壳
         dashboard/            # B6 数据面板薄壳
-          page.tsx
-          api.ts
-          services.ts
-          _components/dashboard-workspace.tsx
+        feedback/             # B13 反馈队列
+```
+
+每个 `(ops)/<module>/` 典型文件（colocation）：
+
+```text
+page.tsx · api.ts · services.ts（或 list.services.ts）· _components/*-workspace.tsx
 ```
 
 > **再扩展**（按需长出，禁止空建）：`hooks/` · 可选 `store.ts` · 按用例拆更多 `*.services.ts`。  
-> **分层纪律全文** → [module-layering.md](./module-layering.md)
+> **分层纪律全文** → [module-layering.md](./module-layering.md)  
+> **完成度 / 未做** → `docs/module-status/admin.md`（本树是路径导航，**非** IS SSOT）
 
 ## 目标模块树（路由 colocation）
 
@@ -87,23 +74,26 @@ app/(ops)/<module>/
 1. **类型**：请求/响应只用 `@strict-rag/contracts`；默认不建模块 `types.ts`。  
 2. **模块私有 api.ts**：与页面同目录；**独占**该模块后端 path。  
 3. **services 禁止写请求 URL**；只调用 `api` 导出函数。体量大时按 **业务用例** 拆多个 `*.services.ts`。  
-3b. **services 不做权限引擎**：不重算 grants/denies、不用 `role ===` 放行；UI 裁剪码 + **API 硬验码**；services 只映射 403 文案（见 module-layering §6.5）。  
-4. **hooks vs services**：无 React → services；须订阅/生命周期 → hooks（内部再调 services/api）。禁止双轨复制同一用例。  
-5. **跨模块**：优先 import 对方 **`api`**；禁止复制 path；慎 import 对方 services。  
-6. **禁止**再建全站大杂烩 `src/api/`。  
-7. **store / hooks 目录 / types**：不需要不建。  
-8. **测试**：同域 `*.test.ts(x)`；`src/test/` 仅基建；E2E 不进 `src/`。见 [quality-guidelines · 前端测试](./quality-guidelines.md)。
-8. 新运营域：在 `app/(ops)/<module>/` 落树，不要塞进无关模块。  
-9. 域被 ≥2 无关路由依赖时 → 上提 `src/features/<domain>/`（见 module-layering §11）。  
-10. **抽公共时机**（欠抽 / 过抽）：见 [module-layering §12.1](./module-layering.md)；check 必查。
+4. **services 不做权限引擎**：不重算 grants/denies、不用 `role ===` 放行；UI 裁剪码 + **API 硬验码**；services 只映射 403 文案（见 module-layering §6.5）。  
+5. **hooks vs services**：无 React → services；须订阅/生命周期 → hooks（内部再调 services/api）。禁止双轨复制同一用例。  
+6. **跨模块**：优先 import 对方 **`api`**；禁止复制 path；慎 import 对方 services。  
+7. **禁止**再建全站大杂烩 `src/api/`。  
+8. **store / hooks 目录 / types**：不需要不建。  
+9. **测试**：同域 `*.test.ts(x)`；`src/test/` 仅基建；E2E 不进 `src/`。见 [quality-guidelines · 前端测试](./quality-guidelines.md)。  
+10. **新运营域**：在 `app/(ops)/<module>/` 落树，不要塞进无关模块；落地 href 须与 catalog / `ADMIN_IMPLEMENTED_HREFS` 同步。  
+11. 域被 ≥2 无关路由依赖时 → 上提 `src/features/<domain>/`（见 module-layering §11）。  
+12. **抽公共时机**（欠抽 / 过抽）：见 [module-layering §12.1](./module-layering.md)；check 必查。
 
-## 职责（产品）
+## 职责（产品 · S2c 薄实现）
 
 | 职责 | 说明 |
 |------|------|
 | 运营壳 | `admin.shell`；菜单 catalog 按码裁剪 |
-| 薄业务页 | 文档 / 审批 / 成员 |
-| 非目标（本阶段） | KB 设置全量 · 供应商 · 部门 · 数据面板 · 全量角色（B2–B6） |
+| **已具备薄页** | 文档 · 审批 · 成员 · 分片 · KB 设置 · 模型 · 用户 · 角色 · 部门壳 · 数据面板壳 · 反馈队列（与 module-status 对齐） |
+| **非目标（勿当已做）** | 完整运营 IA / APM · DEPT_ACL 强制 UI · KB 级模型绑定写 UI · 像素级 pen 还原 · 生产级监控大盘 |
+
+> **禁止**再用「B2–B6 整包非目标」表述——会否定已落地的薄页。  
+> 全量愿景在 `prds/00-product` IA；**实现分期**以 module-status + 总 backlog 为准。
 
 ## 端口
 

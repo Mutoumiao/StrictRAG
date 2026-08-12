@@ -106,6 +106,89 @@ routes/ask.ts
 | body 非法 / options 夹带未知字段 | 400 | `VALIDATION_ERROR` |
 | session 不存在或不属于本人 | 404 | `NOT_FOUND` |
 
+#### S2 图边表（线性状态机 · X-06 · 源码 `graph/run.ts`）
+
+> **形态**：顺序函数调用，**不是** LangGraph 条件边 DSL。下表是 agent 改 `run.ts` 时的**可执行边契约**。  
+> **SSOT**：实现以本表 + 源码为准；PRD 多跳/CRAG 边**未**实现，禁止假画。
+
+```text
+route
+  ├─(chitchat)──────────────────────► finalize(chitchat) → answered
+  └─(single)──► retrieve
+                  ├─(!ok · r.reason)──► finalize(r.reason)     # kb_not_ready / rerank_unavailable / …
+                  ├─(evidence.length=0)► finalize(low_retrieval)
+                  └─(has evidence)────► generate
+                                          ├─(budget/gateway fail)► finalize(budget_exhausted|mapGateway…)
+                                          ├─(parse fail)─────────► finalize(internal_guard)
+                                          ├─(INSUFFICIENT)───────► finalize(model_abstained)
+                                          ├─(合法 citation 剥光)─► finalize(invalid_citations)
+                                          └─(合法 draft)─────────► claim_split   ★ 禁止在此 answered
+                                                                    ├─(fail/empty claims)► finalize(claim_split_failed)
+                                                                    └─(ok)───────────────► verify(batch judge)
+                                                                                              ├─(min 否决/解析终败)► finalize(unsupported_claims)
+                                                                                              └─(全 claim ≥ τ)────► finalize(verified) → answered
+```
+
+| 边（from → to） | 条件（源码锚点） | 终态 reason（典型） | 响应 status |
+|-----------------|------------------|---------------------|-------------|
+| route → finalize | `routeLabel==='chitchat'` | `chitchat` | **answered** |
+| route → retrieve | `routeLabel==='single'` | — | 继续 |
+| retrieve → finalize | `!r.ok` | `r.reason`（如 `kb_not_ready` · `rerank_unavailable` · `acl_filter_too_large`） | **abstained** |
+| retrieve → finalize | `evidence.length===0` | `low_retrieval` | abstained |
+| retrieve → generate | 有 evidence | — | 继续 |
+| generate → finalize | LLM 预算不足 | `budget_exhausted` | abstained |
+| generate → finalize | Gateway 错（非 claim_split） | `mapGatewayFailureToAskReason` / `internal_guard` | abstained |
+| generate → finalize | generate JSON 解析失败 | `internal_guard` | abstained |
+| generate → finalize | `parsed.insufficient` | `model_abstained` | abstained |
+| generate → finalize | 合法 citation 剥光为空 | `invalid_citations` | abstained |
+| generate → claim_split | 有 draft + ≥1 合法 citation | — | **必进**；禁 skip verify |
+| claim_split → finalize | 预算尽 | `budget_exhausted` | abstained |
+| claim_split → finalize | gateway / 解析 / **空 claims** / claim 无合法 chunk | `claim_split_failed` | abstained |
+| claim_split → verify | claims 非空且各有合法 chunkIds | — | 继续 |
+| verify → finalize | judge 预算尽 | `budget_exhausted` | abstained |
+| verify → finalize | judge 非预算失败 | `internal_guard`（首轮）或 `unsupported_claims`（重试路径） | abstained |
+| verify → finalize | 解析失败且重试仍败 / **任 claim &lt; τ** / `claims.length===0` 不可 pass | `unsupported_claims` | abstained |
+| verify → finalize | **全部** claim score ≥ `tauClaim`（**min 否决**，禁 mean） | `verified` | **answered** |
+
+##### reason → HTTP status / AskResponse.status（焊死）
+
+| `reason` | `AskResponse.status` | HTTP（典型） | 备注 |
+|----------|----------------------|--------------|------|
+| `verified` | `answered` | 200 | 唯一 knowledge answered 出口 |
+| `chitchat` | `answered` | 200 | `answerKind=chitchat`；**无** citations 校验环 |
+| 其余 `AskReason` 枚举值 | `abstained` | 200（业务拒答）或 409（`kb_not_ready` 经 execute） | `answer===''` · `citations=[]` |
+| （中间件） | — | 403/400/404/429 | 未进图 |
+
+`finalize()` 源码规则：`answered` **仅当** `reason === 'verified' || reason === 'chitchat'`；其余一律清 draft、空 answer。
+
+##### 预算边（`budget.ts` · mode 默认）
+
+| mode | maxLLMCalls | maxRetrieveCalls |
+|------|------------:|-----------------:|
+| fast | 8 | 2 |
+| balanced | 16 | 6 |
+| strict | 20 | 6 |
+
+- 每次 `chargeAndChat` / retrieve 前 `tryCharge*`；不足 → **立即** `budget_exhausted`，**禁止**跳过节点假完成。  
+- 客户端 **不可**覆盖预算或 `tauClaim`（env `TAU_CLAIM` 唯一源）。
+
+##### S2 **未**实现的边（禁止 HOW/代码假接线）
+
+| PRD/路线图概念 | S2 行为 |
+|----------------|---------|
+| multi_hop / max_hops 环 | reason 枚举保留 `max_hops_exceeded`；图内 **无** hop 边 |
+| CRAG grade → refine | **无** |
+| rewrite / coref 解析 | `coref_unresolved` 枚举保留；rewrite **启动禁开** |
+| 官方 LangGraph 条件边 | 线性 `runAskGraph` 即可 |
+
+##### 改图检查单（X-06）
+
+- [ ] 新早退是否走 `finalize(reason)` 且 reason ∈ `AskReasonSchema`？  
+- [ ] 合法 draft 后是否仍必经 claim_split + verify？  
+- [ ] min 是否仍为 **每 claim ≥ τ**（非 mean）？  
+- [ ] 是否误加「跳过 verify 的 answered」捷径？  
+- [ ] 流式 HTTP 映射是否仍只信 `data-ask-final` ≡ 同步 `AskResponse`？
+
 ### 3. Contracts
 
 #### Request（`AskRequestSchema` · **strict**）

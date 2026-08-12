@@ -11,14 +11,16 @@
 - [ ] 是否与 api 共用 `@strict-rag/db`？  
 - [ ] 队列 payload 是否有 contracts/Zod？  
 - [ ] 是否避免在 worker 实现 HTTP API？  
-- [ ] 改 scan 时是否读 [quality-guidelines](./quality-guidelines.md) DEC-SCAN（`on`≠ClamAV）？  
-- [ ] chunk 是否尊重文档 `chunkStrategy`（api B12），未另造注册表？  
+- [ ] 改 scan 时是否读 [quality-guidelines](./quality-guidelines.md) 启动闸（X-01/X-02）？  
+- [ ] chunk 是否尊重 `IMPLEMENTED` 策略（X-03），未另造注册表？  
+- [ ] 改重试/入队/chunk/embed 时是否读 [ingest-idempotency](./ingest-idempotency.md)（X-04）？  
+- [ ] 宣称某入库阶段「已具备」时是否对照 [ingest-capability-matrix](./ingest-capability-matrix.md)（X-05/14）？  
 
 ## Quality Check
 
 - [ ] `pnpm --filter @strict-rag/worker check-types` · `lint` · `test`  
-- [ ] 失败任务可观测、可重试策略与 PRD 一致  
-- [ ] 提交说明勿写「生产杀毒已上 / QUAL-2 完成」  
+- [ ] 失败任务可观测；retryable 与 [ingest-idempotency §4](./ingest-idempotency.md) 方向一致  
+- [ ] 提交说明勿写「生产杀毒已上 / QUAL-2 完成 / 生产级幂等锁与账本已齐」（最小幂等见幂等文 §5）  
 
 ---
 
@@ -27,7 +29,9 @@
 | 指南 | 说明 |
 |------|------|
 | [directory-structure](./directory-structure.md) | 现状树 · env 锚点 |
-| [quality-guidelines](./quality-guidelines.md) | 质量 · **DEC-SCAN 债** · 联调禁项 |
+| [quality-guidelines](./quality-guidelines.md) | 质量 · 扫描闸 · 策略 · 联调禁项 |
+| [ingest-idempotency](./ingest-idempotency.md) | **幂等/重试契约**（X-04）· IS |
+| [ingest-capability-matrix](./ingest-capability-matrix.md) | **阶段能力矩阵 + 写面职责**（X-05 · X-14） |
 
 ## 依赖
 

@@ -6,11 +6,29 @@
 
 ## 本仓库必读顺序
 
-1. **[骨架阶段规则](./phase-scaffold-rules.md)** — 当前允许/禁止什么  
+1. **[阶段门禁规则](./phase-scaffold-rules.md)** — 允许/禁止什么（完成度见 module-status）  
 2. **[Monorepo 边界](./monorepo-boundaries.md)** — 包依赖方向与禁项  
 3. **[质量红线](./quality-redlines.md)** — RAG 宁拒勿妄（触及 ask/入库/verify 时必读）  
 4. 功能跨层时 → **[跨层思考](./cross-layer-thinking-guide.md)**  
-5. 出现重复代码/常量时 → **[复用思考](./code-reuse-thinking-guide.md)**
+5. 出现重复代码/常量时 → **[复用思考](./code-reuse-thinking-guide.md)**  
+6. **包级 checklist** → 打开目标包 `.trellis/spec/<pkg>/<layer>/index.md` 的 **Pre-Development Checklist**，并读其列出的专文（**X-17**：guides 不替代包 index）
+
+```text
+guides（本目录）     →  跨包思考 / 红线 / 边界
+        ↓ 第 6 步
+spec/<pkg>/<layer>/  →  包内 HOW + checklist + 专文
+        ↓
+源码 + docs/module-status  →  IS 真相
+```
+
+| 你改… | 第 6 步打开 |
+|--------|-------------|
+| `apps/api` | [api/backend/index](../api/backend/index.md)（ask → [ask-pipeline](../api/backend/ask-pipeline.md)） |
+| `apps/worker` | [worker/backend/index](../worker/backend/index.md) |
+| `apps/web` / `apps/admin` | [web](../web/frontend/index.md) / [admin](../admin/frontend/index.md) |
+| `packages/db` | [db/backend/index](../db/backend/index.md) |
+| `packages/contracts` | [contracts/library/index](../contracts/library/index.md) |
+| `packages/admin-catalog` | [admin-catalog/library/index](../admin-catalog/library/index.md) |
 
 ---
 
@@ -23,6 +41,7 @@
 | [quality-redlines](./quality-redlines.md) | 检索 / 生成 / 验证 / 拒答 / 门禁；**P0 自动化表指针** |
 | [cross-layer-thinking-guide](./cross-layer-thinking-guide.md) | 数据穿越 api↔db↔worker↔web |
 | [code-reuse-thinking-guide](./code-reuse-thinking-guide.md) | 改常量、抽 helper、复制粘贴前 |
+| **包 `index.md` checklist** | **第 6 步必达**（X-17）；非本目录文件 |
 
 ---
 

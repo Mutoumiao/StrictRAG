@@ -3,7 +3,7 @@
 ## 选型
 
 - 库：**Pino**（栈冻结）  
-- 现状：未接入；Phase 0 与 health 一并引入  
+- **现状：已接入** — 入口 `apps/api/src/logger.ts`；请求/审计路径应走本 logger，**禁止**再引入第二套日志库  
 
 ## 上下文字段（工程 PRD）
 
@@ -31,7 +31,7 @@ requestId, tenantId, userId, kbId?, sessionId?
 ## 禁止
 
 - 日志打印 JWT、密码、Provider API Key、文档全文敏感体  
-- 用 `console.log` 作为生产日志（实现后统一 Pino）  
+- 业务路径继续用 `console.log` / `console.error` 当主日志（统一 Pino）
 
 ## 与观测
 
