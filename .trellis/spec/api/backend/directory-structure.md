@@ -32,6 +32,9 @@ apps/api/src/
     platform-users-roles.ts # B4（写路径 invalidateRoleCache）
     departments.ts         # B5
     dashboard.ts           # B6 数据面板只读 summary
+  openapi/                 # ARCH-P2-1：OpenAPI 3.1 文档 + Scalar HTML（dev/test 默认开）
+    document.ts            # buildOpenApiDocument · components 自 contracts Zod toJSONSchema
+    routes.ts              # GET /api/v1/openapi.json · /api/v1/docs · OPENAPI_DOCS_ENABLED
   middleware/
     request-id.ts          # X-Request-Id · ApiVariables.kbMemberCache?
     timeout.ts             # 可关全局 timeout；ask except
@@ -97,6 +100,7 @@ artifacts/                 # gitignore；l1-last-run.{json,md}
 | 身份/验码 | `auth/**` | handler 私写 JWT 解析 |
 | Ask 图 | `graph/**` + `services/ask` + `services/retrieve` | 第二套平行图抄本 |
 | 契约类型 | `@strict-rag/contracts` | apps 内 `type XxxResponse` |
+| OpenAPI / Scalar（ARCH-P2-1） | `openapi/document.ts` + `openapi/routes.ts`；schema **只**从 contracts Zod 派生 | 平行手写字段表当 SSOT；OpenAPIHono 全量重写 route；宣称生产发布流水线 |
 | 入库重活 | **enqueue** → worker | api 内跑 chunk/embed |
 | 评测 CLI | `eval/` + `scripts/run-l1-golden.ts` | HTTP 自调用假 L1 |
 | 观测 | `obs/**` | 业务 route 打无结构 console 当指标 |

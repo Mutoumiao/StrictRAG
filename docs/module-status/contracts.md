@@ -76,7 +76,7 @@
 | 项 | 说明 |
 |----|------|
 | 全量运营域契约 | 跨部门授权 / KB 级模型绑定 **写** / APM 时序等 **无** 独立 schema |
-| 生产 OpenAPI 生成与发布 | 以 Zod 源码为准；无独立 swagger 流水线 |
+| 生产 OpenAPI 生成与发布流水线 | 以 Zod 源码为准；api 侧 **ARCH-P2-1** 已有 dev 文档面（`apps/api/src/openapi` 读本包 Zod）；**无**独立 CI swagger 发布 |
 | 版本化兼容策略文档化 | 契约随能力增量扩展；破坏性变更须先改 PRD |
 | 多策略「已实现」全集 | `fixed_window` / `heading_sections` 仅 KNOWN，**非** IMPLEMENTED |
 

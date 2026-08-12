@@ -31,6 +31,7 @@ import { dashboardRoutes } from './routes/dashboard.js';
 import { departmentsRoutes } from './routes/departments.js';
 import { platformUsersRolesRoutes } from './routes/platform-users-roles.js';
 import { sessionRoutes } from './routes/sessions.js';
+import { createOpenApiRoutes } from './openapi/routes.js';
 
 /** requestId → secureHeaders → timeout → bodyLimit → auth → adminWriteAudit → routes → notFound/onError */
 export function createApp() {
@@ -73,6 +74,9 @@ export function createApp() {
 
   /** 指标骨架快照（P2 无鉴权；生产可前置网关保护） */
   app.get('/metrics', (c) => c.json({ service: 'api', metrics: metricsSnapshot() }, 200));
+
+  /** ARCH-P2-1：dev OpenAPI + Scalar（开关见 OPENAPI_DOCS_ENABLED） */
+  app.route('/', createOpenApiRoutes());
 
   app.route('/api/v1/auth', authRoutes);
   app.route('/api/v1', documentRoutes);

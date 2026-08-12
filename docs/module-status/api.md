@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（P0/P1 入库 + S2 最小问答 + B1–B6 最小运营 API + B10 L1 **工程 seed** + B12 策略闸 + B13 反馈 API；演示依赖 mock ES / 常 mock Gateway；L1 **≠** 业务签字门禁） |
 | 默认依赖模式 | ES 检索 = `RETRIEVE_ES_MODE=mock` · 鉴权 = 临时双 JWT（`AUTH_ENFORCE` **默认 `false`**）· rewrite = `SESSION_REWRITE_ENABLED` 默认 false 且 **true→启动失败** · 对象存储 = `local` · Gateway 缺 URL→mock；**B3-W/B2-W** ask 读 platform + **KB scope 绑定覆盖（只读 list，无 PUT KB 绑定 HTTP）** · **B4-W** 每请求 DB `user_roles` hydrate · **无** `DEPT_ACL_ENFORCE` env · `ASK_RATE_LIMIT_RPM=0` · L1 CLI 需显式 `L1_KB_ID`（可选 `L1_PERSIST_EVAL`） |
 | 关联模块 | 入库演示还需要 `worker` + PostgreSQL + Redis；契约 `@strict-rag/contracts`（含 `IMPLEMENTED_CHUNK_STRATEGIES` / `IngestJobData`）；schema `@strict-rag/db`（含 `eval_runs`）；L1 gold / RACI 在仓根 `fixtures/l1/` |
-| 最近更新 | 2026-08-12（ARCH-P1b-1 `requireKbScope` + 请求内成员缓存；ARCH-P1b-2 `admin-write-audit`；全量 IS 核对：B12/B4-W/B2-W/B13/L1/OPS-1） |
+| 最近更新 | 2026-08-12（**ARCH-P2-1** OpenAPI+Scalar dev 文档面；ARCH-P1b-1/1b-2；B12/B4-W/B2-W/B13/L1/OPS-1） |
 | Spec | `.trellis/spec/api/backend/`（含 [dashboard](../../.trellis/spec/api/backend/dashboard.md) · [l1-eval](../../.trellis/spec/api/backend/l1-eval.md)） |
 | PRD | `prds/05-api` · `04-pipelines` · `08-quality` · `09-security` |
 
@@ -24,6 +24,7 @@
 - request-id 中间件、Pino 日志、环境变量校验
 - **ARCH-P0 运行时硬化**：`onError` / `notFound` 统一标准错误信封；PostgreSQL 约束冲突兜底映射；`secureHeaders` 安全头 + 可关闭的 `timeout` 超时中间件（ask 路由除外）+ JSON `bodyLimit` 请求体限制（上传路由除外）；`createDb` 按 api 端配置超时；SIGINT/SIGTERM 信号到来时正确关闭 DB 连接与队列
 - **ARCH-P1b-2 管理写操作日志**：`middleware/admin-write-audit.ts` 在 auth 之后对成员/审批/lifecycle/`/admin/*` 写/KB settings PATCH 打 `event:admin_write`（Pino；**不**落审计表；排除 GET/ask/auth）
+- **ARCH-P2-1 OpenAPI + Scalar（dev）**：`openapi/document.ts` 从 `@strict-rag/contracts` Zod `toJSONSchema` 生成 OpenAPI 3.1；`GET /api/v1/openapi.json` · `GET /api/v1/docs`（Scalar CDN）；`OPENAPI_DOCS_ENABLED` 未设时 development|test 默认开、staging|production 默认关。**≠** 全路径覆盖 · **≠** OpenAPIHono 重写 route · **≠** 生产 swagger 发布流水线
 
 ### 鉴权与权限
 - 双 JWT（access token + refresh token）、dev-login 开发登录、`AUTH_ENFORCE` 总开关（默认关闭）
@@ -146,6 +147,7 @@
 | mock sparse 检索 / 本地 storage 路径 | 检索与对象存储都不是真实依赖 | backlog B8 / B9 |
 | 观测未接真实 Langfuse | 指标只有可演示级别 | `LANGFUSE_ENABLED` 默认 false |
 | `/metrics` 无鉴权 | 生产环境需要网关层保护 | 代码注释已标明；contracts 中没有对应的线型定义 |
+| OpenAPI paths 为代表性子集 | 联调时部分端点不在文档中 | ARCH-P2-1 有意非全量；扩展 paths 时继续 `$ref` contracts |
 | sessions / auth TokenPair / documents status 出口使用 `as` 断言 | 存在 D1 类型漂移面 | 以类型标注为主，未做全量 Schema.parse 校验 |
 | L1 业务签字包 / 远程 CI 红线任务 / live 门禁数字 | 工程：gold≥60 + CLI + 2×2 + `eval_runs`（`L1_PERSIST_EVAL`）+ OPS-1 live 切片；**mock 数字禁止签字**；无默认 CI 真 LLM；**无**业务签字真跑归档 | B10 seed `08-09-b10-l1-golden-min` · followup **部分** `08-11-b10-followup-eval-runs`；P0 红线表 ≠ L1；AUTH enforce 测 → **QUAL-1**；HOW → `.trellis/spec/api/backend/l1-eval.md` |
 

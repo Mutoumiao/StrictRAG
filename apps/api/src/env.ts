@@ -129,6 +129,15 @@ const EnvSchema = z
     API_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(0).default(30_000),
     /** JSON 写接口 body 上限（bytes）；上传路径 except */
     API_JSON_BODY_LIMIT_BYTES: z.coerce.number().int().positive().default(1_048_576),
+    /**
+     * ARCH-P2-1：OpenAPI JSON + Scalar `/api/v1/docs`。
+     * 未设时：development|test → 开；staging|production → 关。
+     * 显式 true/false 覆盖默认。
+     */
+    OPENAPI_DOCS_ENABLED: z
+      .enum(['true', 'false'])
+      .optional()
+      .transform((v) => (v === undefined ? undefined : v === 'true')),
   })
   .superRefine((data, ctx) => {
     if (data.INGEST_MAX_FILE_BYTES > data.INGEST_MAX_FILE_BYTES_CEILING) {
