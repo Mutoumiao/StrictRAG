@@ -8,3 +8,12 @@ export const QUEUE_NAMES = {
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
+
+export {
+  INGEST_JOB_BACKOFF_MS,
+  INGEST_JOB_DEFAULT_ATTEMPTS,
+  INGEST_STAGES,
+  IngestJobDataSchema,
+  type IngestJobData,
+  type IngestStage,
+} from './ingest-job.js';
