@@ -22,6 +22,7 @@ import {
   hydrateAuthz,
   invalidateRoleCache,
   ROLE_CACHE_TTL_MS,
+  ROLE_LOAD_TIMEOUT_MS,
   setRoleAuthzLoader,
 } from './role-hydrate.js';
 
@@ -33,6 +34,26 @@ afterEach(() => {
 });
 
 describe('role-hydrate (B4-W)', () => {
+  it('loader 超时 → claims 回退（不挂死请求）', async () => {
+    setRoleAuthzLoader(
+      () =>
+        new Promise(() => {
+          /* never resolve — 模拟 PG 挂起 */
+        }),
+    );
+    const t0 = Date.now();
+    const h = await hydrateAuthz({
+      userId: uuidv7(),
+      tenantId: TENANT,
+      claimsRoles: ['kb_admin'],
+    });
+    const elapsed = Date.now() - t0;
+    expect(h.source).toBe('claims');
+    expect(h.roles).toEqual(['kb_admin']);
+    // 应在超时窗口附近返回，绝不能拖到 vitest 5s
+    expect(elapsed).toBeLessThan(ROLE_LOAD_TIMEOUT_MS + 1500);
+  });
+
   it('DB 角色覆盖 JWT claims；写后 invalidate 立即生效', async () => {
     const repo = createMemoryPlatformUsersRolesRepo();
     await repo.ensureSystemRoles(TENANT);

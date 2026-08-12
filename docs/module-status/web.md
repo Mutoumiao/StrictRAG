@@ -7,13 +7,13 @@
 | 成熟度 | **可演示**（S2 用户端薄壳） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT（经 api）· 问答默认走 AI SDK UI Message Stream · rewrite = 关闭（服务端强制）· 知识库 = 手工填写 id |
 | 关联模块 | ask 流 / 会话：`api`；类型：`contracts`；样式 / 组件：`ui` |
-| 最近更新 | 2026-08-07 |
+| 最近更新 | 2026-08-12（B13 FeedbackBar） |
 | Spec | `.trellis/spec/web/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · ask 流相关 API |
 
 ## 一句话状态
 
-Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列表 / 历史回放** 已接通；知识库靠手填 id 指定，没有完整的产品信息架构（IA），**没有**连续追问 / rewrite，**没有**反馈提交 UI。包内配有 Vitest / RTL **P0 红线测试**（R1–R4 / R10；**不是** E2E、**不是** L1 黄金集评测）。
+Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列表 / 历史回放 + B13 答后反馈条** 已接通；知识库靠手填 id 指定，没有完整的产品信息架构（IA），**没有**连续追问 / rewrite。包内配有 Vitest / RTL **P0 红线测试**（R1–R4 / R10；**不是** E2E、**不是** L1 黄金集评测）。
 
 ---
 
@@ -43,7 +43,7 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列�
 - 样式：Tailwind v4（`postcss.config.mjs`；`src/app/globals.css` 引入 ui 主题并配置 `@source`）；`ask-panel` / 登录页使用 Button · Input · Label · Textarea · Card · Badge · Alert（含 `variant="abstain"`）等原子组件；**没有**大面积用 `style={{}}` 写布局 / 色板
 - 构建：`next build --webpack`；`next.config` 配置 `transpilePackages` + webpack `extensionAlias`
 - 依赖：`ai` · `@ai-sdk/react`（版本由 catalog 统一管理）
-- `src/api/feedback.ts` 仅做 HTTP 封装；**没有**反馈 UI
+- **B13**：`FeedbackBar`（`ask-panel.tsx`）答后 up/down → `src/api/feedback.ts`
 - **单元 / 组件测试**（Vitest + jsdom + RTL）：`vitest.config.ts` · `src/test/{setup,test-utils}` · 各模块同域的 `*.test.ts(x)`
   - ask final 工厂来自 **`@strict-rag/contracts/testing`**（`src/test/fixtures/ask.ts` 只做 re-export）
   - P0 挂账（`docs/testing/p0-redlines.md`）：**R1** ready 状态但无 final · **R2** 拒答 UI · **R3** mapBizError · **R4** clear / 坏 JSON / 无 token 时返回 null（**不是** expires 产品闸门）· **R10** 同一工厂
@@ -58,7 +58,7 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列�
 |----|------|
 | 产品级 IA / 多路由 | 基本是单页应用；不是完整的用户门户 |
 | rewrite / 连续追问 | **未开启**；不得对外承诺 |
-| 反馈控件 | api 已有 feedback API；**本包没有**提交 / 列表 UI |
+| 反馈列表 / 运营处理 | **提交 UI 已有**（B13 FeedbackBar）；队列处理在 admin |
 | 分片预览全文、doc_type 作用域 UI | backlog B1 / B11 |
 | 知识库发现 / 切换器 | 没有知识库浏览能力，仅支持手填 id |
 | 生产视觉 / product.pen **像素级**定稿 | Soft Bento token + ui 原子组件已接入；**并非**对 product.pen 的全屏像素还原 |
@@ -84,7 +84,7 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列�
 | 鉴权 | `src/components/auth-guard.tsx` · `src/auth/api.ts` · `client-session.ts` |
 | 问答面板 | `src/components/ask-panel.tsx` |
 | ask 流 | `src/hooks/use-knowledge-ask.ts`（含 ready 无 final 兜底）· `src/api/ask.ts` · `ask-panel.tsx`（`lastQuestion`） |
-| 会话 / 反馈客户端 | `src/api/sessions.ts` · `src/services/sessions.services.ts` · `src/api/feedback.ts`（无 UI） |
+| 会话 / 反馈 | `src/api/sessions.ts` · `src/services/sessions.services.ts` · `src/api/feedback.ts` · `ask-panel` FeedbackBar |
 | 前端测试 | `vitest.config.ts` · `src/test/` · `hooks/use-knowledge-ask.test.ts`（R1）· `components/ask-panel.test.tsx`（R2）· `auth/client-session.test.ts`（R4）· `lib/map-biz-error.test.ts`（R3）· `services/sessions.services.test.ts` · fixtures → `@strict-rag/contracts/testing` |
 | P0 清单 | `docs/testing/p0-redlines.md`（本包 R1–R4 · 协作 R10） |
 | 命令 | `pnpm --filter @strict-rag/web test`（`package.json` → `vitest run`） |

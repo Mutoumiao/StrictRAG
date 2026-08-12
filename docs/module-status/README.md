@@ -72,13 +72,14 @@
 | **会话外壳** | **可演示**（会话列表与历史回放已通；**rewrite 处于关闭状态**） | `api` | `web` · `db` · `contracts` | [api · 问答](./api.md#问答s2-最小) · [web](./web.md) |
 | **鉴权 / 访问控制（ACL）** | **可联调**（临时双 JWT；KB 成员 + 权限码；**B4-W** 每请求 DB 角色 hydrate；B5 部门骨架；`AUTH_ENFORCE` 默认关；**未开启**部门级检索强制隔离） | `api` | `admin-catalog` · `admin` · `web` · `contracts` · `db` | [api · 鉴权](./api.md#鉴权与权限) · [api · 部门](./api.md) · [admin-catalog](./admin-catalog.md) |
 | **admin 运营面** | **可演示**（S2c 审批/成员 + B1–B6 最小功能 + B7 菜单裁剪；数据面板为只读薄壳非 APM） | `admin` | `api` · `admin-catalog` · `contracts` | [admin](./admin.md) · [admin-catalog](./admin-catalog.md) · [api · dashboard](./api.md) |
-| **反馈** | **可联调**（API 已实现；web 端**尚无**反馈 UI） | `api` | `web`（未接 UI）· `db` | [api](./api.md) · [web](./web.md) |
-| **模型网关** | **可演示**（供应商 CRUD + 平台绑定；**B3-W 运行时读 platform 绑定**，env 回退；无知识库级绑定） | `api` | `admin` · `contracts` · `db` | [api](./api.md) · [admin · 模型网关](./admin.md) · B2-W（KB 绑定） |
+| **反馈** | **可联调**（API + **B13** web 提交 / admin 队列 UI） | `api` | `web` · `admin` · `db` | [api](./api.md) · [web](./web.md) · [admin](./admin.md) |
+| **模型网关** | **可演示**（供应商 CRUD + 平台绑定；**B3-W/B2-W** 运行时 env+platform+KB 覆盖；admin KB 写 UI 可 defer） | `api` | `admin` · `contracts` · `db` | [api](./api.md) · [admin · 模型网关](./admin.md) |
 | **观测 / 评测** | **可联调**（进程内 metrics/tracer；**L1 工程 seed** + **OPS-1 live profile**（`retrieve_mode`/`signoffEligible`；http=ES sparse 切片）；`eval_runs` 可 `L1_PERSIST_EVAL` 落库；**mock 禁签字**；无默认 CI 真 LLM / **无**业务签字真跑数字） | `api` | `db` | [api · L1 节](./api.md) · [db · eval_runs](./db.md) · [live profile](../ops/live-retrieve-profile.md) · B10 / OPS-1 |
 | **契约 / Schema 基座** | **可联调**（支撑 P1/S2 路径；随业务能力扩展） | `contracts` / `db` | 全部业务包 | [contracts](./contracts.md) · [db](./db.md) |
 | **工程工具链** | **生产向**（全仓共享的 eslint/tsconfig 基线；无业务完成度故事） | `eslint-config` · `typescript-config` | 全仓 · `ui` | [eslint-config](./eslint-config.md) · [typescript-config](./typescript-config.md) · [ui](./ui.md)（可联调 · S2 首批原子组件） |
 
-**矩阵未覆盖、且明确尚未交付的能力**（请不要从"可演示"的行向外推断）：生产级 ES + IK 分词、真实的 RustFS / Mongo、rewrite / 连续追问、CRAG / multi_hop、**部门级检索强制隔离（DEPT_ACL）**、知识库设置全量项（docTypes / 分片策略 / 模型绑定）、ask 的 `allowedModes` 闸门、按历史 indexVersion 浏览分片等 → 详见 backlog 与交付控制台 §0。
+**矩阵未覆盖、且明确尚未交付的能力**（请不要从"可演示"的行向外推断）：生产级 ES + IK 分词、真实的 RustFS / Mongo、rewrite / 连续追问、CRAG / multi_hop、**部门级检索强制隔离（DEPT_ACL）**、admin 设置全量 UI（分片策略弹窗 / KB 模型绑定写页）、按历史 indexVersion 浏览分片、**QUAL-2 真杀毒（← DEC-SCAN）** 等 → 详见 backlog 与交付控制台 §0。  
+（**已交付勿再列未做**：B2-W `allowedModes`/`docTypes` 闸、B4-W JWT DB hydrate、B12 策略注册闸、B13 feedback UI。）
 
 ## 目录约定
 

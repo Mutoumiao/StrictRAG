@@ -23,20 +23,35 @@ vi.mock('../services/documents.js', () => ({
             id: DOC,
             kbId: KB,
             tenantId: TENANT,
+            objectKey: `kb/${KB}/${DOC}`,
             chunkStrategy: docState.chunkStrategy,
             approvalStatus: 'approved',
             status: 'ready',
+            byteSize: 12,
           }
         : null,
     setChunkStrategy: async (_id: string, code: string) => {
       docState.setCalls.push(code);
       docState.chunkStrategy = code;
     },
+    markCompletePending: async (_id: string, _size: number, opts?: { chunkStrategy?: string }) => {
+      if (opts?.chunkStrategy) {
+        docState.setCalls.push(opts.chunkStrategy);
+        docState.chunkStrategy = opts.chunkStrategy;
+      }
+    },
   },
 }));
 
 vi.mock('../services/queue.js', () => ({
   enqueueIngest: async () => 'job-reindex-1',
+}));
+
+vi.mock('../services/storage.js', () => ({
+  getStorage: () => ({
+    headObject: async () => ({ byteSize: 12, contentType: 'text/plain' }),
+  }),
+  effectiveMaxUploadBytes: () => 10_000_000,
 }));
 
 // AUTH_ENFORCE off by default → WhenEnforced 放行；仍测策略闸
@@ -80,7 +95,7 @@ describe('B12 reindex 策略闸（shipped path）', () => {
     });
     expect(res.status).toBe(400);
     const body = (await res.json()) as { error: { message: string } };
-    expect(body.error.message).toMatch(/chunkStrategy is required on reindex/i);
+    expect(body.error.message).toMatch(/chunkStrategy is required/i);
     expect(docState.setCalls).toHaveLength(0);
   });
 
@@ -123,5 +138,47 @@ describe('B12 reindex 策略闸（shipped path）', () => {
     expect(body.data.chunkStrategy).toBe('heading_sections');
     expect(body.data.strategyChanged).toBe(true);
     expect(docState.setCalls).toEqual(['heading_sections']);
+  });
+});
+
+describe('B12 complete AA3 策略闸（shipped path）', () => {
+  afterEach(() => {
+    docState.chunkStrategy = null;
+    docState.setCalls = [];
+  });
+
+  it('多策略且无既有策略、complete 未带 chunkStrategy → 400', async () => {
+    docState.chunkStrategy = null;
+    const app = buildApp();
+    const accessToken = await token(['super_admin']);
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/documents/${DOC}/complete`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: { message: string } };
+    expect(body.error.message).toMatch(/chunkStrategy is required/i);
+  });
+
+  it('多策略 complete 显式策略 → 200 并落库', async () => {
+    docState.chunkStrategy = null;
+    const app = buildApp();
+    const accessToken = await token(['super_admin']);
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/documents/${DOC}/complete`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ chunkStrategy: 'heading_sections' }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { chunkStrategy?: string } };
+    expect(body.data.chunkStrategy).toBe('heading_sections');
+    expect(docState.setCalls).toContain('heading_sections');
   });
 });

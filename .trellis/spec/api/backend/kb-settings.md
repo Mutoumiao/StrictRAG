@@ -49,12 +49,13 @@ export function createKbSettingsRoutes(deps?: {
 | `description?` | max 2000 · 可 null |
 | `allowedModes?` | `AskMode[]` 非空 · **唯一** |
 | `defaultMode?` | ∈ 合并后 `allowedModes` |
+| `docTypes?` | `string[]` · max 32 · 唯一；空 = 不限制；ask `scope.docTypes` 须为其子集 |
 
 **禁止** body 键：`tauClaim` · `crag*` · `allowDegradedGenerate` · `sessionRewrite*` · `retrieveK` · `route` · 密钥等 → Zod 失败 → 400。
 
 **GET/PATCH data**（`KbSettings`）：
 
-`kbId, name, description?, allowedModes, defaultMode, qualitySnapshot, sessionRewrite`
+`kbId, name, description?, allowedModes, defaultMode, docTypes?, qualitySnapshot, sessionRewrite`
 
 | 只读区 | 形状 |
 |--------|------|

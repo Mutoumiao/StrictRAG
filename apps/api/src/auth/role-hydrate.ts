@@ -16,12 +16,34 @@ import {
  */
 export const ROLE_CACHE_TTL_MS = 5_000;
 
+/** loader 无响应时勿拖死请求（DB 半开连接） */
+export const ROLE_LOAD_TIMEOUT_MS =
+  process.env.VITEST || env.APP_ENV === 'test' ? 500 : 3_000;
+
+function isTestRuntime(): boolean {
+  return Boolean(process.env.VITEST) || env.APP_ENV === 'test';
+}
+
 export type HydratedAuthz = {
   roles: string[];
   effectiveCodes: Set<string>;
   /** db = 权威；claims = 回退（dev/test 空绑 或 loader 不可用） */
   source: 'db' | 'claims';
 };
+
+async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(label)), ms);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
 
 /**
  * 加载用户启用中角色码与权限码并集。
@@ -41,7 +63,15 @@ type CacheEntry = {
 
 const cache = new Map<string, CacheEntry>();
 
-let loader: RoleAuthzLoader = createDbRoleAuthzLoader(platformUsersRolesRepo);
+/** vitest 默认不连 PG（claims 回退）；role-hydrate 测例自行 inject memory repo */
+function defaultRoleAuthzLoader(): RoleAuthzLoader {
+  if (isTestRuntime()) {
+    return async () => null;
+  }
+  return createDbRoleAuthzLoader(platformUsersRolesRepo);
+}
+
+let loader: RoleAuthzLoader = defaultRoleAuthzLoader();
 
 /** 写路径 / 测例：按用户失效；无参清空全表。 */
 export function invalidateRoleCache(userId?: string): void {
@@ -49,9 +79,9 @@ export function invalidateRoleCache(userId?: string): void {
   else cache.clear();
 }
 
-/** 测例注入；传 null 恢复默认 DB loader。 */
+/** 测例注入；传 null 恢复默认 loader（test=claims 跳过 / 非 test=DB）。 */
 export function setRoleAuthzLoader(next: RoleAuthzLoader | null): void {
-  loader = next ?? createDbRoleAuthzLoader(platformUsersRolesRepo);
+  loader = next ?? defaultRoleAuthzLoader();
   invalidateRoleCache();
 }
 
@@ -108,7 +138,12 @@ export async function hydrateAuthz(params: {
   }
 
   try {
-    const loaded = await loader(params.userId, tenantId);
+    // 超时当失败 → claims；避免 PG 挂起把整条请求拖死（单测无库同）
+    const loaded = await withTimeout(
+      loader(params.userId, tenantId),
+      ROLE_LOAD_TIMEOUT_MS,
+      'role_hydrate_timeout',
+    );
     if (loaded === null) {
       return claimsAuthz(params.claimsRoles);
     }
@@ -127,7 +162,7 @@ export async function hydrateAuthz(params: {
       source: 'db',
     };
   } catch {
-    // DB 不可用：不阻断身份；回退 claims
+    // DB 不可用 / 超时：不阻断身份；回退 claims
     return claimsAuthz(params.claimsRoles);
   }
 }

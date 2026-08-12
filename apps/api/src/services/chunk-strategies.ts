@@ -91,7 +91,8 @@ export function resolveDocumentChunkStrategy(params: {
   if (params.requireExplicit && !explicit) {
     return {
       ok: false,
-      message: `chunkStrategy is required on reindex (registered: ${[...REGISTRY.keys()].join(',')})`,
+      // AA3 / reindex：多策略未选 → 400（非静默默认）
+      message: `chunkStrategy is required (registered: ${[...REGISTRY.keys()].join(',')})`,
     };
   }
 

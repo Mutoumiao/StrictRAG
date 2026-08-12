@@ -5,9 +5,9 @@
 | 路径 | `apps/api` |
 | 端口 | 4000 |
 | 成熟度 | **可演示**（P0/P1 入库 + S2 最小问答 + B1–B6 最小运营 API + B10 L1 **工程 seed**；演示依赖 mock ES / mock Gateway；L1 **≠** 业务签字门禁） |
-| 默认依赖模式 | ES 检索 = `mock` · 鉴权 = 临时双 JWT（`AUTH_ENFORCE` **默认关闭**）· rewrite = 强制关闭 · 对象存储 = `local` 本地目录 · Gateway 缺 URL→mock；**B3-W** ask 读 platform 绑定（失败回退 env；KB 绑定未做）· JWT **尚未**读取 DB 中的 `user_roles` · **未开启** `DEPT_ACL_ENFORCE` 检索强制 · `ASK_RATE_LIMIT_RPM=0`（限流关闭） · L1 CLI 需显式 `L1_KB_ID`（`turbo.json` 已登记 `L1_*` / `L1_PERSIST_EVAL`） |
+| 默认依赖模式 | ES 检索 = `mock` · 鉴权 = 临时双 JWT（`AUTH_ENFORCE` **默认关闭**）· rewrite = 强制关闭 · 对象存储 = `local` 本地目录 · Gateway 缺 URL→mock；**B3-W/B2-W** ask 读 platform + **KB 覆盖**绑定（失败回退 env）· **B4-W** 每请求读 DB `user_roles` hydrate · **未开启** `DEPT_ACL_ENFORCE` 检索强制 · `ASK_RATE_LIMIT_RPM=0`（限流关闭） · L1 CLI 需显式 `L1_KB_ID`（`turbo.json` 已登记 `L1_*` / `L1_PERSIST_EVAL`） |
 | 关联模块 | 入库演示还需要 `worker` + PostgreSQL + Redis；契约来自 `@strict-rag/contracts`，schema 来自 `@strict-rag/db`（含 `eval_runs`）；L1 gold / RACI 在仓根 `fixtures/l1/` |
-| 最近更新 | 2026-08-11（OPS-1 live sparse；B3-W Gateway 读 platform 绑定；B10 eval_runs） |
+| 最近更新 | 2026-08-12（B4-W/B2-W/B12/B13 接线闭环；hydrate 超时回退；complete 多策略必选） |
 | Spec | `.trellis/spec/api/backend/`（含 [dashboard](../../.trellis/spec/api/backend/dashboard.md) · [l1-eval](../../.trellis/spec/api/backend/l1-eval.md)） |
 | PRD | `prds/05-api` · `04-pipelines` · `08-quality` · `09-security` |
 
@@ -39,12 +39,12 @@
 - `GET /documents/:docId/chunks/:chunkId`：返回完整正文（取自 PG 的 `body_text` 字段），按 UTF-8 **64KiB** 软截断
 - 始终强制 `requirePermission('chunk.view')` 校验（与 `AUTH_ENFORCE` 开关无关）；`doc_operator` 角色默认返回 403
 
-### 知识库设置（B2 · ADR-054 最小集）
-- `GET / PATCH /knowledge-bases/:kbId/settings`：白名单字段为 `name` / `description` / `allowedModes` / `defaultMode`
+### 知识库设置（B2 · ADR-054 · B2-W 接线）
+- `GET / PATCH /knowledge-bases/:kbId/settings`：白名单 `name` / `description` / `allowedModes` / `defaultMode` / **`docTypes`**
 - 始终强制 `requirePermission('kb.config.write')`；知识库作用域要求调用者是成员（超级管理员可旁路）
 - `qualitySnapshot.tauClaim` 只读（取自 `env.TAU_CLAIM`）；`sessionRewrite` 固定锁定为关闭
 - 试图写入 τ、`allowDegradedGenerate`、`sessionRewrite*` 等字段一律返回 400；成功的写操作会输出 Pino 日志 `kb_settings_patch` 并记录 diff
-- **尚未**在 ask 侧接入 `allowedModes` 闸门（配置可以保存，但 ask 仍固定使用 balanced 模式）
+- **B2-W 已接线**：ask 入口 `mode∈allowedModes` / `defaultMode`；`docTypes` scope 子集闸；Gateway KB 覆盖绑定（admin KB 写 UI 仍可 defer）
 
 ### 模型供应商 / 平台绑定（B3 · ADR-055 最小集）
 - `GET / POST / PATCH / DELETE /admin/model-providers`，另有 `GET …/presets` 预设列表
@@ -52,7 +52,7 @@
 - 始终强制 `requirePermission('model.gateway.manage')`；GET 响应**永不**回显 `apiKey`，只返回 `hasApiKey` 标志
 - 绑定类型校验 + judge 与 judge_aux 不可混用（ADR-042）；删除仍被引用的供应商会返回 400
 - 数据表：`model_providers` / `model_bindings`；测试用内存仓库（memory repo）
-- **B3-W 已接线**：运行时 `getGatewayForTenant` 读 platform 绑定（env 回退）；**未做**知识库级绑定（B2-W）；**未做**真实的 fetch-models 代理
+- **B3-W/B2-W**：运行时 `getGatewayForTenant(tenant, kbId)` = env + platform + **KB 覆盖**；**未做**真实的 fetch-models 代理
 
 ### 平台用户 / 角色（B4 · ADR-056 最小集）
 - `GET / POST / PATCH /admin/users`，`POST …/users/:id/roles` 分配角色
@@ -81,7 +81,9 @@
 - 会话列表 / 详情外壳（**rewrite 强制关闭**，把 `SESSION_REWRITE_ENABLED` 设为 `true` 会导致启动失败）；list 接口的 query 参数绑定 `SessionListQuerySchema` 校验
 - 反馈提交 / 管理队列 API（`routes/feedback`）；queue 接口的 query 参数绑定 `FeedbackQueueQuerySchema` 校验
 - Gateway 切片（`GATEWAY_MODE` mock/http；**B3-W/B2-W**：ask 走 `getGatewayForTenant(tenant, kbId)` = env + platform + **KB 覆盖** `model_bindings`；`bindingSource=env|mixed`；缺绑定回退 env；≤5s 缓存；Key 不进日志）
-- **B2-W**：ask 入口 `mode∈allowedModes` / `defaultMode`；settings `docTypes` 读写 + scope 子集闸；质量 τ 仍拒写- 检索适配层（RRF 融合 / 打分；`RETRIEVE_ES_MODE` **默认 mock**；`http` = ES BM25 sparse **切片**（`es-sparse.ts` + `ELASTICSEARCH_URL`；缺 URL / ES 失败 loud fail，**禁止**回落 mock）；**不等于**生产 ES+IK / 多租户 Router（B8））
+- **B2-W**：ask 入口 `mode∈allowedModes` / `defaultMode`；settings `docTypes` 读写 + scope 子集闸；质量 τ 仍拒写
+- **B12**：分片策略注册表 + complete/reindex 闸（多策略未选 → 400；旧策略不静默切）；worker 切分实现仍可同构（元数据优先）
+- 检索适配层（RRF 融合 / 打分；`RETRIEVE_ES_MODE` **默认 mock**；`http` = ES BM25 sparse **切片**（`es-sparse.ts` + `ELASTICSEARCH_URL`；缺 URL / ES 失败 loud fail，**禁止**回落 mock）；**不等于**生产 ES+IK / 多租户 Router（B8））
 - 观测骨架：进程内 metrics、内存 tracer、ask 限流（`ASK_RATE_LIMIT_RPM` 默认 0 即关闭）、`/metrics` 端点无鉴权
 - **P0 红线单测已挂账**（清单见 `docs/testing/p0-redlines.md`；**不是** L1 黄金集评测、**也不是**远程 CI 门禁）：
   - **R7** `filterDocsForRetrieve` / `corpus.test.ts`（生产装载路径；db 包的 `retrieval-gate` 为底层附录）
@@ -116,12 +118,12 @@
 
 | 项 | 说明 |
 |----|------|
-| 知识库设置全量项（docTypes / 分片策略 / KB 级模型绑定）、ask 模式闸门 | B2/B3 最小集已落地；**B3-W** ask 已读 platform `model_bindings`（env 回退）；**KB 级绑定未做**（B2-W） |
+| 知识库设置 admin 全量 UI（分片策略弹窗 / KB 模型绑定写 UI） | API：**docTypes + mode 闸 + KB 绑定读路径已接线**；admin 写 UI 可 defer |
 | 按历史 indexVersion 浏览分片 | ADR-052 明确 P2 阶段不做 |
 | Mongo 作为正文权威存储 | 目前演示读取的是 PG 的 `body_text` 字段；接真 Mongo 见 B9 |
 | 跨部门授权、DEPT_ACL 强制 | B5 仅组织壳；ADR-057 检索强制未开 |
 | APM / 时序观测大盘 | B6 仅为 `GET /admin/dashboard/summary` 只读计数 + processReady，**不是**观测生产向 |
-| 用户端反馈控件 | **B13**：web 答后提交 + admin `/feedback` 队列（`feedback.queue`）；SLA 见 `docs/ops/feedback-sla.md` |
+| 反馈控件 | **B13 已接线**：web 答后 + admin `/feedback`；SLA `docs/ops/feedback-sla.md`（本表保留指针，非「未做」） |
 | L1 业务签字门禁 / live 覆盖率闸 / 真跑数字 | 文件账本 + 可选 `eval_runs` 落库（`L1_PERSIST_EVAL`）；**不**宣称 L1 门禁 PASS；签字真跑见 **B10-followup** 余量 |
 
 ---

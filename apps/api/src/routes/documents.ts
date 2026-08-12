@@ -200,10 +200,12 @@ documentRoutes.post(
     );
   }
 
-  // B12：策略解析（无显式 body 时保留 doc 已有策略，禁止静默切）
+  // B12 / AA3：多策略且文档尚无策略 → complete 必须显式传；已有策略可省略并保留
+  const multi = listChunkStrategies().length > 1;
   const strategyGate = resolveDocumentChunkStrategy({
     existing: doc.chunkStrategy,
     requested: body.data.chunkStrategy,
+    requireExplicit: multi && !doc.chunkStrategy?.trim(),
   });
   if (!strategyGate.ok) {
     return fail(c, BizCode.VALIDATION_ERROR, strategyGate.message, 400);

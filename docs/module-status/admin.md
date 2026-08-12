@@ -55,7 +55,7 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 ### 平台用户 / 角色（B4 最小集）
 - `/users`：用户列表、新建（email / displayName / 角色）、启用禁用、修改角色；需要 `user.manage` 权限；数据路径仅 `users/api.ts` 一处
 - `/roles`：角色列表、新建自定义角色、勾选权限码并保存；需要 `role.perm.manage` 权限；数据路径仅 `roles/api.ts` 一处
-- **没有**密码相关 UI；登录仍走 dev-login 模板（DB 角色未接入 JWT）
+- **没有**密码相关 UI；登录仍走 dev-login；**B4-W** 运行时角色以 api DB hydrate 为准（本包只 CRUD）
 - 用户部门归属的编辑入口在 **`/departments`** 页（通过粘贴 userId 操作）
 
 ### 部门（B5 最小集）
@@ -105,7 +105,7 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 | 项 | 说明 |
 |----|------|
 | 生产 IdP、部门强制隔离 | 见 `api.md` 的鉴权边界 |
-| 反馈队列运营 UI | API 已有 feedback 接口；本包**没有**反馈页 |
+| 反馈队列运营 UI | **B13 已接线**：`/(ops)/feedback`（`feedback.queue`） |
 | 真 ES / 入库质量 | 依赖 worker 的 mock 栈；本包只负责展示字段 |
 
 ---

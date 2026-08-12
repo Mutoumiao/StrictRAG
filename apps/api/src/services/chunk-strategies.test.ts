@@ -63,13 +63,22 @@ describe('B12 chunk strategies', () => {
     });
   });
 
-  it('reindex 多策略 requireExplicit：未传 → 失败', () => {
+  it('多策略 requireExplicit：未传 → 失败（complete/reindex AA3）', () => {
     const r = resolveDocumentChunkStrategy({
-      existing: 'fixed_window',
+      existing: null,
       requested: undefined,
       requireExplicit: true,
     });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.message).toContain('required on reindex');
+    if (!r.ok) expect(r.message).toMatch(/chunkStrategy is required/i);
+  });
+
+  it('多策略 requireExplicit：已有策略可省略并保留', () => {
+    const r = resolveDocumentChunkStrategy({
+      existing: 'fixed_window',
+      requested: undefined,
+      requireExplicit: false,
+    });
+    expect(r).toMatchObject({ ok: true, code: 'fixed_window', retained: true });
   });
 });
