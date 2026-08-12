@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（P0/P1 入库 + S2 最小问答 + B1–B6 最小运营 API + B10 L1 **工程 seed** + B12 策略闸 + B13 反馈 API；演示依赖 mock ES / 常 mock Gateway；L1 **≠** 业务签字门禁） |
 | 默认依赖模式 | ES 检索 = `RETRIEVE_ES_MODE=mock` · 鉴权 = 临时双 JWT（`AUTH_ENFORCE` **默认 `false`**）· rewrite = `SESSION_REWRITE_ENABLED` 默认 false 且 **true→启动失败** · 对象存储 = `local` · Gateway 缺 URL→mock；**B3-W/B2-W** ask 读 platform + **KB scope 绑定覆盖（只读 list，无 PUT KB 绑定 HTTP）** · **B4-W** 每请求 DB `user_roles` hydrate · **无** `DEPT_ACL_ENFORCE` env · `ASK_RATE_LIMIT_RPM=0` · L1 CLI 需显式 `L1_KB_ID`（可选 `L1_PERSIST_EVAL`） |
 | 关联模块 | 入库演示还需要 `worker` + PostgreSQL + Redis；契约 `@strict-rag/contracts`（含 `IMPLEMENTED_CHUNK_STRATEGIES` / `IngestJobData`）；schema `@strict-rag/db`（含 `eval_runs`）；L1 gold / RACI 在仓根 `fixtures/l1/` |
-| 最近更新 | 2026-08-12（**ARCH-P2-1** OpenAPI+Scalar dev 文档面；ARCH-P1b-1/1b-2；B12/B4-W/B2-W/B13/L1/OPS-1） |
+| 最近更新 | 2026-08-12（**ARCH-P1a** documents 路由域目录试点；ARCH-P2-1 OpenAPI；ARCH-P1b-1/1b-2；B12/B4-W/B2-W/B13/L1/OPS-1） |
 | Spec | `.trellis/spec/api/backend/`（含 [dashboard](../../.trellis/spec/api/backend/dashboard.md) · [l1-eval](../../.trellis/spec/api/backend/l1-eval.md)） |
 | PRD | `prds/05-api` · `04-pipelines` · `08-quality` · `09-security` |
 
@@ -25,6 +25,7 @@
 - **ARCH-P0 运行时硬化**：`onError` / `notFound` 统一标准错误信封；PostgreSQL 约束冲突兜底映射；`secureHeaders` 安全头 + 可关闭的 `timeout` 超时中间件（ask 路由除外）+ JSON `bodyLimit` 请求体限制（上传路由除外）；`createDb` 按 api 端配置超时；SIGINT/SIGTERM 信号到来时正确关闭 DB 连接与队列
 - **ARCH-P1b-2 管理写操作日志**：`middleware/admin-write-audit.ts` 在 auth 之后对成员/审批/lifecycle/`/admin/*` 写/KB settings PATCH 打 `event:admin_write`（Pino；**不**落审计表；排除 GET/ask/auth）
 - **ARCH-P2-1 OpenAPI + Scalar（dev）**：`openapi/document.ts` 从 `@strict-rag/contracts` Zod `toJSONSchema` 生成 OpenAPI 3.1；`GET /api/v1/openapi.json` · `GET /api/v1/docs`（Scalar CDN）；`OPENAPI_DOCS_ENABLED` 未设时 development|test 默认开、staging|production 默认关。**≠** 全路径覆盖 · **≠** OpenAPIHono 重写 route · **≠** 生产 swagger 发布流水线
+- **ARCH-P1a documents 域目录试点**：`routes/documents/`（`index.ts` 导出 `documentRoutes` · `mappers.ts` 纯映射）；`app.ts` 挂载不变。**≠** 其它域全量搬家 · **≠** URL/契约变更
 
 ### 鉴权与权限
 - 双 JWT（access token + refresh token）、dev-login 开发登录、`AUTH_ENFORCE` 总开关（默认关闭）
@@ -161,7 +162,7 @@
 | 超时 / 请求体限制 | `middleware/timeout.ts` · `body-limit.ts` · `env.ts`（`API_REQUEST_TIMEOUT_MS` 等） |
 | 问答图 / ask 路由 | `apps/api/src/graph/` · `apps/api/src/routes/ask.ts` · `apps/api/src/services/ask/` |
 | 会话 / 反馈 | `apps/api/src/routes/sessions.ts` · `routes/feedback.ts` |
-| 入库 / 策略闸 / 入队 | `routes/documents.ts` · `services/chunk-strategies.ts` · `services/queue.ts` · `gates/` · contracts `chunk-strategy.ts` · `async/ingest-job.ts` |
+| 入库 / 策略闸 / 入队 | `routes/documents/`（ARCH-P1a）· `services/chunk-strategies.ts` · `services/queue.ts` · `gates/` · contracts `chunk-strategy.ts` · `async/ingest-job.ts` |
 | 分片只读 | `apps/api/src/routes/chunks.ts` · `services/chunks.ts` · `routes/chunks.test.ts` |
 | 知识库设置 | `apps/api/src/routes/kb-settings.ts` · `services/kb-settings.ts` · `routes/kb-settings.test.ts` |
 | 模型网关 B3 | `apps/api/src/routes/model-gateway.ts` · `services/model-gateway.ts` · `routes/model-gateway.test.ts` |

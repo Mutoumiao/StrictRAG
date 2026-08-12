@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 
-import { createApp } from '../app.js';
-import { effectiveMaxUploadBytes, getStorage } from '../services/storage.js';
+import { createApp } from '../../app.js';
+import { effectiveMaxUploadBytes, getStorage } from '../../services/storage.js';
 
 type ApiJson<T = unknown> = {
   ok: boolean;

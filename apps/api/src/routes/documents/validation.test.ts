@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createApp } from '../app.js';
+import { createApp } from '../../app.js';
 
 describe('document routes validation (no DB hit on bad body)', () => {
   it('POST /knowledge-bases rejects empty body', async () => {

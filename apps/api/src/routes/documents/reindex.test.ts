@@ -2,9 +2,9 @@ import { Hono } from 'hono';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 
-import { issueTokenPair } from '../auth/identity/token-service.js';
-import { attachAuthMiddleware, type AuthVariables } from '../auth/middleware.js';
-import { requestIdMiddleware } from '../middleware/request-id.js';
+import { issueTokenPair } from '../../auth/identity/token-service.js';
+import { attachAuthMiddleware, type AuthVariables } from '../../auth/middleware.js';
+import { requestIdMiddleware } from '../../middleware/request-id.js';
 
 const DOC = '01900000-0000-7000-8000-0000000000d1';
 const KB = '01900000-0000-7000-8000-0000000000aa';
@@ -15,7 +15,7 @@ const docState = {
   setCalls: [] as string[],
 };
 
-vi.mock('../services/documents.js', () => ({
+vi.mock('../../services/documents.js', () => ({
   documentRepo: {
     getDoc: async (id: string) =>
       id === DOC
@@ -43,19 +43,19 @@ vi.mock('../services/documents.js', () => ({
   },
 }));
 
-vi.mock('../services/queue.js', () => ({
+vi.mock('../../services/queue.js', () => ({
   enqueueIngest: async () => 'job-reindex-1',
 }));
 
-vi.mock('../services/storage.js', () => ({
+vi.mock('../../services/storage.js', () => ({
   getStorage: () => ({
     headObject: async () => ({ byteSize: 12, contentType: 'text/plain' }),
   }),
   effectiveMaxUploadBytes: () => 10_000_000,
 }));
 
-// AUTH_ENFORCE off by default → WhenEnforced 放行；仍测策略闸
-const { documentRoutes } = await import('./documents.js');
+// 从域目录 shipped 入口 import（ARCH-P1a）
+const { documentRoutes } = await import('./index.js');
 
 async function token(roles: string[] = ['kb_admin']) {
   const pair = await issueTokenPair({

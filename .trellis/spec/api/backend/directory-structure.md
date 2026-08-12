@@ -21,7 +21,9 @@ apps/api/src/
     budget.ts · reasons.ts · tracer.ts · graph.test.ts
   routes/
     auth.ts                # dev-login · refresh · me · bootstrap ensureUserRoleCodes
-    documents.ts           # P1 入库 + B12 complete/reindex chunkStrategy 闸
+    documents/             # ARCH-P1a 试点：按域目录（P1 入库 + B12 complete/reindex 闸）
+      index.ts             # export documentRoutes · 挂载仍 app.route('/api/v1', …)
+      mappers.ts           # toListItem / toDetail 纯函数
     chunks.ts              # B1 分片只读 list/detail（ADR-052）
     members.ts             # 成员 list/invite/delete
     ask.ts                 # POST …/ask 同步 + AI SDK UI Message Stream（B2-W mode/docTypes）
@@ -95,7 +97,7 @@ artifacts/                 # gitignore；l1-last-run.{json,md}
 
 | 新增能力 | 默认落点 | 禁止 |
 |----------|----------|------|
-| HTTP 路由 | `routes/<domain>.ts` + `app.ts` 挂载 | route 内 SQL / 长 Prompt / ES DSL |
+| HTTP 路由 | 默认 `routes/<domain>.ts` + `app.ts` 挂载；**ARCH-P1a 试点**域目录 = `routes/documents/`（`index.ts` 导出 Hono） | route 内 SQL / 长 Prompt / ES DSL；**禁止**同 PR 全量搬家其它域 |
 | 业务编排 | `services/<domain>.ts` 或 `services/<domain>/` | 在 `routes` 堆事务 |
 | 身份/验码 | `auth/**` | handler 私写 JWT 解析 |
 | Ask 图 | `graph/**` + `services/ask` + `services/retrieve` | 第二套平行图抄本 |

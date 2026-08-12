@@ -22,7 +22,7 @@ import { runReadyChecks } from './ready/checks.js';
 import { askRoutes } from './routes/ask.js';
 import { authRoutes } from './routes/auth.js';
 import { chunkRoutes } from './routes/chunks.js';
-import { documentRoutes } from './routes/documents.js';
+import { documentRoutes } from './routes/documents/index.js';
 import { feedbackRoutes } from './routes/feedback.js';
 import { kbSettingsRoutes } from './routes/kb-settings.js';
 import { memberRoutes } from './routes/members.js';

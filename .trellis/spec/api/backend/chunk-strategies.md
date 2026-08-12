@@ -1,6 +1,6 @@
 # api · 分片策略注册表（ADR-053 / B12 · X-03 真 SSOT）
 
-> 路径：`apps/api/src/services/chunk-strategies.ts` · 挂载 `routes/documents.ts` complete / reindex  
+> 路径：`apps/api/src/services/chunk-strategies.ts` · 挂载 `routes/documents/` complete / reindex  
 > **实现集合 SSOT**：`@strict-rag/contracts` → `IMPLEMENTED_CHUNK_STRATEGIES` / `isImplementedChunkStrategy`  
 > 契约 body：`packages/contracts` document complete/reindex 的 `chunkStrategy?`  
 > PRD：ADR-053 · 剧本 AA · task `08-11-b12-chunk-strategies` · 假 SSOT 清债 `08-12-spec-w1-chunk-strategy-truth`
@@ -53,7 +53,7 @@ resolveDocumentChunkStrategy({ existing, requested, requireExplicit? })
 | `DEFAULT_CHUNK_STRATEGY` | `structure_paragraph` |
 | catalog 种子 | 三码（其中仅 default 的 `implemented=true`） |
 
-**HTTP 挂载**（`routes/documents.ts`）：
+**HTTP 挂载**（`routes/documents/index.ts`）：
 
 | 路径 | 策略行为 |
 |------|----------|
@@ -96,7 +96,7 @@ resolveDocumentChunkStrategy({ existing, requested, requireExplicit? })
 | 文件 | 断言点 |
 |------|--------|
 | `services/chunk-strategies.test.ts` | writable 仅 default；未实现 400；保留脏码失败 |
-| `routes/documents.reindex.test.ts` | 未带 400；同已实现 retain；未实现 400；脏→已实现 change |
+| `routes/documents/reindex.test.ts` | 未带 400；同已实现 retain；未实现 400；脏→已实现 change |
 | worker `pipeline.test.ts` | `splitByChunkStrategy` 未实现 → UNSUPPORTED |
 
 ### 7. Wrong vs Correct
