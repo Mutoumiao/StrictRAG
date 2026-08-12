@@ -7,7 +7,7 @@
 | 成熟度 | **可联调**（P1 入库状态机；在 mock 依赖栈下可随垂直切片演示） |
 | 默认依赖模式 | 扫描 = `mock_clean` · 向量 = `mock` · ES 索引 = `mock`（枚举仅 `mock\|fail`，**没有 live 模式**）· 对象存储 = 本地目录 |
 | 关联模块 | 由 `api` 入队触发；写库走 `@strict-rag/db`；队列名来自 `@strict-rag/contracts`；运行需要 Redis + PostgreSQL |
-| 最近更新 | 2026-08-06 |
+| 最近更新 | 2026-08-12（QUAL-2 记安全债 · DEC-SCAN 允许现阶段 mock） |
 | Spec | `.trellis/spec/worker/backend/` |
 | PRD | `prds/06-async` · `prds/04-pipelines/01-offline-ingest.md` |
 
@@ -56,10 +56,11 @@ BullMQ 消费者：probe 探针 + 入库五阶段状态机已跑通；但**扫�
 
 | 债 | 影响 | 备注 |
 |----|------|------|
-| mock 扫描 + mock 向量 + mock ES | 入库"闭环可演示 ≠ 生产可信"；向量侧与稀疏检索侧都可能是假数据 | 与 api 检索 mock 同源的问题族 |
-| 入库 ES 无 live 枚举 | 切真实索引需要改环境变量 / 代码并做专项验收 | 不要与 api 的 `RETRIEVE_ES_MODE=http` 混为一谈 |
-| 分块策略极简 | 检索质量上限低 | 后续可替换策略，但不要静默放宽门禁 |
-| 失败重试 / 死信 | 只有 BullMQ 的失败保留与日志；没有业务级的 attempts / 死信队列面板 | 对照 PRD 异步章节 |
+| **【安全债 · QUAL-2】真杀毒未接** | 生产收真实上传前必须清；否则 infected 可能进 parse 链路 | **DEC-SCAN 2026-08-12**：现阶段允许 `mock_clean`/`mock_infected`；`on` 未接引擎。清债 = ClamAV/等价 + prod 缺引擎 fail-closed + 审计字段 + 剧本 M。backlog QUAL-2 **延期**，**禁止**宣称已生产杀毒 |
+| mock 扫描 + mock 向量 + mock ES | 入库「可演示 ≠ 生产可信」 | 与 api 检索 mock 同源问题族 |
+| 入库 ES 无 live 枚举 | 切真实索引需改 env/代码并专项验收 | 勿与 api `RETRIEVE_ES_MODE=http` 混谈 |
+| 分块策略极简 | 检索质量上限低 | 可换策略，勿静默放宽门禁 |
+| 失败重试 / 死信 | 仅 BullMQ 保留与日志；无业务级 DLQ 面板 | 对照 PRD 异步章节 |
 
 ---
 

@@ -78,8 +78,9 @@
 | **契约 / Schema 基座** | **可联调**（支撑 P1/S2 路径；随业务能力扩展） | `contracts` / `db` | 全部业务包 | [contracts](./contracts.md) · [db](./db.md) |
 | **工程工具链** | **生产向**（全仓共享的 eslint/tsconfig 基线；无业务完成度故事） | `eslint-config` · `typescript-config` | 全仓 · `ui` | [eslint-config](./eslint-config.md) · [typescript-config](./typescript-config.md) · [ui](./ui.md)（可联调 · S2 首批原子组件） |
 
-**矩阵未覆盖、且明确尚未交付的能力**（请不要从"可演示"的行向外推断）：生产级 ES + IK 分词、真实的 RustFS / Mongo、rewrite / 连续追问、CRAG / multi_hop、**部门级检索强制隔离（DEPT_ACL）**、admin 设置全量 UI（分片策略弹窗 / KB 模型绑定写页）、按历史 indexVersion 浏览分片、**QUAL-2 真杀毒（← DEC-SCAN）** 等 → 详见 backlog 与交付控制台 §0。  
-（**已交付勿再列未做**：B2-W `allowedModes`/`docTypes` 闸、B4-W JWT DB hydrate、B12 策略注册闸、B13 feedback UI。）
+**矩阵未覆盖、且明确尚未交付的能力**（请不要从「可演示」的行向外推断）：生产级 ES + IK、真实 RustFS / Mongo、rewrite / 连续追问、CRAG / multi_hop、**部门级检索强制隔离（DEPT_ACL）**、admin 设置全量 UI、按历史 indexVersion 浏览分片等 → 详见 backlog 与交付控制台 §0。  
+**安全债（不挡当前主线 · 生产前必清）**：**QUAL-2 真杀毒**（现阶段 mock；DEC-SCAN 2026-08-12 已裁决）→ 债面 [worker · 技术债](./worker.md#技术债)。  
+（**已交付勿再列未做**：B2-W mode/docTypes 闸、B4-W hydrate、B12 策略闸、B13 feedback UI。）
 
 ## 目录约定
 
