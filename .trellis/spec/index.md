@@ -5,7 +5,7 @@
 
 **仓库阶段（摘要）**：**P0/P1 入库** + **S2 最小 ask** + 08-11 工程项（接线/策略/反馈/部分 QUAL·OPS；QUAL-2 = mock 扫描**安全债**）。细节 → module-status。  
 **默认依赖**：ES/`RETRIEVE_ES_MODE=mock` · Gateway 可 mock · `AUTH_ENFORCE` 默认关 · **rewrite 强制关** · `INGEST_SCAN_MODE=mock_clean`。  
-**明确不等于**：路线图 Phase 2 全文 · 生产 ES+IK · 真杀毒引擎 · L1 业务签字真跑 · CRAG/multi_hop。全局调度：`08-06-project-backlog` · HOW 债：`08-12-spec-arch-review-backlog`。
+**明确不等于**：路线图 Phase 2 全文 · 生产 ES+IK · 真杀毒引擎 · L1 业务签字真跑 · CRAG/multi_hop。全局调度：`08-06-project-backlog` · HOW 债（**已 archive**）：`archive/2026-08/08-12-spec-arch-review-backlog`（X-01…X-36 已关；残余产品债见 status §4 / 08-06）。
 
 ---
 
