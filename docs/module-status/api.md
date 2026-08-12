@@ -92,7 +92,7 @@
 - Gateway 切片（`GATEWAY_MODE` mock/http；ask 走 `getGatewayForTenant`；Key 不进日志）；rerank 双节点：`GATEWAY_RERANK_FALLBACK_URL` + `RERANK_MIN_NODES`（staging/prod 默认 2；`services/gateway/resolve.ts`；QUAL-3 测）
 - **B2-W**：ask 入口 `mode∈allowedModes` / `defaultMode`；settings `docTypes` 读写 + scope 子集闸；质量 τ 仍拒写
 - 检索适配层（dense∥sparse → RRF → rerank；`RETRIEVE_ES_MODE` **默认 mock**；`http` = ES BM25 sparse **切片**（`es-sparse.ts`；缺 URL / ES 失败 loud fail，**禁止**回落 mock）；**不等于**生产 ES+IK / 多租户 Router（B8））
-- 观测骨架：进程内 metrics、内存 tracer、ask 限流（`ASK_RATE_LIMIT_RPM` 默认 0 即关闭）、`/metrics` 端点无鉴权
+- 观测骨架：进程内 metrics、内存 tracer、ask 限流（`ASK_RATE_LIMIT_RPM` 默认 0 即关闭）、`/metrics` 端点**无鉴权**（生产保护策略见 `docs/ops/rate-limit-and-metrics.md` · ARCH-P2-4；**≠** 进程内全局限流当生产方案）
 - **P0 红线单测已挂账**（清单见 `docs/testing/p0-redlines.md`；**不是** L1 黄金集评测、**也不是**远程 CI 门禁）：
   - **R7** `filterDocsForRetrieve` / `corpus.test.ts`（生产装载路径；db 包的 `retrieval-gate` 为底层附录）
   - **R8** 生成结果低于阈值被否决时必须拒答（abstained）（`graph.test.ts`）

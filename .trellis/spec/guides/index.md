@@ -75,6 +75,7 @@ spec/<pkg>/<layer>/  →  包内 HOW + checklist + 专文
 | `docs/ops/live-retrieve-profile.md` | OPS-1 |
 | `docs/ops/at-rest-checklist.md` | OPS-2 |
 | `docs/ops/feedback-sla.md` | B13 |
+| `docs/ops/rate-limit-and-metrics.md` | ARCH-P2-4 |
 | `fixtures/l1/RACI.md` | B10-RACI |
 
 ### 包边界

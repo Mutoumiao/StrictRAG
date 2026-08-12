@@ -44,16 +44,17 @@
 | `POST` | `/api/v1/ask/:requestId/feedback` | 登录 + 该 trace 的 KB 成员 | B13 web 提交 |
 | `GET` | `/api/v1/knowledge-bases/:kbId/feedback-queue` | `feedback.queue` | B13 admin 队列 |
 | `PATCH` | `/api/v1/feedback/:feedbackId` | `feedback.queue` | B13 处理/关单 |
-| `GET` | `/metrics` | 无鉴权（骨架） | 生产须网关保护 |
+| `GET` | `/metrics` | 无鉴权（骨架） | 生产须网关/网络保护；策略 SSOT → `docs/ops/rate-limit-and-metrics.md`（ARCH-P2-4） |
 
 #### 限流（X-28 · 配置 vs PRD 试点）
 
 | 层 | 值 | 说明 |
 |----|-----|------|
-| **仓库默认** | `ASK_RATE_LIMIT_RPM=0` | **关**；便于 dev/test/demo |
+| **L0 网关** | 边缘 RPM / WAF | **生产主闸**；本仓不实现全局限流（见 ops 文） |
+| **仓库默认 L1** | `ASK_RATE_LIMIT_RPM=0` | **关**；便于 dev/test/demo；仅 ask 路径 |
 | **PRD 试点目标** | 同步 **30/min/user** · stream 可更严（15） | 部署/试点 env **显式**设正数 |
 | 超限 | **429** `RATE_LIMITED` + 建议 `Retry-After` | `obs/rate-limit.ts` |
-| **禁止** | 把默认 0 写成「已满足试点 30」；或改仓库默认强制 30 导致本地全红 | |
+| **禁止** | 把默认 0 写成「已满足试点 30」；或改仓库默认强制 30 导致本地全红；或把 L1 当集群配额 | |
 
 ```typescript
 // routes/ask.ts — 路由只编排
