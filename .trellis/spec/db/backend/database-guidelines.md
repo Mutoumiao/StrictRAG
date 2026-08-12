@@ -63,7 +63,7 @@
 - 文档状态切换  
 - `index_version` 激活  
 
-### 检索闸（S2 · 必复用）
+### 检索闸分层（S2 · X-24 · 必复用）
 
 ```typescript
 // packages/db/src/query/retrieval-gate.ts
@@ -71,11 +71,49 @@ isDefaultRetrievable({ status, lifecycle })
 // ⇔ status === 'ready' && lifecycle === 'active'
 ```
 
+| 层 | 谓词 / 职责 | 落点 |
+|----|-------------|------|
+| **L0 默认双闸** | `ready ∧ active` | **唯一** `isDefaultRetrievable`（本包） |
+| **L1 corpus 过滤** | 在 L0 上再滤 `docTypes` / 租户等 | `apps/api` `services/retrieve/corpus.ts`（**须先** L0） |
+| **L2 检索通道** | dense / sparse / RRF / rerank | `services/retrieve/*`；**不得**绕过 L0 直接搜全表 |
+| **L3 ACL（P3）** | 部门 / principal | 未强制；开启须 ADR-057/`DEPT_ACL_ENFORCE` |
+
 | 规则 | 说明 |
 |------|------|
 | 默认闸 | ready ∧ active（ADR-038） |
-| 消费者 | `apps/api` retrieve **必须**复用；禁止 route/service 私写平行谓词 |
-| 单测 | `retrieval-gate.test.ts` 护栏 |
+| 消费者 | `apps/api` retrieve **必须**复用 L0；禁止 route/service 私写平行 `status===ready` |
+| 单测 | `retrieval-gate.test.ts` 护栏；corpus 测例证明 draft/embedding 不可见 |
+| **Wrong** | retrieve 手写 `WHERE status='ready'` 漏 lifecycle |
+| **Correct** | `docs.filter(isDefaultRetrievable)` 后再 docTypes |
+
+### 迁移 runbook（X-22 · 最小可执行）
+
+| 步骤 | 命令 / 动作 |
+|------|-------------|
+| 1 改 schema | 只改 `packages/db/src/schema/**` |
+| 2 生成 | 在 `packages/db`：`pnpm drizzle-kit generate`（以包脚本为准） |
+| 3 审 SQL | 读 `drizzle/` 新 migration；**禁**手改历史已应用文件 |
+| 4 本地升 | `pnpm` 包内 migrate / 根脚本（见 `docs/module-status` / docker compose） |
+| 5 验证 | `pnpm --filter @strict-rag/db test` + api/worker 冒烟 |
+| 6 回滚策略 | 前向修复优先；destructive drop 须双人 + 备份 |
+
+| 禁项 | 说明 |
+|------|------|
+| 业务 route 内 `CREATE TABLE` | 只走 drizzle-kit |
+| api/worker 各维护一份 schema | 唯一 `packages/db` |
+| 未 migrate 就宣称「表已齐」 | IS 以 migration 目录 + 实库为准 |
+
+### 向量 / 索引阶段门（X-23）
+
+| 阶段 | 门 | 未过则 |
+|------|-----|--------|
+| embed 写 `chunk_embeddings` | 维数 D 与模型绑定；mock dims=8 **≠** 生产 D | 禁止把 mock 维当生产 ANN |
+| `documents.embedReady` | 本 version 全 chunk 有向量（或策略允许的空集规则） | 不得 `ready` |
+| `documents.esReady` | sparse 对账成功（mock 或真 ES） | 不得 `ready` |
+| 检索可见 | **双就绪** ∧ `lifecycle=active`（L0） | draft ready 文档不可 ask |
+| 换 embed 模型 / D | **新 indexVersion** + reindex；禁原地混维 | 须运维 runbook + 测 |
+
+> Drizzle `vector(D)` 列类型选型仍 open（ORM PRD §8）；**阶段门语义**以上表为准，与实现细节解耦。
 
 ### 权限表 · Schema Delta（X-10）
 
@@ -87,6 +125,18 @@ isDefaultRetrievable({ status, lifecycle })
 
 Runtime 放行 HOW → [api auth-authorization](../../api/backend/auth-authorization.md)「Runtime Truth」。  
 **禁止**在 db 包复制权限码字符串全集。
+
+### ADR-057 部门模型 · 本包 deferred 清单（X-36）
+
+| 能力 | schema / 代码 | P2 壳 | P3 强制检索 |
+|------|---------------|:-----:|:-----------:|
+| `departments` 树 | **已有**（B5） | 部分 UI/API | — |
+| `user_departments` | **已有** | 部分 | — |
+| `documents.owner_dept_id` / `visibility_level` | 查 schema 是否列齐 | 可存 | **`DEPT_ACL_ENFORCE`** 默认 false |
+| `dept_cross_grants` | 按 migration | 可后置 | P3 |
+| retrieve 部门谓词 | **未**并入默认 L0 | — | 另开 feature；**禁止**假装已强制 |
+
+**HOW**：部门表可演进，但 **不得** 在 db HOW 写「检索已按 ADR-057 全强制」直至 enforce 开关与测齐备。
 
 ### Ask 表（S2 + B10）
 

@@ -6,6 +6,25 @@
 
 ---
 
+## 双轨门禁（X-13 · ADR-061）
+
+| 轨 | 含义 | 何时算「绿」 | **禁止**宣称 |
+|----|------|--------------|--------------|
+| **工程绿** | CI / 本地 vitest + mock 注入 CLI | `l1-matrix` · `run-l1-golden` 注入测通过；exit 0 写报告 | 「L1 业务签字 PASS」 |
+| **签字 PASS** | 产品/质量门禁 | `signoffEligible===true`（live retrieve）+ RACI 人签 + 配置快照（ADR-046） | 把 mock coverage 写进签字页 |
+
+| 字段 | 工程绿 | 签字 PASS |
+|------|:------:|:---------:|
+| `mode` / `retrieve_mode` = mock | ✅ 可 | ❌ |
+| = live（`RETRIEVE_ES_MODE=http` 等） | ✅ 可 | 必要条件，**非充分** |
+| `signoffEligible` | 仅标注 | 须 true **且** 人工签 |
+| coverage 数字 | 工程观察 | 仅 live + 人签后可进门禁叙事 |
+
+**Wrong**：PR 全绿 → 路线图勾「L1 已过」。  
+**Correct**：PR 工程绿；签字另附 live 报告 + `fixtures/l1/RACI.md` owner。
+
+---
+
 ## Scenario: L1 批跑 CLI → executeAsk → 2×2 报告
 
 ### 1. Scope / Trigger

@@ -38,12 +38,22 @@
 | 方法 | 路径 | 中间件 | 说明 |
 |------|------|--------|------|
 | `POST` | `/api/v1/knowledge-bases/:kbId/ask` | `requireKbMember` **始终** | 同步 JSON；stream → **AI SDK UI Message Stream**（见下） |
-| `GET` | `/api/v1/knowledge-bases/:kbId/sessions` | 成员闸 | 列表 |
-| `GET` | `/api/v1/knowledge-bases/:kbId/sessions/:sessionId` | 成员闸 + 本人 | 详情/历史壳 |
+| `POST` | `/api/v1/knowledge-bases/:kbId/sessions` | 成员闸 | **建会话壳**（X-29）；body `CreateSessionBodySchema`（`title?`）；**201** + `SessionSummary` |
+| `GET` | `/api/v1/knowledge-bases/:kbId/sessions` | 成员闸 | 列表（仅本人线程；query `SessionListQuerySchema`） |
+| `GET` | `/api/v1/knowledge-bases/:kbId/sessions/:sessionId` | 成员闸 + 本人 | 详情/历史壳；历史 **≠** evidence |
 | `POST` | `/api/v1/ask/:requestId/feedback` | 登录 + 该 trace 的 KB 成员 | B13 web 提交 |
 | `GET` | `/api/v1/knowledge-bases/:kbId/feedback-queue` | `feedback.queue` | B13 admin 队列 |
 | `PATCH` | `/api/v1/feedback/:feedbackId` | `feedback.queue` | B13 处理/关单 |
 | `GET` | `/metrics` | 无鉴权（骨架） | 生产须网关保护 |
+
+#### 限流（X-28 · 配置 vs PRD 试点）
+
+| 层 | 值 | 说明 |
+|----|-----|------|
+| **仓库默认** | `ASK_RATE_LIMIT_RPM=0` | **关**；便于 dev/test/demo |
+| **PRD 试点目标** | 同步 **30/min/user** · stream 可更严（15） | 部署/试点 env **显式**设正数 |
+| 超限 | **429** `RATE_LIMITED` + 建议 `Retry-After` | `obs/rate-limit.ts` |
+| **禁止** | 把默认 0 写成「已满足试点 30」；或改仓库默认强制 30 导致本地全红 | |
 
 ```typescript
 // routes/ask.ts — 路由只编排
@@ -74,7 +84,8 @@
 
 > **Gotcha**：`createUIMessageStream` 的 `execute` 内 catch **不能**只 `writer.write(data-status error)` 就 return——只订阅 final 的客户端会永久 loading。终态用 `internal_guard` 拒答 shape，**不是** answered。
 
-> **PRD 漂移债**：`prds/05-api` §2.7 仍写 event 名 `phase/token/error/final`。实现以本文 + contracts 为准；改 WHAT 须 ADR 回写 00–11，**禁止**再实现旧 event 解析器。
+> **流协议 SSOT（X-07 · ADR-058 · DEC-X2）**：**实现 + 本文 + contracts** 为准（AI SDK UI Message Stream：`data-status` / `data-ask-final`）。  
+> PRD `prds/05-api` §2.7 历史 event 名 `phase/token/error/final` 已由 **ADR-058** 修订为「语义映射到 UI Message parts」；**禁止**再实现旧 `event: final` 自研解析器。
 
 #### 编排分层
 

@@ -68,6 +68,52 @@ apps/web     → packages/{contracts, ui}
 | Prisma 并行 | 唯一 ORM = Drizzle |
 | 默认 Cloudflare Workers 运行时 | api = Node 长进程 + BullMQ |
 
+### 硬禁止边（X-18 · 依赖图）
+
+> **目标**：依赖方向可被审阅；**禁止**靠「约定」跨 app 互 import。
+
+| 边 | 规则 | 违反后果（HOW） |
+|----|------|-----------------|
+| `apps/*` → `apps/*` | **禁止**任意 app 对另一 app 的 runtime / type import | 共享代码下沉 `packages/*` 或经 HTTP/队列 |
+| `apps/web` ↔ `apps/admin` | **禁止**共享私有组件/hooks 路径互引 | 可复用 → `packages/ui` 或各端复制薄壳 |
+| `apps/worker` → `apps/api` | **禁止** import api 路由/服务/env | 契约进 contracts；DB 进 `packages/db` |
+| `apps/api` → `apps/worker` | **禁止** import worker pipeline | 仅 **enqueue** Redis/BullMQ |
+| `packages/*` → `apps/*` | **禁止** | 包必须可被多 app 消费、无 app 反向依赖 |
+| `packages/ui` → `db` / `admin-catalog` 业务 | **禁止** UI 包绑 PG / 权限码全集 | catalog 仅 admin/api 消费 |
+| `packages/admin-catalog` → Next/Hono | **禁止** | 纯数据 SSOT |
+| `packages/contracts` → apps / db | **禁止** | 仅 zod 等纯依赖 |
+
+**Wrong**
+
+```ts
+// apps/web/src/lib/x.ts
+import { createApp } from '../../../api/src/app'; // 硬禁止
+import { runIngest } from '@strict-rag/worker/ingest'; // 不存在且禁止
+```
+
+**Correct**
+
+```ts
+// web → HTTP
+import { postAsk } from '@/api/ask';
+// api → enqueue only
+import { QUEUE_NAMES } from '@strict-rag/contracts';
+await ingestQueue.add(QUEUE_NAMES.ingest, job);
+```
+
+**落地检查（评审/CI 意图，非宣称已全绿）**
+
+1. `package.json` dependencies 不得出现另一 `apps/*` 包名。  
+2. 新增跨层符号：先 `rg` 落点 → 再决定 contracts/db/ui。  
+3. 未来可加 eslint `no-restricted-imports`；**未加前**本表仍为 HOW 硬约束。
+
+### 何时抽 `packages/rag-*`（X-19 · DEC-X5 默认）
+
+| 决策 | **近 sprint 不抽** `packages/rag-graph` / `rag-retrieve` 等空壳包 |
+|------|---------------------------------------------------------------------|
+| 触发才抽 | ① 同一纯逻辑在 **≥2 app** 真实复用；② 有测与 contracts 边界；③ ADR 或 PRD 落点说明 |
+| 禁止 | 为「对称好看」预建空包；把 Hono route / BullMQ processor 塞进 packages |
+
 ---
 
 ## 共享契约规则

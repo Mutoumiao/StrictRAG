@@ -23,28 +23,41 @@ import {
 
 ---
 
-## 错误码策略（唯一）
+## 错误码策略（唯一 · X-11）
 
 | 层 | 约定 |
 |----|------|
-| **对外 HTTP `error.code`** | 以 **`prds/05-api/01-http-api-hono.md` §4 短名** 为准（如 `UNAUTHORIZED`、`VALIDATION_ERROR`） |
+| **对外 HTTP `error.code` 权威** | **`prds/05-api/01-http-api-hono.md` §4 短名** |
 | **实现引用** | 只通过 `@strict-rag/contracts` 的 `BizCode`，**禁止** apps 内第三套字符串 |
 | **对齐** | `BizCode` 字符串值 = PRD 短名；`fail()` 直接输出 |
+| **扩码顺序** | ① PRD §4 或 ADR 登记短名 → ② `biz-code.ts` → ③ error-handling 表 → ④ 调用方 |
 
-| PRD `error.code`（对外） | HTTP | `BizCode` 常量 |
-|--------------------------|------|----------------|
-| `UNAUTHORIZED` | 401 | `BizCode.UNAUTHORIZED` |
-| `FORBIDDEN` | 403 | `BizCode.FORBIDDEN` |
-| `NOT_FOUND` | 404 | `BizCode.NOT_FOUND` |
-| `VALIDATION_ERROR` | 400 | `BizCode.VALIDATION_ERROR` |
-| `CONFLICT` | 409 | `BizCode.CONFLICT` |
-| `PAYLOAD_TOO_LARGE` | 413 | `BizCode.PAYLOAD_TOO_LARGE` |
-| `INTERNAL` | 500 | `BizCode.INTERNAL` |
-| `UPSTREAM_TIMEOUT` | 500 | `BizCode.UPSTREAM_TIMEOUT`（全局请求超时；无 504 于 `fail` 联合类型） |
-| `SERVICE_UNAVAILABLE` | 503 | `BizCode.SERVICE_UNAVAILABLE` |
-| `KB_NOT_READY` | 409 | `BizCode.KB_NOT_READY` |
-| `SESSION_REWRITE_DISABLED` | 400 | `BizCode.SESSION_REWRITE_DISABLED` |
-| `RATE_LIMITED` | 429 | `BizCode.RATE_LIMITED` |
+### 实现全集 ↔ PRD §4（对照）
+
+| PRD `error.code`（对外） | HTTP | `BizCode` 常量 | 备注 |
+|--------------------------|------|----------------|------|
+| `UNAUTHORIZED` | 401 | `BizCode.UNAUTHORIZED` | |
+| `FORBIDDEN` | 403 | `BizCode.FORBIDDEN` | |
+| `NOT_FOUND` | 404 | `BizCode.NOT_FOUND` | |
+| `VALIDATION_ERROR` | 400 | `BizCode.VALIDATION_ERROR` | |
+| `CONFLICT` | 409 | `BizCode.CONFLICT` | |
+| `PAYLOAD_TOO_LARGE` | 413 | `BizCode.PAYLOAD_TOO_LARGE` | ADR-039 |
+| `INTERNAL` | 500 | `BizCode.INTERNAL` | |
+| `UPSTREAM_TIMEOUT` | 500 | `BizCode.UPSTREAM_TIMEOUT` | 全局请求超时；`fail` 联合类型无独立 504 |
+| `SERVICE_UNAVAILABLE` | 503 | `BizCode.SERVICE_UNAVAILABLE` | |
+| `KB_NOT_READY` | 409 | `BizCode.KB_NOT_READY` | ask 前置 |
+| `SESSION_REWRITE_DISABLED` | 400 | `BizCode.SESSION_REWRITE_DISABLED` | ADR-047 |
+| `RATE_LIMITED` | 429 | `BizCode.RATE_LIMITED` | |
+| `INVALID_CREDENTIALS` | 401 | `BizCode.INVALID_CREDENTIALS` | 登录域；须在 §4 可检索或并入 UNAUTHORIZED 叙事 |
+| `RULE_VIOLATION` | 400/422 | `BizCode.RULE_VIOLATION` | 业务规则；优先能映射则用 VALIDATION/CONFLICT |
+| `UNSUPPORTED_MEDIA_TYPE` | 415 | `BizCode.UNSUPPORTED_MEDIA_TYPE` | 上传 MIME |
+| `SESSION_DISABLED` | 400 | `BizCode.SESSION_DISABLED` | **兼容别名**＝ rewrite 不可用；**禁止**用于拒多会话壳 |
+
+| 分裂处理（HOW 焊死） | |
+|----------------------|--|
+| 三源冲突 | **PRD 短名 > contracts 值 > 本文表**；发现 contracts 有、§4 无 → **记债并回写 PRD**（本 closeout 已对齐扩码顺序） |
+| ask 拒答 | `reason` 在 **业务 data**，**不是** `error.code` |
+| 点分码 | 已废弃；`AUTH.UNAUTHORIZED` 类 **禁止** |
 
 ask 业务拒答 reason（`model_abstained` 等）走 **业务响应**，不要与系统 `error.code` 表混用。
 

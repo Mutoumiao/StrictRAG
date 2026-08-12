@@ -29,14 +29,16 @@ base.json
   └── react-library.json (jsx react-jsx · DOM)
 ```
 
-## 仓库实态
+## 仓库实态（X-33）
 
-| 包 | extends |
-|----|---------|
-| api · worker | `node.json` |
-| contracts · db · admin-catalog | `base.json` |
-| ui | `react-library.json` |
-| admin · web | `base.json` + 本地覆盖 DOM/jsx/Bundler（尚未切 nextjs.json） |
+| 包 | extends | 备注 |
+|----|---------|------|
+| api · worker | `node.json` | Node 长进程 |
+| contracts · db · admin-catalog | `base.json` | 库包 |
+| ui | `react-library.json` | 组件库 |
+| admin · web | **`base.json` + 本地覆盖** DOM / jsx / Bundler | Next App Router **已在跑**；tsconfig **有意**未强制切 `nextjs.json`（本地覆盖等价能力）；迁移到 `nextjs.json` = 可选工程 chore，**不是**「尚未 Next」 |
+
+**禁止**再写「admin/web 尚未 Next」——运行时已是 Next；仅 **tsconfig 继承路径** 与模板 `nextjs.json` 未合并。
 
 admin/web 在真正接入 Next 后，建议与 `nextjs.json` 对齐并更新本表。
 

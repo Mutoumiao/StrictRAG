@@ -17,9 +17,29 @@
 | **es_index** | **stub** | `mockEsStore` · `INGEST_ES_MODE` | 进程内 Map 对账；无 live 枚举 | 真 ES+IK bulk（B8） |
 | **activate / lifecycle** | **partial** | dual-ready → `status=ready` · `lifecycle=draft` | **不**自动 active；检索第二闸在 api | 运营 activate API 全流程（产品侧） |
 | **ingest_jobs 账本** | **deferred** | schema 有表 | pipeline **基本不写**阶段账 | PRD §4 可观测账本 |
-| **物理多队列** | **deferred** | 单 `sr-ingest` + `stage` | 逻辑 stage 折叠 | X-20 ADR |
+| **物理多队列** | **deferred** | 单 `sr-ingest` + `stage` | 逻辑 stage 折叠 | 见 §1.1 · ADR-060 |
 
 \* **done\*** = 当前策略范围内可跑通 + 测覆盖；**≠** 生产分片质量上限。
+
+### 1.1 物理队列 vs 逻辑 stage（X-20 · ADR-060 · DEC-X3）
+
+| 层 | 名称 / 字段 | 今日 IS | 目标（未做） |
+|----|-------------|---------|--------------|
+| **物理队列** | BullMQ `sr-ingest`（`QUEUE_NAMES.ingest`） | **唯一**入库队列 | 可选拆 `ingest.scan` 等独立队列 |
+| **逻辑 stage** | job payload `stage`：`scan`→`parse`→`chunk`→`embed`→`es_index` | 单队列内状态机折叠 | 与物理队列 1:1 时再 ADR |
+| **探针** | `sr-probe` | 与入库隔离 | — |
+
+| 规则 | 说明 |
+|------|------|
+| **Interim 焊死** | PRD 文案若写 `ingest.scan` 等逻辑名，映射到 **`sr-ingest` + `stage=scan`**，**不是**第二物理队列已上线 |
+| **禁止** | 文档写「已接多队列」而代码只有 `sr-ingest` |
+| **演进** | 拆物理队列须 **ADR-060 修订** + contracts `QUEUE_NAMES` + 迁移 runbook；P2 产品签字前若仍 interim，验收以本表为准 |
+
+```text
+api.enqueue({ docId, stage: 'scan', indexVersion? })
+  → Redis queue "sr-ingest"
+  → worker pipeline switch(stage) …
+```
 
 ### 文档状态码 → 用户可见 `documents.status`（摘）
 

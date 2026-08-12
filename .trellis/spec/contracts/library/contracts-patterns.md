@@ -47,7 +47,13 @@ export type BizCode = (typeof BizCode)[keyof typeof BizCode];
 
 - 写 `code: 'AUTH.UNAUTHORIZED'` 点分串（已废弃）  
 - 不经 `BizCode` 的魔法字符串  
-- 对外混用点分名与 PRD 短名
+- 对外混用点分名与 PRD 短名  
+- 在 **contracts** 维护 **权限码全集**（X-35）——码字典 SSOT = `@strict-rag/admin-catalog`；本包只放 HTTP DTO / BizCode / 队列名等  
+
+| 放 contracts | 勿放 contracts |
+|--------------|----------------|
+| `BizCode` · ApiResponse · 各域 Zod | `PERMISSION_DEFINITIONS` / 菜单树 |
+| `QUEUE_NAMES` · chunk strategy 实现集 | 角色模板默认码表（→ catalog） |
 
 ---
 

@@ -46,6 +46,14 @@ export function createKbSettingsRoutes(deps?: {
 **鉴权纪律**：与 members/chunks 同族——**始终** `requirePermission`，**不**挂 `WhenEnforced`。  
 `kb.config.write` 为 **kb scope**：非超管须 `kb_members`；测例注入 `resolveKbMember`。
 
+### GET 与写码同码（X-34 · DEC-X4 默认）
+
+| 决策 | **有意**：`GET` 与 `PATCH` settings **均**要求 `kb.config.write` |
+|------|---------------------------------------------------------------------|
+| 理由 | 设置页含 quality 快照与运营语义；避免「只读成员」看见 τ/内部锁细节后误当可调 |
+| 非目标 | 未提供单独 `kb.config.read`；若产品要只读设置面 → **另开 ADR + catalog 码** 再拆 |
+| **禁止** | 静默把 GET 降为 `doc.view` 却不改 PRD/IA |
+
 ### 3. Contracts
 
 **PATCH body**（`PatchKbSettingsBodySchema` · **strict**）：

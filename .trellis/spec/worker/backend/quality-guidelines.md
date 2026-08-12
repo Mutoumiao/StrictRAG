@@ -4,14 +4,15 @@
 
 | 规则 | 说明 |
 |------|------|
-| 无对外 HTTP 业务 API | 运维探针若需要，按 PRD 最小化，勿做成第二 api |
+| **无对外 HTTP**（X-21） | worker **不** `listen` 业务端口；**禁止** Hono/Express 路由、健康 HTTP 旁路写库；进程入口 = BullMQ consumer + 信号退出 |
 | 共享 schema | 只通过 `@strict-rag/db` |
 | 幂等 / 重试 | **全文** → [ingest-idempotency](./ingest-idempotency.md)（X-04）；失败不得静默 ready；**禁**重试重分块 |
 | 双就绪 | embed + es_index 等条件不满足不得 `ready`（入库 PRD） |
-| 队列名 SSOT | `@strict-rag/contracts` 的 `QUEUE_NAMES`；**禁止 `:`**（BullMQ 拒绝） |
+| 队列名 SSOT | `@strict-rag/contracts` 的 `QUEUE_NAMES`；**禁止 `:`**（BullMQ 拒绝）；物理/逻辑映射 → [ingest-capability-matrix §1.1](./ingest-capability-matrix.md) |
 | 本地对象路径 | 相对 `STORAGE_LOCAL_DIR` 须锚定 monorepo 根，与 api 一致 |
 | 扫描在 parse 前 | `stage=scan` 通过后才 `parse` / 写 manifest（ADR-039） |
 | 分片策略 | 读 `documents.chunkStrategy`；**禁止**第二注册表；**仅**执行 contracts `IMPLEMENTED_CHUNK_STRATEGIES`（X-03） |
+| 依赖方向 | **禁止** `import` `apps/api/**`（X-18） |
 
 ## 技术债：QUAL-2 / DEC-SCAN（2026-08-12）
 

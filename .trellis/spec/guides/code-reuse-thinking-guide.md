@@ -17,7 +17,8 @@ rg "PERMISSIONS|MENU_TREE" packages
 ### 前端细化（admin / web · 与分层 check 对齐）
 
 > 权威细则（A 必须抽 / B 禁止过抽 / C 可选 / 形态优先级）：  
-> [admin/frontend/module-layering §12.1](../admin/frontend/module-layering.md) · [web/frontend/module-layering §12.1](../web/frontend/module-layering.md)
+> [admin/frontend/module-layering §12.1](../admin/frontend/module-layering.md) · [web/frontend/module-layering §12.1](../web/frontend/module-layering.md)  
+> **X-31**：双端 **各保留** module-layering（路由/权限/壳不同）；**不**强行抽第三份 guides SSOT。共享原则只写在本文件 + 两端交叉链接。
 
 | 问自己 | 倾向 |
 |--------|------|
@@ -45,17 +46,24 @@ rg "PERMISSIONS|MENU_TREE" packages
 
 ---
 
-## 本仓已有可复用点
+## 本仓已有可复用点（X-32 · 与源码对齐）
 
 | 符号 / 文件 | 用途 |
 |-------------|------|
 | `BizCode` · `packages/contracts/src/common/biz-code.ts` | 业务异常码常量 |
 | `buildSuccess` / `buildFailure` · `response.ts` | 响应信封 |
-| `HealthResponseSchema` · `system/health.contract.ts` | health/ready 形状 |
+| `AskRequestSchema` / `AskResponseSchema` · `ask/*` | 问答 DTO + 流 final |
+| `IMPLEMENTED_CHUNK_STRATEGIES` · `ingest/chunk-strategy.ts` | 可写/可执行策略集（X-03） |
+| `QUEUE_NAMES` · contracts async | BullMQ 队列名 SSOT |
+| `isDefaultRetrievable` · `@strict-rag/db` | 检索 L0 双闸 |
+| `PERMISSION_DEFINITIONS` · admin-catalog | 权限码字典（**非** contracts） |
+| `hydrateAuthz` · `apps/api/src/auth/role-hydrate.ts` | 运行时有效码 |
 | `cn` · `packages/ui/src/lib/utils.ts` | className 合并 |
-| `theme.css` · CSS 变量 `--sr-*` | 主题 token 占位 |
+| `theme.css` · CSS 变量 `--sr-*` | 主题 token |
 | ESLint `base` / `next-js` / `react-internal` | 按运行时选配置 |
 | tsconfig `base` / `node` / `nextjs` / `react-library` | 按包类型 extends |
+
+> 清单**不是**第二 IS；完成度以 `docs/module-status` + 源码为准。过时符号从本表删除，勿留「将有」。
 
 ---
 

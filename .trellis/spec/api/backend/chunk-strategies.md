@@ -59,8 +59,19 @@ resolveDocumentChunkStrategy({ existing, requested, requireExplicit? })
 |------|----------|
 | complete（catalog 多码且文档**无**既有 strategy） | `requireExplicit=true` → body 必带 `chunkStrategy` 且须 **implemented** |
 | complete（已有 **implemented** strategy） | 可省略 → **保留**；显式未实现码 → 400 |
-| reindex（catalog length > 1） | 必带 body；码须 implemented；旧脏数据（如曾写入未实现码）须显式改到已实现 |
+| reindex（catalog length > 1） | 必带 **`chunkStrategy`**；码须 implemented；旧脏数据（如曾写入未实现码）须显式改到已实现 |
 | reindex 显式新已实现策略 | `changed=true`；审计日志含 code |
+
+### Wire 字段名（X-12 · ADR-059）
+
+| 层 | 字段 |
+|----|------|
+| **HTTP JSON（contracts）** | **`chunkStrategy`**（complete / reindex body） |
+| **DB 列** | `chunk_strategy`（snake） |
+| **PRD 历史写法** | 部分段落写 `strategy` → **语义同 `chunkStrategy`**；实现与验收 **只认** `chunkStrategy` |
+| **错误文案** | `unknown chunkStrategy` / `chunkStrategy is required…`（非 `STRATEGY_REQUIRED` 魔法平行码，除非 contracts 另增） |
+
+**禁止**：route 同时接受未文档化的第二键名却不在 contracts；或 PRD/前端只写 `strategy` 导致联调 400。
 
 ### 4. Validation & Error Matrix
 

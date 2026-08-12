@@ -86,6 +86,22 @@ artifacts/                 # gitignore；l1-last-run.{json,md}
 
 前缀：`/api/v1`；鉴权：`/api/v1/auth/*`；指标：`GET /metrics`（骨架无鉴权）。
 
+## Placement Rules（X-30）
+
+| 新增能力 | 默认落点 | 禁止 |
+|----------|----------|------|
+| HTTP 路由 | `routes/<domain>.ts` + `app.ts` 挂载 | route 内 SQL / 长 Prompt / ES DSL |
+| 业务编排 | `services/<domain>.ts` 或 `services/<domain>/` | 在 `routes` 堆事务 |
+| 身份/验码 | `auth/**` | handler 私写 JWT 解析 |
+| Ask 图 | `graph/**` + `services/ask` + `services/retrieve` | 第二套平行图抄本 |
+| 契约类型 | `@strict-rag/contracts` | apps 内 `type XxxResponse` |
+| 入库重活 | **enqueue** → worker | api 内跑 chunk/embed |
+| 评测 CLI | `eval/` + `scripts/run-l1-golden.ts` | HTTP 自调用假 L1 |
+| 观测 | `obs/**` | 业务 route 打无结构 console 当指标 |
+| 中间件 | `middleware/**` 或 `app.ts` 薄编排 | 每个 route 复制 timeout/bodyLimit |
+
+**判定顺序**：contracts 有无类型？→ service 有无编排？→ 是否应在 worker？→ 最后才加 route。
+
 ## 脚本
 
 | 脚本 | 说明 |

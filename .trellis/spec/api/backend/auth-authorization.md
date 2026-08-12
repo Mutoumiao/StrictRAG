@@ -280,17 +280,34 @@ if (!claims.roles.includes('admin_owner')) return c.json({ error: 'no' }, 403)
 
 // 权限只信 JWT 快照、改绑码不重算
 const codes = claims.permissionsFromJwt
+
+// 跳过 hydrate，直接用 JWT roles 当 effectiveCodes
+c.set('effectiveCodes', new Set(claims.roles))
 ```
 
-#### Correct
+#### Correct（X-26 · 展示 hydrate）
 
 ```typescript
-const effective = resolveEffectiveCodes({ roleCodes: claims.roles })
-if (!hasPermission(effective, 'approval.decide')) {
+// attachAuth / ensureAuth 路径（示意）
+const claims = await verifyBearerAccess(authorization, expectedApp)
+const hydrated = await hydrateAuthz({
+  userId: claims.sub,
+  tenantId: claims.tenantId,
+  claimsRoles: claims.roles,
+})
+// 身份 = JWT；放行码 = DB（或策略回退）后的 effectiveCodes
+c.set('auth', {
+  userId: claims.sub,
+  roles: hydrated.roles,           // DB 覆盖后的角色锚点
+  /* … */
+})
+c.set('effectiveCodes', hydrated.effectiveCodes)
+
+// 业务闸
+if (!hasPermission(c.get('effectiveCodes'), 'approval.decide')) {
   return fail(c, BizCode.FORBIDDEN, 'missing permission: approval.decide', 403)
 }
-
-// refresh 时用当前角色再 issueTokenPair → session.permissions 更新
+// 写角色/绑码后：invalidateRoleCache(userId)
 ```
 
 ---
