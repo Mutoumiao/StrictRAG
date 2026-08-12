@@ -2,9 +2,9 @@
 
 > 本目录是 **HOW 写代码** 的工程约定库。产品语义与接口契约以 **`prds/00–11`** 为 SSOT；冲突以 PRD 为准。
 
-**仓库阶段**：**P0/P1 入库** + **S2 最小 ask 可演示**（单轮信任环 · SSE · 会话壳 · 审批/成员薄 UI）。  
-**默认依赖**：ES/`RETRIEVE_ES_MODE=mock` · Gateway 可 mock · `AUTH_ENFORCE` 默认关 · **rewrite 强制关**。  
-**明确不等于**：路线图 Phase 2 全文 · 生产 ES+IK · CRAG/multi_hop。产品挂账见归档 `08-05-phase-2-backlog`；全局调度 / ARCH 见活任务 `08-06-project-backlog`（实现时 **新建** feature）。
+**仓库阶段**：**P0/P1 入库** + **S2 最小 ask** + **08-11 工程归档**（B2-W/B3-W/B4-W · B12 · B13 · QUAL-1/3 · OPS-1/2 · B10 工程 seed；QUAL-2 = mock 扫描**安全债**）。  
+**默认依赖**：ES/`RETRIEVE_ES_MODE=mock` · Gateway 可 mock · `AUTH_ENFORCE` 默认关 · **rewrite 强制关** · `INGEST_SCAN_MODE=mock_clean`。  
+**明确不等于**：路线图 Phase 2 全文 · 生产 ES+IK · 真杀毒引擎 · L1 业务签字真跑 · CRAG/multi_hop。全局调度见活任务 `08-06-project-backlog`。
 
 ---
 
@@ -27,9 +27,18 @@
 
 | 指南 | 何时读 |
 |------|--------|
-| [ask-pipeline](./api/backend/ask-pipeline.md) | 改 ask / 图 / 检索 / SSE / Gateway / 会话 |
-| [auth-authorization](./api/backend/auth-authorization.md) | 改登录 / 权限码 / 成员闸 |
-| [l1-eval](./api/backend/l1-eval.md) | 改 L1 黄金集 / 2×2 矩阵 / 批跑 CLI / fixtures |
+| [ask-pipeline](./api/backend/ask-pipeline.md) | 改 ask / 图 / 检索 / SSE / Gateway / 会话 / feedback |
+| [auth-authorization](./api/backend/auth-authorization.md) | 改登录 / 权限码 / hydrate / AUTH_ENFORCE |
+| [kb-settings](./api/backend/kb-settings.md) | 改 KB 设置 / mode·docTypes 闸 |
+| [model-gateway](./api/backend/model-gateway.md) | 改供应商绑定 / runtime resolve / rerank 双节点 |
+| [chunk-strategies](./api/backend/chunk-strategies.md) | 改 complete/reindex 分片策略 |
+| [l1-eval](./api/backend/l1-eval.md) | 改 L1 黄金集 / 2×2 / 批跑 / eval_runs |
+
+### worker 关键入口
+
+| 指南 | 何时读 |
+|------|--------|
+| [worker quality](./worker/backend/quality-guidelines.md) | 入库状态机 · **DEC-SCAN 扫描债** · 队列/存储禁项 |
 
 ## 跨包思考指南
 

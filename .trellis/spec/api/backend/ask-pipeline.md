@@ -25,6 +25,9 @@
 |------|----------------|
 | 单轮 route→retrieve→generate→verify→finalize | CRAG / multi_hop / 官方 LangGraph 图（线性状态机即可） |
 | mock sparse（默认）或 OPS-1 `http` ES 切片 + Gateway mock\|http | 宣称生产 ES+IK 全文/多租户已上（≠ B8） |
+| B2-W：KB `allowedModes`/`defaultMode`/`docTypes` 入口闸 | 客户端改 τ / 静默放宽 mode 白名单 |
+| QUAL-3：rerank 双节点链；全失败拒答 | primary 挂仍假 answered / 跳过 rerank |
+| B13：web 提交 feedback · admin 队列 | 把反馈写进 ask 图证据路径 |
 | 会话列表/详情壳 · `rewriteUsed=false` | `SESSION_REWRITE_ENABLED=true`（启动失败） |
 | 进程内 metrics / memory tracer | 完整 Langfuse 生产接线阻塞 ask |
 
@@ -37,7 +40,9 @@
 | `POST` | `/api/v1/knowledge-bases/:kbId/ask` | `requireKbMember` **始终** | 同步 JSON；stream → **AI SDK UI Message Stream**（见下） |
 | `GET` | `/api/v1/knowledge-bases/:kbId/sessions` | 成员闸 | 列表 |
 | `GET` | `/api/v1/knowledge-bases/:kbId/sessions/:sessionId` | 成员闸 + 本人 | 详情/历史壳 |
-| `POST` | `/api/v1/knowledge-bases/:kbId/feedback` 等 | 见 feedback 路由 | 队列/提交 |
+| `POST` | `/api/v1/ask/:requestId/feedback` | 登录 + 该 trace 的 KB 成员 | B13 web 提交 |
+| `GET` | `/api/v1/knowledge-bases/:kbId/feedback-queue` | `feedback.queue` | B13 admin 队列 |
+| `PATCH` | `/api/v1/feedback/:feedbackId` | `feedback.queue` | B13 处理/关单 |
 | `GET` | `/metrics` | 无鉴权（骨架） | 生产须网关保护 |
 
 ```typescript
@@ -86,7 +91,8 @@ routes/ask.ts
 | `executeAsk(params, deps?)` | `services/ask/execute.ts` | 业务入口；HTTP 200/409 决策 |
 | `runAskGraph(input, deps)` | `graph/run.ts` | 状态机；产出 `AskGraphResult` |
 | `runRetrieve(...)` | `services/retrieve` | ready∧active · RRF · rerank |
-| `getGateway()` / `getGatewayForTenant` | `services/gateway` | env 单例；ask 主路径 tenant + platform 绑定 |
+| `getGateway()` / `getGatewayForTenant` | `services/gateway` | env 单例；ask 主路径 tenant + platform + **KB** 绑定 |
+| `resolveAskMode` / `assertScopeDocTypesAllowed` | kb-settings 域 | B2-W：mode 白名单 + scope⊆docTypes |
 | `isDefaultRetrievable` | `@strict-rag/db` | **唯一**默认检索闸谓词 |
 
 #### 图结果 → HTTP
@@ -133,7 +139,10 @@ routes/ask.ts
 |-----|------|------|
 | `TAU_CLAIM` | `0.5` | 验证门槛 **唯一**源；禁止客户端覆盖 |
 | `RETRIEVE_ES_MODE` | `mock` | `http` = ES sparse 切片（OPS-1；需 `ELASTICSEARCH_URL`）；失败 loud，禁回落 mock |
+| `ELASTIC_INDEX` | `strict_rag_dev` | 仅 `http` 模式；**≠** 多租户 B8 |
 | `GATEWAY_MODE` | 空→按 URL 推断 | 无 `GATEWAY_BASE_URL` → mock |
+| `GATEWAY_RERANK_FALLBACK_URL` | 空 | QUAL-3 第二 rerank 节点 |
+| `RERANK_MIN_NODES` | 按 `APP_ENV` | staging/prod 默认 2；dev/test 默认 1；见 [model-gateway](./model-gateway.md) §9 |
 | `SESSION_REWRITE_ENABLED` | `false` | **`true` → 启动失败** |
 | `ASK_RATE_LIMIT_RPM` | `0` | 0=关闭 |
 | `AUTH_ENFORCE` | `false` | **不影响** ask 成员闸（始终 enforce 成员） |
@@ -146,16 +155,19 @@ routes/ask.ts
 |------|------|
 | JSON 非法 / Zod 失败 | 400 `VALIDATION_ERROR` |
 | options 含未知键（strict） | 400 |
+| `options.mode` ∉ KB `allowedModes` | 400（B2-W） |
+| `scope.docTypes` 超出 KB 白名单 | 400（B2-W；空白名单=不限） |
 | KB 不存在 | 404 |
 | 非成员（非 super_admin 旁路） | 403 |
 | sessionId 存在但不归属 | 404 |
 | 超 RPM | 429（限流开启时） |
-| rerank 不可用 / 失败 | `abstained` + reason（如 `rerank_unavailable`）；**禁止** answered |
+| rerank 不可用 / 双节点全失败 | `abstained` + `rerank_unavailable`；**禁止** answered（QUAL-3） |
 | 空证据 / 库外 | `abstained` |
 | claim min 不达标 | `abstained`（min 否决） |
 | 非法 citation 剥光 | 拒答路径；不进 answered |
 | Gateway 超时/错误 | 映射 `mapGatewayFailureToAskReason`；稳定 reason |
 | `RETRIEVE_ES_MODE=http` ES 失败/无 URL | `internal_guard`；不得 silent fallback mock 冒充 live |
+| feedback 无码 / 非成员 | 403；SLA 见 `docs/ops/feedback-sla.md` |
 
 ### 5. Good / Base / Bad Cases
 
@@ -176,14 +188,14 @@ routes/ask.ts
 |----|--------|
 | contracts | `AskRequestSchema` 拒未知 options；scope 顶层 OK |
 | graph | 库内 verified · 库外 abstained · min 否决 · rerank 失败拒答 |
-| retrieve | 非 ready/非 active 不可见；RRF 顺序；mock 模式可测 |
-| ask 路由 | 非成员 403；非法 body 400；session 归属 404；`data-ask-final` ≡ 同步 shape |
+| retrieve | 非 ready/非 active 不可见；RRF 顺序；mock 模式可测；`http` 失败 loud |
+| ask 路由 | 非成员 403；非法 body 400；mode/docTypes 闸；session 归属 404；`data-ask-final` ≡ 同步 shape |
 | ask 流异常 | **`execute` mock throw** → 正文含 `data-ask-final`；payload `reason==='internal_guard'` · `status==='abstained'` · `answer===''`；且存在 `data-status` `phase=error` |
 | sessions | 跨 session 零共享；历史 ≠ evidence；list query 非法 limit → 400 |
-| feedback | queue query 非法 status → 400；合法 status 过滤 |
-| gateway | mock/http 选择；失败 reason 映射 |
-| env | `SESSION_REWRITE_ENABLED=true` 校验失败 |
-| web | `useChat` + `data-ask-final` schema 校验；三态 UI；无自写 SSE 分帧；重试不依赖已清空输入框 |
+| feedback | queue query 非法 status → 400；合法 status 过滤；无 `feedback.queue` → 403 |
+| gateway | mock/http；QUAL-3 dual endpoints；失败 reason 映射 |
+| env | `SESSION_REWRITE_ENABLED=true` 校验失败；`RERANK_MIN_NODES` 与 endpoint 数 |
+| web | `useChat` + `data-ask-final`；B13 FeedbackBar → `createAskFeedback`；三态 UI；无自写 SSE |
 
 证据路径：`apps/api/src/**/*.test.ts`（`graph` · `ask` · `retrieve` · `sessions` · `feedback` · `obs`）。
 
@@ -256,9 +268,19 @@ return c.json(okEnvelope(response), httpStatus);
 
 **Context**：生产 ES+IK（B8）未交付；P1 入库 ES 亦为 mock。
 
-**Decision**：`RETRIEVE_ES_MODE=default mock`（PG chunk 文本替身）；`http` = OPS-1 ES BM25 切片（`es-sparse.ts`）；全文 B8 仍延期。
+**Decision**：`RETRIEVE_ES_MODE=default mock`（PG chunk 文本替身）；`http` = OPS-1 ES BM25 切片（`es-sparse.ts`）；全文 B8 仍延期。签字 profile：`docs/ops/live-retrieve-profile.md`。
 
 **禁止话术**：「生产 Elasticsearch 已上」。
+
+---
+
+## Design Decision: B2-W mode / docTypes 在 ask 入口而非仅 UI
+
+**Context**：settings 写路径已有，但 ask 不读则配置无效。
+
+**Decision**：`executeAsk` / route 读 KB `config_json` → `resolveAskMode` + `assertScopeDocTypesAllowed`；非法 **400**（非静默改 mode）。
+
+**Related**：[kb-settings](./kb-settings.md)。
 
 ---
 

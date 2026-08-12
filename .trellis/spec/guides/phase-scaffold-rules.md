@@ -1,9 +1,9 @@
 # 阶段脚手架规则（Phase Scaffold）
 
-> 适用：当前仓库状态（**P0/P1 入库** + **S2 最小 ask 已落地并归档**）。  
+> 适用：当前仓库状态（**P0/P1 入库** + **S2 最小 ask** + **08-11 工程项归档**）。  
 > 权威分期：`prds/10-delivery/01-phased-roadmap.md` · 项目导航：`CLAUDE.md`。  
 > 已关 epic：`archive/2026-08/08-05-phase-2-ask`（S2 最小，≠ 全文 Phase 2）。  
-> 产品挂账：`archive/2026-08/08-05-phase-2-backlog/status.md`（B1–B11）；总 backlog：`08-06-project-backlog/status.md`（实现时 **新建** feature）。
+> 08-11 归档：`archive/2026-08/08-11-*`（含 QUAL-2 **延期安全债**）。总 backlog：`08-06-project-backlog/status.md`。
 
 ---
 
@@ -11,19 +11,19 @@
 
 | 单元 | 现状 | 证据 |
 |------|------|------|
-| `apps/api` | 入库 + 双 token + **ask 图/SSE/会话/反馈/Gateway/检索 mock/观测骨架** | `apps/api/src/**` |
-| `apps/worker` | BullMQ + ingest 状态机 | `apps/worker/src/**` |
-| `apps/web` | S2 最小 ask UI（SSE · 三态 · 会话壳） | `apps/web/src/**` |
-| `apps/admin` | S2c 薄页（文档/审批/成员） | `apps/admin/src/**` |
-| `packages/contracts` | BizCode · 信封 · auth · ingest · **ask 域** | `packages/contracts/src/**` |
-| `packages/db` | schema + migrate + retrieval-gate + ask 表 | `packages/db/src/**` |
+| `apps/api` | 入库 + 鉴权 hydrate + ask + B1–B6 + B12 策略 + B13 feedback + Gateway resolve + L1 CLI | `apps/api/src/**` |
+| `apps/worker` | BullMQ + ingest；**mock scan**（真杀毒债） | `apps/worker/src/**` |
+| `apps/web` | S2 ask UI + B13 反馈提交 | `apps/web/src/**` |
+| `apps/admin` | S2c 薄页 + B1–B6 + 反馈队列 | `apps/admin/src/**` |
+| `packages/contracts` | BizCode · 信封 · auth · ingest · ask 域 | `packages/contracts/src/**` |
+| `packages/db` | schema + migrate + retrieval-gate + ask + **eval_runs** | `packages/db/src/**` |
 | `packages/ui` | `cn()` + `theme.css` | `packages/ui/src/**` |
 | `packages/admin-catalog` | 权限码 + 角色模板 + 菜单 | `packages/admin-catalog/src/**` |
 | `docker/` | PG+Redis 默认；es/mongo/rustfs profile | `docker/docker-compose.yml` |
 
-**默认边界**：`RETRIEVE_ES_MODE=mock` · Gateway 可 mock · `AUTH_ENFORCE` 默认 false · **rewrite 强制 false**。  
-**未做**：Better Auth 生产 IdP · 真 ES+IK（B8）· CRAG/multi_hop · 完整运营台 · **L1 业务签字门禁**（live 签字规模 / 覆盖率闸）。  
-**部分**：B10 L1 **工程 seed**（`fixtures/l1` + `eval/l1-matrix` + CLI；mock 数字 **禁**签字）— HOW 见 [api l1-eval](../api/backend/l1-eval.md)。
+**默认边界**：`RETRIEVE_ES_MODE=mock` · Gateway 可 mock · `AUTH_ENFORCE=false` · **rewrite 强制 false** · `INGEST_SCAN_MODE=mock_clean`。  
+**未做**：Better Auth 生产 IdP · 真 ES+IK（B8）· **真杀毒（QUAL-2）** · CRAG/multi_hop · 完整运营台 · **L1 业务签字真跑**。  
+**已做工程（非签字）**：B10 L1 seed + `eval_runs` + OPS-1 profile — HOW [l1-eval](../api/backend/l1-eval.md)。
 
 ---
 
@@ -47,7 +47,7 @@
 
 | 禁止 | 原因 |
 |------|------|
-| 宣称「全文 Phase 2 / 生产 ES 已上」 | S2 最小 / mock 边界 |
+| 宣称「全文 Phase 2 / 生产 ES 已上 / 生产杀毒已上」 | S2 最小 / mock / DEC-SCAN 边界 |
 | 未 P2.5 二元出口进入 P3a CRAG | 路线图硬门 |
 | `SESSION_REWRITE_ENABLED=true` 合入 | P2 配置拒绝；P2.5+ 再议 |
 | Better Auth 无设计半吊子落地 | 须收敛设计 |

@@ -1,14 +1,14 @@
 # @strict-rag/admin · 管理端前端
 
 > 路径：`apps/admin` · 目标端口 **3006**  
-> 现状：**S2c 薄运营页**（登录 · 壳 · 文档/审批/成员 + **B1–B5** + **B6 数据面板薄壳**）；**非**完整运营台（**无** APM 时序 / **无** DEPT_ACL 强制 UI）。
+> 现状：**S2c 薄运营页**（登录 · 壳 · 文档/审批/成员 + **B1–B6** + **B13 反馈队列**）；**非**完整运营台（**无** APM 时序 / **无** DEPT_ACL 强制 UI）。
 
 ---
 
 ## Pre-Development Checklist
 
-- [ ] 是否管理端能力（KB/成员/文档/审批/评测）而非用户 ask 主路径？  
-- [ ] 权限码 / 菜单是否来自 `@strict-rag/admin-catalog`？  
+- [ ] 是否管理端能力（KB/成员/文档/审批/反馈队列/评测）而非用户 ask 主路径？  
+- [ ] 权限码 / 菜单是否来自 `@strict-rag/admin-catalog`（含 `feedback.queue`）？  
 - [ ] API 类型是否来自 `@strict-rag/contracts`？默认不建平行 wire `types.ts`？  
 - [ ] UI 是否优先 `@strict-rag/ui`（`cn` / 子路径组件 / Soft Bento token）？禁止大面积内联 style？  
 - [ ] 样式入口是否仅为 `./globals.css`（内 import ui theme；本 app `@source`）？  

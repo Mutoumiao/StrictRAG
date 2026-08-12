@@ -1,8 +1,8 @@
 # @strict-rag/api · Hono HTTP 后端
 
 > 路径：`apps/api` · 目标端口 **4000**  
-> 现状：**P0/P1 入库** + **S2 最小 ask** + **B1–B5** + **B6 数据面板薄壳**（`dashboard.view` 只读 summary）+ 身份/授权骨架 + **B10 L1 工程 seed**（CLI + 2×2 矩阵；**≠** 业务签字门禁）。  
-> 默认：`RETRIEVE_ES_MODE=mock` · `AUTH_ENFORCE=false` · `SESSION_REWRITE_ENABLED=false`（强制）· Gateway 缺 URL→mock；**B3-W/B2-W** ask 运行时 `getGatewayForTenant(tenant, kbId)` = env+platform+KB 覆盖（失败回退 env）· **B4-W** JWT 身份 + 每请求 DB `user_roles` hydrate · **未** `DEPT_ACL_ENFORCE` 检索强制。
+> 现状：**P0/P1 入库** + **S2 最小 ask** + **B1–B6** + **08-11 接线**（B2-W mode/docTypes · B3-W/B4-W · B12 策略注册表 · B13 feedback UI 闭环 API · QUAL-1/3 · OPS-1 live 切片 · B10 工程 seed）。  
+> 默认：`RETRIEVE_ES_MODE=mock` · `AUTH_ENFORCE=false` · `SESSION_REWRITE_ENABLED=false`（强制）· Gateway 缺 URL→mock；**B3-W/B2-W** `getGatewayForTenant(tenant, kbId)` = env+platform+KB 覆盖（失败回退 env）· **B4-W** JWT 身份 + 每请求 DB hydrate（≤5s 缓存 · 超时回退 claims）· **未** `DEPT_ACL_ENFORCE` · **≠** L1 业务签字真跑。
 
 ---
 
@@ -11,8 +11,10 @@
 - [ ] 任务是否属于已批准范围？（勿把 backlog B1–B11 静默塞进已关 S2 epic）  
 - [ ] DTO/错误码是否来自 `@strict-rag/contracts`，且对外 code 为 **PRD §4 短名**？  
 - [ ] 触及 ask / 检索 / 验证时是否读 [quality-redlines](../../guides/quality-redlines.md) + [ask-pipeline](./ask-pipeline.md) + `docs/testing/p0-redlines.md`（R7–R9）？  
-- [ ] 权限是否 **以码为准**（读 [auth-authorization](./auth-authorization.md)）？  
-- [ ] ask / sessions / members / **chunks** / **kb settings** / **model-gateway** / **users·roles** / **departments** / **dashboard** 是否 **始终**验码（与 `AUTH_ENFORCE` 无关）？平台码无 kb 成员闸  
+- [ ] 权限是否 **以码为准**（读 [auth-authorization](./auth-authorization.md)）；改角色是否 `invalidateRoleCache`？  
+- [ ] ask / sessions / members / **chunks** / **kb settings** / **model-gateway** / **users·roles** / **departments** / **dashboard** / **feedback.queue** 是否 **始终**验码（与 `AUTH_ENFORCE` 无关）？平台码无 kb 成员闸  
+- [ ] complete/reindex 是否读 [chunk-strategies](./chunk-strategies.md)（多策略禁静默 default）？  
+- [ ] Gateway/rerank 是否读 [model-gateway](./model-gateway.md)（双节点 · 无假 answered）？  
 - [ ] 新登录/refresh/会话/ask 字段是否改 contracts + 双端 http？  
 - [ ] DB 是否经 `@strict-rag/db`（禁止 app 私有 schema）？  
 - [ ] 是否避免 route 内 SQL / ES DSL / 长 Prompt？  
@@ -43,12 +45,13 @@
 | [logging-guidelines](./logging-guidelines.md) | Pino 上下文 |
 | [auth-authorization](./auth-authorization.md) | 身份双 token + 权限码 |
 | [chunk-readonly](./chunk-readonly.md) | **B1 分片只读** list/detail · `chunk.view` · UTF-8 64KiB |
-| [kb-settings](./kb-settings.md) | **B2 知识库设置** GET/PATCH · `kb.config.write` · 质量只读 · rewrite 锁 |
-| [model-gateway](./model-gateway.md) | **B3 模型供应商/平台绑定** · `model.gateway.manage` · Key 不回显 · 类型/042 闸 |
+| [chunk-strategies](./chunk-strategies.md) | **B12 分片策略** 注册表 · complete/reindex 闸 · 旧文档不自动切 |
+| [kb-settings](./kb-settings.md) | **B2/B2-W** GET/PATCH · mode/docTypes 写生效 · ask 入口闸 · rewrite 锁 |
+| [model-gateway](./model-gateway.md) | **B3/B3-W** 供应商/绑定 · runtime resolve · **QUAL-3** rerank 双节点 |
 | [platform-users-roles](./platform-users-roles.md) | **B4 用户/角色** · `user.manage` / `role.perm.manage` · 最后超管 · codes ⊆ catalog |
 | [departments](./departments.md) | **B5 部门壳** · `dept.manage` / 用户归属 · 禁环 · **≠** DEPT_ACL 强制 |
 | [dashboard](./dashboard.md) | **B6 数据面板薄壳** · `dashboard.view` · 只读 summary ≤5 · **≠** APM |
-| [l1-eval](./l1-eval.md) | **B10 L1 工程 seed** · `eval/l1-matrix` · CLI `run-l1-golden` · fixtures · **≠** 业务签字 |
+| [l1-eval](./l1-eval.md) | **B10** L1 工程 seed + eval_runs · OPS-1 `retrieve_mode` · **≠** 业务签字真跑 |
 
 ## 依赖（package.json）
 

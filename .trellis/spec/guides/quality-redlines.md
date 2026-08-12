@@ -33,7 +33,10 @@
 | 客户端传 `tauClaim` / `retrieveK` 等 | `options` **仅** stream / debug / mode / locale（`prds/05-api` §1.1） |
 | 把 `scope` 塞进 `options` | **`scope` 为 ask 顶层可选字段**（如 `scope.docTypes`），与 options **分轨**（ADR-050）；混入 options → 400 |
 | 教学 Notebook / LanceDB 数字当 SLA | 生产指标以验收剧本与门禁为准 |
-| L1 `mode=mock` 的 2×2 / coverage 当业务签字 | 仅工程 seed；签字须 live + 规模门（B10-followup）；HOW → [l1-eval](../api/backend/l1-eval.md) |
+| L1 `mode=mock` 的 2×2 / coverage 当业务签字 | 仅工程 seed；签字须 live + 规模门；HOW → [l1-eval](../api/backend/l1-eval.md) |
+| `INGEST_SCAN_MODE=on` / mock 当生产杀毒完成 | QUAL-2 = **安全债**（DEC-SCAN）；HOW → [worker quality](../worker/backend/quality-guidelines.md) |
+| staging/prod 单节点 rerank 冒充双节点 | `RERANK_MIN_NODES` + fallback；全失败拒答；HOW → [model-gateway](../api/backend/model-gateway.md) §9 |
+| 多策略 reindex 静默 default strategy | 须显式 `chunkStrategy` 或 400；HOW → [chunk-strategies](../api/backend/chunk-strategies.md) |
 
 ### ask 请求形状（摘要）
 
@@ -93,7 +96,9 @@ Epic `08-05-phase-2-ask` 已关并归档；**≠** 路线图 Phase 2 全文。
 - [ ] 检索闸改动是否只测了 `packages/db` 纯函数？→ **生产装载路径**（api `filterDocsForRetrieve` / corpus）是否仍被覆盖？  
 - [ ] verify 路径是否只有 happy `llmCalls` 计数？→ 是否有 **负向**「未完整 verify 不得 answered」？  
 - [ ] 跨层 final 形状是否双端各写一份 JSON？→ 应用 `@strict-rag/contracts/testing`  
-- [ ] 是否误以为 R 表要求 stub `AUTH_ENFORCE`？→ **不要求**（API 中间件 enforce → 总 backlog **QUAL-1**）  
+- [ ] 是否误以为 R 表要求 stub `AUTH_ENFORCE`？→ **不要求**；QUAL-1 红线测已归档（`auth-enforce.redline.test.ts`），**禁止**改仓库默认 on  
 - [ ] 是否把 `mapBizError` 字符串当 `shouldRefresh` 断言？→ admin 应直测 `ApiHttpError` 字段  
+- [ ] 是否改 scan / 宣称杀毒完成？→ 读 DEC-SCAN；生产前 **新建** QUAL-2 实现 task  
+- [ ] 是否改 complete/reindex 策略？→ 读 [chunk-strategies](../api/backend/chunk-strategies.md)
 
 包级 HOW：web/admin [quality-guidelines](../web/frontend/quality-guidelines.md) · api [quality-guidelines](../api/backend/quality-guidelines.md) · contracts [directory-structure](../contracts/library/directory-structure.md)。

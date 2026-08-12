@@ -9,7 +9,9 @@ apps/api/src/
   env.ts                   # Zod env（+ API_REQUEST_TIMEOUT_MS · API_JSON_BODY_LIMIT_BYTES …）
   auth/
     types.ts
-    middleware.ts          # attachAuth · requireAuth · requirePermission · WhenEnforced · requireKbMember
+    middleware.ts          # attachAuth · requireAuth · requirePermission · WhenEnforced · requireKbMember · isAuthEnforceEnabled
+    role-hydrate.ts        # B4-W：DB 角色 ≤5s 缓存 · ROLE_LOAD_TIMEOUT · vitest 默认 null loader
+    auth-enforce.redline.test.ts  # QUAL-1
     identity/              # 双 JWT 过渡
       jwt.ts · refresh-store.ts · token-service.ts
     permissions/resolve.ts # 有效码求值 · super_admin 旁路成员
@@ -17,16 +19,16 @@ apps/api/src/
     run.ts · state.ts · prompts.ts · parse.ts · route-rules.ts
     budget.ts · reasons.ts · tracer.ts · graph.test.ts
   routes/
-    auth.ts                # dev-login · refresh · me
-    documents.ts           # P1 入库
+    auth.ts                # dev-login · refresh · me · bootstrap ensureUserRoleCodes
+    documents.ts           # P1 入库 + B12 complete/reindex chunkStrategy 闸
     chunks.ts              # B1 分片只读 list/detail（ADR-052）
     members.ts             # 成员 list/invite/delete
-    ask.ts                 # POST …/ask 同步 + AI SDK UI Message Stream
+    ask.ts                 # POST …/ask 同步 + AI SDK UI Message Stream（B2-W mode/docTypes）
     sessions.ts            # 会话壳（无 rewrite）
-    feedback.ts            # 反馈队列
-    kb-settings.ts         # B2 知识库设置
+    feedback.ts            # B13：POST ask feedback · queue · PATCH
+    kb-settings.ts         # B2/B2-W 知识库设置
     model-gateway.ts       # B3 模型供应商 + 平台绑定
-    platform-users-roles.ts # B4
+    platform-users-roles.ts # B4（写路径 invalidateRoleCache）
     departments.ts         # B5
     dashboard.ts           # B6 数据面板只读 summary
   middleware/
@@ -36,11 +38,12 @@ apps/api/src/
     on-error.ts            # 全局 throw 兜底
   # secureHeaders / notFound 直接在 app.ts 内联
   services/
-    documents.ts · chunks.ts · members.ts · sessions.ts · feedback.ts · kb-settings.ts · model-gateway.ts
+    documents.ts · chunks.ts · chunk-strategies.ts  # B12 注册表
+    members.ts · sessions.ts · feedback.ts · kb-settings.ts · model-gateway.ts
     platform-users-roles.ts · departments.ts · dashboard.ts
     db.ts · storage.ts · queue.ts
     ask/                   # executeAsk · session-guard · traces 落库
-    gateway/               # chat · embed · rerank；B3-W：bindings.ts + getGatewayForTenant
+    gateway/               # chat · embed · rerank；B3-W bindings + QUAL-3 dual endpoints
     retrieve/              # 混合检索 · 双闸门 · RRF · es-sparse（OPS-1 http 切片）
   eval/
     l1-matrix.ts           # L1 2×2 纯函数（A–D · coverage）；error 不计格
@@ -60,8 +63,10 @@ apps/api/src/
 
 ```text
 fixtures/l1/gold.yaml      # JSON 形；≥60（ans30+una30；非签字真跑）
-fixtures/l1/RACI.md · README.md · sample-report.md
-docs/ops/live-retrieve-profile.md
+fixtures/l1/RACI.md · README.md · sample-report.md  # B10-RACI owner 表
+docs/ops/live-retrieve-profile.md   # OPS-1
+docs/ops/at-rest-checklist.md       # OPS-2
+docs/ops/feedback-sla.md            # B13 运营 SLA
 artifacts/                 # gitignore；l1-last-run.{json,md}
 ```
 
@@ -72,7 +77,8 @@ artifacts/                 # gitignore；l1-last-run.{json,md}
 | HTTP | Hono + Node（**非**默认 CF Workers） |
 | 身份 | Bearer access；refresh rotation（见 [auth-authorization](./auth-authorization.md)） |
 | 授权 | 权限码；**禁止** role 字符串单独放行 |
-| Ask | 始终 KB 成员闸；SQL/图/Prompt 不在 route 内展开（见 [ask-pipeline](./ask-pipeline.md)） |
+| Ask | 始终 KB 成员闸；B2-W mode/docTypes；SQL/图/Prompt 不在 route 内展开（见 [ask-pipeline](./ask-pipeline.md)） |
+| 分片策略 | B12 注册表 + complete/reindex 闸；见 [chunk-strategies](./chunk-strategies.md) |
 | L1 评测 | 纯矩阵 + CLI 批跑；**非** HTTP 自调用；见 [l1-eval](./l1-eval.md) |
 | 入队 | BullMQ；重活在 worker |
 | 契约 | `@strict-rag/contracts` |

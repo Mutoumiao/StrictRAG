@@ -2,7 +2,7 @@
 
 > 路径：`apps/api/src/eval/` · `apps/api/src/scripts/run-l1-golden.ts` · 仓根 `fixtures/l1/`  
 > 产品语义：`prds/08-quality`（覆盖率 / 2×2）· 任务 `08-08-b10-l1-golden-set`  
-> **本窗状态**：工程底座 **已落地**；OPS-1 live profile + `retrieve_mode`/`signoffEligible`；B10-followup **工程**（`eval_runs` 表 + gold 60 + `L1_PERSIST_EVAL`）已部分；**业务签字真跑** / L2·L3 **未做**。
+> **本窗状态**：工程底座 **已落地**；OPS-1 live profile + `retrieve_mode`/`signoffEligible`；B10-followup **工程**（`eval_runs` 表 + gold 60 + `L1_PERSIST_EVAL`）已归档；B10-RACI owner 表 `fixtures/l1/RACI.md`；**业务签字真跑数字** / L2·L3 **未做**（硬依赖 live 真跑 + 人签）。
 
 ---
 
@@ -269,6 +269,7 @@ for (const c of cases) {
 - 目录：[directory-structure](./directory-structure.md)  
 - Fixture 说明：`fixtures/l1/README.md` · 跑法：`apps/api/README.md`  
 - IS：`docs/module-status/api.md` · backlog B10 挂账 `08-06-project-backlog`  
-- 已做（工程）：`eval_runs` 表 + `persistEvalRun` / `L1_PERSIST_EVAL` · gold≥60 · OPS-1 `retrieve_mode`/`signoffEligible`  
-- 未做：B10-followup **业务签字真跑数字** · worker-eval · L2/L3  
+- 已做（工程）：`eval_runs` 表 + `persistEvalRun` / `L1_PERSIST_EVAL` · gold≥60 · OPS-1 `retrieve_mode`/`signoffEligible` · B10-RACI `fixtures/l1/RACI.md`  
+- 未做：**业务签字真跑数字**（人 + live 环境）· worker-eval · L2/L3  
+- 签字禁令：`signoffEligible=true` **仅** `retrieve_mode=live`；**≠** 自动业务 PASS；人审仍禁「仅 env Gateway 绿灯」（见 live profile §4.5）  
 

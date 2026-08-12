@@ -1,7 +1,7 @@
 # @strict-rag/web · 用户端前端
 
 > 路径：`apps/web` · 目标端口 **3005**  
-> 现状：**S2 最小 ask UI**（登录 · 会话壳 · AI SDK 流 / 同步 · answered/abstained/error 三态）；**无**完整多轮 rewrite / 反馈控件必达。
+> 现状：**S2 最小 ask UI**（登录 · 会话壳 · AI SDK 流 / 同步 · 三态）+ **B13** 答案旁反馈提交（`createAskFeedback`）；**无**完整多轮 rewrite。
 
 ---
 
@@ -16,6 +16,7 @@
 - [ ] 流式是否 **只信 `data-ask-final`**（schema 校验），进度用 `data-status`？  
 - [ ] 是否禁止自写 SSE 分帧（须 `@ai-sdk/react` + transport）？  
 - [ ] 拒答/错误「重试」是否用 `lastQuestion`（不依赖提交后已空的输入框）？  
+- [ ] 反馈是否走 `src/api/feedback.ts` → `POST /api/v1/ask/:requestId/feedback`（类型来自 contracts）？  
 - [ ] 会话存储 key 是否仅为 `strict-rag:web:client-session`？  
 - [ ] 业务 HTTP / path 是否只在 `src/api/*` 或 `auth/api`，传输在 `lib/http`？  
 - [ ] services（若有）是否禁止写 URL、只调 api？hooks 是否不与 services 双轨编排？  

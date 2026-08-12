@@ -15,6 +15,8 @@
 | 禁止 | 自写 SSE 分帧；用 text-delta / 中间事件覆盖终态答案 |
 | 质量面板 | 禁止 UI 暴露 tauClaim 等调参给普通用户 |
 | rewrite | P2 强制关；debug 若展示须 `rewriteUsed=false` |
+| 反馈（B13） | 仅提交本轮 `requestId` 的 rating/category/comment；**禁止**把用户评论当 citation/evidence 回灌 ask |
+| 反馈 API | `src/api/feedback.ts` → `POST /api/v1/ask/:requestId/feedback`；鉴权/成员以 **API** 为准 |
 
 ## 技术约定
 
@@ -37,6 +39,7 @@
 | refresh URL | `POST /api/v1/auth/web/token/refresh` |
 | 消费者 | 默认 `web_consumer`（无 `admin.shell`）；ask 靠 **KB 成员**，不靠运营码 |
 | 会话 API | `src/api/sessions.ts` → api sessions 路由 |
+| 反馈 API | `src/api/feedback.ts` · UI：`ask-panel` FeedbackBar |
 | 身份 API | `src/auth/api.ts` |
 
 **反模式**：把 admin token 写入 web key；用运营码放行 web 管理能力；本地用历史消息拼 evidence 高亮当引用。

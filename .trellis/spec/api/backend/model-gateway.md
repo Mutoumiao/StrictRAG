@@ -8,7 +8,8 @@
 
 - 新建 admin 模型网关生产端 / 平台绑定 API  
 - 跨层：contracts → db schema → api service/route → admin UI  
-- **B3-W（已接线）**：ask 运行时 `getGatewayForTenant` = env + platform `model_bindings`（`applyBindingsToGatewayConfig`）；KB 级绑定写路径仍无 → B2-W
+- **B3-W（已接线）**：ask 运行时 `getGatewayForTenant(tenant, kbId?)` = env + platform（+ **KB** 若有绑定行）经 `applyBindingsToGatewayConfig`  
+- **QUAL-3（已接线）**：rerank 双节点链 + `RERANK_MIN_NODES`；全链失败 → 禁 `answered`
 
 ## 2. Signatures
 
@@ -89,10 +90,39 @@ return ok(c, toPublicProvider(row)); // hasApiKey only
 
 **禁止**：第二套 purpose map；日志打印 `apiKey`/`apiKeyEnc`；静默把 mode 从 mock 改 http。
 
+## 9. Rerank 双节点（QUAL-3）
+
+| 键 / 符号 | 说明 |
+|-----------|------|
+| `RERANK_MIN_NODES` | 可选显式；**默认** dev/test=`1`，staging/production=`2`（`defaultRerankMinNodes`） |
+| `GATEWAY_RERANK_FALLBACK_URL` | 第二节点 base；与 primary `GATEWAY_BASE_URL` 组成 `rerankEndpoints[]` |
+| `buildGatewayConfig` | `http` 且 endpoints.length < min → **抛**（启动/构建失败 loud） |
+| mock/http client | 按 endpoints 顺序试；primary 失败 → fallback；全失败 → `GatewayError` → `rerank_unavailable` |
+
+### Validation
+
+| 条件 | 行为 |
+|------|------|
+| staging/prod min=2 且仅 1 个 endpoint | 构建/解析抛错（禁「ADR N/A 冒充双节点」） |
+| primary 失败、fallback 成功 | 返回分数；可记 `fallbackUsed` |
+| 全链失败 | graph/ask → `abstained` + `rerank_unavailable`；**禁止** `answered` |
+
+### Tests
+
+`gateway/gateway.test.ts`：staging 单节点拒 · primary 失败 fallback 成功 · 全失败无假 answered；graph 层 `rerank_unavailable` 回归。
+
+### Wrong vs Correct
+
+```ts
+// Wrong — 全失败静默跳过 rerank 仍 answered
+// Correct — mapGatewayFailureToAskReason → rerank_unavailable → abstained
+```
+
 ## 实现备注
 
 - 测例注入 `createMemoryModelGatewayRepo`；runtime 单测见 `gateway/gateway.test.ts`  
 - 租户：`auth.tenantId` 或 `DEV_DEFAULT_TENANT`  
 - 日志：`model_provider_*` / `model_bindings_put`，**禁止**打 Key  
-- 未做：fetch-models 真代理、**KB bindings**（B2-W）  
+- 已做：platform 写 API · runtime platform+KB resolve（B3-W/B2-W）· QUAL-3 双节点  
+- 未做：fetch-models 真代理、**admin KB 绑定写 UI**（schema/resolve 已支持）  
 

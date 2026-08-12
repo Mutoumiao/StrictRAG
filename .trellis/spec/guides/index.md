@@ -44,8 +44,19 @@
 - [ ] 改阈值 / mode / citation 策略  
 - [ ] 「先答了再说」或「降级仍 answered」的诱惑  
 - [ ] L1 黄金集 / 覆盖率 / 批跑 CLI / 是否把 mock 数字当签字  
+- [ ] 入库 scan / 宣称杀毒完成（DEC-SCAN）  
+- [ ] rerank 节点数 / 多策略 reindex  
 
-→ [quality-redlines](./quality-redlines.md) · `prds/08-quality/` · 工程清单 `docs/testing/p0-redlines.md` · [l1-eval](../api/backend/l1-eval.md)
+→ [quality-redlines](./quality-redlines.md) · `prds/08-quality/` · `docs/testing/p0-redlines.md` · [l1-eval](../api/backend/l1-eval.md) · [worker quality](../worker/backend/quality-guidelines.md) · [chunk-strategies](../api/backend/chunk-strategies.md)
+
+### 运维文档（非 code-spec，但签字/债锚点）
+
+| 路径 | 来源 task |
+|------|-----------|
+| `docs/ops/live-retrieve-profile.md` | OPS-1 |
+| `docs/ops/at-rest-checklist.md` | OPS-2 |
+| `docs/ops/feedback-sla.md` | B13 |
+| `fixtures/l1/RACI.md` | B10-RACI |
 
 ### 包边界
 

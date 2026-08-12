@@ -77,15 +77,17 @@ isDefaultRetrievable({ status, lifecycle })
 | 消费者 | `apps/api` retrieve **必须**复用；禁止 route/service 私写平行谓词 |
 | 单测 | `retrieval-gate.test.ts` 护栏 |
 
-### Ask 表（S2）
+### Ask 表（S2 + B10）
 
 | 表/模块 | 用途 |
 |---------|------|
 | `schema/ask/ask-sessions.ts` | 会话壳（无 rewrite 近窗） |
 | `schema/ask/ask-traces.ts` | 请求轨迹 / evidence_snapshot |
-| `schema/ask/ask-feedback.ts` | 反馈队列 |
+| `schema/ask/ask-feedback.ts` | 反馈队列（B13） |
+| `schema/ask/eval-runs.ts` | L1 批跑归档（migration `0006_b10_eval_runs`；`L1_PERSIST_EVAL`） |
 
-`evidence_snapshot` **仅**本轮 retrieve 切片；禁止塞会话原文。
+`evidence_snapshot` **仅**本轮 retrieve 切片；禁止塞会话原文。  
+`eval_runs` 写库时间用 `formatLocalDateTime`（见 [l1-eval](../../api/backend/l1-eval.md)）；mock 跑 `signoff_eligible=0`。
 
 ---
 

@@ -45,9 +45,12 @@
 | P0 | health/ready · env · Pino · requestId · compose 依赖检查 |
 | P1 | 入库 API · 审批/体积闸 · worker 入队 |
 | S2 最小 | ask 图/SSE · 会话壳 · 反馈 · Gateway 切片 · 检索 mock · 观测骨架 |
+| 08-11 | B2-W mode/docTypes · B3-W/B4-W · B12 策略 · B13 UI 闭环 · QUAL-1/3 · OPS-1 · B10 工程（**≠** 签字真跑） |
 
-S2 细节与错误矩阵见 [ask-pipeline](./ask-pipeline.md)。  
+S2 / ask 细节见 [ask-pipeline](./ask-pipeline.md)。  
+分片策略见 [chunk-strategies](./chunk-strategies.md)。  
 L1 工程 seed 见 [l1-eval](./l1-eval.md)（**≠** 业务签字门禁）。  
+扫描真引擎在 **worker** 侧安全债，勿在 api 宣称 QUAL-2 完成。
 下一刀：按 backlog（B6/B8…）**新建** feature 任务；禁止宣称全文 Phase 2 / 生产 ES / L1 签字完成。
 
 ## 编码风格

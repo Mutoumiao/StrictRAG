@@ -16,8 +16,15 @@
 | 禁写质量键 / rewrite 开 | 客户端改 τ 或误开 rewrite → 400 |
 | admin 设置页联调 | 始终验码；无 AUTH_ENFORCE 旁路 |
 
-**B2-W 已接线**：ask 入口 `mode∈allowedModes` + `defaultMode`；`config_json.docTypes` 读写 + scope 子集闸；Gateway KB 绑定覆盖 platform（`loadPlatformBindingSnapshot(tenant, repo, kbId)`）。  
-**仍不在**：分片策略弹窗（B12）、admin 模型绑定 KB 写 UI、τ 发布流（046）。
+**B2-W 已接线**（task `08-11-b2-w-kb-settings-wire`）：
+
+| 能力 | 落点 |
+|------|------|
+| ask `mode∈allowedModes` / 缺省 `defaultMode` / 非法 mode → **400** | `services/kb-settings` · `resolveAskMode`（ask 入口，非仅 settings 页） |
+| `config_json.docTypes` 读写对称；ask `scope.docTypes` ⊆ KB 列表（空=不限） | `assertScopeDocTypesAllowed` |
+| Gateway KB 绑定叠 platform | `loadPlatformBindingSnapshot(tenant, repo, kbId)` → `getGatewayForTenant(tenant, kbId)` |
+
+**仍不在**：admin **KB 级 model_bindings 写 UI**（schema/resolve 已支持）、τ 发布流（046）。分片策略见 [chunk-strategies](./chunk-strategies.md)（B12 **已归档**，非本页 UI）。
 
 ### 2. Signatures
 
@@ -108,10 +115,35 @@ sessionRewrite: { enabledDefault: false, locked: true }
 
 ---
 
+## Scenario: ask 入口 mode / docTypes 闸（B2-W）
+
+### Signatures
+
+```typescript
+// services/kb-settings（或同域 helper）
+resolveAskMode({ requested?, allowedModes, defaultMode })
+  // → { ok:true, mode } | { ok:false, message }  // 非法 → route 400
+assertScopeDocTypesAllowed({ scopeDocTypes?, kbDocTypes })
+  // 空 kbDocTypes = 不限制；否则 scope 须为子集
+```
+
+### Validation
+
+| 条件 | HTTP | code |
+|------|------|------|
+| `options.mode` ∉ `allowedModes` | 400 | `VALIDATION_ERROR` |
+| 省略 mode | 200 | 使用 `defaultMode`（须 ∈ allowed） |
+| `scope.docTypes` 超出 KB 白名单 | 400 | `VALIDATION_ERROR` |
+
+### Tests
+
+`services/kb-settings-mode.test.ts` · ask 路由 mode-gate 用例。
+
+---
+
 ## 挂账（勿在本切片宣称闭环）
 
 | 项 | 说明 |
 |----|------|
 | gatePackageId / effectiveAt 真值 | 现恒 null；签字包流属 ADR-046 |
-| 分片策略 UI | B12 |
-| admin 写 KB 级 model_bindings UI | 运行时 resolve 已接；运营写 UI 可后置 |
+| admin 写 KB 级 model_bindings UI | 运行时 resolve 已接（B2-W）；运营写 UI 可后置 |

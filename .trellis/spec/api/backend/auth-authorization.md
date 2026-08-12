@@ -83,21 +83,26 @@ refreshTokenPair(refreshToken, expectedApp?): Promise<TokenPairResponse>
 verifyBearerAccess(authorizationHeader, expectedApp?): Promise<AccessTokenClaims>
 ```
 
-#### 角色 hydrate（B4-W）
+#### 角色 hydrate（B4-W · task `08-11-b4-w-jwt-db-roles`）
 
 ```typescript
 // apps/api/src/auth/role-hydrate.ts
 hydrateAuthz({ userId, tenantId?, claimsRoles, nowMs? }): Promise<HydratedAuthz>
 // 身份 = JWT；roles / effectiveCodes = DB user_roles∪platform_roles.codesJson（启用）
-// 缓存 ≤5s 进程内；写路径 invalidateRoleCache(userId|全表)
-// 单实例假设：多实例无共享失效 → 最多 ~5s 脏读
-// dev/test 且无 DB 绑定时回退 claims（兼容 JWT 单测）；production 空绑 = 空权限
+// 缓存 ≤5s 进程内（ROLE_CACHE_TTL_MS）；写路径 invalidateRoleCache(userId|全表)
+// 单实例假设：多实例无共享失效 → 最多 ~5s 脏读（**未**做 Redis 广播）
+// loader 超时 ROLE_LOAD_TIMEOUT_MS（test/VITEST=500ms，其它=3000ms）→ 回退 claims，不拖死请求
+// vitest 默认 RoleAuthzLoader = async () => null（不连 PG；role-hydrate 测例 inject memory）
+// dev/test 空绑或 loader null → claims；production 空绑 = 空权限（不回退 claims 模板）
 ensureUserRoleCodes({ userId, tenantId?, roleCodes, repo? }) // dev-login bootstrap
-setRoleAuthzLoader(fn | null) // 测例注入
+setRoleAuthzLoader(fn | null) // 测例注入；null = 恢复 defaultRoleAuthzLoader
+createDbRoleAuthzLoader(repo)
 ```
 
 中间件：`attachAuth` / `ensureAuth` 验 JWT 后调用 `hydrateAuthz`，**覆盖** `auth.roles` 与 `effectiveCodes`。  
 写路径：`platform-users-roles` 改绑 / 改角色码 → `invalidateRoleCache`。
+
+> **Gotcha**：单测若未 `setRoleAuthzLoader`，hydrate **不会**打 PG（避免 departments 等测例被半开连接挂死）。需要 DB 语义时必须 inject。
 
 #### Access JWT claims
 
@@ -170,7 +175,7 @@ Refresh JWT：`sub` · `sid` · `app` · `jti`（落库/内存状态，用于 ro
 | `ACCESS_TOKEN_TTL_SEC` | `900` | int > 0 |
 | `REFRESH_TOKEN_TTL_SEC` | `604800` | int > 0 |
 | `AUTH_ENFORCE` | `false` | `true` 时文档/KB 路由 `requirePermissionWhenEnforced`；默认 false 保 demo-ingest；**禁止**改仓库默认 on |
-| （运行时） | `isAuthEnforceEnabled()` | 读 `process.env.AUTH_ENFORCE`（支持 `vi.stubEnv`）→ 回退模块 `env`；QUAL-1 红线测 |
+| （运行时） | `isAuthEnforceEnabled()` | **优先**读 `process.env.AUTH_ENFORCE`（`vi.stubEnv` 即时生效，无需重载 Zod env）→ 回退模块 `env`；QUAL-1 已归档 |
 #### Hono Variables
 
 ```typescript
@@ -218,8 +223,8 @@ Refresh JWT：`sub` · `sid` · `app` · `jti`（落库/内存状态，用于 ro
 |------|--------|
 | `auth/permissions/resolve.test.ts` | super_admin 全码；doc_operator 无 approval.decide；web_consumer 无 shell；union/deny；kb 成员 AND |
 | `auth/identity/token-service.test.ts` | issue+verify；refresh 轮换 access 不同；replay 抛 `AuthIdentityError`；app 错配拒绝 |
-| `auth/role-hydrate.test.ts` | B4-W DB 覆盖 JWT、缓存/invalidate、bootstrap、成员 403 |
-| `auth/auth-enforce.redline.test.ts` | QUAL-1：`vi.stubEnv` enforce=true 无 Bearer → 401 UNAUTHORIZED；默认仍关；unstub 还原 |
+| `auth/role-hydrate.test.ts` | B4-W DB 覆盖 JWT、缓存/invalidate、bootstrap、timeout→claims、成员 403 回归 |
+| `auth/auth-enforce.redline.test.ts` | QUAL-1（已归档）：`vi.stubEnv` enforce=true 无 Bearer → 401 UNAUTHORIZED；默认仍关；unstub 还原 |
 | 路由（建议补） | dev-login 400 体；/me 无 token 401；refresh replay 401 |
 | 前端（建议补） | http 在 `UNAUTHORIZED` 时只并发一次 refresh |
 
@@ -292,6 +297,7 @@ http：`UNAUTHORIZED` → **单飞** refresh → 重试；失败 `clearClientSes
 | 同秒 refresh 后 access 字符串相同（测试误失败） | JWT 无 jti 且 iat 相同 | access 签发必须 `setJti(uuidv7())` |
 | demo-ingest 全 401 | 误开 `AUTH_ENFORCE` 且业务已挂 requireAuth | 本地保持 false，或脚本带 token |
 | 改角色后仍旧权限 | 只信 access 内嵌列表、未 invalidate | B4-W：`invalidateRoleCache` + 每请求 hydrate；缓存 ≤5s |
+| vitest 全套 hang 在 departments/model-gateway | hydrate 默认打真 PG | vitest 默认 null loader；需 DB 时 `setRoleAuthzLoader` |
 | admin 能进但 API 403 | 正常（UI≠API）或码未挂模板 | 查 catalog 模板绑码 |
 
 ---
