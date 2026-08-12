@@ -3,11 +3,16 @@
  * Phase 0：探针队列 · Phase 1：ingest 状态机
  */
 
+import {
+  INGEST_JOB_BACKOFF_MS,
+  INGEST_JOB_DEFAULT_ATTEMPTS,
+} from '@strict-rag/contracts';
 import { Queue, Worker, type ConnectionOptions } from 'bullmq';
 import { Redis } from 'ioredis';
 
 import { closeDb } from './db.js';
 import { env } from './env.js';
+import { assertIngestBullOutcome } from './ingest/bull-outcome.js';
 import { runIngestStage } from './ingest/pipeline.js';
 import { logger } from './logger.js';
 import {
@@ -64,6 +69,12 @@ async function main() {
 
   const ingestQueue = new Queue<IngestJobData>(QUEUE_NAMES.INGEST, {
     connection: redisForQueue as unknown as ConnectionOptions,
+    defaultJobOptions: {
+      attempts: INGEST_JOB_DEFAULT_ATTEMPTS,
+      backoff: { type: 'exponential', delay: INGEST_JOB_BACKOFF_MS },
+      removeOnComplete: 200,
+      removeOnFail: 100,
+    },
   });
 
   const ingestWorker = new Worker<IngestJobData>(
@@ -72,12 +83,11 @@ async function main() {
       logger.info({ jobId: job.id, data: job.data }, 'ingest job started');
       const result = await runIngestStage(job.data);
       if (result.next) {
-        await ingestQueue.add(result.next.stage, result.next, {
-          removeOnComplete: 200,
-          removeOnFail: 100,
-        });
+        await ingestQueue.add(result.next.stage, result.next);
         logger.info({ next: result.next.stage, docId: job.data.docId }, 'chained next stage');
       }
+      // X-04：业务码驱动重试 / 不可重试（毒丸禁 requeue）
+      assertIngestBullOutcome(result.errorCode);
       return result;
     },
     { connection },

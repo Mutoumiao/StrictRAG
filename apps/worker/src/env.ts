@@ -4,6 +4,11 @@ import { fileURLToPath } from 'node:url';
 import { config as loadDotenv } from 'dotenv';
 import { z } from 'zod';
 
+import {
+  checkScanModeStartupPolicy,
+  INGEST_SCAN_MODES,
+} from './scan-mode-policy.js';
+
 const monorepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 loadDotenv({ path: path.join(monorepoRoot, '.env') });
 loadDotenv();
@@ -26,8 +31,11 @@ const EnvSchema = z
       .transform((v) => v === 'true'),
     GATEWAY_BASE_URL: z.string().optional().default(''),
     GATEWAY_API_KEY: z.string().optional().default(''),
-    /** mock_clean | mock_infected | on */
-    INGEST_SCAN_MODE: z.enum(['mock_clean', 'mock_infected', 'on']).default('mock_clean'),
+    /**
+     * mock_clean | mock_infected | off = 仅 development|test
+     * on = 真引擎（QUAL-2 未清前启动失败，禁同 clean）
+     */
+    INGEST_SCAN_MODE: z.enum(INGEST_SCAN_MODES).default('mock_clean'),
     /** mock | fail — mock ES 失败路径验证 ADR-038 */
     INGEST_ES_MODE: z.enum(['mock', 'fail']).default('mock'),
     INGEST_EMBED_MODE: z.enum(['mock', 'fail']).default('mock'),
@@ -42,6 +50,15 @@ const EnvSchema = z
         path: ['TAU_CLAIM'],
         message:
           'tauClaim 双源冲突：TAU_CLAIM 与 TAU_CLAIM_LEGACY 不一致。仅允许 TAU_CLAIM 为唯一配置源。',
+      });
+    }
+
+    const scanPolicy = checkScanModeStartupPolicy(data.APP_ENV, data.INGEST_SCAN_MODE);
+    if (scanPolicy) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['INGEST_SCAN_MODE'],
+        message: scanPolicy,
       });
     }
   });

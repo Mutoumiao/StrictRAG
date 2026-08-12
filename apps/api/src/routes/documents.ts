@@ -29,7 +29,7 @@ import { fail, ok } from '../lib/response.js';
 import { childLogger } from '../logger.js';
 import type { ApiVariables } from '../middleware/request-id.js';
 import {
-  listChunkStrategies,
+  isMultiStrategyCatalog,
   resolveDocumentChunkStrategy,
 } from '../services/chunk-strategies.js';
 import { documentRepo } from '../services/documents.js';
@@ -200,8 +200,8 @@ documentRoutes.post(
     );
   }
 
-  // B12 / AA3：多策略且文档尚无策略 → complete 必须显式传；已有策略可省略并保留
-  const multi = listChunkStrategies().length > 1;
+  // B12 / AA3：多策略 catalog 且文档尚无策略 → complete 必须显式传；已有策略可省略并保留（且须已实现）
+  const multi = isMultiStrategyCatalog();
   const strategyGate = resolveDocumentChunkStrategy({
     existing: doc.chunkStrategy,
     requested: body.data.chunkStrategy,
@@ -258,8 +258,8 @@ documentRoutes.post(
       return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
     }
 
-    // 多策略并存 → reindex 强制显式传策略（必选）
-    const multi = listChunkStrategies().length > 1;
+    // 多策略 catalog → reindex 强制显式传；最终 code 须 worker 已实现（见 resolve）
+    const multi = isMultiStrategyCatalog();
     const strategyGate = resolveDocumentChunkStrategy({
       existing: doc.chunkStrategy,
       requested: parsed.data.chunkStrategy,

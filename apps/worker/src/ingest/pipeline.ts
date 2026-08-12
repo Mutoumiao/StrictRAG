@@ -1,4 +1,8 @@
 import {
+  DEFAULT_CHUNK_STRATEGY,
+  isImplementedChunkStrategy,
+} from '@strict-rag/contracts';
+import {
   chunkEmbeddings,
   chunkManifests,
   chunks,
@@ -13,7 +17,26 @@ import { getDb } from '../db.js';
 import { env } from '../env.js';
 import { logger } from '../logger.js';
 import type { IngestJobData, IngestStage } from '../queues.js';
+import { isScanModeRuntimeBlocked } from '../scan-mode-policy.js';
+import {
+  decideChunkPath,
+  missingEmbeddingChunkIds,
+  resolveIndexVersion,
+  withStageAndVersion,
+} from './idempotency.js';
 import { mockEsStore } from './es-store.js';
+
+/** 阶段结果：errorCode 供 worker 接 BullMQ retry / Unrecoverable */
+export type IngestStageResult = {
+  next?: IngestJobData;
+  done?: boolean;
+  /** 业务失败码；无码的 done = 成功终态（如 dual-ready） */
+  errorCode?: string;
+};
+
+function failStage(errorCode: string): IngestStageResult {
+  return { done: true, errorCode };
+}
 
 async function loadObjectText(objectKey: string | null): Promise<string> {
   if (!objectKey) return '';
@@ -39,8 +62,12 @@ async function getDoc(docId: string) {
   return doc ?? null;
 }
 
-function enqueueNext(data: IngestJobData, stage: IngestStage): IngestJobData {
-  return { ...data, stage };
+function enqueueNext(
+  data: IngestJobData,
+  stage: IngestStage,
+  indexVersion?: number,
+): IngestJobData {
+  return withStageAndVersion(data, stage, indexVersion);
 }
 
 /** 简单段落分块（structure_paragraph 最低实现） */
@@ -52,14 +79,40 @@ export function splitParagraphs(text: string, minChars: number): string[] {
   return parts;
 }
 
-export async function runIngestStage(
-  data: IngestJobData,
-): Promise<{ next?: IngestJobData; done?: boolean }> {
+/**
+ * 按策略切分正文。未实现码 **不得** 静默回落段落切（X-03）。
+ * @returns pieces 或 errorCode
+ */
+export function splitByChunkStrategy(
+  strategy: string,
+  text: string,
+  minChars: number,
+): { ok: true; pieces: string[] } | { ok: false; errorCode: string; message: string } {
+  const code = strategy.trim() || DEFAULT_CHUNK_STRATEGY;
+  if (!isImplementedChunkStrategy(code)) {
+    return {
+      ok: false,
+      errorCode: 'UNSUPPORTED_CHUNK_STRATEGY',
+      message: `chunkStrategy not implemented: ${code} (only structure_paragraph)`,
+    };
+  }
+  if (code === 'structure_paragraph') {
+    return { ok: true, pieces: splitParagraphs(text, minChars) };
+  }
+  // 防御：implemented 集合扩了但未接 switch
+  return {
+    ok: false,
+    errorCode: 'UNSUPPORTED_CHUNK_STRATEGY',
+    message: `chunkStrategy registered as implemented but no splitter: ${code}`,
+  };
+}
+
+export async function runIngestStage(data: IngestJobData): Promise<IngestStageResult> {
   const log = logger.child({ docId: data.docId, stage: data.stage });
   const doc = await getDoc(data.docId);
   if (!doc) {
     log.error('document not found');
-    return { done: true };
+    return failStage('DOC_NOT_FOUND');
   }
 
   // ADR-048：任意阶段再确认
@@ -69,12 +122,23 @@ export async function runIngestStage(
       errorCode: 'NOT_APPROVED',
       errorMessage: 'scan/pipeline blocked: not approved',
     });
-    return { done: true };
+    return failStage('NOT_APPROVED');
   }
 
   switch (data.stage) {
     case 'scan': {
       await setDoc(data.docId, { status: 'scanning', errorCode: null, errorMessage: null });
+      // X-02 防御：env 闸应已拒 on；若绕过配置仍不得当 clean
+      if (isScanModeRuntimeBlocked(env.INGEST_SCAN_MODE)) {
+        await setDoc(data.docId, {
+          status: 'failed',
+          errorCode: 'SCAN_ENGINE_UNAVAILABLE',
+          errorMessage:
+            'INGEST_SCAN_MODE=on but real scan engine is not wired (QUAL-2); refuse clean pass',
+        });
+        log.error('scan blocked: mode=on without engine');
+        return failStage('SCAN_ENGINE_UNAVAILABLE');
+      }
       if (env.INGEST_SCAN_MODE === 'mock_infected') {
         // infected：删对象 + failed
         if (doc.objectKey) {
@@ -91,9 +155,14 @@ export async function runIngestStage(
           errorMessage: 'mock infected — object deleted',
         });
         log.warn('scan infected');
-        return { done: true };
+        return failStage('MALWARE');
       }
-      log.info('scan clean');
+      // mock_clean | off（仅 non-prod 可启动）
+      if (env.INGEST_SCAN_MODE === 'off') {
+        log.info('scan skipped (INGEST_SCAN_MODE=off, non-prod only)');
+      } else {
+        log.info('scan clean (mock_clean)');
+      }
       return { next: enqueueNext(data, 'parse') };
     }
 
@@ -109,7 +178,7 @@ export async function runIngestStage(
           extractMethod: 'text',
         });
         log.warn('needs_ocr — no text layer');
-        return { done: true };
+        return failStage('NO_TEXT_LAYER');
       }
       await setDoc(data.docId, {
         parsedText: text,
@@ -122,19 +191,70 @@ export async function runIngestStage(
 
     case 'chunk': {
       await setDoc(data.docId, { status: 'chunking' });
+      const db = getDb();
+
+      // X-04：带 indexVersion 的 job = 恢复路径，禁止重分块
+      if (data.indexVersion != null) {
+        const [existingManifest] = await db
+          .select()
+          .from(chunkManifests)
+          .where(
+            and(
+              eq(chunkManifests.docId, doc.id),
+              eq(chunkManifests.indexVersion, data.indexVersion),
+            ),
+          )
+          .limit(1);
+        const decision = decideChunkPath(data.indexVersion, !!existingManifest);
+        if (decision.action === 'resume_embed') {
+          log.info(
+            { indexVersion: decision.indexVersion },
+            'chunk idempotent resume → embed (no re-split)',
+          );
+          return {
+            next: enqueueNext(data, 'embed', decision.indexVersion),
+          };
+        }
+        if (decision.action === 'fail') {
+          await setDoc(data.docId, {
+            status: 'failed',
+            errorCode: decision.errorCode,
+            errorMessage: decision.message,
+          });
+          log.warn({ indexVersion: data.indexVersion }, decision.message);
+          return failStage(decision.errorCode);
+        }
+        // materialize 仅无 version 时出现；带 version 不会落到此
+      }
+
       const text = doc.parsedText ?? '';
-      const pieces = splitParagraphs(text, env.INGEST_MIN_EXTRACTED_CHARS);
+      const strategyCode = doc.chunkStrategy?.trim() || DEFAULT_CHUNK_STRATEGY;
+      const split = splitByChunkStrategy(
+        strategyCode,
+        text,
+        env.INGEST_MIN_EXTRACTED_CHARS,
+      );
+      if (!split.ok) {
+        await setDoc(data.docId, {
+          status: 'failed',
+          errorCode: split.errorCode,
+          errorMessage: split.message,
+        });
+        log.warn({ strategyCode }, 'chunk strategy unsupported');
+        return failStage(split.errorCode);
+      }
+      const pieces = split.pieces;
       if (pieces.length === 0) {
         await setDoc(data.docId, {
           status: 'failed',
           errorCode: 'EMPTY_CHUNKS',
           errorMessage: 'no chunks after split',
         });
-        return { done: true };
+        return failStage('EMPTY_CHUNKS');
       }
 
+      // 首跑 / reindex：新建 indexVersion 并冻结 manifest
       const indexVersion = (doc.indexVersion || 0) + 1;
-      const db = getDb();
       const chunkIds: string[] = [];
 
       // doc 内简单去重：相同 body 跳过
@@ -168,7 +288,7 @@ export async function runIngestStage(
           errorCode: 'EMPTY_CHUNKS',
           errorMessage: 'all chunks deduped away',
         });
-        return { done: true };
+        return failStage('EMPTY_CHUNKS');
       }
 
       await db.insert(chunkManifests).values({
@@ -179,7 +299,7 @@ export async function runIngestStage(
         indexVersion,
         chunkIds,
         frozen: 1,
-        strategy: doc.chunkStrategy ?? 'structure_paragraph',
+        strategy: strategyCode,
       });
 
       await setDoc(data.docId, {
@@ -188,7 +308,7 @@ export async function runIngestStage(
         esReady: 0,
       });
       log.info({ indexVersion, chunkCount: chunkIds.length }, 'manifest frozen');
-      return { next: enqueueNext(data, 'embed') };
+      return { next: enqueueNext(data, 'embed', indexVersion) };
     }
 
     case 'embed': {
@@ -200,7 +320,17 @@ export async function runIngestStage(
           errorMessage: 'mock embed failure',
           embedReady: 0,
         });
-        return { done: true };
+        return failStage('EMBED_FAILED');
+      }
+
+      const indexVersion = resolveIndexVersion(data.indexVersion, doc.indexVersion);
+      if (indexVersion == null) {
+        await setDoc(data.docId, {
+          status: 'failed',
+          errorCode: 'MISSING_INDEX_VERSION',
+          errorMessage: 'embed requires indexVersion (job or document)',
+        });
+        return failStage('MISSING_INDEX_VERSION');
       }
 
       const db = getDb();
@@ -210,7 +340,7 @@ export async function runIngestStage(
         .where(
           and(
             eq(chunkManifests.docId, doc.id),
-            eq(chunkManifests.indexVersion, doc.indexVersion),
+            eq(chunkManifests.indexVersion, indexVersion),
           ),
         )
         .limit(1);
@@ -221,11 +351,25 @@ export async function runIngestStage(
           errorCode: 'NO_MANIFEST',
           errorMessage: 'missing frozen manifest',
         });
-        return { done: true };
+        return failStage('NO_MANIFEST');
       }
 
+      const existingRows = await db
+        .select({ chunkId: chunkEmbeddings.chunkId })
+        .from(chunkEmbeddings)
+        .where(
+          and(
+            eq(chunkEmbeddings.docId, doc.id),
+            eq(chunkEmbeddings.indexVersion, indexVersion),
+          ),
+        );
+      const toEmbed = missingEmbeddingChunkIds(
+        manifest.chunkIds,
+        existingRows.map((r) => r.chunkId),
+      );
+
       const dims = 8;
-      for (const chunkId of manifest.chunkIds) {
+      for (const chunkId of toEmbed) {
         const vector = Array.from({ length: dims }, (_, i) => ((chunkId.charCodeAt(i % chunkId.length) ?? 1) % 97) / 97);
         await db.insert(chunkEmbeddings).values({
           id: uuidv7(),
@@ -233,17 +377,25 @@ export async function runIngestStage(
           kbId: doc.kbId,
           docId: doc.id,
           chunkId,
-          indexVersion: doc.indexVersion,
+          indexVersion,
           model: 'mock-embed',
           dims,
           embedding: vector,
         });
       }
 
-      await setDoc(data.docId, { embedReady: 1 });
-      log.info({ chunkCount: manifest.chunkIds.length }, 'embed done');
-      // 串行：仅 embed 成功后 es_index
-      return { next: enqueueNext(data, 'es_index') };
+      await setDoc(data.docId, { indexVersion, embedReady: 1 });
+      log.info(
+        {
+          indexVersion,
+          chunkCount: manifest.chunkIds.length,
+          inserted: toEmbed.length,
+          skipped: manifest.chunkIds.length - toEmbed.length,
+        },
+        'embed done (idempotent skip existing)',
+      );
+      // 串行：仅 embed 成功后 es_index；透传 indexVersion
+      return { next: enqueueNext(data, 'es_index', indexVersion) };
     }
 
     case 'es_index': {
@@ -256,7 +408,17 @@ export async function runIngestStage(
           errorCode: 'EMBED_NOT_READY',
           errorMessage: 'es_index requires embed_ready',
         });
-        return { done: true };
+        return failStage('EMBED_NOT_READY');
+      }
+
+      const indexVersion = resolveIndexVersion(data.indexVersion, doc.indexVersion);
+      if (indexVersion == null) {
+        await setDoc(data.docId, {
+          status: 'failed',
+          errorCode: 'MISSING_INDEX_VERSION',
+          errorMessage: 'es_index requires indexVersion (job or document)',
+        });
+        return failStage('MISSING_INDEX_VERSION');
       }
 
       if (env.INGEST_ES_MODE === 'fail') {
@@ -267,7 +429,7 @@ export async function runIngestStage(
           esReady: 0,
         });
         log.warn('es mock fail — document not ready');
-        return { done: true };
+        return failStage('ES_INDEX_FAILED');
       }
 
       const db = getDb();
@@ -277,7 +439,7 @@ export async function runIngestStage(
         .where(
           and(
             eq(chunkManifests.docId, doc.id),
-            eq(chunkManifests.indexVersion, doc.indexVersion),
+            eq(chunkManifests.indexVersion, indexVersion),
           ),
         )
         .limit(1);
@@ -288,12 +450,12 @@ export async function runIngestStage(
           errorCode: 'NO_MANIFEST',
           errorMessage: 'missing frozen manifest for es',
         });
-        return { done: true };
+        return failStage('NO_MANIFEST');
       }
 
-      // 按 doc 维度索引/对账（同 KB 多文档不得互相污染 orphan 判定）
-      mockEsStore.bulkIndex(doc.id, doc.indexVersion, manifest.chunkIds);
-      const report = mockEsStore.reconcile(doc.id, doc.indexVersion, manifest.chunkIds);
+      // 按 doc 维度索引/对账；bulkIndex 为 set 合并 → 同 version 重跑幂等
+      mockEsStore.bulkIndex(doc.id, indexVersion, manifest.chunkIds);
+      const report = mockEsStore.reconcile(doc.id, indexVersion, manifest.chunkIds);
       if (!report.ok) {
         await setDoc(data.docId, {
           status: 'failed',
@@ -301,11 +463,12 @@ export async function runIngestStage(
           errorMessage: JSON.stringify(report),
           esReady: 0,
         });
-        return { done: true };
+        return failStage('ES_RECONCILE_FAILED');
       }
 
       // 双就绪 → ready；lifecycle 仍 draft
       await setDoc(data.docId, {
+        indexVersion,
         esReady: 1,
         status: 'ready',
         lifecycle: 'draft',
@@ -314,12 +477,12 @@ export async function runIngestStage(
       });
       log.info(
         {
-          indexVersion: doc.indexVersion,
+          indexVersion,
           chunkCount: manifest.chunkIds.length,
           ingestReport: {
             docId: doc.id,
             kbId: doc.kbId,
-            indexVersion: doc.indexVersion,
+            indexVersion,
             chunkIds: manifest.chunkIds,
             embedReady: true,
             esReady: true,
@@ -333,6 +496,6 @@ export async function runIngestStage(
 
     default:
       log.error('unknown stage');
-      return { done: true };
+      return failStage('UNKNOWN_STAGE');
   }
 }
