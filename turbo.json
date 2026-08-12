@@ -22,6 +22,8 @@
         "API_BASE_URL",
         "NEXT_PUBLIC_APP_ENV",
         "NEXT_PUBLIC_API_BASE_URL",
+        "AUTH_ENFORCE",
+        "VITEST",
         "L1_KB_ID",
         "L1_MAX_CASES",
         "L1_TENANT_ID",
