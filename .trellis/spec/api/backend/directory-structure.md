@@ -9,7 +9,8 @@ apps/api/src/
   env.ts                   # Zod env（+ API_REQUEST_TIMEOUT_MS · API_JSON_BODY_LIMIT_BYTES …）
   auth/
     types.ts
-    middleware.ts          # attachAuth · requireAuth · requirePermission · WhenEnforced · requireKbMember · isAuthEnforceEnabled
+    middleware.ts          # attachAuth · requireAuth · requirePermission · WhenEnforced · requireKbMember · requireKbScope · evaluateKbMember · isAuthEnforceEnabled
+    kb-scope.ts            # ARCH-P1b-1：lookupKbMembership 请求内缓存纯函数
     role-hydrate.ts        # B4-W：DB 角色 ≤5s 缓存 · ROLE_LOAD_TIMEOUT · vitest 默认 null loader
     auth-enforce.redline.test.ts  # QUAL-1
     identity/              # 双 JWT 过渡
@@ -25,14 +26,14 @@ apps/api/src/
     members.ts             # 成员 list/invite/delete
     ask.ts                 # POST …/ask 同步 + AI SDK UI Message Stream（B2-W mode/docTypes）
     sessions.ts            # 会话壳（无 rewrite）
-    feedback.ts            # B13：POST ask feedback · queue · PATCH
+    feedback.ts            # B13：POST/PATCH 用 evaluateKbMember / checkPermission({ kbId })
     kb-settings.ts         # B2/B2-W 知识库设置
     model-gateway.ts       # B3 模型供应商 + 平台绑定
     platform-users-roles.ts # B4（写路径 invalidateRoleCache）
     departments.ts         # B5
     dashboard.ts           # B6 数据面板只读 summary
   middleware/
-    request-id.ts          # X-Request-Id
+    request-id.ts          # X-Request-Id · ApiVariables.kbMemberCache?
     timeout.ts             # 可关全局 timeout；ask except
     body-limit.ts          # JSON 体限；上传/complete except
     on-error.ts            # 全局 throw 兜底

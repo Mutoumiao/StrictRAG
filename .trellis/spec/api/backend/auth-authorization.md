@@ -50,19 +50,39 @@ app.use('*', attachAuthMiddleware)
 // 必须登录
 app.use('/api/v1/secure/*', requireAuth('admin'))
 
-// 验码（ADR-051）；:kbId 默认 resolveKbMemberFromDb
+// 验码（ADR-051）；:kbId 默认 resolveKbMemberFromDb（请求内缓存）
 app.use('/api/v1/...', requirePermission('doc.upload', { expectedApp: 'admin' }))
+
+// ARCH-P1b-1 组合入口（新代码优先）
+app.post('/api/v1/kb/:kbId/ask', requireKbScope(), handler) // = requireKbMember
+app.get('/api/v1/kb/:kbId/chunks', requireKbScope({ permission: 'chunk.view' }), handler)
+app.post('/api/v1/kb/:kbId/documents', requireKbScope({ permission: 'doc.upload', whenEnforced: true }), handler)
 
 // ask / sessions：始终成员闸（与 AUTH_ENFORCE 无关；super_admin 旁路）
 app.post('/api/v1/kb/:kbId/ask', requireKbMember(), handler)
+
+// handler 无 path :kbId 时（如 feedback 从 trace 取 kb）
+const r = await evaluateKbMember(c, kbIdFromTrace)
+const p = await checkPermission(c, 'feedback.queue', { kbId: row.kbId })
 ```
+
+**ARCH-P1b-1 · KB 作用域组合**
+
+| 符号 | 职责 |
+|------|------|
+| `lookupKbMembership` | 纯函数；`Map` 缓存同 `(userId, kbId)` 只 resolve 一次（`auth/kb-scope.ts`） |
+| `requireKbScope({ permission?, whenEnforced? })` | 组合入口：无码→成员；有码→`requirePermission`；`whenEnforced`→`WhenEnforced` |
+| `evaluateKbMember` / `checkPermission(..., { kbId })` | handler 级；路径无 `:kbId` 时覆盖 |
+| `ApiVariables.kbMemberCache` | 请求内缓存；跨请求不复用 |
+
+既有 `requirePermission` / `requireKbMember` / `requirePermissionWhenEnforced` **保留**且走同一缓存。
 
 **AUTH_ENFORCE vs 成员闸**：
 
 | 路由类 | 默认 | 说明 |
 |--------|------|------|
 | 入库 documents | `requirePermissionWhenEnforced` | false 时 demo-ingest 无 token |
-| members / ask / sessions / **chunks** / **kb settings** | `requirePermission` / `requireKbMember` | **始终**登录+码/成员；不改 AUTH 默认；chunks=`chunk.view`；settings=`kb.config.write` |
+| members / ask / sessions / **chunks** / **kb settings** | `requirePermission` / `requireKbMember` / `requireKbScope` | **始终**登录+码/成员；不改 AUTH 默认；chunks=`chunk.view`；settings=`kb.config.write` |
 
 #### 权限求值
 
@@ -370,7 +390,8 @@ apps/api/src/auth/
   identity/{jwt,refresh-store,token-service}.ts
   permissions/resolve.ts
   role-hydrate.ts          # B4-W DB 角色 + ≤5s 缓存
-  middleware.ts
+  kb-scope.ts              # ARCH-P1b-1 成员缓存纯函数
+  middleware.ts            # attachAuth · require* · requireKbScope · evaluateKbMember
   types.ts
 apps/api/src/routes/auth.ts
 apps/admin/src/auth/{client-session,api}.ts

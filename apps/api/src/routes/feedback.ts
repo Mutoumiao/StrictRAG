@@ -9,17 +9,13 @@ import {
 import { Hono } from 'hono';
 
 import {
+  checkPermission,
+  evaluateKbMember,
   requireAuth,
   requirePermission,
   type AuthVariables,
   type ResolveKbMember,
-  resolveKbMemberFromDb,
 } from '../auth/middleware.js';
-import {
-  canAccessKbScoped,
-  resolveEffectiveCodes,
-  roleBypassesKbMembership,
-} from '../auth/permissions/resolve.js';
 import { fail, ok } from '../lib/response.js';
 import { getAskTraceByRequestId } from '../services/ask/traces.js';
 import { documentRepo } from '../services/documents.js';
@@ -70,7 +66,6 @@ function toPublic(row: FeedbackRow): FeedbackItem {
 export function createFeedbackRoutes(deps: FeedbackRouteDeps = {}) {
   const routes = new Hono<{ Variables: AuthVariables }>();
   const repo = deps.feedback ?? feedbackRepo;
-  const resolveMember = deps.resolveKbMember ?? resolveKbMemberFromDb;
   const getTrace: TraceLookup =
     deps.getTrace ??
     (async (requestId) => {
@@ -87,17 +82,9 @@ export function createFeedbackRoutes(deps: FeedbackRouteDeps = {}) {
   const queueMw = requirePermission('feedback.queue', {
     resolveKbMember: deps.resolveKbMember,
   });
+  const memberOpts = { resolveKbMember: deps.resolveKbMember };
 
-  async function assertKbMember(
-    userId: string,
-    roles: string[],
-    kbId: string,
-  ): Promise<boolean> {
-    if (roleBypassesKbMembership(roles)) return true;
-    return resolveMember(userId, kbId);
-  }
-
-  /** POST /ask/:requestId/feedback */
+  /** POST /ask/:requestId/feedback — 登录 + KB 成员（kb 从 trace；ARCH-P1b-1 evaluateKbMember） */
   routes.post('/ask/:requestId/feedback', requireAuth(), async (c) => {
     const requestId = c.req.param('requestId');
     const auth = c.get('auth');
@@ -119,11 +106,15 @@ export function createFeedbackRoutes(deps: FeedbackRouteDeps = {}) {
       return fail(c, BizCode.NOT_FOUND, 'ask trace not found', 404, { requestId });
     }
 
-    const member = await assertKbMember(auth.userId, auth.roles, trace.kbId);
-    if (!member) {
-      return fail(c, BizCode.FORBIDDEN, 'not a knowledge base member', 403, {
-        kbId: trace.kbId,
-      });
+    const memberR = await evaluateKbMember(c, trace.kbId, memberOpts);
+    if (!memberR.ok) {
+      return fail(
+        c,
+        memberR.status === 401 ? BizCode.UNAUTHORIZED : BizCode.FORBIDDEN,
+        memberR.message,
+        memberR.status,
+        'details' in memberR ? memberR.details : undefined,
+      );
     }
 
     const row = await repo.create({
@@ -165,7 +156,7 @@ export function createFeedbackRoutes(deps: FeedbackRouteDeps = {}) {
     return ok(c, data);
   });
 
-  /** PATCH /feedback/:feedbackId */
+  /** PATCH /feedback/:feedbackId — 登录 + feedback.queue + 成员（kb 从 row；ARCH-P1b-1 checkPermission） */
   routes.patch('/feedback/:feedbackId', requireAuth(), async (c) => {
     const feedbackId = c.req.param('feedbackId');
     const auth = c.get('auth');
@@ -184,20 +175,18 @@ export function createFeedbackRoutes(deps: FeedbackRouteDeps = {}) {
       return fail(c, BizCode.NOT_FOUND, 'feedback not found', 404);
     }
 
-    const effective =
-      c.get('effectiveCodes') ?? resolveEffectiveCodes({ roleCodes: auth.roles });
-    const isKbMember = await assertKbMember(auth.userId, auth.roles, existing.kbId);
-    const allowed = canAccessKbScoped({
-      roleCodes: auth.roles,
-      effective,
-      requiredCode: 'feedback.queue',
-      isKbMember,
+    const permR = await checkPermission(c, 'feedback.queue', {
+      ...memberOpts,
+      kbId: existing.kbId,
     });
-    if (!allowed) {
-      return fail(c, BizCode.FORBIDDEN, 'missing permission: feedback.queue', 403, {
-        code: 'feedback.queue',
-        kbId: existing.kbId,
-      });
+    if (!permR.ok) {
+      return fail(
+        c,
+        permR.status === 401 ? BizCode.UNAUTHORIZED : BizCode.FORBIDDEN,
+        permR.message,
+        permR.status,
+        'details' in permR ? permR.details : undefined,
+      );
     }
 
     const updated = await repo.patchStatus({

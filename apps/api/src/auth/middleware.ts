@@ -6,6 +6,7 @@ import { env } from '../env.js';
 import { fail } from '../lib/response.js';
 import type { ApiVariables } from '../middleware/request-id.js';
 import { membersRepo } from '../services/members.js';
+import { lookupKbMembership } from './kb-scope.js';
 import {
   canAccessKbScoped,
   canEnterAdminShell,
@@ -27,6 +28,30 @@ export type ResolveKbMember = (userId: string, kbId: string) => Promise<boolean>
 /** 默认查 kb_members；测例可注入 mock */
 export const resolveKbMemberFromDb: ResolveKbMember = (userId, kbId) =>
   membersRepo.isMember(userId, kbId);
+
+/** 请求内成员缓存（懒创建） */
+function getKbMemberCache(c: AuthCtx): Map<string, boolean> {
+  let cache = c.get('kbMemberCache');
+  if (!cache) {
+    cache = new Map();
+    c.set('kbMemberCache', cache);
+  }
+  return cache;
+}
+
+async function resolveMembershipCached(
+  c: AuthCtx,
+  userId: string,
+  kbId: string,
+  resolve: ResolveKbMember,
+): Promise<boolean> {
+  return lookupKbMembership({
+    userId,
+    kbId,
+    cache: getKbMemberCache(c),
+    resolve,
+  });
+}
 
 function appAllowed(app: AuthPrincipal['app'], expected?: ExpectedApp): boolean {
   if (!expected) return true;
@@ -123,13 +148,26 @@ type PermOptions = {
   expectedApp?: 'admin' | 'web';
   /** 默认查 kb_members；单测可注入 */
   resolveKbMember?: ResolveKbMember;
+  /**
+   * 覆盖 path `:kbId`（handler 从 trace/body 取 kb 时用）。
+   * 未传则读 `c.req.param('kbId')`。
+   */
+  kbId?: string;
 };
 
-async function checkPermission(
+export type GateResult =
+  | { ok: true }
+  | { ok: false; status: 401 | 403; message: string; details?: unknown };
+
+/**
+ * 验权限码 +（kb scope 时）成员。路径无 `:kbId` 时可用 `options.kbId`。
+ * ARCH-P1b-1：成员查询走请求内缓存。
+ */
+export async function checkPermission(
   c: AuthCtx,
   code: string,
   options?: PermOptions,
-): Promise<{ ok: true } | { ok: false; status: 401 | 403; message: string; details?: unknown }> {
+): Promise<GateResult> {
   const auth = c.get('auth');
   if (!auth) {
     return { ok: false, status: 401, message: 'authentication required' };
@@ -145,12 +183,12 @@ async function checkPermission(
     return { ok: false, status: 403, message: 'admin.shell required' };
   }
 
-  const kbId = c.req.param('kbId');
+  const kbId = options?.kbId ?? c.req.param('kbId');
   let isKbMember = true;
-  // 路径含 :kbId 时默认查成员（kb scope 码依赖）；platform 码在 canAccessKbScoped 内忽略成员
+  // 有 kbId 时查成员（kb scope 码依赖）；platform 码在 canAccessKbScoped 内忽略成员
   if (kbId) {
     const resolve = options?.resolveKbMember ?? resolveKbMemberFromDb;
-    isKbMember = await resolve(auth.userId, kbId);
+    isKbMember = await resolveMembershipCached(c, auth.userId, kbId, resolve);
   }
 
   const allowed = canAccessKbScoped({
@@ -169,6 +207,42 @@ async function checkPermission(
         details: { code },
       };
     }
+    return {
+      ok: false,
+      status: 403,
+      message: 'not a knowledge base member',
+      details: { kbId },
+    };
+  }
+  return { ok: true };
+}
+
+type KbMemberOptions = {
+  expectedApp?: ExpectedApp;
+  resolveKbMember?: ResolveKbMember;
+  /** 覆盖 path `:kbId` */
+  kbId?: string;
+};
+
+/**
+ * 仅成员闸（handler 级 / 无 path kb 时）。super_admin 旁路且不查库。
+ * ARCH-P1b-1：走请求内缓存。
+ */
+export async function evaluateKbMember(
+  c: AuthCtx,
+  kbId: string,
+  options?: { resolveKbMember?: ResolveKbMember },
+): Promise<GateResult> {
+  const auth = c.get('auth');
+  if (!auth) {
+    return { ok: false, status: 401, message: 'authentication required' };
+  }
+  if (roleBypassesKbMembership(auth.roles)) {
+    return { ok: true };
+  }
+  const resolve = options?.resolveKbMember ?? resolveKbMemberFromDb;
+  const isMember = await resolveMembershipCached(c, auth.userId, kbId, resolve);
+  if (!isMember) {
     return {
       ok: false,
       status: 403,
@@ -247,14 +321,10 @@ export const requirePermissionWhenEnforced = (code: string, options?: PermOption
     await next();
   });
 
-type KbMemberOptions = {
-  expectedApp?: ExpectedApp;
-  resolveKbMember?: ResolveKbMember;
-};
-
 /**
  * ask / sessions 等：始终要求登录 + KB 成员（super_admin 旁路）。
  * 与 AUTH_ENFORCE 无关；demo-ingest 不挂此中间件。
+ * ARCH-P1b-1：成员查询请求内缓存。
  */
 export const requireKbMember = (options?: KbMemberOptions) =>
   createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
@@ -267,18 +337,51 @@ export const requireKbMember = (options?: KbMemberOptions) =>
         authR.status,
       );
     }
-    const kbId = c.req.param('kbId');
+    const kbId = options?.kbId ?? c.req.param('kbId');
     if (!kbId) {
       return fail(c, BizCode.VALIDATION_ERROR, 'kbId required', 400);
     }
-    if (roleBypassesKbMembership(authR.auth.roles)) {
-      await next();
-      return;
-    }
-    const resolve = options?.resolveKbMember ?? resolveKbMemberFromDb;
-    const isMember = await resolve(authR.auth.userId, kbId);
-    if (!isMember) {
-      return fail(c, BizCode.FORBIDDEN, 'not a knowledge base member', 403, { kbId });
+    const memberR = await evaluateKbMember(c, kbId, {
+      resolveKbMember: options?.resolveKbMember,
+    });
+    if (!memberR.ok) {
+      return fail(
+        c,
+        memberR.status === 401 ? BizCode.UNAUTHORIZED : BizCode.FORBIDDEN,
+        memberR.message,
+        memberR.status,
+        'details' in memberR ? memberR.details : undefined,
+      );
     }
     await next();
   });
+
+export type KbScopeOptions = {
+  /**
+   * 省略：仅成员（= requireKbMember）。
+   * 提供：验码 + kb scope 成员（= requirePermission / WhenEnforced）。
+   */
+  permission?: string;
+  /** true → 对齐 requirePermissionWhenEnforced（AUTH_ENFORCE 关则放行） */
+  whenEnforced?: boolean;
+  expectedApp?: 'admin' | 'web';
+  resolveKbMember?: ResolveKbMember;
+};
+
+/**
+ * ARCH-P1b-1 · KB 作用域组合入口。
+ * 新代码优先用此；既有 requirePermission / requireKbMember / WhenEnforced 仍可用。
+ */
+export function requireKbScope(options: KbScopeOptions = {}) {
+  const { permission, whenEnforced, expectedApp, resolveKbMember } = options;
+  if (whenEnforced && !permission) {
+    throw new Error('requireKbScope: whenEnforced requires permission');
+  }
+  if (!permission) {
+    return requireKbMember({ expectedApp, resolveKbMember });
+  }
+  if (whenEnforced) {
+    return requirePermissionWhenEnforced(permission, { expectedApp, resolveKbMember });
+  }
+  return requirePermission(permission, { expectedApp, resolveKbMember });
+}

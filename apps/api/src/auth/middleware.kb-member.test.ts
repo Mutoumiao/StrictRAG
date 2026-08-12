@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 
 import { ok } from '../lib/response.js';
@@ -7,7 +7,9 @@ import { requestIdMiddleware, type ApiVariables } from '../middleware/request-id
 import { issueTokenPair } from './identity/token-service.js';
 import {
   attachAuthMiddleware,
+  isAuthEnforceEnabled,
   requireKbMember,
+  requireKbScope,
   requirePermission,
 } from './middleware.js';
 
@@ -164,5 +166,108 @@ describe('member routes validation (no DB)', () => {
       '/api/v1/knowledge-bases/01900000-0000-7000-8000-000000000099/members',
     );
     expect(res.status).toBe(401);
+  });
+});
+
+describe('ARCH-P1b-1 requireKbScope + request-scoped membership cache', () => {
+  const kbId = '01900000-0000-7000-8000-000000000088';
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('链式 requirePermission + requireKbMember 同请求 → resolve 只 1 次', async () => {
+    const resolve = vi.fn(async () => true);
+    const app = new Hono<{ Variables: ApiVariables }>();
+    app.use('*', requestIdMiddleware);
+    app.use('*', attachAuthMiddleware);
+    app.get(
+      '/probe/:kbId/chain',
+      requirePermission('member.manage', { resolveKbMember: resolve }),
+      requireKbMember({ resolveKbMember: resolve }),
+      (c) => ok(c, { chained: true }),
+    );
+
+    const { userId, accessToken } = await token(['kb_admin']);
+    void userId;
+    const res = await app.request(`/probe/${kbId}/chain`, {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    expect(res.status).toBe(200);
+    expect(resolve).toHaveBeenCalledTimes(1);
+  });
+
+  it('requireKbScope() 无 permission：非成员 → 403', async () => {
+    const app = new Hono<{ Variables: ApiVariables }>();
+    app.use('*', requestIdMiddleware);
+    app.use('*', attachAuthMiddleware);
+    app.get(
+      '/probe/:kbId/scope-member',
+      requireKbScope({ resolveKbMember: async () => false }),
+      (c) => ok(c, {}),
+    );
+    const { accessToken } = await token(['web_consumer']);
+    const res = await app.request(`/probe/${kbId}/scope-member`, {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    expect(res.status).toBe(403);
+    const body = (await res.json()) as { error: { message: string } };
+    expect(body.error.message).toContain('not a knowledge base member');
+  });
+
+  it('requireKbScope({ permission }) 有码+成员 → 200', async () => {
+    const { userId, accessToken } = await token(['kb_admin']);
+    const app = new Hono<{ Variables: ApiVariables }>();
+    app.use('*', requestIdMiddleware);
+    app.use('*', attachAuthMiddleware);
+    app.get(
+      '/probe/:kbId/scope-perm',
+      requireKbScope({
+        permission: 'member.manage',
+        resolveKbMember: async (uid) => uid === userId,
+      }),
+      (c) => ok(c, { ok: true }),
+    );
+    const res = await app.request(`/probe/${kbId}/scope-perm`, {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it('requireKbScope whenEnforced：默认关无 Bearer 放行', async () => {
+    expect(isAuthEnforceEnabled()).toBe(false);
+    const app = new Hono<{ Variables: ApiVariables }>();
+    app.use('*', requestIdMiddleware);
+    app.use('*', attachAuthMiddleware);
+    app.post(
+      '/probe/:kbId/upload',
+      requireKbScope({
+        permission: 'doc.upload',
+        whenEnforced: true,
+        resolveKbMember: async () => false,
+      }),
+      (c) => ok(c, { uploaded: true }, 201),
+    );
+    const res = await app.request(`/probe/${kbId}/upload`, { method: 'POST' });
+    expect(res.status).toBe(201);
+  });
+
+  it('requireKbScope whenEnforced + AUTH_ENFORCE=true 无 Bearer → 401', async () => {
+    vi.stubEnv('AUTH_ENFORCE', 'true');
+    const app = new Hono<{ Variables: ApiVariables }>();
+    app.use('*', requestIdMiddleware);
+    app.use('*', attachAuthMiddleware);
+    app.post(
+      '/probe/:kbId/upload',
+      requireKbScope({
+        permission: 'doc.upload',
+        whenEnforced: true,
+      }),
+      (c) => ok(c, { uploaded: true }, 201),
+    );
+    const res = await app.request(`/probe/${kbId}/upload`, { method: 'POST' });
+    expect(res.status).toBe(401);
+    const body = (await res.json()) as { error: { code: string } };
+    expect(body.error.code).toBe('UNAUTHORIZED');
   });
 });

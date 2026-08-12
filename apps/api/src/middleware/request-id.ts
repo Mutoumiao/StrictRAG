@@ -8,6 +8,11 @@ export type ApiVariables = {
   /** attachAuth 始终写入；未登录为 null */
   auth: AuthPrincipal | null;
   effectiveCodes: Set<string>;
+  /**
+   * ARCH-P1b-1：请求内 KB 成员查询缓存（userId\\0kbId → boolean）。
+   * 懒创建；跨请求不复用。
+   */
+  kbMemberCache?: Map<string, boolean>;
 };
 
 /** 生成 / 透传 requestId，写入响应头 X-Request-Id。 */
