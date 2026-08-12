@@ -17,6 +17,7 @@ apps/worker/
     ingest/
       pipeline.ts            # 状态机 scan→parse→chunk→embed→es_index
       idempotency.ts         # X-04 幂等纯函数
+      job-ledger.ts          # ingest_jobs 阶段账本（最小；无锁）
       es-store.ts            # mock ES（进程内 Map）
       *.test.ts
     # 复用 @strict-rag/db · @strict-rag/contracts

@@ -96,7 +96,7 @@ if (!split.ok) → failed + UNSUPPORTED_CHUNK_STRATEGY
 
 > **必读专文**：[ingest-idempotency.md](./ingest-idempotency.md)  
 > 摘要：重试 = 同 `(docId, indexVersion)` 重跑 embed/es；**禁止**重试路径 chunk+1 version；MALWARE/NOT_APPROVED 不可重试。  
-> **X-04-impl 已落最小幂等**（resume embed / skip 向量 / 透传 version）；账本与分布式锁仍欠——专文 §5；**禁止**宣称生产级幂等已齐。
+> **X-04-impl 已落最小幂等**（resume embed / skip 向量 / 透传 version）；**账本最小写**见 `job-ledger.ts`；分布式锁仍欠——专文 §5；**禁止**宣称生产级幂等/锁已齐。
 
 ## 能力矩阵 / 写面（X-05 · X-14）
 

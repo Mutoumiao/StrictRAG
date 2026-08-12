@@ -6,13 +6,13 @@
 | 成熟度 | **可联调**（schema + client + 检索谓词底座；**无**业务服务层） |
 | 默认依赖模式 | 需要调用方提供 `DATABASE_URL`；时间列使用本地格式字符串（见 ORM PRD） |
 | 关联模块 | `api` 与 `worker` 共用 client / schema；检索闸门谓词被 api retrieve 复用 |
-| 最近更新 | 2026-08-12（澄清：embedding=jsonb 非 pgvector 列 · `ingest_jobs` 仅表壳 · 检索闸不含 indexVersion） |
+| 最近更新 | 2026-08-12（embedding=jsonb · `ingest_jobs` 表由 worker 最小写 · 检索闸不含 indexVersion） |
 | Spec | `.trellis/spec/db/backend/` |
 | PRD | `prds/03-data` · `prds/02-engineering/02-orm-drizzle.md` |
 
 ## 一句话状态
 
-Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库任务表壳 / 成员**、**问答会话 / 轨迹 / 反馈 / eval_runs**、**模型供应商 / 绑定**、**平台角色（codes_json）/ 用户角色** 以及 **部门 / 用户部门** 表均已落地；并提供默认检索双闸谓词（`ready ∧ active`）。**不等于**生产级迁移运维全集、运行时任务账本已写、或权限三表终态。
+Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库任务表 / 成员**、**问答会话 / 轨迹 / 反馈 / eval_runs**、**模型供应商 / 绑定**、**平台角色（codes_json）/ 用户角色** 以及 **部门 / 用户部门** 表均已落地；并提供默认检索双闸谓词（`ready ∧ active`）。**不等于**生产级迁移运维全集、完整任务账本/锁、或权限三表终态。
 
 ---
 
@@ -33,7 +33,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 ### Schema · kb（入库主轴）
 - `knowledge_bases` · `documents`（含 **`chunkStrategy` / `chunkStrategyParams`**）· `chunks` · `chunk_manifests`
 - `chunk_embeddings`：**`embedding` 列为 jsonb `number[]`**（演示 mock 向量；**不是** native pgvector/`vector` 列）
-- `ingest_jobs`：**仅 schema 表定义**；`apps/` **零运行时读写**（账本未启用）
+- `ingest_jobs`：schema 已有；**worker** `job-ledger` 阶段边界最小写（**非**本包服务层；无锁 / 无查询 API）
 - `kb_members`
 
 ### Schema · ask（S2）
@@ -58,7 +58,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 |----|------|
 | 部门强制检索 / 跨部门授权 / 文档 owner_dept | 组织表已落地；检索 principals 与 grant 表未做 |
 | 权限三表终态 | 现为 `codes_json` 过渡；迁表须 ADR |
-| `ingest_jobs` 运行时账本 | 表有、服务无 |
+| `ingest_jobs` 完整运维账本 | 表有；worker 最小写；锁/查询面无 |
 | 业务签字 live 真跑数字 | 表 `eval_runs` 可落库；真跑属 api/ops |
 | Mongo 正文 / ES 索引本体 | **不在**本包 |
 | 原生 pgvector 列 + ANN 索引 | 当前 jsonb mock 向量 |
@@ -73,7 +73,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 | embedding 为 jsonb mock 维 | 假向量可入库、可演示；切真模型须改列/维数策略 | 与 worker dims=8 对齐演示 |
 | 「pgvector」口头称呼易误导 | 源码是 jsonb，不是 pgvector 扩展列 | 写 IS/对外说明时用 jsonb |
 | `retrieval-gate` 注释 vs 实现 | 注释若提 indexVersion 而代码未滤 | **以代码为准** |
-| `ingest_jobs` 空壳表 | 易被当成「任务账本已落地」 | 须与 worker 债对照 |
+| `ingest_jobs` 最小写 ≠ 生产账本 | 易被抬成熟度 | 锁 / 查询 / 入队 queued 仍欠 · 见 worker |
 | 时间串本地格式 | 跨时区展示需约定 | 见 ORM PRD |
 | schema 与 PRD 双写 | 漏改易漂移 | 改表前先 ADR/PRD |
 

@@ -7,7 +7,7 @@
 | 成熟度 | **可联调**（P1 入库状态机；**仅** development/test + mock 栈可起；**staging/production 当前无合法扫描配置**） |
 | 默认依赖模式 | `APP_ENV=development` · 扫描 = `mock_clean` · 向量 = `mock`（dims=8）· ES 索引 = `mock`（枚举仅 `mock\|fail`，**无 live/http**）· 对象存储 = 本地目录 `STORAGE_LOCAL_DIR`（默认 `.data/objects`） |
 | 关联模块 | 由 `api` 入队触发；写库走 `@strict-rag/db`；队列名 / job payload / 可执行策略集来自 `@strict-rag/contracts`；运行需要 Redis + PostgreSQL |
-| 最近更新 | 2026-08-12（扫描 fail-closed · 策略真源 · 最小幂等/重试矩阵；补 IS：dual-ready 仍 draft · 不写 ingest_jobs） |
+| 最近更新 | 2026-08-12（`ingest_jobs` 阶段账本最小写 · job-ledger；锁仍欠；dual-ready 仍 draft） |
 | Spec | `.trellis/spec/worker/backend/` |
 | PRD | `prds/06-async` · `prds/04-pipelines/01-offline-ingest.md` |
 
@@ -47,7 +47,7 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 - 可重试（普通 Error → BullMQ attempts）：`EMBED_FAILED` / `ES_INDEX_FAILED` / `ES_RECONCILE_FAILED` 等
 - 不可重试（`UnrecoverableError`）：`MALWARE` / `NOT_APPROVED` / `UNSUPPORTED_CHUNK_STRATEGY` 等（`bull-outcome.ts`）
 - 未知 errorCode **fail-closed 不重试**
-- **未做**：运行时写 `ingest_jobs` 账本、分布式锁、并行双 job 互斥（表壳在 db，apps **零写入**）
+- **账本最小**：`job-ledger.ts` 每 stage insert `running` → end `succeeded`/`failed`（写失败 warn 不阻断）；**未做** 分布式锁 / 并行双 job 互斥 / api 入队写 / 查询 API
 
 ### 基础设施
 - 环境变量校验、Pino 日志、与 api 共用 `@strict-rag/db`
@@ -65,7 +65,7 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 | 真 RustFS / Mongo 正文 | 本地目录 + `mongoDocId=local:` |
 | OCR / 复杂版式 | 仅标 `needs_ocr`，不续跑 OCR 引擎 |
 | HTTP API | **禁止**业务 HTTP |
-| `ingest_jobs` 运行时账本 | schema 有表；本包 **不写** |
+| `ingest_jobs` 完整运维账本 | **最小 stage 写已有**；无锁 / 无查询面 / 无 api 入队 `queued` |
 | dual-ready 自动 `lifecycle=active` | 终态 draft；检索默认可检索性另闸 |
 
 ---
@@ -77,7 +77,7 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 | **【安全债 · QUAL-2】真杀毒未接** | 生产收真实上传前必须清 | **DEC-SCAN**：dev 允许 mock；**X-01/X-02 已焊**。清债 = 真引擎 + `on` 健康检查放行 prod + 审计 + 剧本 M。**禁止**宣称已生产杀毒 |
 | **prod-like 无法合法启动** | staging/production 既禁 mock 又禁未接的 `on` | 进生产前必须 QUAL-2 放行路径 |
 | mock 扫描 + mock 向量 + mock ES | 入库「可演示 ≠ 生产可信」 | 与 api 检索 mock 同源问题族 |
-| **幂等矩阵已接 · 账本/锁仍欠** | 同 version skip / Unrecoverable 矩阵可测；并行双 job 无锁 | HOW `ingest-idempotency.md` · contracts `IngestJobData` |
+| **幂等+账本最小已接 · 锁仍欠** | stage 行可写；并行双 job 无锁；无运维查询面 | HOW `ingest-idempotency.md` · `job-ledger.ts` · task `08-12-ingest-jobs-ledger-min` |
 | 入库 ES 无 live 枚举 | 切真索引须改 env/代码专项验收 | 勿与 api `RETRIEVE_ES_MODE=http` 混谈 |
 | 分块策略极简 | 检索质量上限低 | 扩策略：先 worker 实现 + 扩 contracts `IMPLEMENTED_*` |
 | `GATEWAY_*` 死配置 | 易误读「已接网关 embed」 | pipeline 未用 |

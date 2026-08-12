@@ -129,11 +129,11 @@ BullMQ：业务层应设 `attempts` / backoff 与上表一致；**不可重试**
 | embed 同 version 幂等 | **已** | 跳过已有 `chunkId` 向量行 |
 | es 同 version 重跑 | **已** | mock set 合并 |
 | retryable → BullMQ | **已** | `classifyIngestBullOutcome` + `assertIngestBullOutcome`：retryable 抛 Error；其它 `UnrecoverableError`；attempts=3 |
-| `ingest_jobs` 阶段账本 | **欠** | 表在 schema，pipeline 基本未写 |
+| `ingest_jobs` 阶段账本 | **最小已** | worker `job-ledger.ts`：每 stage 尝试 insert `running` → end `succeeded`/`failed`；写失败 warn 不阻断；**无** api 入队写、无查询 API |
 | 生产级并发锁 | **欠** | 同 doc 并行双 job 未加分布式锁 |
 
-**实现 task**：`08-12-spec-w1-ingest-idempotency-impl`。  
-**禁止**：把「最小幂等」写成「生产级重试/账本/锁已齐」。
+**实现 task**：`08-12-spec-w1-ingest-idempotency-impl`（幂等）· `08-12-ingest-jobs-ledger-min`（账本最小）。  
+**禁止**：把「最小幂等/最小账本」写成「生产级重试/账本/锁已齐」。
 
 ---
 

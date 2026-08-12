@@ -25,6 +25,7 @@ import {
   withStageAndVersion,
 } from './idempotency.js';
 import { mockEsStore } from './es-store.js';
+import { recordStageEnd, recordStageStart } from './job-ledger.js';
 
 /** 阶段结果：errorCode 供 worker 接 BullMQ retry / Unrecoverable */
 export type IngestStageResult = {
@@ -36,6 +37,22 @@ export type IngestStageResult = {
 
 function failStage(errorCode: string): IngestStageResult {
   return { done: true, errorCode };
+}
+
+type DocRow = typeof documents.$inferSelect;
+/** pino child logger — 避免 child 泛型与 root Logger 不兼容 */
+type StageLog = {
+  info: typeof logger.info;
+  warn: typeof logger.warn;
+  error: typeof logger.error;
+};
+
+function resolveLedgerIndexVersion(
+  data: IngestJobData,
+  doc: DocRow,
+  result: IngestStageResult,
+): number | null {
+  return result.next?.indexVersion ?? data.indexVersion ?? doc.indexVersion ?? null;
 }
 
 async function loadObjectText(objectKey: string | null): Promise<string> {
@@ -111,6 +128,7 @@ export async function runIngestStage(data: IngestJobData): Promise<IngestStageRe
   const log = logger.child({ docId: data.docId, stage: data.stage });
   const doc = await getDoc(data.docId);
   if (!doc) {
+    // 无 tenant/kb：跳过账本（prd：无 doc 上下文可不写行）
     log.error('document not found');
     return failStage('DOC_NOT_FOUND');
   }
@@ -122,9 +140,54 @@ export async function runIngestStage(data: IngestJobData): Promise<IngestStageRe
       errorCode: 'NOT_APPROVED',
       errorMessage: 'scan/pipeline blocked: not approved',
     });
-    return failStage('NOT_APPROVED');
+    const denied = failStage('NOT_APPROVED');
+    const deniedJobId = await recordStageStart(getDb(), {
+      tenantId: doc.tenantId,
+      kbId: doc.kbId,
+      docId: doc.id,
+      stage: data.stage,
+      indexVersion: data.indexVersion ?? doc.indexVersion,
+    });
+    await recordStageEnd(getDb(), deniedJobId, data.stage, denied, data.indexVersion);
+    return denied;
   }
 
+  const jobId = await recordStageStart(getDb(), {
+    tenantId: doc.tenantId,
+    kbId: doc.kbId,
+    docId: doc.id,
+    stage: data.stage,
+    indexVersion: data.indexVersion ?? doc.indexVersion,
+  });
+
+  try {
+    const result = await runIngestStageCore(data, doc, log);
+    await recordStageEnd(
+      getDb(),
+      jobId,
+      data.stage,
+      result,
+      resolveLedgerIndexVersion(data, doc, result),
+    );
+    return result;
+  } catch (err) {
+    await recordStageEnd(
+      getDb(),
+      jobId,
+      data.stage,
+      { done: true, errorCode: 'PIPELINE_THROW' },
+      data.indexVersion ?? doc.indexVersion,
+    );
+    throw err;
+  }
+}
+
+/** 状态机本体；账本由 runIngestStage 外层统一写 */
+async function runIngestStageCore(
+  data: IngestJobData,
+  doc: DocRow,
+  log: StageLog,
+): Promise<IngestStageResult> {
   switch (data.stage) {
     case 'scan': {
       await setDoc(data.docId, { status: 'scanning', errorCode: null, errorMessage: null });

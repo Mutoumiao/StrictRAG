@@ -16,7 +16,7 @@
 | **embed** | **stub** | `INGEST_EMBED_MODE` mock\|fail | 伪向量 dims=8；同 version skip 已有行 | 真 embedding 网关 |
 | **es_index** | **stub** | `mockEsStore` · `INGEST_ES_MODE` | 进程内 Map 对账；无 live 枚举 | 真 ES+IK bulk（B8） |
 | **activate / lifecycle** | **partial** | dual-ready → `status=ready` · `lifecycle=draft` | **不**自动 active；检索第二闸在 api | 运营 activate API 全流程（产品侧） |
-| **ingest_jobs 账本** | **deferred** | schema 有表 | pipeline **基本不写**阶段账 | PRD §4 可观测账本 |
+| **ingest_jobs 账本** | **partial** | schema + `job-ledger.ts` | stage 边界写 running→succeeded/failed；**无**锁 / 无 api 写 / 无查询面 | 分布式锁 · 运维查询 · 入队侧 queued |
 | **物理多队列** | **deferred** | 单 `sr-ingest` + `stage` | 逻辑 stage 折叠 | 见 §1.1 · ADR-060 |
 
 \* **done\*** = 当前策略范围内可跑通 + 测覆盖；**≠** 生产分片质量上限。
@@ -62,7 +62,7 @@ api.enqueue({ docId, stage: 'scan', indexVersion? })
 | 稠密向量 | stub | mock 向量 |
 | 稀疏 ES | stub | 进程内 mock；worker **无** `INGEST_ES_MODE=live` |
 | 双就绪才 ready | **done** | embedReady ∧ esReady |
-| 幂等重试 | **partial** | X-04-impl 最小；无分布式锁 / 账本 |
+| 幂等重试 | **partial** | X-04-impl 最小 + 账本最小写；**无**分布式锁 |
 
 ---
 
@@ -72,7 +72,7 @@ api.enqueue({ docId, stage: 'scan', indexVersion? })
 |------|------|------|----------|-----------|
 | **PG `documents`** | api（上传/审批/元数据）· **worker**（状态机字段） | api 检索闸 / 列表 | Drizzle `@strict-rag/db` | **真 PG**（联调依赖） |
 | **PG `chunks` / `chunk_manifests` / `chunk_embeddings`** | **worker** 入库 | api retrieve / chunks 只读 | 同上 | **真 PG** |
-| **PG `ingest_jobs`** | （目标 worker） | 运维 | **基本未写** | schema only |
+| **PG `ingest_jobs`** | **worker** `job-ledger` | 运维（尚无 HTTP） | stage 边界最小写 | PG 真表；非生产锁 |
 | **本地对象 / S3 位** | api 上传写文件 | worker `loadObjectText` | `STORAGE_LOCAL_DIR` + `S3_BUCKET` 路径拼接 | **本地目录**；非真 RustFS |
 | **Mongo 正文** | （目标 parse） | （目标） | 仅写 `mongoDocId=local:{docId}` 标记 | **无**真 Mongo 客户端 |
 | **ES 稀疏索引** | **worker** `es_index` | api `RETRIEVE_ES_MODE=http`（可选） | worker：`mockEsStore`；api 侧另有 ES 客户端切片 | worker **仅 mock\|fail** |
