@@ -5,9 +5,9 @@
 | 路径 | `apps/worker` |
 | 端口 | 无 HTTP 端口 |
 | 成熟度 | **可联调**（P1 入库状态机；**仅** development/test + mock 栈可起；**staging/production 当前无合法扫描配置**） |
-| 默认依赖模式 | `APP_ENV=development` · 扫描 = `mock_clean` · 向量 = `mock`（dims=8）· ES 索引 = `mock`（枚举仅 `mock\|fail`，**无 live/http**）· 对象存储 = 本地目录 `STORAGE_LOCAL_DIR`（默认 `.data/objects`） |
+| 默认依赖模式 | `APP_ENV=development` · 启动探针 `WORKER_PROBE_ON_START=true` · 扫描 = `mock_clean` · 向量 = `mock`（dims=8，枚举 `mock\|fail`）· ES 索引 = `mock`（枚举仅 `mock\|fail`，**无 live/http**）· 对象存储 = 本地目录 `STORAGE_LOCAL_DIR`（默认 `.data/objects`，相对路径锚定 monorepo 根）· `S3_BUCKET=strict-rag` · `INGEST_MIN_EXTRACTED_CHARS=40` |
 | 关联模块 | 由 `api` 入队触发；写库走 `@strict-rag/db`；队列名 / job payload / 可执行策略集来自 `@strict-rag/contracts`；运行需要 Redis + PostgreSQL |
-| 最近更新 | 2026-08-12（同 doc Redis 锁最小 · `doc-lock`；账本最小已有；dual-ready 仍 draft） |
+| 最近更新 | 2026-08-13（反向审计补漏：启动探针 / 任意阶段审批重检 / 不可重试码全量 / 锁 TTL / env 默认值） |
 | Spec | `.trellis/spec/worker/backend/` |
 | PRD | `prds/06-async` · `prds/04-pipelines/01-offline-ingest.md` |
 
@@ -22,6 +22,7 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 ### 进程与队列
 - Worker 进程入口：仅 BullMQ consumer + 信号退出（**无**业务 HTTP / listen）
 - 队列名来自 contracts：`sr-probe` · `sr-ingest`（`apps/worker/src/queues.ts` · `packages/contracts/src/async/queues.ts`）
+- `WORKER_PROBE_ON_START=true`（默认）时启动即向 `sr-probe` 入队 `noop` 探针 job（`reason='worker_start_probe'`），验证 Redis / 队列可用
 - 默认 job：`attempts=3` · exponential backoff 2000ms（`INGEST_JOB_*` · `index.ts`）
 - 启动：Redis PING；失败 `process.exit(1)`；优雅停机分阶段 close Worker / Queue / Redis / DB
 - DB：`statementTimeoutMs=0` / `lockTimeoutMs=0`（入库耗时长；`db.ts`）
@@ -31,13 +32,14 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
   - **`on`**：任意 `APP_ENV` → **拒启动**（真引擎未接，≠ mock clean）
   - **staging/production** + `mock_*` / `off` → **拒启动**
   - 仅 **development/test** 允许 `mock_clean` / `mock_infected` / `off`
+  - 未知 `APP_ENV` / 未知 `INGEST_SCAN_MODE` 同样 **拒启动**（fail-closed）
 - 运行时防御：pipeline 遇 `on` → `SCAN_ENGINE_UNAVAILABLE`（不可当作 clean）
 
 ### 入库流水线（`ingest/pipeline.ts`）
 - 阶段：`scan → parse → chunk → embed → es_index`（`IngestJobData.stage`）
-- **scan**：审批未通过 → `NOT_APPROVED`；`mock_infected` 删本地对象 + `MALWARE`；`mock_clean` / `off` 放行
+- **scan**：`mock_infected` 删本地对象 + `MALWARE`；`mock_clean` / `off` 放行；审批重检（ADR-048）在**任意阶段**入口先做，未通过 → `NOT_APPROVED`（非仅 scan）
 - **parse**：本地 UTF-8 读对象；过短 → `needs_ocr` + `NO_TEXT_LAYER`；`mongoDocId=local:{docId}`（**假 Mongo 标记**，非真 Mongo）
-- **chunk**：**仅** `structure_paragraph`（contracts `IMPLEMENTED_*`）；未实现 → `UNSUPPORTED_CHUNK_STRATEGY`（**不**静默回落）；写 chunks + `chunk_manifests`；`indexVersion = doc.indexVersion+1`
+- **chunk**：**仅** `structure_paragraph`（contracts `IMPLEMENTED_*`）；未实现 → `UNSUPPORTED_CHUNK_STRATEGY`（**不**静默回落）；写 chunks + `chunk_manifests`；`indexVersion = doc.indexVersion+1` 并重置 `embedReady=0` / `esReady=0`
 - **embed**：mock 伪向量 dims=8 · `model=mock-embed`；缺 embedding 行才补写（幂等 skip）
 - **es_index**：进程内 `mockEsStore`（`es-store.ts`）；要求 `embedReady`；双就绪 → `status=ready` **且 `lifecycle='draft'`**（**不是** `active`；默认检索闸 `ready∧active` 仍拦，须运营升 lifecycle）
 - 对象路径：`{STORAGE_LOCAL_DIR}/{S3_BUCKET}/{objectKey}`
@@ -45,10 +47,10 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 ### 幂等 / 重试（X-04 最小）
 - `idempotency.ts`：带 `indexVersion` + 有 manifest → **resume_embed，禁重分块**；有 version 无 manifest → `NO_MANIFEST`
 - 可重试（普通 Error → BullMQ attempts）：`EMBED_FAILED` / `ES_INDEX_FAILED` / `ES_RECONCILE_FAILED` / `DOC_LOCK_BUSY` 等
-- 不可重试（`UnrecoverableError`）：`MALWARE` / `NOT_APPROVED` / `UNSUPPORTED_CHUNK_STRATEGY` 等（`bull-outcome.ts`）
+- 不可重试（`UnrecoverableError`）：`MALWARE` / `NOT_APPROVED` / `UNSUPPORTED_CHUNK_STRATEGY` / `DOC_NOT_FOUND` / `EMPTY_CHUNKS` / `MISSING_INDEX_VERSION` / `EMBED_NOT_READY` / `UNKNOWN_STAGE` / `IDEMPOTENT_CHUNK_FORBIDDEN`（`bull-outcome.ts`）
 - 未知 errorCode **fail-closed 不重试**
 - **账本最小**：`job-ledger.ts` 每 stage 先 insert `running`、结束时写 `succeeded`/`failed`（写失败仅记 warn 日志，不阻断）；**未做** api 入队写 / 查询 API
-- **同 doc 锁最小**：`doc-lock.ts` 用 Redis `SET NX EX` + token 安全释放；`index.ts` 持锁再跑 stage；抢锁失败 `DOC_LOCK_BUSY` 可重试；**非** Redlock
+- **同 doc 锁最小**：`doc-lock.ts` 用 Redis `SET NX EX`（默认 TTL 180s）+ token 安全释放；`index.ts` 持锁再跑 stage；抢锁失败 `DOC_LOCK_BUSY` 可重试；**非** Redlock
 
 ### 基础设施
 - 环境变量校验、Pino 日志、与 api 共用 `@strict-rag/db`

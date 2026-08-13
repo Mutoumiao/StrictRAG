@@ -65,6 +65,9 @@ export function extractEnv(pkg) {
 
   const fields = {};
   for (let i = 0; i < starts.length; i++) {
+    // parseEnv 返回对象会重复出现字段名（如 STORAGE_LOCAL_DIR 被重新赋值），
+    // 覆盖会丢失 schema 里的默认值；schema 定义总在前，保留首个。
+    if (starts[i].key in fields) continue;
     const end = i + 1 < starts.length ? starts[i + 1].index : src.length;
     const block = src.slice(starts[i].index, end);
     fields[starts[i].key] = parseEnvField(block, enumVars, envFileDir);

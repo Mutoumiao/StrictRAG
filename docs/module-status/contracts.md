@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（支撑 P0/P1 入库 + S2 问答/会话/反馈/成员 + B1–B6 运营契约 + **B12 策略码 / ingest job**；**非**全量 OpenAPI） |
 | 默认依赖模式 | 纯库；无运行时开关 |
 | 关联模块 | 被 `api` · `worker` · `web` · `admin` 消费；是全仓错误码、响应信封、队列名与 **可写分片策略集** 的唯一来源 |
-| 最近更新 | 2026-08-12（B12 `IMPLEMENTED_CHUNK_STRATEGIES` · `IngestJobData` · complete/reindex `chunkStrategy`） |
+| 最近更新 | 2026-08-13（补漏 AskScope / AskOptions / AskMode + DEFAULT_*） |
 | Spec | `.trellis/spec/contracts/library/` |
 | PRD | `prds/05-api` · 各域契约与 PRD 短名对齐 |
 
@@ -40,6 +40,9 @@
 
 ### 问答（S2）
 - ask 请求 / 响应、拒答 reason、流式 `data-status` 形状（`ask/ask.contract` · `ask/reason`；`AskResponse` = 同步 JSON ≡ 流式 `data-ask-final`）
+- **`AskRequestSchema`**：`question`（1–8000 字）· `sessionId` · 顶层 `scope` · `options`，`.strict()`
+- **`AskOptionsSchema`**：仅 `stream` / `debug` / `mode` / `locale` 四字段，`.strict()` 拒绝 `tauClaim` / `retrieveK` / `scope`（ADR-050）
+- **`AskScopeSchema`**：顶层 `docTypes`（≤32 个、每个 1–64 字），**禁止**塞进 options（B11）
 - 会话外壳 + 列表包装 + `SessionListQuerySchema`（`ask/session.contract`）
 - 反馈 + 队列列表包装 + `FeedbackQueueQuerySchema`（`ask/feedback.contract`）
 - KB 成员 + 邀请 / 移除（`ask/member.contract`）
@@ -51,6 +54,7 @@
 - 消费方：web `src/test/fixtures/ask.ts` re-export
 
 ### 知识库设置（B2）
+- `AskModeSchema`（`strict` / `balanced` / `fast`）+ `DEFAULT_ALLOWED_MODES` / `DEFAULT_DEFAULT_MODE`（`kb/kb-settings.contract`）
 - `KbSettings` / `PatchKbSettingsBodySchema`（strict 白名单 + modes 唯一性）（`kb/kb-settings.contract`）
 - `qualitySnapshot` · `sessionRewrite` 锁定形状；禁止 τ / rewrite 写键
 

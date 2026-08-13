@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（schema + client + 检索谓词底座；**无**业务服务层） |
 | 默认依赖模式 | 需要调用方提供 `DATABASE_URL`；时间列使用本地格式字符串（见 ORM PRD） |
 | 关联模块 | `api` 与 `worker` 共用 client / schema；检索闸门谓词被 api retrieve 复用 |
-| 最近更新 | 2026-08-12（embedding=jsonb · `ingest_jobs` 表由 worker 最小写 · 检索闸不含 indexVersion） |
+| 最近更新 | 2026-08-13（embedding=jsonb · `ingest_jobs` 表由 worker 最小写 · 检索闸不含 indexVersion · 反向审计补 `baseColumns`） |
 | Spec | `.trellis/spec/db/backend/` |
 | PRD | `prds/03-data` · `prds/02-engineering/02-orm-drizzle.md` |
 
@@ -22,6 +22,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 - `createDb`（`client.ts`；可选 `statementTimeoutMs` / `lockTimeoutMs`，传 0 表示不设置）
 - 分端约定：api 15s/10s · worker 0（ARCH-P0-4；由调用方传入）
 - `formatLocalDateTime`（写库时间本地格式串）
+- `baseColumns` 共用列（`schema/_shard/base-columns.ts`）：`id`（uuid v7）+ `createdAt`/`createdBy`/`updatedAt`/`updatedBy`（本地时间串）
 - 包导出：`.` · `./schema` · `./client`（`package.json`）
 
 ### Schema · system

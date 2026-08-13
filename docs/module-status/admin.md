@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（S2c 运营薄壳：文档 / 审批 / 成员 / 分片 / 设置 / 模型 + 用户 / 角色 / 部门 + **数据面板** + **反馈队列**） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT + admin **dev-login**（经 api）· 知识库 = 手工填写 uuid · 菜单 = `clipMenuForShell` 裁剪（catalog 为 SSOT）· API 默认 `http://127.0.0.1:4000` |
 | 关联模块 | API 依赖：`api` 的文档 / 审批 / 成员 / 分片 / 设置 / 模型 / 用户角色 / 部门 / dashboard / **feedback-queue**；菜单与权限码：`admin-catalog`；类型：`contracts`；样式：`ui` |
-| 最近更新 | 2026-08-12（B13 `/feedback` 进已具备；落地 href **11** 条） |
+| 最近更新 | 2026-08-13（反向审计补漏：models 删除 / 部门标记 / 分片分页 / admin.shell / 工程分层 / 模型编辑） |
 | Spec | `.trellis/spec/admin/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · 审批 / 成员相关 API |
 
@@ -20,7 +20,7 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 ## 已具备能力
 
 ### 鉴权外壳
-- 登录页、客户端 session、`AdminAuthGuard`（在 ops layout 层拦截未登录访问）
+- 登录页、客户端 session、`AdminAuthGuard`（在 ops layout 层拦截未登录访问 + 校验 `admin.shell` 权限码，无码清会话并回登录页）
 - 开发登录 `admin/dev-login`（可选角色模板）；登出仅清除本地 session
 - 顶栏按当前用户权限裁剪后展示菜单
 
@@ -35,10 +35,10 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 
 ### 文档
 - `/documents`：按知识库拉取文档列表；表格展示 status / approval / lifecycle 列（**只读刷新**；审批操作在审批页进行）
-- `DocRow` 类型包含 embedReady / esReady 字段，但 **UI 尚未渲染"双就绪"列**
+- `DocumentListItem` 类型包含 embedReady / esReady 字段，但 **UI 尚未渲染"双就绪"列**
 
 ### 分片只读（B1）
-- `/chunks`：选择文档 → 查看 preview 列表 → **点击后**才拉取该分片的完整正文；无 `chunk.view` 权限时显示 403 状态
+- `/chunks`：选择文档 → 查看 preview 列表（**limit=50 游标分页 + 底部「加载更多」**）→ **点击后**才拉取该分片的完整正文；无 `chunk.view` 权限时显示 403 状态
 - 文档列表的数据路径复用 `documents/api`（禁止复制路径另起一套）
 - **禁止**在页面挂载时批量预拉所有分片全文
 
@@ -48,7 +48,7 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 - **没有** τ 滑块、**没有**供应商 Key 配置、**没有** docTypes / 分片策略弹窗 / 知识库模型绑定分区
 
 ### 模型网关（B3 最小集）
-- `/models`：供应商列表 / 新建 / 编辑（预设、baseUrl、Key 密码框、模型表）+ **平台级 purpose 绑定**（catalog 下拉选择）
+- `/models`：供应商列表 / 新建 / 编辑 / 删除（预设、baseUrl、Key 密码框、模型表可逐行编辑**类型 / 启用 / dims**）+ **平台级 purpose 绑定**（catalog 下拉选择）
 - 需要 `model.gateway.manage` 权限（默认仅 super_admin 持有）；无权限时显示 403 状态；数据路径仅 `models/api.ts` 一处
 - Key **只写不回显**；**没有**真实的 fetch-models 代理 UI；**没有**知识库级绑定
 
@@ -59,7 +59,7 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 - 用户部门归属的编辑入口在 **`/departments`** 页（通过粘贴 userId 操作）
 
 ### 部门（B5 最小集）
-- `/departments`：组织树列表、新建根 / 子部门、启用停用、删除（要求无子部门且无成员）、用户归属管理（需要 `user.manage` 权限）
+- `/departments`：组织树列表、新建根 / 子部门、启用停用、删除（要求无子部门且无成员）、用户归属管理（查询归属 + **主部门 / 负责人**标记，需要 `user.manage` 权限）
 - 需要 `dept.manage` 权限；无权限时显示 403 状态；数据路径仅 `departments/api.ts` 一处
 - **没有**跨部门授权 UI、**没有**文档密级字段、**没有** DEPT_ACL 开关的运营页
 
@@ -79,12 +79,12 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 - **无** 专用 RTL 工作区测试
 
 ### 工程
-- 传输层：`lib/http.ts`（Bearer + 单飞 refresh）；知识库偏好：`lib/kb-context.ts`
-- 身份：`auth/api.ts`
+- 传输层：`lib/http.ts`（Bearer + 单飞 refresh）；错误映射：`lib/map-biz-error.ts`；知识库偏好：`lib/kb-context.ts`
+- 身份：`auth/api.ts` · `auth/client-session.ts`（会话存取 + 变更事件）· `auth/services.ts`（loginWithDev / logoutLocal）
 - 模块私有 API：`app/(ops)/{dashboard,documents,approvals,members,chunks,kb/settings,models,users,roles,departments,feedback}/api.ts`（**没有** 集中 `lib/admin-api.ts`）
 - 类型 `@strict-rag/contracts`；菜单 / 权限码 `@strict-rag/admin-catalog`
 - 样式：Tailwind v4 + ui 主题；构建 `next build --webpack`
-- **单元 / 组件测试**：外壳 / Guard / 审批 / dashboard + **P0 R5/R6**
+- **单元 / 组件测试**：外壳 / Guard / 审批 / dashboard + **P0 R5/R6** + `lib/kb-context.test.ts`（admin KB key 不与 web 混写）+ `auth/client-session.test.ts`（admin session 与 web 隔离）
   - **没有** documents / members / chunks / settings / models / users / roles / departments / **feedback** 工作区测；**没有** E2E；**没有** http 全路径 refresh 集成测
 
 ---
@@ -99,6 +99,7 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 | APM / 时序大盘 / 告警 | B6 仅为只读计数摘要，**不是**观测生产向 |
 | 按历史 indexVersion 浏览分片的 UI | ADR-052 明确不做 |
 | 文档上传 UI | 列表只读；上传走 API 或其他入口 |
+| 部分 API 封装符号未接线 | `patchPlatformRole` / `getDocument` / `listFeedbackQueue(status)` 等封装已写但当前 UI 未调用 |
 | 完整运营 IA / 多知识库选择器 | 目前手填 uuid；不是产品级的库管体验 |
 | 生产视觉 / product.pen **像素级**定稿 | 已使用 Soft Bento token + ui 组件；**并非**对 product.pen 的全屏像素还原 |
 

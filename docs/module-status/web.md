@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（S2 用户端薄壳） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT（经 api）· `NEXT_PUBLIC_API_BASE_URL` 默认 `http://127.0.0.1:4000` · 问答 = AI SDK UI Message Stream · rewrite = **服务端强制关**（本包无开关控件）· 知识库 = 手工填写 id |
 | 关联模块 | ask 流 / 会话 / 反馈提交：`api`；类型：`contracts`；样式 / 组件：`ui` |
-| 最近更新 | 2026-08-13（B11 doc_type scope UI；B13 FeedbackBar） |
+| 最近更新 | 2026-08-13（B11 doc_type scope UI；B13 FeedbackBar；反向审计补鉴权端点 / 编排层 / 401 自动刷新） |
 | Spec | `.trellis/spec/web/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · ask 流相关 API |
 
@@ -21,8 +21,10 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列�
 
 ### 鉴权外壳
 - 登录页、客户端 session、`WebAuthGuard`（`src/components/auth-guard.tsx`）
+- 登录调用 `POST /api/v1/auth/web/dev-login`（`auth/api.ts` → `webDevLogin`）；`GET /api/v1/auth/me`（`fetchAuthMe`）读当前身份
+- 编排层 `auth/services.ts`：`loginWithDev`（调 api → 写 session → `mapBizError`）/ `logoutLocal`（仅清本地）
 - 登出（仅清除本地 session，无服务端吊销）
-- 存储 key **仅** `strict-rag:web:client-session`（与 admin 端隔离；有测试覆盖）
+- 存储 key **仅** `strict-rag:web:client-session`（与 admin 端隔离；有测试覆盖）；写/清时 dispatch 会话变更事件 `strict-rag-web-client-session-changed`（`sessionChangedEventName`）
 
 ### 问答 UI（S2-#8）
 - 选择知识库（手填 / 记忆 `strict-rag:web:last-kb-id`）→ 提问
@@ -39,6 +41,7 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列�
 
 ### 工程
 - 分层：传输 `lib/http.ts` · 身份 `auth/api.ts` · 业务 `src/api/{ask,sessions,feedback}.ts` · hook `hooks/use-knowledge-ask.ts`
+- 401 自动刷新重试（两条路径，**均无单测**）：`lib/http.ts`（Bearer 注入 + 单飞 `ensureRefresh`，失败清 session）+ `api/ask.ts` transport 的 `fetch` 包装（401 → `refreshAccessToken` 重试）
 - 类型：`@strict-rag/contracts`
 - 样式：Tailwind v4（`postcss.config.mjs`；`src/app/globals.css` 引入 ui 主题并配置 `@source`）；`ask-panel` / 登录页使用 Button · Input · Label · Textarea · Card · Badge · Alert（含 `variant="abstain"`）等原子组件；**没有**大面积用 `style={{}}` 写布局 / 色板
 - 构建：`next build --webpack`；`next.config` 配置 `transpilePackages` + webpack `extensionAlias`

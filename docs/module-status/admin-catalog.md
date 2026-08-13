@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（权限码 + 角色模板 + 菜单树 + **外壳裁剪 SSOT**） |
 | 默认依赖模式 | 纯库；无运行时开关 |
 | 关联模块 | 被 `api` 的权限求值和 `admin` 的菜单裁剪消费；**不能**替代服务端权限校验 |
-| 最近更新 | 2026-08-12（`ADMIN_IMPLEMENTED_HREFS` 含 `/feedback` · 11 条） |
+| 最近更新 | 2026-08-13（`ADMIN_IMPLEMENTED_HREFS` 含 `/feedback` · 11 条；反向审计补权限码数量 / 查询函数 / web_consumer 空码） |
 | Spec / ADR | ADR-051 · ADR-056 · `.trellis/spec/admin-catalog/library/catalog-ssot.md` |
 | PRD | `prds/09-security` 权限相关 |
 
@@ -18,8 +18,8 @@
 
 ## 已具备能力
 
-- **权限码**：`PERMISSION_DEFINITIONS` / `PERMISSIONS` / `isPermissionCode`（覆盖 platform 与 kb 两个作用域）
-- **角色模板**：`super_admin` · `kb_admin` · `doc_operator` · `web_consumer`；配套 `defaultCodesForRoles` · `roleBypassesKbMembership`
+- **权限码**：`PERMISSION_DEFINITIONS`（**21 个**，三元组 `kind`（page / action / page+action）· `scope`（platform / kb）· `description`）· `PERMISSIONS`（旧名 string[]）· `ALL_PERMISSION_CODES` · `isPermissionCode` · `getPermissionDef`
+- **角色模板**：`super_admin` · `kb_admin` · `doc_operator` · `web_consumer`；配套 `defaultCodesForRoles` · `roleBypassesKbMembership` · `getRoleTemplate`；`web_consumer` 默认**空码**（无 `admin.shell`，ask 靠成员资格不靠运营码）
 - **菜单树**：`MENU_TREE` + `filterMenuByCodes`（按有效权限码裁剪）
 - **外壳裁剪（B7 + B3–B6 + B13）**：`ADMIN_IMPLEMENTED_HREFS` + `clipMenuForShell` + `collectMenuHrefs`；已落地 **十一条**：`/dashboard` · `/documents` · `/approvals` · `/members` · `/chunks` · `/kb/settings` · `/models` · `/users` · `/roles` · `/departments` · **`/feedback`**
 - 菜单树 `MENU_TREE` 含 `/feedback`（码 `feedback.queue`）；kb_admin 模板含 `feedback.queue`

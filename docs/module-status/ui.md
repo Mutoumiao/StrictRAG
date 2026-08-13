@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（S2 首批 shadcn 风格原子组件 + Soft Bento 设计 token；不是完整设计系统） |
 | 默认依赖模式 | 纯库；**不**在本包内跑 PostCSS 生产构建（CSS 类由 admin / web 应用侧扫描生成） |
 | 关联模块 | 被 `admin` · `web` 以子路径方式引用；`theme.css` 由各应用的 `globals.css` 引入 |
-| 最近更新 | 2026-08-07 |
+| 最近更新 | 2026-08-13（cva 变体表述澄清：Button 仅 destructive；反向审计补根 re-export 与复合子部件） |
 
 ## 一句话状态
 
@@ -17,7 +17,8 @@
 - `cn` 类名合并工具：`packages/ui/src/lib/utils.ts`，导出路径 `@strict-rag/ui/lib/utils`（根部也有 re-export）
 - `theme.css`：包内 `@import 'tailwindcss'` · `@source` 扫描组件 · `@theme inline` · `:root` / `.dark` 的 Soft Bento 色值；包含 `primary` / `primary-hover`、`abstain`、`success`、`sidebar` / `rail` 等语义 token；旧名 `--sr-*` 保留为别名
 - 子路径组件（`package.json#exports`）：`button` · `input` · `label` · `textarea` · `select` · `table` · `card` · `badge` · `alert`
-- `class-variance-authority` 变体：Button / Badge / Alert（含 `abstain` 与 `destructive` 的分离变体）
+- 根 `index.ts` 除 `cn` 外也 re-export 全部组件 + variants（`buttonVariants` / `badgeVariants` / `alertVariants`）与 Props 类型；复合组件拆子部件：Table（Header / Body / Row / Head / Cell）· Card（Header / Title / Content）· Alert（Title / Description）
+- `class-variance-authority` 变体：Button 含 `destructive`；Badge / Alert 含 `abstain` 与 `destructive` 分离变体
 - 可聚焦控件使用 `forwardRef`：Button · Input · Label · Textarea · Select · Table 系列 · Card 系列（Badge / Alert 是无 ref 的纯展示块）
 - Select：基于**原生** `<select>` 封装，不依赖 Radix
 

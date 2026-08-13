@@ -5,9 +5,9 @@
 | 路径 | `apps/api` |
 | 端口 | 4000 |
 | 成熟度 | **可演示**（已包含：P0/P1 入库 + S2 最小问答 + B1–B6 最小运营 API + B10 L1 工程 seed + B12 策略闸 + B13 反馈 API；演示依赖 mock ES / 通常走 mock Gateway；L1 **≠** 业务签字门禁） |
-| 默认依赖模式 | 检索：`RETRIEVE_ES_MODE=mock`（默认 mock ES）；鉴权：临时双 JWT，`AUTH_ENFORCE` **默认 `false`**；rewrite：`SESSION_REWRITE_ENABLED` 默认 false，设为 **true 会启动失败**；对象存储：`local`；Gateway：缺 URL 时走 mock。**B3-W/B2-W**：ask 读取 platform 绑定 + **KB scope 绑定覆盖（只读 list，无 PUT KB 绑定 HTTP）**；**B4-W**：每请求从 DB `user_roles` hydrate；**无** `DEPT_ACL_ENFORCE` env；`ASK_RATE_LIMIT_RPM=0`；L1 CLI 需显式指定 `L1_KB_ID`（可选 `L1_PERSIST_EVAL`） |
+| 默认依赖模式 | 检索：`RETRIEVE_ES_MODE=mock`（默认 mock ES）；鉴权：临时双 JWT，`AUTH_ENFORCE` **默认 `false`**；rewrite：`SESSION_REWRITE_ENABLED` 默认 false，设为 **true 会启动失败**；对象存储：`local`（`STORAGE_LOCAL_DIR=.data/objects`）；Gateway：`GATEWAY_MODE=''`（空按 `GATEWAY_BASE_URL` 推断，缺 URL 走 mock）；上传上限 `INGEST_MAX_FILE_BYTES=52_428_800`（50 MiB）/ 天花板 `INGEST_MAX_FILE_BYTES_CEILING=209_715_200`（200 MiB）；`LANGFUSE_ENABLED=false`；`OBS_MEMORY_TRACE=true`。**B3-W/B2-W**：ask 读取 platform 绑定 + **KB scope 绑定覆盖（只读 list，无 PUT KB 绑定 HTTP）**；**B4-W**：每请求从 DB `user_roles` hydrate；**无** `DEPT_ACL_ENFORCE` env；`ASK_RATE_LIMIT_RPM=0`；L1 CLI 需显式指定 `L1_KB_ID`（可选 `L1_PERSIST_EVAL`） |
 | 关联模块 | 入库演示还需要 `worker` + PostgreSQL + Redis；契约 `@strict-rag/contracts`（含 `IMPLEMENTED_CHUNK_STRATEGIES` / `IngestJobData`）；schema `@strict-rag/db`（含 `eval_runs`）；L1 gold / RACI 在仓根 `fixtures/l1/` |
-| 最近更新 | 2026-08-13（**ARCH-P1a** documents 路由域目录试点；ARCH-P2-1 OpenAPI；ARCH-P1b-1/1b-2；B12/B4-W/B2-W/B13/L1/OPS-1） |
+| 最近更新 | 2026-08-13（**ARCH-P1a** documents 路由域目录试点；ARCH-P2-1 OpenAPI；ARCH-P1b-1/1b-2；B12/B4-W/B2-W/B13/L1/OPS-1；反向审计补漏：创建 KB / 审批族 / 规则路由 / ask_traces / 单查端点 / env 默认值） |
 | Spec | `.trellis/spec/api/backend/`（含 [dashboard](../../.trellis/spec/api/backend/dashboard.md) · [l1-eval](../../.trellis/spec/api/backend/l1-eval.md)） |
 | PRD | `prds/05-api` · `04-pipelines` · `08-quality` · `09-security` |
 
@@ -28,13 +28,13 @@
 - **ARCH-P1a documents 域目录试点**：`routes/documents/`（`index.ts` 导出 `documentRoutes` · `mappers.ts` 纯映射）；`app.ts` 挂载方式不变。**≠** 其它域全量搬家 · **≠** URL / 契约变更
 
 ### 鉴权与权限
-- 双 JWT（access token + refresh token）、dev-login 开发登录、`AUTH_ENFORCE` 总开关（默认关闭）
+- 双 JWT（access token + refresh token）、dev-login 开发登录、`GET /api/v1/auth/me`（当前主体 + 有效权限码）、`AUTH_ENFORCE` 总开关（默认关闭）
 - 知识库成员校验、权限码求值（对接 admin-catalog）
 - **ARCH-P1b-1 KB 作用域组合**：`auth/kb-scope.ts` 在请求内缓存成员信息；`requireKbScope` 组合入口；`evaluateKbMember` / `checkPermission({ kbId })` 供 handler 使用；feedback 不做私有 assert；**默认 AUTH_ENFORCE 仍关**
 - 成员路由最小集：列表 / 邀请 / 删除；**暂不支持**修改成员角色
 
 ### 入库（P1）+ 分片策略闸（B12）
-- 文档上传、complete 体积闸门、审批通过后才能 scan 入队的闸门；lifecycle / reindex / 列表详情
+- `POST /knowledge-bases` 创建知识库（`kb.create`）；文档上传（`upload-url` + `PUT /api/v1/internal/objects` local 落体）、complete 体积闸门、`POST …/documents/:docId/approve` / `POST …/documents/:docId/reject` 审批族（`approval.decide`）、审批通过后才能 scan 入队的闸门；lifecycle / reindex / 列表详情
 - **B12**：`services/chunk-strategies.ts` 对齐 contracts，**`IMPLEMENTED` 仅 `structure_paragraph`**（KNOWN 另含 roadmap 码）
   - complete：多策略 catalog 且文档尚无既有策略时，body **必带** implemented `chunkStrategy`
   - reindex：catalog length>1 时**必带** `chunkStrategy`；未实现码返回 400（**不**静默 default）
@@ -55,7 +55,7 @@
 - **B2-W 已接线**：ask 入口校验 `mode∈allowedModes` / `defaultMode`；`docTypes` scope 子集闸；Gateway **读** KB scope 绑定覆盖（**无** KB 绑定 HTTP 写；admin 写 UI 仍可延后）
 
 ### 模型供应商 / 平台绑定（B3 · ADR-055 最小集）
-- `GET / POST / PATCH / DELETE /admin/model-providers`，另有 `GET …/presets` 预设列表
+- `GET / POST / PATCH / DELETE /admin/model-providers`（另含 `GET …/:id` 单查 + `GET …/presets` 预设列表）
 - `GET / PUT /admin/model-bindings`（平台作用域）、`GET /model-catalog`
 - 始终强制 `requirePermission('model.gateway.manage')`；GET 响应**永不**回显 `apiKey`，只返回 `hasApiKey` 标志
 - 绑定类型校验，judge 与 judge_aux 不可混用（ADR-042）；删除仍被引用的供应商会返回 400
@@ -64,8 +64,8 @@
 - **无** `PUT` KB scope 绑定的 HTTP 写 API（admin 写路径仅 **platform** bindings）；**未做**真实 fetch-models 上游代理
 
 ### 平台用户 / 角色（B4 · ADR-056 最小集）
-- `GET / POST / PATCH /admin/users`，`POST …/users/:id/roles` 分配角色
-- `GET / POST / PATCH /admin/roles`，`PUT …/roles/:id/permissions` 设置权限码
+- `GET / POST / PATCH /admin/users`（另含 `GET …/:userId` 单查），`POST …/users/:id/roles` 分配角色
+- `GET / POST / PATCH /admin/roles`（另含 `GET …/:roleId` 单查），`PUT …/roles/:id/permissions` 设置权限码
 - `GET /admin/permission-catalog`（需要 `user.manage` **或** `role.perm.manage` 之一）
 - 始终做权限码校验；`codes` 必须是 admin-catalog 的子集；最后一个可用的 `super_admin` 被禁用或剥离权限时返回 400；系统内置的 super_admin 角色禁止禁用
 - 数据表：`platform_roles` / `user_roles`；内置四个系统角色种子数据；测试用内存仓库
@@ -87,9 +87,11 @@
 - SQL 在 `services/dashboard.ts`；memory repo 便于单测；**无**写路径、**无** schema 变更、**≠** APM
 
 ### 问答（S2 最小集）
-- 同步 ask 接口 + AI SDK UI Message Stream 流式输出（使用 `data-status` / `data-ask-final` 数据部件，**没有**自写的 `event: final` 事件）；采用**线性状态机**（不是 LangGraph.js）：检索 → 约束生成 → 验证 → 拒答，实现见 `graph/run.ts`
+- **纯规则路由**（`graph/route-rules.ts`）：寒暄白名单 + 后置禁词 + 知识向线索 → `chitchat` / `single`（P2 不依赖 LLM 路由）；随后**线性状态机**（不是 LangGraph.js）：检索 → 约束生成 → 验证 → 拒答，实现见 `graph/run.ts`
+- 同步 ask 接口 + AI SDK UI Message Stream 流式输出（使用 `data-status` / `data-ask-final` 数据部件，**没有**自写的 `event: final` 事件）
 - 流式异常处理：`execute` 抛错时仍会写出 `data-status phase=error` 与 `data-ask-final`（`reason=internal_guard`）；有单测覆盖（`routes/ask.test.ts`）
-- 会话列表 / 详情外壳（**rewrite 强制关闭**，把 `SESSION_REWRITE_ENABLED` 设为 `true` 会导致启动失败）；list 接口的 query 参数绑定 `SessionListQuerySchema` 校验
+- 会话：`POST …/sessions` 创建 + 列表 / 详情外壳（**rewrite 强制关闭**，把 `SESSION_REWRITE_ENABLED` 设为 `true` 会导致启动失败）；list 接口的 query 参数绑定 `SessionListQuerySchema` 校验
+- ask 结果落库 `ask_traces`（evidence_snapshot / graph_trace / config_snap；`rewriteUsed` 恒 0），`services/ask/traces.ts`
 - 反馈提交 / 管理队列 API（`routes/feedback`）；queue 接口的 query 参数绑定 `FeedbackQueueQuerySchema` 校验
 - Gateway 切片（`GATEWAY_MODE` mock/http；ask 走 `getGatewayForTenant`；Key 不进日志）；rerank 双节点：`GATEWAY_RERANK_FALLBACK_URL` + `RERANK_MIN_NODES`（staging/prod 默认 2；`services/gateway/resolve.ts`；QUAL-3 测）
 - **B2-W**：ask 入口校验 `mode∈allowedModes` / `defaultMode`；settings `docTypes` 读写 + scope 子集闸；τ 字段仍拒绝写入
