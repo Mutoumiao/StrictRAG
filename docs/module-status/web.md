@@ -93,4 +93,4 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列�
 | 命令 | `pnpm --filter @strict-rag/web test`（`package.json` → `vitest run`） |
 | 传输层 | `src/lib/http.ts`（**尚无**单测） |
 | 样式入口 | `apps/web/src/app/globals.css` · `postcss.config.mjs` · `package.json`（tailwind · `build --webpack`） |
-| Task（辅证 · 归档） | `08-05-p2-web-ask-ui` · `08-05-p2-sessions-shell` · `08-06-frontend-tailwind-shadcn` · `08-11-b13-feedback-ui` |
+| Task（辅证 · 归档） | `08-05-p2-web-ask-ui` · `08-05-p2-sessions-shell` · `08-06-frontend-tailwind-shadcn` · `08-11-b13-feedback-ui` · `08-13-b11-doc-type-scope-ui` |
