@@ -27,6 +27,37 @@ export type AskTransportOptions = {
   getScope?: () => AskRequest['scope'];
 };
 
+/**
+ * 解析用户输入的文档类型多值（逗号 / 中文逗号）。
+ * 空 → undefined（不收窄）；非空 → 去空白、去重后的 docTypes。
+ */
+export function parseScopeDocTypesInput(raw: string): string[] | undefined {
+  const parts = raw
+    .split(/[,，]/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  if (parts.length === 0) return undefined;
+  return [...new Set(parts)];
+}
+
+/** 装配 ask 请求 body（顶层 scope；禁塞 options）— 供 transport 与单测共用 */
+export function buildAskRequestBody(input: {
+  question: string;
+  sessionId: string | null;
+  scope?: AskRequest['scope'];
+}): AskRequest {
+  const body: AskRequest = {
+    question: input.question,
+    sessionId: input.sessionId,
+    options: { stream: true },
+  };
+  const docTypes = input.scope?.docTypes?.filter((t) => t.trim().length > 0);
+  if (docTypes && docTypes.length > 0) {
+    body.scope = { docTypes };
+  }
+  return body;
+}
+
 function baseURL() {
   return getWebClientEnv().NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, '');
 }
@@ -79,12 +110,11 @@ export function createAskTransport(opts: AskTransportOptions) {
           .join('')
           .trim() ?? '';
 
-      const body: AskRequest = {
+      const body = buildAskRequestBody({
         question,
         sessionId: opts.getSessionId(),
         scope: opts.getScope?.(),
-        options: { stream: true },
-      };
+      });
 
       return {
         body,

@@ -40,6 +40,7 @@ vi.mock('@/api/ask', () => ({
   createAskTransport: vi.fn(() => ({ kind: 'mock-transport' })),
 }));
 
+import { createAskTransport } from '@/api/ask';
 import { useKnowledgeAsk } from '@/hooks/use-knowledge-ask';
 
 describe('useKnowledgeAsk', () => {
@@ -51,6 +52,17 @@ describe('useKnowledgeAsk', () => {
     chat.sendMessage.mockReset();
     chat.setMessages.mockReset();
     chat.stop.mockReset();
+    vi.mocked(createAskTransport).mockClear();
+  });
+
+  it('B11：把 getScope 传给 createAskTransport', () => {
+    const getScope = () => ({ docTypes: ['hr'] as string[] });
+    renderHook(() =>
+      useKnowledgeAsk({ kbId: 'kb-1', sessionId: null, getScope }),
+    );
+    expect(createAskTransport).toHaveBeenCalled();
+    const arg = vi.mocked(createAskTransport).mock.calls[0]?.[0];
+    expect(arg?.getScope?.()).toEqual({ docTypes: ['hr'] });
   });
 
   it('合法 final → answered / abstained', async () => {

@@ -9,6 +9,7 @@ import { useChat } from '@ai-sdk/react';
 import {
   AskResponseSchema,
   AskSseStatusSchema,
+  type AskRequest,
   type AskResponse,
 } from '@strict-rag/contracts';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -25,11 +26,15 @@ export type KnowledgeAskView =
 export type UseKnowledgeAskArgs = {
   kbId: string;
   sessionId: string | null;
+  /** B11：每次发送时读 scope（ref 挂载，改类型不重建 transport） */
+  getScope?: () => AskRequest['scope'];
 };
 
-export function useKnowledgeAsk({ kbId, sessionId }: UseKnowledgeAskArgs) {
+export function useKnowledgeAsk({ kbId, sessionId, getScope }: UseKnowledgeAskArgs) {
   const sessionIdRef = useRef(sessionId);
   sessionIdRef.current = sessionId;
+  const getScopeRef = useRef(getScope);
+  getScopeRef.current = getScope;
 
   const [view, setView] = useState<KnowledgeAskView>({ type: 'idle' });
   const [lastFinal, setLastFinal] = useState<AskResponse | null>(null);
@@ -39,6 +44,7 @@ export function useKnowledgeAsk({ kbId, sessionId }: UseKnowledgeAskArgs) {
     return createAskTransport({
       kbId: kbId.trim(),
       getSessionId: () => sessionIdRef.current,
+      getScope: () => getScopeRef.current?.(),
     });
   }, [kbId]);
 

@@ -22,6 +22,7 @@ import { Textarea } from '@strict-rag/ui/components/ui/textarea';
 import { cn } from '@strict-rag/ui/lib/utils';
 import { useRouter } from 'next/navigation';
 
+import { parseScopeDocTypesInput } from '@/api/ask';
 import { createAskFeedback } from '@/api/feedback';
 import { logoutLocal } from '@/auth/services';
 import { useWebAuth } from '@/components/auth-guard';
@@ -40,6 +41,8 @@ export function AskPanel() {
   const router = useRouter();
   const [kbId, setKbId] = useState('');
   const [question, setQuestion] = useState('');
+  /** B11：可选文档类型（逗号分隔）；空=不收窄 */
+  const [docTypesInput, setDocTypesInput] = useState('');
   /** 最近一次成功发起的提问文案；重试用（提交后会清空输入框） */
   const [lastQuestion, setLastQuestion] = useState('');
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
@@ -49,9 +52,15 @@ export function AskPanel() {
   /** 会话壳错误（列表/历史）；不覆盖主问答 view */
   const [shellError, setShellError] = useState<string | null>(null);
 
+  const getScope = useCallback(() => {
+    const docTypes = parseScopeDocTypesInput(docTypesInput);
+    return docTypes ? { docTypes } : undefined;
+  }, [docTypesInput]);
+
   const { view, setView, lastFinal, ask, reset, busy } = useKnowledgeAsk({
     kbId,
     sessionId: activeSessionId,
+    getScope,
   });
 
   useEffect(() => {
@@ -261,6 +270,19 @@ export function AskPanel() {
                   placeholder="uuid"
                   required
                 />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ask-doc-types">文档类型（可选）</Label>
+                <Input
+                  id="ask-doc-types"
+                  value={docTypesInput}
+                  onChange={(ev) => setDocTypesInput(ev.target.value)}
+                  placeholder="如 hr, legal；空=不按类型收窄"
+                  autoComplete="off"
+                />
+                <p className="m-0 text-[11px] text-muted-foreground">
+                  多个类型用逗号分隔；仅检索标注了对应类型的文档（ADR-050）。
+                </p>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="ask-q">问题</Label>
