@@ -13,7 +13,7 @@
 
 ## 一句话状态
 
-BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑通；扫描/向量/ES **默认均为 mock**，对象读本地目录。**不是**生产级入库链路；**`INGEST_SCAN_MODE=on` 全环境拒启动**，staging/production 亦拒 mock —— 生产向 worker 在 QUAL-2 清债前 **无法按现有 env 合法启动**。
+BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑通；扫描 / 向量 / ES **默认均为 mock**，对象存储读本地目录。**不是**生产级入库链路；**`INGEST_SCAN_MODE=on` 全环境拒启动**，staging/production 同样拒 mock —— 因此在 QUAL-2 清债前，生产向 worker **无法按现有 env 合法启动**。
 
 ---
 
@@ -23,7 +23,7 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 - Worker 进程入口：仅 BullMQ consumer + 信号退出（**无**业务 HTTP / listen）
 - 队列名来自 contracts：`sr-probe` · `sr-ingest`（`apps/worker/src/queues.ts` · `packages/contracts/src/async/queues.ts`）
 - 默认 job：`attempts=3` · exponential backoff 2000ms（`INGEST_JOB_*` · `index.ts`）
-- 启动：Redis PING；失败 `process.exit(1)`；优雅停机分阶段 close Worker/Queue/Redis/DB
+- 启动：Redis PING；失败 `process.exit(1)`；优雅停机分阶段 close Worker / Queue / Redis / DB
 - DB：`statementTimeoutMs=0` / `lockTimeoutMs=0`（入库耗时长；`db.ts`）
 
 ### 扫描启动闸（X-01 / X-02）
@@ -31,11 +31,11 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
   - **`on`**：任意 `APP_ENV` → **拒启动**（真引擎未接，≠ mock clean）
   - **staging/production** + `mock_*` / `off` → **拒启动**
   - 仅 **development/test** 允许 `mock_clean` / `mock_infected` / `off`
-- 运行时防御：pipeline 遇 `on` → `SCAN_ENGINE_UNAVAILABLE`（不可当 clean）
+- 运行时防御：pipeline 遇 `on` → `SCAN_ENGINE_UNAVAILABLE`（不可当作 clean）
 
 ### 入库流水线（`ingest/pipeline.ts`）
 - 阶段：`scan → parse → chunk → embed → es_index`（`IngestJobData.stage`）
-- **scan**：审批未通过 → `NOT_APPROVED`；`mock_infected` 删本地对象 + `MALWARE`；`mock_clean`/`off` 放行
+- **scan**：审批未通过 → `NOT_APPROVED`；`mock_infected` 删本地对象 + `MALWARE`；`mock_clean` / `off` 放行
 - **parse**：本地 UTF-8 读对象；过短 → `needs_ocr` + `NO_TEXT_LAYER`；`mongoDocId=local:{docId}`（**假 Mongo 标记**，非真 Mongo）
 - **chunk**：**仅** `structure_paragraph`（contracts `IMPLEMENTED_*`）；未实现 → `UNSUPPORTED_CHUNK_STRATEGY`（**不**静默回落）；写 chunks + `chunk_manifests`；`indexVersion = doc.indexVersion+1`
 - **embed**：mock 伪向量 dims=8 · `model=mock-embed`；缺 embedding 行才补写（幂等 skip）
@@ -47,8 +47,8 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 - 可重试（普通 Error → BullMQ attempts）：`EMBED_FAILED` / `ES_INDEX_FAILED` / `ES_RECONCILE_FAILED` / `DOC_LOCK_BUSY` 等
 - 不可重试（`UnrecoverableError`）：`MALWARE` / `NOT_APPROVED` / `UNSUPPORTED_CHUNK_STRATEGY` 等（`bull-outcome.ts`）
 - 未知 errorCode **fail-closed 不重试**
-- **账本最小**：`job-ledger.ts` 每 stage insert `running` → end `succeeded`/`failed`（写失败 warn 不阻断）；**未做** api 入队写 / 查询 API
-- **同 doc 锁最小**：`doc-lock.ts` Redis `SET NX EX` + token 安全释放；`index.ts` 持锁再跑 stage；抢锁失败 `DOC_LOCK_BUSY` 可重试；**非** Redlock
+- **账本最小**：`job-ledger.ts` 每 stage 先 insert `running`、结束时写 `succeeded`/`failed`（写失败仅记 warn 日志，不阻断）；**未做** api 入队写 / 查询 API
+- **同 doc 锁最小**：`doc-lock.ts` 用 Redis `SET NX EX` + token 安全释放；`index.ts` 持锁再跑 stage；抢锁失败 `DOC_LOCK_BUSY` 可重试；**非** Redlock
 
 ### 基础设施
 - 环境变量校验、Pino 日志、与 api 共用 `@strict-rag/db`
@@ -76,10 +76,10 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 | 债 | 影响 | 备注 |
 |----|------|------|
 | **【安全债 · QUAL-2】真杀毒未接** | 生产收真实上传前必须清 | **DEC-SCAN**：dev 允许 mock；**X-01/X-02 已焊**。清债 = 真引擎 + `on` 健康检查放行 prod + 审计 + 剧本 M。**禁止**宣称已生产杀毒 |
-| **prod-like 无法合法启动** | staging/production 既禁 mock 又禁未接的 `on` | 进生产前必须 QUAL-2 放行路径 |
+| **prod-like 无法合法启动** | staging/production 既禁 mock 又禁未接的 `on` | 进生产前必须走 QUAL-2 放行路径 |
 | mock 扫描 + mock 向量 + mock ES | 入库「可演示 ≠ 生产可信」 | 与 api 检索 mock 同源问题族 |
 | **幂等+账本+锁最小已接 · 运维查询仍欠** | stage 行可写；同 doc SET NX 互斥；无运维查询面 / 非 Redlock | HOW `ingest-idempotency.md` · `job-ledger.ts` · `doc-lock.ts` · task `08-12-ingest-doc-lock-min` |
-| 入库 ES 无 live 枚举 | 切真索引须改 env/代码专项验收 | 勿与 api `RETRIEVE_ES_MODE=http` 混谈 |
+| 入库 ES 无 live 枚举 | 切真索引须改 env / 代码专项验收 | 勿与 api `RETRIEVE_ES_MODE=http` 混谈 |
 | 分块策略极简 | 检索质量上限低 | 扩策略：先 worker 实现 + 扩 contracts `IMPLEMENTED_*` |
 | `GATEWAY_*` 死配置 | 易误读「已接网关 embed」 | pipeline 未用 |
 | 失败重试 / 死信 | 仅 BullMQ attempts + 日志；无业务 DLQ 面板 | 对照 PRD 异步章节 |

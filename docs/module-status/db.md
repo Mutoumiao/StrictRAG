@@ -20,7 +20,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 
 ### Client / 工具
 - `createDb`（`client.ts`；可选 `statementTimeoutMs` / `lockTimeoutMs`，传 0 表示不设置）
-- 分端约定：api 15s/10s · worker 0（ARCH-P0-4；调用方传入）
+- 分端约定：api 15s/10s · worker 0（ARCH-P0-4；由调用方传入）
 - `formatLocalDateTime`（写库时间本地格式串）
 - 包导出：`.` · `./schema` · `./client`（`package.json`）
 
@@ -33,7 +33,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 ### Schema · kb（入库主轴）
 - `knowledge_bases` · `documents`（含 **`chunkStrategy` / `chunkStrategyParams`**）· `chunks` · `chunk_manifests`
 - `chunk_embeddings`：**`embedding` 列为 jsonb `number[]`**（演示 mock 向量；**不是** native pgvector/`vector` 列）
-- `ingest_jobs`：schema 已有；**worker** `job-ledger` 阶段边界最小写（**非**本包服务层；无查询 API；同 doc 锁在 worker Redis 侧）
+- `ingest_jobs`：schema 已有；**worker** `job-ledger` 按阶段边界最小写（**非**本包服务层；无查询 API；同 doc 锁在 worker Redis 侧）
 - `kb_members`
 
 ### Schema · ask（S2）

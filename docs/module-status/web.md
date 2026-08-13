@@ -5,7 +5,7 @@
 | 路径 | `apps/web` |
 | 端口 | 3005 |
 | 成熟度 | **可演示**（S2 用户端薄壳） |
-| 默认依赖模式 | 鉴权 = 临时双 JWT（经 api）· `NEXT_PUBLIC_API_BASE_URL` 默认 `http://127.0.0.1:4000` · 问答 AI SDK UI Message Stream · rewrite = **服务端强制关**（本包无开关控件）· 知识库 = 手工填写 id |
+| 默认依赖模式 | 鉴权 = 临时双 JWT（经 api）· `NEXT_PUBLIC_API_BASE_URL` 默认 `http://127.0.0.1:4000` · 问答 = AI SDK UI Message Stream · rewrite = **服务端强制关**（本包无开关控件）· 知识库 = 手工填写 id |
 | 关联模块 | ask 流 / 会话 / 反馈提交：`api`；类型：`contracts`；样式 / 组件：`ui` |
 | 最近更新 | 2026-08-13（B11 doc_type scope UI；B13 FeedbackBar） |
 | Spec | `.trellis/spec/web/frontend/` |

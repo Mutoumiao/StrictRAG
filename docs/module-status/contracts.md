@@ -29,7 +29,7 @@
 - **入库 job payload（08-12）**：`IngestJobDataSchema`（`docId` · `kbId` · `tenantId` · `stage` ∈ scan/parse/chunk/embed/es_index · 可选 `indexVersion` / `requestId` / `attemptHint`）；默认 `INGEST_JOB_DEFAULT_ATTEMPTS=3` · `INGEST_JOB_BACKOFF_MS=2000`（`async/ingest-job.ts`，经 `async/queues` 再导出）
 
 ### 入库 + 分片策略（B12）
-- 文档 body 及列表 / 详情 / 审批 / 扫描等成功响应 data 形状（`ingest/document.contract`）
+- 文档 body 及列表 / 详情 / 审批 / 扫描等成功响应的 data 形状（`ingest/document.contract`）
 - **complete / reindex body 可选 `chunkStrategy`**；reindex 成功 data 含 `chunkStrategy` + `strategyChanged`
 - 分片 list query / item / response + detail（`ingest/chunk.contract`；list **不含** body）
 - **策略码 SSOT**（`ingest/chunk-strategy.ts`）：
@@ -56,7 +56,7 @@
 
 ### 模型网关（B3）
 - Provider / Create / Patch / Presets / Binding / Catalog / ModelRef（`system/model-gateway.contract`）
-- GET 形状含 `hasApiKey`、**不含** apiKey 明文；purpose 类型闸 helper
+- GET 响应形状含 `hasApiKey`、**不含** apiKey 明文；purpose 类型闸 helper
 - **边界**：有 **platform** 绑定契约；**无**独立「KB 绑定 PUT」专用 schema 导出
 
 ### 平台用户 / 角色（B4）
