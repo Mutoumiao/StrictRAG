@@ -52,4 +52,5 @@ Thumbs.db
 skills-lock.json
 # Local workspace
 .trellis/tasks/
+/prds
 
