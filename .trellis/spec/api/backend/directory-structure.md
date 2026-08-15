@@ -55,6 +55,8 @@ apps/api/src/
   eval/
     l1-matrix.ts           # L1 2×2 纯函数（A–D · coverage）；error 不计格
     l1-matrix.test.ts
+    adr046-snapshot.ts     # ADR-046 配置快照绑定 + 硬门单向 + 四要素 / businessPass 闸
+    adr046-snapshot.test.ts
   scripts/
     run-l1-golden.ts       # L1 批跑 CLI：串行 executeAsk(skipTrace) → artifacts/；可选 persist eval_runs
     run-l1-golden.test.ts  # loadGold · mock execute 注入（CI 不跑 live LLM）

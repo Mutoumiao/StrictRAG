@@ -10,6 +10,14 @@ import { evalRuns, formatLocalDateTime } from '@strict-rag/db';
 import { uuidv7 } from 'uuidv7';
 
 import {
+  bindQualitySnapshotToEval,
+  PILOT_HARD_GATES,
+  writeBoundSnapshot,
+  type Adr046Snapshot,
+  type BindVerdict,
+  type HardGates,
+} from '../eval/adr046-snapshot.js';
+import {
   accumulate,
   computeSignoffEligible,
   coverage,
@@ -67,6 +75,9 @@ export type L1Report = {
   kbId: string;
   /** 写入 eval_runs 后的 id（可选） */
   evalRunId?: string;
+  /** ADR-046 配置快照（绑定本跑身份；≠ 业务 PASS） */
+  gateSnapshot?: Adr046Snapshot;
+  gateVerdict?: BindVerdict;
 };
 
 export type RunL1Options = {
@@ -83,6 +94,15 @@ export type RunL1Options = {
   persistEval?: boolean;
   /** 单测注入；默认读 env.RETRIEVE_ES_MODE */
   esMode?: string;
+  /** ADR-046 快照覆盖（默认 τ=env.TAU_CLAIM、试点硬门、不代签） */
+  snapshot?: {
+    snapshotId?: string;
+    tauClaim?: number;
+    gates?: HardGates;
+    proposal?: boolean;
+    businessR?: boolean;
+    productA?: boolean;
+  };
 };
 
 /** 报告 ranAt(ISO) → 写库本地格式串；纯函数便于单测 */
@@ -249,6 +269,9 @@ export function formatReportMd(report: L1Report): string {
     `| signoffEligible | ${report.signoffEligible} |`,
     `| errorCount | ${report.errorCount} |`,
     `| coverage | ${cov} |`,
+    `| gate_bundle | ${report.gateSnapshot?.gate_bundle ?? '—'} |`,
+    `| signedPackage | ${report.gateVerdict?.signedPackage ?? false} |`,
+    `| businessPass | ${report.gateVerdict?.businessPass ?? false} |`,
     '',
     '## 2×2',
     '',
@@ -353,6 +376,27 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
     }
   }
 
+  // ponytail: 快照绑本跑身份；默认不代签。coverage=0 / internal_guard 不会翻 businessPass
+  const snapIn = opts.snapshot;
+  const bound = bindQualitySnapshotToEval({
+    snapshotId: snapIn?.snapshotId ?? uuidv7(),
+    kbId: report.kbId,
+    evalRunId: report.evalRunId ?? null,
+    ranAt: report.ranAt,
+    retrieve_mode: mode,
+    tauClaim: snapIn?.tauClaim ?? env.TAU_CLAIM,
+    gates: snapIn?.gates ?? { ...PILOT_HARD_GATES },
+    proposal: snapIn?.proposal,
+    businessR: snapIn?.businessR,
+    productA: snapIn?.productA,
+    signoffEligible: report.signoffEligible,
+    coverage: report.coverage,
+    caseReasons: rows.map((r) => r.reason),
+  });
+  report.gateSnapshot = bound.snapshot;
+  report.gateVerdict = bound.verdict;
+  writeBoundSnapshot(opts.outDir, bound.snapshot, bound.verdict);
+
   writeL1Report(opts.outDir, report);
   return report;
 }
@@ -387,6 +431,9 @@ async function main(): Promise<void> {
           retrieve_mode: report.retrieve_mode,
           signoffEligible: report.signoffEligible,
           evalRunId: report.evalRunId ?? null,
+          evalBindId: report.gateSnapshot?.evalBindId ?? null,
+          signedPackage: report.gateVerdict?.signedPackage ?? false,
+          businessPass: report.gateVerdict?.businessPass ?? false,
           caseCount: report.caseCount,
           answerableCount: report.answerableCount,
           unanswerableClassCount: report.unanswerableClassCount,

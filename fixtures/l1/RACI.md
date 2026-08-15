@@ -45,7 +45,7 @@
 - [ ] §2 至少一条 **业务题面**审核记录（日期+人+通过），覆盖签字用 gold
 - [x] L1 报告 `retrieve_mode=live` 且 `signoffEligible=true`（OPS-1；2026-08-14 全量 ×2）
 - [x] 规模满足 B10-followup（可答/不可答各≥30 真跑）；mock 数字 **未**写入本页
-  - 注意：本跑 2×2 为 B=30 / D=30、coverage=0、reason=`internal_guard`（Gateway 空 URL → mock 生成）。**禁止**当业务成绩单；人签 + ADR-046 快照仍缺。
+  - 注意：本跑 2×2 为 B=30 / D=30、coverage=0、reason=`internal_guard`（Gateway 空 URL → mock 生成）。**禁止**当业务成绩单。ADR-046 快照绑定已落（`l1-gate-snapshot.json`）；人签仍缺 → `signedPackage=false` / `businessPass=false`。
 
 任一项否 → **拒绝**业务签字页绿灯。
 

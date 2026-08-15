@@ -279,6 +279,17 @@ describe('runL1Golden mock graphDeps path', () => {
     expect(md).toContain('retrieve_mode:');
     expect(md).toContain('A=1');
     expect(md).toContain('errorCount');
+    expect(md).toContain('businessPass');
+    expect(report.gateSnapshot?.evalBindId).toMatch(/^report:kb-test:/);
+    expect(report.gateVerdict?.businessPass).toBe(false);
+    expect(report.gateVerdict?.signedPackage).toBe(false);
+    const snap = JSON.parse(readFileSync(path.join(outDir, 'l1-gate-snapshot.json'), 'utf8')) as {
+      snapshot: { evalBindId: string; kbId: string };
+      verdict: { businessPass: boolean };
+    };
+    expect(snap.snapshot.kbId).toBe('kb-test');
+    expect(snap.snapshot.evalBindId).toBe(report.gateSnapshot?.evalBindId);
+    expect(snap.verdict.businessPass).toBe(false);
   });
 
   it('L1_MAX_CASES truncates', async () => {

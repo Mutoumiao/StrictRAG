@@ -2,7 +2,7 @@
 
 > 路径：`apps/api/src/eval/` · `apps/api/src/scripts/run-l1-golden.ts` · 仓根 `fixtures/l1/`  
 > 产品语义：`prds/08-quality`（覆盖率 / 2×2）· 任务 `08-08-b10-l1-golden-set`  
-> **本窗状态**：工程底座 **已落地**；OPS-1 live profile + `retrieve_mode`/`signoffEligible`；B10-followup **工程**（`eval_runs` 表 + gold 60 + `L1_PERSIST_EVAL`）已归档；B10-RACI owner 表 `fixtures/l1/RACI.md`；**业务签字真跑数字** / L2·L3 **未做**（硬依赖 live 真跑 + 人签）。
+> **本窗状态**：工程底座 **已落地**；OPS-1 live profile + `retrieve_mode`/`signoffEligible`；B10-followup **工程**（`eval_runs` 表 + gold 60 + `L1_PERSIST_EVAL`）已归档；B10-RACI owner 表 `fixtures/l1/RACI.md`；ADR-046 快照绑定已落；**业务人签 / L2·L3 未做**。
 
 ---
 
@@ -42,6 +42,8 @@
 | `coverage(matrix)` | 同上 | `A/(A+B)`；分母 0 → `null` |
 | `goldTypeCounts(cases)` | 同上 | `{ answerable, unanswerableClass }` |
 | `computeSignoffEligible(mode, counts)` | 同上 | live ∧ 各≥`SIGNOFF_MIN_PER_CLASS`(30) |
+| `bindQualitySnapshotToEval(input)` | `eval/adr046-snapshot.ts` | ADR-046 快照绑定 eval 身份；硬门放宽 / 缺四要素 → 不得 `signedPackage`；coverage=0 / `internal_guard` → 不得 `businessPass` |
+| `writeBoundSnapshot(outDir, …)` | 同上 | 写 `l1-gate-snapshot.json`（gitignore 产物） |
 | `loadGold(goldPath)` | `scripts/run-l1-golden.ts` | 读 JSON 形 gold；失败抛 `GoldLoadError` |
 | `runL1Golden(opts)` | 同上 | 串行批跑 + 写报告；可注入 `execute` |
 | `executeAsk(params, deps?)` | `services/ask/execute.ts` | 批跑 **必须** `deps.skipTrace: true` |
@@ -91,6 +93,7 @@ Seed 规模：可答 30 + 不可答类 30（含 `false_premise`）；**mock 数�
 | `signoffEligible` | `live` **且** 本跑 `answerable≥30` ∧ `unanswerableClass≥30` → `true`；mock / unknown / 截断冒烟 → `false`；**≠** 自动业务签字 |
 | `answerableCount` / `unanswerableClassCount` | 本跑实际题量（受 `L1_MAX_CASES` 截断）；`false_premise` 计入不可答类 |
 | `evalRunId?` | `L1_PERSIST_EVAL` 写入 `eval_runs` 后的 id |
+| `gateSnapshot?` / `gateVerdict?` | ADR-046：配置快照绑定 `evalBindId`；`signedPackage` 须四要素且硬门未放宽；`businessPass` 另须 signoffEligible ∧ coverage>0 ∧ 非全 `internal_guard` |
 | `ranAt` | ISO 字符串（artifact / report_json）；**写库** `eval_runs.ran_at` 用 `formatLocalDateTime`（`evalRunDbRanAt`） |
 | `caseCount` / `errorCount` | number |
 | `matrix` | `{ A,B,C,D }` |
@@ -293,6 +296,7 @@ for (const c of cases) {
 - Fixture 说明：`fixtures/l1/README.md` · 跑法：`apps/api/README.md`  
 - IS：`docs/module-status/api.md` · backlog B10 挂账 `08-06-project-backlog`  
 - 已做（工程）：`eval_runs` 表 + `persistEvalRun` / `L1_PERSIST_EVAL` · gold≥60 · OPS-1 `retrieve_mode`/`signoffEligible` · B10-RACI `fixtures/l1/RACI.md`  
-- 未做：业务人签 / ADR-046 配置快照 · worker-eval · L2/L3  
+- 未做：业务人签 · worker-eval · L2/L3  
+- ADR-046 快照：`runL1Golden` 写 `l1-gate-snapshot.json` 并挂 `gateSnapshot`/`gateVerdict`；默认不代签 → `signedPackage=false`；coverage=0 / 全 `internal_guard` → `businessPass=false`  
 - 签字禁令：`signoffEligible=true` = `retrieve_mode=live` **且** 两类各≥30；**≠** 自动业务 PASS；coverage=0 / 全 `internal_guard`（无真实 Gateway）**禁止**当成绩单；人审仍禁「仅 env Gateway 绿灯」（见 live profile §4.5）  
 

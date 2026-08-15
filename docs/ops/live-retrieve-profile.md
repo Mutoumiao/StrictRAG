@@ -108,7 +108,8 @@ pnpm --filter @strict-rag/api exec tsx src/scripts/run-l1-golden.ts
 2. `mock` 或 `unknown` → 拒收；不得改报告头假装 live。  
 3. 本 profile **≠** 宣称生产 ES+IK / 多租户已上。  
 4. 业务签字真跑规模（各≥30）见 **B10-followup**（硬依赖 OPS-1 ∧ B3-W）。  
-5. **Gateway 非仅 env（B3-W）**：签字 live 会话须已配置 platform `model_bindings`（admin 模型绑定）；运行时 `bindingSource` 为 `mixed`/`db`。仅 env 绿灯 **不得** 当业务签字成绩单（B3-W 后须重跑）。
+5. **Gateway 非仅 env（B3-W）**：签字 live 会话须已配置 platform `model_bindings`（admin 模型绑定）；运行时 `bindingSource` 为 `mixed`/`db`。仅 env 绿灯 **不得** 当业务签字成绩单（B3-W 后须重跑）。  
+6. **ADR-046**：须有绑定本跑身份的 `l1-gate-snapshot.json`；硬门放宽或四要素不齐 → `signedPackage=false`；coverage=0 / 全 `internal_guard` → `businessPass=false`（≠ 业务 PASS）。
 
 ---
 
