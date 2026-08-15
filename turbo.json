@@ -30,7 +30,14 @@
         "L1_USER_ID",
         "L1_GOLD_PATH",
         "L1_OUT_DIR",
-        "L1_PERSIST_EVAL"
+        "L1_PERSIST_EVAL",
+        "L2_KB_ID",
+        "L2_MAX_CASES",
+        "L2_TENANT_ID",
+        "L2_USER_ID",
+        "L2_GOLD_PATH",
+        "L2_OUT_DIR",
+        "L2_REWRITE_ENABLED"
       ]
     },
     "check-types": {
@@ -65,7 +72,14 @@
         "L1_USER_ID",
         "L1_GOLD_PATH",
         "L1_OUT_DIR",
-        "L1_PERSIST_EVAL"
+        "L1_PERSIST_EVAL",
+        "L2_KB_ID",
+        "L2_MAX_CASES",
+        "L2_TENANT_ID",
+        "L2_USER_ID",
+        "L2_GOLD_PATH",
+        "L2_OUT_DIR",
+        "L2_REWRITE_ENABLED"
       ]
     }
   }

@@ -22,7 +22,7 @@
 - [ ] 触及 rewrite 图边时是否读 [ask-pipeline](./ask-pipeline.md) 开/关两态？
 - [ ] 密钥是否仅服务端 env（JWT 禁止 prod 默认 dev-only）？  
 - [ ] 触及 L1 评测时是否读 [l1-eval](./l1-eval.md)（`skipTrace` · error 出格 · mock 禁签字 · turbo `L1_*`）？  
-- [ ] 触及 L2 题面时是否读 [l2-eval](./l2-eval.md)（图边落地 ≠ 准出；**禁止**默认开 rewrite / 写 runner）？  
+- [ ] 触及 L2 题面/runner 时是否读 [l2-eval](./l2-eval.md)（图边/CLI 落地 ≠ 准出；**禁止**默认开 rewrite / 把 runner 当准出）？  
 
 ## Quality Check
 
@@ -54,7 +54,7 @@
 | [departments](./departments.md) | **B5 部门壳** · `dept.manage` / 用户归属 · 禁环 · **≠** DEPT_ACL 强制 |
 | [dashboard](./dashboard.md) | **B6 数据面板薄壳** · `dashboard.view` · 只读 summary ≤5 · **≠** APM |
 | [l1-eval](./l1-eval.md) | **B10** L1 工程 seed + eval_runs · OPS-1 `retrieve_mode` · **≠** 业务签字真跑 |
-| [l2-eval](./l2-eval.md) | **P2.5-L2** 多轮题面草案 + 加载器 · **≠** 准出 / runner / **≠** 默认开 rewrite |
+| [l2-eval](./l2-eval.md) | **P2.5-L2/L2R** 多轮题面 + 工程 runner · **≠** 准出 / **≠** 默认开 rewrite |
 
 ## 依赖（package.json）
 

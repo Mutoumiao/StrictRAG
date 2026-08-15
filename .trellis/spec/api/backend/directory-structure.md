@@ -55,13 +55,15 @@ apps/api/src/
   eval/
     l1-matrix.ts           # L1 2×2 纯函数（A–D · coverage）；error 不计格
     l1-matrix.test.ts
-    l2-gold.ts             # L2 多轮题面加载 / 覆盖（纯函数；≠ runner）
+    l2-gold.ts             # L2 多轮题面加载 / 覆盖（纯函数）
     l2-gold.test.ts
     adr046-snapshot.ts     # ADR-046 配置快照绑定 + 硬门单向 + 四要素 / businessPass 闸
     adr046-snapshot.test.ts
   scripts/
     run-l1-golden.ts       # L1 批跑 CLI：串行 executeAsk(skipTrace) → artifacts/；可选 persist eval_runs
     run-l1-golden.test.ts  # loadGold · mock execute 注入（CI 不跑 live LLM）
+    run-l2-golden.ts       # L2 批跑 CLI：进程内窗 + 末轮机械分；signoffEligible 恒 false
+    run-l2-golden.test.ts  # 分配 / 泄漏 / 注入 execute（CI 不跑 live LLM / 不写 PG）
     seed-es-sparse-probe.ts # OPS-1：PG chunks → ES bulk + sample search
   obs/                     # metrics · rate-limit · memory/ask tracer
   gates/                   # 上传体积 · 审批 scan
@@ -111,8 +113,8 @@ artifacts/                 # gitignore；l1-last-run.{json,md}
 | 契约类型 | `@strict-rag/contracts` | apps 内 `type XxxResponse` |
 | OpenAPI / Scalar（ARCH-P2-1） | `openapi/document.ts` + `openapi/routes.ts`；schema **只**从 contracts Zod 派生 | 平行手写字段表当 SSOT；OpenAPIHono 全量重写 route；宣称生产发布流水线 |
 | 入库重活 | **enqueue** → worker | api 内跑 chunk/embed |
-| 评测 CLI | `eval/` + `scripts/run-l1-golden.ts` | HTTP 自调用假 L1；**禁止**本窗写 `run-l2-golden.ts` |
-| L2 题面 | `eval/l2-gold.ts` + 仓根 `fixtures/l2/` | 调 `executeAsk` / 写 `eval_runs` / 开 rewrite |
+| 评测 CLI | `eval/` + `scripts/run-l1-golden.ts` + `scripts/run-l2-golden.ts` | HTTP 自调用假 L1/L2；L2 **禁止**当准出 / 写 `eval_runs` |
+| L2 题面 | `eval/l2-gold.ts` + 仓根 `fixtures/l2/` | 改 gold 形状；开仓库默认 rewrite |
 | 观测 | `obs/**` | 业务 route 打无结构 console 当指标 |
 | 中间件 | `middleware/**` 或 `app.ts` 薄编排 | 每个 route 复制 timeout/bodyLimit |
 
@@ -123,6 +125,7 @@ artifacts/                 # gitignore；l1-last-run.{json,md}
 | 脚本 | 说明 |
 |------|------|
 | `dev` / `start` | tsx 起服 :4000 |
-| `test` | vitest（auth · graph · ask · retrieve · chunks · sessions · feedback · obs · **eval/l1** · **eval/l2-gold** · **scripts/run-l1-golden** …） |
+| `test` | vitest（auth · graph · ask · retrieve · chunks · sessions · feedback · obs · **eval/l1** · **eval/l2-gold** · **scripts/run-l1-golden** · **scripts/run-l2-golden** …） |
 | `check-types` / `lint` | tsc · eslint |
 | L1 CLI（tsx） | `L1_KB_ID=… pnpm --filter @strict-rag/api exec tsx src/scripts/run-l1-golden.ts` |
+| L2 CLI（tsx） | `L2_KB_ID=… pnpm --filter @strict-rag/api exec tsx src/scripts/run-l2-golden.ts`（**≠** 准出） |

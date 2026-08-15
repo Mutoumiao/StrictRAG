@@ -212,7 +212,7 @@ route
 | multi_hop / max_hops 环 | reason 枚举保留 `max_hops_exceeded`；图内 **无** hop 边 |
 | CRAG grade → refine | **无** |
 | 按需加深（窗外再取 K 条） | **无** |
-| L2 runner / 准出 | **无**（题面草案另见 [l2-eval](./l2-eval.md)） |
+| L2 runner / 准出 | **工程 runner 有**（`scripts/run-l2-golden.ts`）；**准出无**（另见 [l2-eval](./l2-eval.md)） |
 | rewrite / coref | **P2.5 已实现**最小边；**默认关**；`coref_unresolved` 仅开路径可达 |
 | 官方 LangGraph 条件边 | 线性 `runAskGraph` 即可 |
 
