@@ -74,7 +74,7 @@
 | **admin 运营面** | **可演示**（S2c + B1–B6 最小 + B7 裁剪 + **B13 反馈队列**；落地 href **11** 条；面板只读、非 APM） | `admin` | `api` · `admin-catalog` · `contracts` | [admin](./admin.md) · [admin-catalog](./admin-catalog.md) |
 | **反馈** | **可联调**（API + **B13** web 答后提交 / admin 队列状态修改） | `api` | `web` · `admin` · `db` | [web](./web.md) · [admin](./admin.md) · [api](./api.md) |
 | **模型网关** | **可演示**（供应商 CRUD + **platform** 绑定；运行时 env+platform+**KB 读覆盖**；**无** KB 绑定 HTTP 写；admin KB 写 UI 延后） | `api` | `admin` · `contracts` · `db` | [api](./api.md) · [admin](./admin.md) |
-| **观测 / 评测** | **可联调**（进程内 metrics/tracer；L1 gold60 + OPS-1 live；2026-08-14 live 全量 ×2 `signoffEligible=true`；ADR-046 快照可绑定；coverage=0 **≠** 业务 PASS；`eval_runs` 可选落库；**mock 禁签字**） | `api` | `db` | [api](./api.md) · [db](./db.md) · [live profile](../ops/live-retrieve-profile.md) |
+| **观测 / 评测** | **可联调**（进程内 metrics/tracer；L1 gold60 + OPS-1 live；2026-08-14 live 全量 ×2 `signoffEligible=true`；ADR-046 快照可绑定；coverage=0 **≠** 业务 PASS；`eval_runs` 可选落库；**mock 禁签字**；**L2 题面草案已落**（`fixtures/l2/`，形状测绿）；**无** L2 runner / 准出；**rewrite 仍关**） | `api` | `db` | [api](./api.md) · [db](./db.md) · [live profile](../ops/live-retrieve-profile.md) |
 | **契约 / Schema 基座** | **可联调**（P1/S2 + B1–B6 + **B12 策略码 / IngestJobData**；`eval_runs` 可落；`ingest_jobs` worker 最小 stage 写；同 doc Redis 锁最小） | `contracts` / `db` | 全部业务包 | [contracts](./contracts.md) · [db](./db.md) |
 | **工程工具链** | **生产向**（全仓 eslint/tsconfig 基线；无业务完成度故事） | `eslint-config` · `typescript-config` | 全仓 · `ui` | [eslint-config](./eslint-config.md) · [typescript-config](./typescript-config.md) · [ui](./ui.md) |
 

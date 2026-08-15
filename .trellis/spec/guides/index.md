@@ -63,6 +63,7 @@ spec/<pkg>/<layer>/  →  包内 HOW + checklist + 专文
 - [ ] 改阈值 / mode / citation 策略  
 - [ ] 「先答了再说」或「降级仍 answered」的诱惑  
 - [ ] L1 黄金集 / 覆盖率 / 批跑 CLI / 是否把 mock 数字当签字  
+- [ ] L2 多轮题面 / 是否把草案当准出 / 是否误开 rewrite  
 - [ ] 入库 scan / 宣称杀毒完成（DEC-SCAN）  
 - [ ] rerank 节点数 / 多策略 reindex  
 
@@ -77,6 +78,7 @@ spec/<pkg>/<layer>/  →  包内 HOW + checklist + 专文
 | `docs/ops/feedback-sla.md` | B13 |
 | `docs/ops/rate-limit-and-metrics.md` | ARCH-P2-4 |
 | `fixtures/l1/RACI.md` | B10-RACI |
+| `fixtures/l2/RACI.md` | P2.5-L2（owner 待指派；不挡工程关单） |
 
 ### 包边界
 

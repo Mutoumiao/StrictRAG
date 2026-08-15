@@ -55,6 +55,8 @@ apps/api/src/
   eval/
     l1-matrix.ts           # L1 2×2 纯函数（A–D · coverage）；error 不计格
     l1-matrix.test.ts
+    l2-gold.ts             # L2 多轮题面加载 / 覆盖（纯函数；≠ runner）
+    l2-gold.test.ts
     adr046-snapshot.ts     # ADR-046 配置快照绑定 + 硬门单向 + 四要素 / businessPass 闸
     adr046-snapshot.test.ts
   scripts/
@@ -73,6 +75,9 @@ apps/api/src/
 ```text
 fixtures/l1/gold.yaml      # JSON 形；≥60（ans30+una30；非签字真跑）
 fixtures/l1/RACI.md · README.md · sample-report.md  # B10-RACI owner 表
+fixtures/l2/gold.yaml      # JSON 形；≥15；run_type=session_multiturn；signoffEligible=false
+fixtures/l2/RACI.md · README.md · sample-report.md
+fixtures/l2/corpus/        # 差旅/餐补/请假短制度草案（本窗不入库）
 docs/ops/live-retrieve-profile.md   # OPS-1
 docs/ops/at-rest-checklist.md       # OPS-2
 docs/ops/feedback-sla.md            # B13 运营 SLA
@@ -106,7 +111,8 @@ artifacts/                 # gitignore；l1-last-run.{json,md}
 | 契约类型 | `@strict-rag/contracts` | apps 内 `type XxxResponse` |
 | OpenAPI / Scalar（ARCH-P2-1） | `openapi/document.ts` + `openapi/routes.ts`；schema **只**从 contracts Zod 派生 | 平行手写字段表当 SSOT；OpenAPIHono 全量重写 route；宣称生产发布流水线 |
 | 入库重活 | **enqueue** → worker | api 内跑 chunk/embed |
-| 评测 CLI | `eval/` + `scripts/run-l1-golden.ts` | HTTP 自调用假 L1 |
+| 评测 CLI | `eval/` + `scripts/run-l1-golden.ts` | HTTP 自调用假 L1；**禁止**本窗写 `run-l2-golden.ts` |
+| L2 题面 | `eval/l2-gold.ts` + 仓根 `fixtures/l2/` | 调 `executeAsk` / 写 `eval_runs` / 开 rewrite |
 | 观测 | `obs/**` | 业务 route 打无结构 console 当指标 |
 | 中间件 | `middleware/**` 或 `app.ts` 薄编排 | 每个 route 复制 timeout/bodyLimit |
 
@@ -117,6 +123,6 @@ artifacts/                 # gitignore；l1-last-run.{json,md}
 | 脚本 | 说明 |
 |------|------|
 | `dev` / `start` | tsx 起服 :4000 |
-| `test` | vitest（auth · graph · ask · retrieve · chunks · sessions · feedback · obs · **eval/l1** · **scripts/run-l1-golden** …） |
+| `test` | vitest（auth · graph · ask · retrieve · chunks · sessions · feedback · obs · **eval/l1** · **eval/l2-gold** · **scripts/run-l1-golden** …） |
 | `check-types` / `lint` | tsc · eslint |
 | L1 CLI（tsx） | `L1_KB_ID=… pnpm --filter @strict-rag/api exec tsx src/scripts/run-l1-golden.ts` |

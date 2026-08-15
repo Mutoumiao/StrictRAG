@@ -2,7 +2,7 @@
 
 > 路径：`apps/api/src/eval/` · `apps/api/src/scripts/run-l1-golden.ts` · 仓根 `fixtures/l1/`  
 > 产品语义：`prds/08-quality`（覆盖率 / 2×2）· 任务 `08-08-b10-l1-golden-set`  
-> **本窗状态**：工程底座 **已落地**；OPS-1 live profile + `retrieve_mode`/`signoffEligible`；B10-followup **工程**（`eval_runs` 表 + gold 60 + `L1_PERSIST_EVAL`）已归档；B10-RACI owner 表 `fixtures/l1/RACI.md`；ADR-046 快照绑定已落；**业务人签 / L2·L3 未做**。
+> **本窗状态**：工程底座 **已落地**；OPS-1 live profile + `retrieve_mode`/`signoffEligible`；B10-followup **工程**（`eval_runs` 表 + gold 60 + `L1_PERSIST_EVAL`）已归档；B10-RACI owner 表 `fixtures/l1/RACI.md`；ADR-046 快照绑定已落；**业务人签 / L3 未做**；L2 题面草案见 [l2-eval](./l2-eval.md)（**≠** 准出）。
 
 ---
 
@@ -296,7 +296,7 @@ for (const c of cases) {
 - Fixture 说明：`fixtures/l1/README.md` · 跑法：`apps/api/README.md`  
 - IS：`docs/module-status/api.md` · backlog B10 挂账 `08-06-project-backlog`  
 - 已做（工程）：`eval_runs` 表 + `persistEvalRun` / `L1_PERSIST_EVAL` · gold≥60 · OPS-1 `retrieve_mode`/`signoffEligible` · B10-RACI `fixtures/l1/RACI.md`  
-- 未做：业务人签 · worker-eval · L2/L3  
+- 未做：业务人签 · worker-eval · L2 准出/runner · L3；题面草案 → [l2-eval](./l2-eval.md)  
 - ADR-046 快照：`runL1Golden` 写 `l1-gate-snapshot.json` 并挂 `gateSnapshot`/`gateVerdict`；默认不代签 → `signedPackage=false`；coverage=0 / 全 `internal_guard` → `businessPass=false`  
 - 签字禁令：`signoffEligible=true` = `retrieve_mode=live` **且** 两类各≥30；**≠** 自动业务 PASS；coverage=0 / 全 `internal_guard`（无真实 Gateway）**禁止**当成绩单；人审仍禁「仅 env Gateway 绿灯」（见 live profile §4.5）  
 
