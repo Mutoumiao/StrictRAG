@@ -46,6 +46,17 @@ export function recordAskResult(input: {
   metricInc(input.ok ? 'ask_ok' : 'ask_fail', { reason: input.reason });
 }
 
+/** L3 多轮护栏打点。只计数，不改默认 / 不熔断。 */
+export function recordL3Ask(input: {
+  rewriteUsed: boolean;
+  reason: string;
+  hasSession: boolean;
+}): void {
+  if (input.rewriteUsed) metricInc('l3_rewrite_used_total');
+  if (input.reason === 'coref_unresolved') metricInc('l3_coref_fail_total');
+  if (input.hasSession) metricInc('l3_session_ask_total');
+}
+
 export function recordLlmCall(purpose: string, ok: boolean): void {
   metricInc('llm_call_total', { purpose, ok: String(ok) });
 }

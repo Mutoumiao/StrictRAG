@@ -78,7 +78,7 @@ ASK_RATE_LIMIT_RPM=30 pnpm --filter @strict-rag/api dev
 | 路径 | `GET /metrics`（**不**在 `/api/v1` 下） |
 | 鉴权 | **无**（与 `/health` 类似的运维面） |
 | 载荷 | `{ service: 'api', metrics: metricsSnapshot() }` — 进程内 counter 快照 |
-| 指标名例 | `ask_total` / `ask_ok` / `ask_fail` · `llm_call_total` · `rerank_total` · `ask_rate_limited_total` |
+| 指标名例 | `ask_total` / `ask_ok` / `ask_fail` · `llm_call_total` · `rerank_total` · `ask_rate_limited_total` · `l3_rewrite_used_total` / `l3_coref_fail_total` / `l3_session_ask_total` |
 | 非目标 | Prometheus exposition 格式 / 直方图全量（→ 更后阶段） |
 | 代码 | `apps/api/src/app.ts` · `apps/api/src/obs/metrics.ts` |
 

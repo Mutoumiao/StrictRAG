@@ -7,8 +7,8 @@
 | 成熟度 | **可演示**（已包含：P0/P1 入库 + S2 最小问答 + B1–B6 最小运营 API + B10 L1 工程 seed + B12 策略闸 + B13 反馈 API；演示依赖 mock ES / 通常走 mock Gateway；L1 **≠** 业务签字门禁） |
 | 默认依赖模式 | 检索：`RETRIEVE_ES_MODE=mock`（默认 mock ES）；鉴权：临时双 JWT，`AUTH_ENFORCE` **默认 `false`**；rewrite：`SESSION_REWRITE_ENABLED` **默认 false**（图边已落；dogfood 可开；**≠** 准出）；对象存储：`local`（`STORAGE_LOCAL_DIR=.data/objects`）；Gateway：`GATEWAY_MODE=''`（空按 `GATEWAY_BASE_URL` 推断，缺 URL 走 mock）；上传上限 `INGEST_MAX_FILE_BYTES=52_428_800`（50 MiB）/ 天花板 `INGEST_MAX_FILE_BYTES_CEILING=209_715_200`（200 MiB）；`LANGFUSE_ENABLED=false`；`OBS_MEMORY_TRACE=true`。**B3-W/B2-W**：ask 读取 platform 绑定 + **KB scope 绑定覆盖（只读 list，无 PUT KB 绑定 HTTP）**；**B4-W**：每请求从 DB `user_roles` hydrate；**无** `DEPT_ACL_ENFORCE` env；`ASK_RATE_LIMIT_RPM=0`；L1 CLI 需显式指定 `L1_KB_ID`（可选 `L1_PERSIST_EVAL`） |
 | 关联模块 | 入库演示还需要 `worker` + PostgreSQL + Redis；契约 `@strict-rag/contracts`（含 `IMPLEMENTED_CHUNK_STRATEGIES` / `IngestJobData`）；schema `@strict-rag/db`（含 `eval_runs`）；L1 gold / RACI 在仓根 `fixtures/l1/`；L2 题面草案在 `fixtures/l2/` |
-| 最近更新 | 2026-08-16（**P2.5-L2R** 工程 runner 已落；**≠** 准出；rewrite 默认仍关） |
-| Spec | `.trellis/spec/api/backend/`（含 [dashboard](../../.trellis/spec/api/backend/dashboard.md) · [l1-eval](../../.trellis/spec/api/backend/l1-eval.md) · [l2-eval](../../.trellis/spec/api/backend/l2-eval.md)） |
+| 最近更新 | 2026-08-16（**P2.5-L3** 打点部分；**无**自动熔断 / **无**面板；rewrite 默认仍关） |
+| Spec | `.trellis/spec/api/backend/`（含 [dashboard](../../.trellis/spec/api/backend/dashboard.md) · [l1-eval](../../.trellis/spec/api/backend/l1-eval.md) · [l2-eval](../../.trellis/spec/api/backend/l2-eval.md) · [l3-metrics](../../.trellis/spec/api/backend/l3-metrics.md)） |
 | PRD | `prds/05-api` · `04-pipelines` · `08-quality` · `09-security` |
 
 ## 一句话状态
@@ -97,6 +97,7 @@
 - **B2-W**：ask 入口校验 `mode∈allowedModes` / `defaultMode`；settings `docTypes` 读写 + scope 子集闸；τ 字段仍拒绝写入
 - 检索适配层（dense∥sparse → RRF → rerank；`RETRIEVE_ES_MODE` **默认 mock**；`http` = ES BM25 sparse **切片**（`es-sparse.ts`；缺 URL / ES 失败时显式报错（loud fail），**禁止**回落 mock）；**不等于**生产 ES+IK / 多租户 Router（B8））
 - 观测骨架：进程内 metrics、内存 tracer、ask 限流（`ASK_RATE_LIMIT_RPM` 默认 0 即关闭）、`/metrics` 端点**无鉴权**（生产保护策略见 `docs/ops/rate-limit-and-metrics.md` · ARCH-P2-4；**≠** 把进程内全局限流当生产方案）
+- **L3 打点部分**（P2.5-L3）：`recordL3Ask` 记 `l3_rewrite_used_total` / `l3_coref_fail_total` / `l3_session_ask_total`；`executeAsk` 在 `recordAskResult` 后调用；**无**自动熔断 / **无**面板 / **≠** 准出
 - **P0 红线单测已挂账**（清单见 `docs/testing/p0-redlines.md`；**不是** L1 黄金集评测、**也不是**远程 CI 门禁）：
   - **R7** `filterDocsForRetrieve` / `corpus.test.ts`（生产装载路径；db 包的 `retrieval-gate` 为底层附录）
   - **R8** 生成结果低于阈值被否决时必须拒答（abstained）（`graph.test.ts`）
@@ -110,7 +111,7 @@
 - 签字 live profile（OPS-1）：`docs/ops/live-retrieve-profile.md`；探针 `src/scripts/seed-es-sparse-probe.ts`（PG→ES bulk）
 - 跑法：`L1_KB_ID=<uuid> pnpm --filter @strict-rag/api exec tsx src/scripts/run-l1-golden.ts`（可选 `L1_MAX_CASES` 等；见 `apps/api/README.md`）
 - CI 范围：矩阵纯测 + mock 注入测 + es-sparse 单元测；**默认不**在 CI 跑真 LLM / 真 ES 全量；样例文 `fixtures/l1/sample-report.md`（非 live 签字数字）
-- **边界**：**禁止**把 `retrieve_mode=mock` 或 coverage=0 / 全 `internal_guard` 写入业务签字页；`eval_runs` 可 `L1_PERSIST_EVAL=1` 写入（db migration 0006）；无 worker-eval、无 L3；**签字真跑数字** 2026-08-14 live ×2 已落（B10-followup）；ADR-046 快照绑定已落（`eval/adr046-snapshot.ts`）；业务 PASS 仍须人签（本跑 `businessPass=false`）
+- **边界**：**禁止**把 `retrieve_mode=mock` 或 coverage=0 / 全 `internal_guard` 写入业务签字页；`eval_runs` 可 `L1_PERSIST_EVAL=1` 写入（db migration 0006）；无 worker-eval；**L3 打点部分（无自动熔断）**；**签字真跑数字** 2026-08-14 live ×2 已落（B10-followup）；ADR-046 快照绑定已落（`eval/adr046-snapshot.ts`）；业务 PASS 仍须人签（本跑 `businessPass=false`）
 
 ### 评测 L2 题面 + 工程 runner（P2.5-L2 / P2.5-L2R · 部分 · ≠ 准出）
 - 仓根 `fixtures/l2/gold.yaml`：**≥15** 条多轮剧本；`run_type=session_multiturn`；`signoffEligible=false`；扩展名 yaml、**内容为 JSON**；9 类各至少 1 条（含 `session_isolation` / J2x）
@@ -131,6 +132,7 @@
 | 生产级 ES + IK 分词 / 多租户 | `http` 切片可签字归因（OPS-1）；默认仍 `mock`；**≠** 全文 B8（IK、Router、入库双写） |
 | rewrite / 多轮指代消解 | 图边 `session_load`→`rewrite` **已落**；默认关；dogfood 可开；**≠** L2 准出 / **≠** 对外连续追问；会话历史**不等于**检索证据 |
 | L2 准出 / 多轮 runner | 题面草案 + **工程 CLI** 已落；**无**真跑归档 / 人签；图边/runner ≠ 准出 |
+| L3 自动熔断 / 面板 | **打点有**（三 counter）；**无**超阈关默认 / 收窄窗 / Grafana |
 | CRAG / multi_hop | 未进入本阶段范围 |
 | 完整 ACL / 部门强制隔离 | 目前只有 KB 成员校验 + 权限码 + 可配置的组织骨架；**检索仍是成员可见全库**（B5 未开启 DEPT_ACL） |
 | 生产 IdP | 仍是临时双 JWT；**B4-W** 已读 `user_roles` hydrate（≠ Better Auth / 密码登录） |
@@ -163,6 +165,7 @@
 | sessions / auth TokenPair / documents status 出口使用 `as` 断言 | 存在 D1 类型漂移面 | 以类型标注为主，未做全量 Schema.parse 校验 |
 | L1 业务签字包 / 远程 CI 红线任务 / live 门禁数字 | 工程：gold≥60 + CLI + 2×2 + `eval_runs`（`L1_PERSIST_EVAL`）+ OPS-1 live 切片；**mock 数字禁止签字**；无默认 CI 真 LLM；**无**业务签字真跑归档 | B10 seed `08-09-b10-l1-golden-min` · followup **部分** `08-11-b10-followup-eval-runs`；P0 红线表 ≠ L1；AUTH enforce 测 → **QUAL-1**；HOW → `.trellis/spec/api/backend/l1-eval.md` |
 | L2 准出 / runner | 题面草案≥15 + 工程 CLI + 注入测；**未真跑准出**；图边已落默认关 **≠** 准出 | P2.5-L2 **部分** `08-15-p25-l2-gold-min` · P2.5-L2R **部分** `08-16-p25-l2-runner-min` · P2.5-RW **部分** `08-15-p25-rewrite-graph-min`；HOW → `.trellis/spec/api/backend/l2-eval.md` |
+| L3 自动熔断 / 面板 | 三 counter 已落；**无**自动关默认 / 无面板 | P2.5-L3 **部分** `08-16-p25-l3-metrics-min`；HOW → `.trellis/spec/api/backend/l3-metrics.md` |
 
 ---
 

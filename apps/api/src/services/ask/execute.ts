@@ -10,7 +10,7 @@ import {
 } from '../../graph/index.js';
 import { env } from '../../env.js';
 import { childLogger } from '../../logger.js';
-import { createAskTracer, recordAskResult } from '../../obs/index.js';
+import { createAskTracer, recordAskResult, recordL3Ask } from '../../obs/index.js';
 import { getGateway, getGatewayForTenant } from '../gateway/index.js';
 import { createDefaultRetrieveDeps } from '../retrieve/index.js';
 import { sessionsRepo } from '../sessions.js';
@@ -166,6 +166,11 @@ export async function executeAsk(
     status: response.status,
     reason: response.reason,
     ok: response.status === 'answered',
+  });
+  recordL3Ask({
+    rewriteUsed: graph.rewriteUsed,
+    reason: graph.reason,
+    hasSession: Boolean(params.body.sessionId),
   });
   obs.finish({
     answered: response.status === 'answered',

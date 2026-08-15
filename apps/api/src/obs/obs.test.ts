@@ -15,6 +15,7 @@ import {
   metricGet,
   metricsReset,
   recordAskResult,
+  recordL3Ask,
   recordLlmCall,
   recordRerank,
   resetRateLimitStore,
@@ -43,6 +44,37 @@ describe('metrics skeleton', () => {
     expect(metricGet('llm_call_total', { purpose: 'judge', ok: 'false' })).toBe(1);
     expect(metricGet('rerank_total', { ok: 'true' })).toBe(1);
     expect(metricGet('rerank_total', { ok: 'false', kind: 'timeout' })).toBe(1);
+  });
+});
+
+describe('recordL3Ask', () => {
+  it('rewriteUsed true +1；false 不加', () => {
+    recordL3Ask({ rewriteUsed: true, reason: 'verified', hasSession: false });
+    expect(metricGet('l3_rewrite_used_total')).toBe(1);
+    recordL3Ask({ rewriteUsed: false, reason: 'verified', hasSession: false });
+    expect(metricGet('l3_rewrite_used_total')).toBe(1);
+  });
+
+  it('reason=coref_unresolved +1；其它 reason 不加', () => {
+    recordL3Ask({ rewriteUsed: false, reason: 'coref_unresolved', hasSession: false });
+    expect(metricGet('l3_coref_fail_total')).toBe(1);
+    recordL3Ask({ rewriteUsed: false, reason: 'verified', hasSession: false });
+    expect(metricGet('l3_coref_fail_total')).toBe(1);
+  });
+
+  it('hasSession true +1；false 不加', () => {
+    recordL3Ask({ rewriteUsed: false, reason: 'verified', hasSession: true });
+    expect(metricGet('l3_session_ask_total')).toBe(1);
+    recordL3Ask({ rewriteUsed: false, reason: 'verified', hasSession: false });
+    expect(metricGet('l3_session_ask_total')).toBe(1);
+  });
+
+  it('metricsReset 后为 0', () => {
+    recordL3Ask({ rewriteUsed: true, reason: 'coref_unresolved', hasSession: true });
+    metricsReset();
+    expect(metricGet('l3_rewrite_used_total')).toBe(0);
+    expect(metricGet('l3_coref_fail_total')).toBe(0);
+    expect(metricGet('l3_session_ask_total')).toBe(0);
   });
 });
 
@@ -206,12 +238,43 @@ describe('executeAsk wires tracer spans', () => {
       },
     );
     expect(result.response.reason).toBe('chitchat');
+    expect(metricGet('l3_session_ask_total')).toBe(0);
+    expect(metricGet('l3_rewrite_used_total')).toBe(0);
     const rec = getTraceRecord(requestId);
     expect(rec).toBeTruthy();
     const names = rec!.spans.map((s) => s.name);
     expect(names).toContain('ask.route');
     expect(names).toContain('ask.finalize');
     expect(rec!.scores.reason_code).toBe('chitchat');
+  });
+
+  it('带 sessionId 计 l3_session_ask_total（skipTrace 也计）', async () => {
+    const { executeAsk } = await import('../services/ask/execute.js');
+    await executeAsk(
+      {
+        requestId: `req-l3-sess-${uuidv7().slice(0, 8)}`,
+        kbId: KB,
+        tenantId: '01900000-0000-7000-8000-000000000001',
+        userId: uuidv7(),
+        membership: 'member',
+        body: {
+          question: '你好',
+          sessionId: uuidv7(),
+          options: { mode: 'balanced' },
+        },
+      },
+      {
+        skipTrace: true,
+        graphDeps: {
+          chat: async () => {
+            throw new Error('should not call chat on chitchat');
+          },
+        },
+      },
+    );
+    expect(metricGet('l3_session_ask_total')).toBe(1);
+    expect(metricGet('l3_rewrite_used_total')).toBe(0);
+    expect(metricGet('l3_coref_fail_total')).toBe(0);
   });
 
   it('knowledge happy path records route→retrieve→generate→claim_split→verify→finalize', async () => {

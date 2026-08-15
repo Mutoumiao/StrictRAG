@@ -4,6 +4,7 @@ export {
   metricsSnapshot,
   metricsReset,
   recordAskResult,
+  recordL3Ask,
   recordLlmCall,
   recordRerank,
   recordRateLimited,

@@ -214,6 +214,7 @@ route
 | 按需加深（窗外再取 K 条） | **无** |
 | L2 runner / 准出 | **工程 runner 有**（`scripts/run-l2-golden.ts`）；**准出无**（另见 [l2-eval](./l2-eval.md)） |
 | rewrite / coref | **P2.5 已实现**最小边；**默认关**；`coref_unresolved` 仅开路径可达 |
+| L3 打点 / 自动熔断 | **打点有**（`recordL3Ask` 三键）；**自动熔断 / 面板无**（见 [l3-metrics](./l3-metrics.md)） |
 | 官方 LangGraph 条件边 | 线性 `runAskGraph` 即可 |
 
 ##### 改图检查单（X-06）
