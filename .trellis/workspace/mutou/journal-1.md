@@ -173,3 +173,37 @@ Active Trellis tasks already 0 (P0/P1 archived). Committed interim dual-JWT iden
 ### Next Steps
 
 - None - task complete
+
+
+## Session 6: P2.5-L3 多轮护栏打点并归档
+
+**Date**: 2026-08-16
+**Task**: P2.5-L3 多轮护栏打点并归档
+**Package**: api
+**Branch**: `main`
+
+### Summary
+
+recordL3Ask 三键 + executeAsk 接线；HOW/IS/08-06/交付回写部分。无自动熔断/无面板/≠准出。任务已归档。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f70d524` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

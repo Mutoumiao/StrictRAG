@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 5
+- **Total Sessions**: 6
 - **Last Active**: 2026-08-16
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~175 | Active |
+| `journal-1.md` | ~209 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 6 | 2026-08-16 | P2.5-L3 多轮护栏打点并归档 | `f70d524` | `main` |
 | 5 | 2026-08-16 | P2.5-L2R 工程 runner 并归档 | `dbba2f8` | `main` |
 | 4 | 2026-08-15 | P2.5-RW rewrite 最小图边并归档 | `f184b95` | `main` |
 | 3 | 2026-08-15 | P2.5-L2 题面草案建集并归档 | `8bc7656` | `main` |
