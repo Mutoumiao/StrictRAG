@@ -105,3 +105,37 @@ Active Trellis tasks already 0 (P0/P1 archived). Committed interim dual-JWT iden
 ### Next Steps
 
 - None - task complete
+
+
+## Session 4: P2.5-RW rewrite 最小图边并归档
+
+**Date**: 2026-08-15
+**Task**: P2.5-RW rewrite 最小图边并归档
+**Package**: admin
+**Branch**: `main`
+
+### Summary
+
+落地 session_load→rewrite→route 最小图边；SESSION_REWRITE_ENABLED 默认仍 false，dogfood 可开。回写 HOW / module-status / 总 backlog P2.5-RW=部分。≠ L2 准出 / ≠ 对外连续追问 / ≠ 全文 Phase 2.5。任务已归档。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f184b95` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
