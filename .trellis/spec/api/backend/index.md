@@ -2,7 +2,7 @@
 
 > 路径：`apps/api` · 目标端口 **4000**  
 > 现状：**P0/P1 入库** + **S2 最小 ask** + **B1–B6** + **08-11 接线**（B2-W mode/docTypes · B3-W/B4-W · B12 策略注册表 · B13 feedback UI 闭环 API · QUAL-1/3 · OPS-1 live 切片 · B10 工程 seed）。  
-> 默认：`RETRIEVE_ES_MODE=mock` · `AUTH_ENFORCE=false` · `SESSION_REWRITE_ENABLED=false`（强制）· Gateway 缺 URL→mock；**B3-W/B2-W** `getGatewayForTenant(tenant, kbId)` = env+platform+KB 覆盖（失败回退 env）· **B4-W** JWT 身份 + 每请求 DB hydrate（≤5s 缓存 · 超时回退 claims）· **未** `DEPT_ACL_ENFORCE` · L1 真跑数字已落（live+规模）**≠** 业务签字 PASS。
+> 默认：`RETRIEVE_ES_MODE=mock` · `AUTH_ENFORCE=false` · `SESSION_REWRITE_ENABLED=false`（dogfood 可开；**禁止**默认改 true）· Gateway 缺 URL→mock；**B3-W/B2-W** `getGatewayForTenant(tenant, kbId)` = env+platform+KB 覆盖（失败回退 env）· **B4-W** JWT 身份 + 每请求 DB hydrate（≤5s 缓存 · 超时回退 claims）· **未** `DEPT_ACL_ENFORCE` · L1 真跑数字已落（live+规模）**≠** 业务签字 PASS。
 
 ---
 
@@ -18,10 +18,11 @@
 - [ ] 新登录/refresh/会话/ask 字段是否改 contracts + 双端 http？  
 - [ ] DB 是否经 `@strict-rag/db`（禁止 app 私有 schema）？  
 - [ ] 是否避免 route 内 SQL / ES DSL / 长 Prompt？  
-- [ ] 是否误开 `SESSION_REWRITE_ENABLED` 或宣称生产 ES？  
+- [ ] 是否误把 `SESSION_REWRITE_ENABLED` **默认**改 true、宣称连续追问已开或生产 ES？  
+- [ ] 触及 rewrite 图边时是否读 [ask-pipeline](./ask-pipeline.md) 开/关两态？
 - [ ] 密钥是否仅服务端 env（JWT 禁止 prod 默认 dev-only）？  
 - [ ] 触及 L1 评测时是否读 [l1-eval](./l1-eval.md)（`skipTrace` · error 出格 · mock 禁签字 · turbo `L1_*`）？  
-- [ ] 触及 L2 题面时是否读 [l2-eval](./l2-eval.md)（草案 ≠ 准出；**禁止**开 rewrite / 写 runner）？  
+- [ ] 触及 L2 题面时是否读 [l2-eval](./l2-eval.md)（图边落地 ≠ 准出；**禁止**默认开 rewrite / 写 runner）？  
 
 ## Quality Check
 
@@ -53,7 +54,7 @@
 | [departments](./departments.md) | **B5 部门壳** · `dept.manage` / 用户归属 · 禁环 · **≠** DEPT_ACL 强制 |
 | [dashboard](./dashboard.md) | **B6 数据面板薄壳** · `dashboard.view` · 只读 summary ≤5 · **≠** APM |
 | [l1-eval](./l1-eval.md) | **B10** L1 工程 seed + eval_runs · OPS-1 `retrieve_mode` · **≠** 业务签字真跑 |
-| [l2-eval](./l2-eval.md) | **P2.5-L2** 多轮题面草案 + 加载器 · **≠** 准出 / runner / 开 rewrite |
+| [l2-eval](./l2-eval.md) | **P2.5-L2** 多轮题面草案 + 加载器 · **≠** 准出 / runner / **≠** 默认开 rewrite |
 
 ## 依赖（package.json）
 

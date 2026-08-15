@@ -27,7 +27,7 @@ apps/api/src/
     chunks.ts              # B1 分片只读 list/detail（ADR-052）
     members.ts             # 成员 list/invite/delete
     ask.ts                 # POST …/ask 同步 + AI SDK UI Message Stream（B2-W mode/docTypes）
-    sessions.ts            # 会话壳（无 rewrite）
+    sessions.ts            # 会话壳（rewrite 默认关；图边在 graph/run.ts）
     feedback.ts            # B13：POST/PATCH 用 evaluateKbMember / checkPermission({ kbId })
     kb-settings.ts         # B2/B2-W 知识库设置
     model-gateway.ts       # B3 模型供应商 + 平台绑定
@@ -49,7 +49,7 @@ apps/api/src/
     members.ts · sessions.ts · feedback.ts · kb-settings.ts · model-gateway.ts
     platform-users-roles.ts · departments.ts · dashboard.ts
     db.ts · storage.ts · queue.ts
-    ask/                   # executeAsk · session-guard · traces 落库
+    ask/                   # executeAsk · session-window（近窗裁剪）· session-guard · traces 落库
     gateway/               # chat · embed · rerank；B3-W bindings + QUAL-3 dual endpoints
     retrieve/              # 混合检索 · 双闸门 · RRF · es-sparse（OPS-1 http 切片）
   eval/

@@ -150,6 +150,7 @@ describe('ask route 429 RATE_LIMITED', () => {
             reason: 'verified',
             suggestedActions: [],
             mode: 'balanced',
+            rewriteUsed: false,
             evidence_snapshot: [],
           },
         }),

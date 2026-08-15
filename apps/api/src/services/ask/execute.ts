@@ -13,6 +13,8 @@ import { childLogger } from '../../logger.js';
 import { createAskTracer, recordAskResult } from '../../obs/index.js';
 import { getGateway, getGatewayForTenant } from '../gateway/index.js';
 import { createDefaultRetrieveDeps } from '../retrieve/index.js';
+import { sessionsRepo } from '../sessions.js';
+import { clipSessionWindow } from './session-window.js';
 import { saveAskTrace } from './traces.js';
 
 export type ExecuteAskParams = {
@@ -70,11 +72,11 @@ function toAskResponse(
     sessionId: graph.sessionId ?? null,
   };
   if (debug) {
-    // P2：rewrite 强制关；可观测 rewriteUsed=false
     base.debug = {
       ...(graph.debug ?? {}),
-      rewriteUsed: false,
-      sessionRewriteEnabledDefault: false,
+      rewriteUsed: graph.rewriteUsed,
+      sessionRewriteEnabledDefault: env.SESSION_REWRITE_ENABLED,
+      ...(graph.standaloneQuestion ? { standaloneQuestion: graph.standaloneQuestion } : {}),
     };
   }
   return base;
@@ -108,23 +110,35 @@ export async function executeAsk(
     mode,
   });
 
-  const graphDeps: GraphDeps =
-    deps.graphDeps ??
-    (await (async () => {
-      // B3-W/B2-W：platform 绑定 + KB 覆盖；失败由 getGatewayForTenant 回退 env
-      const gw = params.tenantId
-        ? await getGatewayForTenant(params.tenantId, params.kbId)
-        : getGateway();
-      return {
-        chat: chatFromGateway(gw),
-        retrieveDeps: createDefaultRetrieveDeps(gw),
-        tracer: obs.tracer,
-      };
-    })());
+  const graphDeps: GraphDeps = deps.graphDeps
+    ? { ...deps.graphDeps }
+    : await (async () => {
+        // B3-W/B2-W：platform 绑定 + KB 覆盖；失败由 getGatewayForTenant 回退 env
+        const gw = params.tenantId
+          ? await getGatewayForTenant(params.tenantId, params.kbId)
+          : getGateway();
+        return {
+          chat: chatFromGateway(gw),
+          retrieveDeps: createDefaultRetrieveDeps(gw),
+          tracer: obs.tracer,
+        };
+      })();
 
   // 注入 tracer（测例自带 graphDeps 时合并，除非 skip）
   if (!deps.skipDefaultTracer && deps.graphDeps && !deps.graphDeps.tracer) {
     graphDeps.tracer = obs.tracer;
+  }
+
+  graphDeps.rewriteEnabled ??= env.SESSION_REWRITE_ENABLED;
+  if (graphDeps.rewriteEnabled && params.body.sessionId && !graphDeps.loadSessionWindow) {
+    graphDeps.loadSessionWindow = async (input) => {
+      const messages = await sessionsRepo.listMessages({
+        sessionId: input.sessionId,
+        kbId: input.kbId,
+        userId: input.userId ?? params.userId,
+      });
+      return clipSessionWindow(messages);
+    };
   }
 
   const graph = await runAskGraph(
@@ -175,6 +189,8 @@ export async function executeAsk(
         latencyMs,
         mode: response.mode,
         rawQuestion: params.body.question,
+        standaloneQuestion: graph.standaloneQuestion ?? null,
+        rewriteUsed: graph.rewriteUsed,
         answer: response.answer,
         evidenceSnapshot,
         graphTrace: graph.debug
@@ -188,8 +204,7 @@ export async function executeAsk(
         configSnap: {
           tauClaim: env.TAU_CLAIM,
           mode,
-          rewriteUsed: false,
-          sessionRewriteEnabledDefault: false,
+          sessionRewriteEnabledDefault: env.SESSION_REWRITE_ENABLED,
         },
       });
     } catch (err) {

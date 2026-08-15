@@ -70,6 +70,7 @@ function answered(): ExecuteAskResult {
       suggestedActions: [],
       mode: 'balanced',
       sessionId: null,
+      rewriteUsed: false,
       evidence_snapshot: [],
     },
   };

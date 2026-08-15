@@ -12,6 +12,7 @@ import {
   parseClaimSplitOutput,
   parseGenerateOutput,
   parseJudgeScores,
+  parseRewriteOutput,
 } from './parse.js';
 import {
   claimSplitSystemPrompt,
@@ -20,6 +21,8 @@ import {
   generateUserPrompt,
   judgeSystemPrompt,
   judgeUserPrompt,
+  rewriteSystemPrompt,
+  rewriteUserPrompt,
 } from './prompts.js';
 import { reasonPresentation } from './reasons.js';
 import { ruleRoute } from './route-rules.js';
@@ -29,6 +32,7 @@ import {
   type AskGraphResult,
   type AskGraphState,
   type GraphEvidence,
+  type SessionWindowTurn,
 } from './state.js';
 import { recordLlmCall } from '../obs/metrics.js';
 import { noopTracer, type SpanTracer } from './tracer.js';
@@ -51,6 +55,14 @@ export type GraphDeps = {
   tracer?: SpanTracer;
   /** 单测压预算；生产勿传 */
   budgetOverride?: GraphBudget;
+  /** 缺省 = false。生产由 executeAsk 灌 env */
+  rewriteEnabled?: boolean;
+  /** 仅 rewrite 开且有 sessionId 时调用；禁跨 session */
+  loadSessionWindow?: (input: {
+    sessionId: string;
+    kbId: string;
+    userId?: string;
+  }) => Promise<SessionWindowTurn[]>;
 };
 
 // ponytail: 线性状态机替代 LangGraph.js；multi_hop/CRAG 再上官方图
@@ -92,6 +104,8 @@ function finalize(
     suggestedActions: s.suggestedActions.length ? s.suggestedActions : pres.suggestedActions,
     sessionId: s.sessionId,
     mode: s.mode,
+    standaloneQuestion: s.standaloneQuestion,
+    rewriteUsed: s.rewriteUsed,
     // 快照仅 state.evidence（retrieve 本轮）；永不含会话原文
     evidence_snapshot: s.evidence_snapshot ?? s.evidence ?? [],
     debug: {
@@ -141,8 +155,75 @@ async function chargeAndChat(
 }
 
 /**
- * MVP 信任路径：route → retrieve → generate → claim_split → verify → finalize。
- * 无 CRAG / grade / refine / multi_hop。
+ * session_load → rewrite?（P2.5 最小边；默认关）。
+ * 关路径不调 loader。开但未注入 loader → 空窗跳过，禁止 500。
+ */
+async function loadAndMaybeRewrite(
+  state: AskGraphState,
+  deps: GraphDeps,
+  tracer: SpanTracer,
+  maxLlm: number,
+): Promise<{ ok: true; state: AskGraphState } | { ok: false; result: AskGraphResult }> {
+  if (!(deps.rewriteEnabled === true && state.sessionId && state.mode !== 'fast')) {
+    return { ok: true, state };
+  }
+
+  const sessionId = state.sessionId as string;
+  let window: SessionWindowTurn[] = [];
+  if (!deps.loadSessionWindow) {
+    // dogfood 开但未接线：当空窗，不阻断单轮
+    console.warn('[ask.rewrite] loadSessionWindow missing; skip rewrite');
+  } else {
+    const span = tracer.startSpan('ask.session_load', { sessionId });
+    window = await deps.loadSessionWindow({
+      sessionId,
+      kbId: state.kbId,
+      userId: state.userId,
+    });
+    span.end({ windowSize: window.length });
+  }
+
+  if (!window.some((t) => t.role === 'user')) {
+    return { ok: true, state };
+  }
+
+  const span = tracer.startSpan('ask.rewrite');
+  const chat = await chargeAndChat(
+    state,
+    deps,
+    'rewrite',
+    [
+      { role: 'system', content: rewriteSystemPrompt() },
+      { role: 'user', content: rewriteUserPrompt(state.rawQuestion, window) },
+    ],
+    maxLlm,
+  );
+  if (!chat.ok) {
+    span.end({ reason: chat.result.reason });
+    return { ok: false, result: chat.result };
+  }
+
+  try {
+    const parsed = parseRewriteOutput(chat.text);
+    span.end({ rewriteUsed: true });
+    return {
+      ok: true,
+      state: {
+        ...chat.state,
+        question: parsed.standalone,
+        standaloneQuestion: parsed.standalone,
+        rewriteUsed: true,
+      },
+    };
+  } catch {
+    span.end({ reason: 'coref_unresolved' });
+    return { ok: false, result: finalize(chat.state, 'coref_unresolved') };
+  }
+}
+
+/**
+ * MVP 信任路径：（可选 session_load→rewrite）→ route → retrieve → generate → claim_split → verify → finalize。
+ * 无 CRAG / grade / refine / multi_hop。rewrite 默认关。
  */
 export async function runAskGraph(
   input: AskGraphInput,
@@ -152,9 +233,13 @@ export async function runAskGraph(
   const budget = deps.budgetOverride ?? budgetForMode(input.mode ?? 'balanced');
   let state = initState(input);
 
+  const rewritten = await loadAndMaybeRewrite(state, deps, tracer, budget.maxLLMCalls);
+  if (!rewritten.ok) return rewritten.result;
+  state = rewritten.state;
+
   // --- route ---
   {
-    const span = tracer.startSpan('ask.route', { questionLen: input.question.length });
+    const span = tracer.startSpan('ask.route', { questionLen: state.question.length });
     const decision = ruleRoute(state.question, state.mode);
     state = {
       ...state,

@@ -16,6 +16,8 @@ export type SaveAskTraceInput = {
   latencyMs?: number;
   mode?: string;
   rawQuestion: string;
+  standaloneQuestion?: string | null;
+  rewriteUsed?: boolean;
   answer?: string;
   evidenceSnapshot: EvidenceSnapshotItem[];
   graphTrace?: Record<string, unknown>;
@@ -38,8 +40,8 @@ export async function saveAskTrace(input: SaveAskTraceInput): Promise<{ id: stri
     latencyMs: input.latencyMs ?? null,
     mode: input.mode ?? null,
     rawQuestion: input.rawQuestion,
-    standaloneQuestion: null,
-    rewriteUsed: 0,
+    standaloneQuestion: input.standaloneQuestion ?? null,
+    rewriteUsed: input.rewriteUsed ? 1 : 0,
     sessionDeepened: 0,
     answer: input.answer ?? null,
     evidenceSnapshot: input.evidenceSnapshot,

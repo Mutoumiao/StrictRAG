@@ -89,7 +89,7 @@
 
 ## 与当前阶段关系
 
-**S2 最小 ask 已落地**（线性图 + SSE + 会话壳；ES 默认 mock；rewrite 强制关）。  
+**S2 最小 ask 已落地**（线性图 + SSE + 会话壳；ES 默认 mock）。P2.5-RW 图边已落，`SESSION_REWRITE_ENABLED` **默认关**（dogfood 可开；**≠** L2 准出 / **≠** 对外连续追问）。  
 Epic `08-05-phase-2-ask` 已关并归档；**≠** 路线图 Phase 2 全文。
 
 本红线仍用于：

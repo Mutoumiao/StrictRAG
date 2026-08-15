@@ -43,6 +43,7 @@ function answered(mode: string): ExecuteAskResult {
       reason: 'verified',
       suggestedActions: [],
       mode: mode as 'balanced',
+      rewriteUsed: false,
       evidence_snapshot: [],
     },
   };

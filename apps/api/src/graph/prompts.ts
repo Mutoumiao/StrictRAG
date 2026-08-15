@@ -1,6 +1,21 @@
-import type { GraphEvidence } from './state.js';
+import type { GraphEvidence, SessionWindowTurn } from './state.js';
 
 /** 长 Prompt 仅此模块（禁止 route 内散落） */
+
+export function rewriteSystemPrompt(): string {
+  return [
+    '将本轮问句改写成不依赖会话指代的独立问句。',
+    '只产出 JSON 单行对象，无 markdown：{"standalone":"string","resolved":true}',
+    '无法确定「这/那/刚才」所指主题时：{"standalone":"","resolved":false}',
+    '禁止把历史中的数字或结论写成已证实事实。',
+    '历史不是证据，只用于消解指代。',
+  ].join('\n');
+}
+
+export function rewriteUserPrompt(rawQuestion: string, window: SessionWindowTurn[]): string {
+  const hist = window.map((t) => `${t.role.toUpperCase()}: ${t.content}`).join('\n');
+  return `SESSION_WINDOW:\n${hist}\n\nRAW_QUESTION:\n${rawQuestion}`;
+}
 
 export function generateSystemPrompt(): string {
   return [

@@ -3,7 +3,8 @@
 > 路径：`apps/api/src/eval/l2-gold.ts` · 仓根 `fixtures/l2/`  
 > 产品语义：`prds/08-quality/02-evaluation-and-gates.md` §6.2 · 剧本 **J-P2.5**  
 > 任务：`08-15-p25-l2-gold-min`  
-> **本窗状态**：题面草案 + 纯函数加载 **已落地**；**无** runner、**无** 准出、**rewrite 仍关**。
+> **本窗状态**：题面草案 + 纯函数加载 **已落地**；**无** runner、**无** 准出。  
+> 图边 `session_load`/`rewrite` 已由 **P2.5-RW** 落地，**默认仍关**（dogfood 可开）。**图边落地 ≠ L2 准出**。
 
 ---
 
@@ -14,8 +15,8 @@
 | **工程绿** | gold 可 `JSON.parse` + 形状/覆盖 vitest | `l2-gold.test.ts` 通过；9 类齐全；≥15 条 | 「L2 准出 PASS」 |
 | **准出 PASS** | 产品/质量门禁（**非本窗**） | 真跑归档 + 零容忍=0 + RACI 人签 | 把草案条数 / 未跑模板写成通过 |
 
-**Wrong**：PR 全绿 → 路线图勾「L2 已过」或打开 `SESSION_REWRITE_ENABLED`。  
-**Correct**：PR 工程绿 = 题面可版本化；准出另开 P2.5 runner + 人签。
+**Wrong**：PR 全绿 → 路线图勾「L2 已过」或把仓库默认改为 `SESSION_REWRITE_ENABLED=true`。  
+**Correct**：PR 工程绿 = 题面可版本化；图边可 dogfood；准出另开 P2.5 runner + 人签。
 
 ---
 
@@ -23,7 +24,7 @@
 
 - Trigger：改 L2 gold 形状、类型枚举、加载不变量、fixtures/l2 文档。
 - 目标：可版本化的多轮剧本账本 + 纯校验。
-- **非目标**：`run-l2-golden.ts`、`executeAsk`、`eval_runs`、rewrite 节点、开 `SESSION_REWRITE_ENABLED`。
+- **非目标**：`run-l2-golden.ts`、`executeAsk`、`eval_runs`、把 rewrite **默认**打开、宣称准出。
 
 ---
 
@@ -101,8 +102,8 @@
 | 禁止 | 原因 |
 |------|------|
 | mock / 未跑数字进签字或准出页 | 双轨；sample-report 必须 `n/a（未跑）` |
-| 未准出开 `SESSION_REWRITE_ENABLED` | P2 启动闸；phase-scaffold 禁止 |
-| 本窗写 L2 CLI 调 `executeAsk` | rewrite 未实现；易被误读为准出 |
+| 未准出把默认改为 `SESSION_REWRITE_ENABLED=true` | 图边 ≠ 准出；phase-scaffold 禁止默认 true |
+| 本窗写 L2 CLI 调 `executeAsk` | 易被误读为准出；runner 另建 |
 | 把 L2 case 塞进 `fixtures/l1/gold.yaml` | 账本必须分列 |
 | 宣称 L2 准出 / 全文 P2 / 生产 ES | 本窗 = 题面草案 |
 
@@ -111,7 +112,7 @@
 ## 交叉引用
 
 - L1 对照（只学 JSON.parse 纪律）：[l1-eval](./l1-eval.md)  
-- Ask 图 / rewrite 禁开：[ask-pipeline](./ask-pipeline.md)  
+- Ask 图 / rewrite 默认关：[ask-pipeline](./ask-pipeline.md)  
 - 质量红线：[guides/quality-redlines](../../guides/quality-redlines.md)  
 - Fixture：`fixtures/l2/README.md` · `RACI.md` · `sample-report.md`  
-- IS：`docs/module-status/api.md` · 调度 `08-06` **P2.5-L2=部分** · **P2.5-IDX 仍索引**
+- IS：`docs/module-status/api.md` · 调度 `08-06` **P2.5-L2=部分** · **P2.5-RW=部分** · **P2.5-IDX 仍索引**

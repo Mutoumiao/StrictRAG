@@ -91,8 +91,8 @@ const EnvSchema = z
       .default('false')
       .transform((v) => v === 'true'),
     /**
-     * 会话近窗 rewrite（ADR-047）。P2 **强制 false**；
-     * 误设 true → 启动失败（U8 配置拒绝）。
+     * 会话近窗 rewrite（ADR-047）。仓库默认 false。
+     * dogfood 可设 true；**禁止**把默认改 true / 宣称 L2 准出。
      */
     SESSION_REWRITE_ENABLED: z
       .enum(['true', 'false'])
@@ -145,15 +145,6 @@ const EnvSchema = z
         code: 'custom',
         path: ['INGEST_MAX_FILE_BYTES'],
         message: 'INGEST_MAX_FILE_BYTES 不得超过天花板 INGEST_MAX_FILE_BYTES_CEILING',
-      });
-    }
-    // U8：P2 无 L2 不得开启 rewrite
-    if (data.SESSION_REWRITE_ENABLED) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['SESSION_REWRITE_ENABLED'],
-        message:
-          'P2 禁止 SESSION_REWRITE_ENABLED=true（ADR-047 / SESSION_REWRITE_DISABLED）。P2.5+ L2 准出后再开。',
       });
     }
     if (data.TAU_CLAIM_LEGACY !== undefined && data.TAU_CLAIM_LEGACY !== data.TAU_CLAIM) {

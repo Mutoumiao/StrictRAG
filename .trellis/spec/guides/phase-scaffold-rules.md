@@ -15,7 +15,7 @@
 | 维度 | 摘要（细节 → module-status） |
 |------|------------------------------|
 | 已落地主轴 | P0/P1 入库 · S2 最小 ask · S2c 运营薄页 · 若干接线/策略/反馈 |
-| 默认依赖 | ES mock · Gateway 可 mock · `AUTH_ENFORCE` 默认关 · rewrite 强制关 · scan `mock_clean` |
+| 默认依赖 | ES mock · Gateway 可 mock · `AUTH_ENFORCE` 默认关 · rewrite **默认关**（dogfood 可开） · scan `mock_clean` |
 | 明确未做 / 债 | 生产 ES+IK（B8）· 真杀毒（QUAL-2）· L1 业务人签/ADR-046（真跑数字已落）· CRAG/multi_hop · 完整运营台 · Better Auth 生产 IdP |
 
 **IS 入口**：[`docs/module-status/README.md`](../../../docs/module-status/README.md)（能力矩阵 + 包文）。
@@ -45,7 +45,7 @@
 |------|------|
 | 宣称「全文 Phase 2 / 生产 ES 已上 / 生产杀毒已上」 | S2 最小 / mock / DEC-SCAN 边界 |
 | 未 P2.5 二元出口进入 P3a CRAG | 路线图硬门 |
-| `SESSION_REWRITE_ENABLED=true` 合入 | P2 配置拒绝；P2.5+ 再议 |
+| 合入 **默认** `SESSION_REWRITE_ENABLED=true` / 对外宣传连续追问 | 图边可 dogfood；默认开须 L2 准出 |
 | Better Auth 无设计半吊子落地 | 须收敛设计 |
 | route 内散落 SQL / ES DSL / 长 Prompt | 架构冻结 |
 | 引入 Prisma / TypeORM 并行 | 技术栈冻结 |

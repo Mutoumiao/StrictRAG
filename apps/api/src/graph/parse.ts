@@ -58,3 +58,23 @@ export function parseJudgeScores(text: string, claimCount: number): number[] {
     return Math.min(1, Math.max(0, n));
   });
 }
+
+export type RewriteParsed = {
+  standalone: string;
+};
+
+/** 非法 JSON / 缺字段 / resolved!==true / standalone 空白 → throw */
+export function parseRewriteOutput(text: string): RewriteParsed {
+  const obj = extractJsonObject(text) as Record<string, unknown>;
+  if (typeof obj.standalone !== 'string') {
+    throw new Error('rewrite missing standalone');
+  }
+  const standalone = obj.standalone.trim();
+  if (!standalone) {
+    throw new Error('rewrite blank standalone');
+  }
+  if (obj.resolved !== true) {
+    throw new Error('rewrite unresolved');
+  }
+  return { standalone };
+}

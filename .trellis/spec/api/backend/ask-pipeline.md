@@ -2,7 +2,7 @@
 
 > 路径：`apps/api/src/graph/**` · `routes/ask.ts` · `routes/sessions.ts` · `routes/feedback.ts` · `services/{ask,retrieve,gateway}/**` · `obs/**`  
 > PRD：`prds/04-pipelines` · `05-api` · `07-models` · `08-quality`  
-> 阶段口径：**S2 最小可演示**（非路线图 Phase 2 全文；ES 默认 mock；rewrite 强制关）
+> 阶段口径：**S2 最小可演示** + **P2.5 最小 rewrite 图边**（默认关；dogfood 可开；**≠** L2 准出 / **≠** 对外连续追问）
 
 ---
 
@@ -16,8 +16,8 @@
 | 改检索闸 / sparse 模式 | `RETRIEVE_ES_MODE` + `packages/db` `isDefaultRetrievable` |
 | 改图节点 / 拒答 reason | `graph/run.ts` · `graph/reasons.ts` · contracts `AskReason` |
 | 改 Gateway 调用 | `services/gateway/**`；密钥 env 或 DB provider；ask 用 `getGatewayForTenant` |
-| 开会话 / 反馈 API | `routes/sessions` · `routes/feedback`；rewrite 仍禁止 |
-| 开生产 ES / rewrite | **另建 feature**；B8 / P2.5+；禁止静默打开 |
+| 开会话 / 反馈 API | `routes/sessions` · `routes/feedback`；rewrite **默认关** |
+| 开生产 ES / 默认开 rewrite | **另建 feature**；B8 / L2 准出后；禁止静默把默认改 true |
 
 **S2 焊死边界**：
 
@@ -28,7 +28,7 @@
 | B2-W：KB `allowedModes`/`defaultMode`/`docTypes` 入口闸 | 客户端改 τ / 静默放宽 mode 白名单 |
 | QUAL-3：rerank 双节点链；全失败拒答 | primary 挂仍假 answered / 跳过 rerank |
 | B13：web 提交 feedback · admin 队列 | 把反馈写进 ask 图证据路径 |
-| 会话列表/详情壳 · `rewriteUsed=false` | `SESSION_REWRITE_ENABLED=true`（启动失败） |
+| 会话列表/详情壳 · rewrite **默认关**（`rewriteUsed` 跟图） | 合入 **默认** `SESSION_REWRITE_ENABLED=true` / 对外宣传连续追问 |
 | 进程内 metrics / memory tracer | 完整 Langfuse 生产接线阻塞 ask |
 
 ### 2. Signatures
@@ -118,10 +118,26 @@ routes/ask.ts
 | body 非法 / options 夹带未知字段 | 400 | `VALIDATION_ERROR` |
 | session 不存在或不属于本人 | 404 | `NOT_FOUND` |
 
-#### S2 图边表（线性状态机 · X-06 · 源码 `graph/run.ts`）
+#### 图边表（线性状态机 · X-06 · 源码 `graph/run.ts`）
 
 > **形态**：顺序函数调用，**不是** LangGraph 条件边 DSL。下表是 agent 改 `run.ts` 时的**可执行边契约**。  
-> **SSOT**：实现以本表 + 源码为准；PRD 多跳/CRAG 边**未**实现，禁止假画。
+> **SSOT**：实现以本表 + 源码为准；PRD 多跳/CRAG/加深边**未**实现，禁止假画。
+
+##### 关路径（仓库默认 · `rewriteEnabled=false`）
+
+与 S2 单轮一致：不调 `loadSessionWindow`、不调 rewrite LLM、`rewriteUsed=false`、`question=raw`。带 `sessionId` 仍 200 单轮。`coref_unresolved` **不可达**。
+
+##### 开路径（dogfood · `rewriteEnabled=true` ∧ 非空 sessionId ∧ mode≠fast ∧ 窗内 ≥1 条 user）
+
+```text
+session_load → rewrite?
+  ├─(空窗 / 无 loader)──────────────► 跳过；question=raw；rewriteUsed=false → route
+  ├─(解析失败 / resolved=false)─────► finalize(coref_unresolved)   # 禁止 retrieve
+  ├─(预算尽)────────────────────────► finalize(budget_exhausted)
+  └─(成功)──► question=standalone；rewriteUsed=true → route
+```
+
+无 session / 空窗 / fast：不 rewrite。开但未注入 loader：当空窗，**禁止** 500。
 
 ```text
 route
@@ -143,6 +159,11 @@ route
 
 | 边（from → to） | 条件（源码锚点） | 终态 reason（典型） | 响应 status |
 |-----------------|------------------|---------------------|-------------|
+| START → route | 关 / 无 session / 空窗 / fast | — | 跳过 rewrite |
+| session_load → rewrite | 开 ∧ sessionId ∧ !fast ∧ 窗含 user | — | 继续 |
+| rewrite → finalize | 解析失败 / `resolved!==true` | `coref_unresolved` | **abstained** · **不** retrieve |
+| rewrite → finalize | LLM 预算不足 | `budget_exhausted` | abstained |
+| rewrite → route | 成功采用 standalone | — | `rewriteUsed=true` |
 | route → finalize | `routeLabel==='chitchat'` | `chitchat` | **answered** |
 | route → retrieve | `routeLabel==='single'` | — | 继续 |
 | retrieve → finalize | `!r.ok` | `r.reason`（如 `kb_not_ready` · `rerank_unavailable` · `acl_filter_too_large`） | **abstained** |
@@ -184,13 +205,15 @@ route
 - 每次 `chargeAndChat` / retrieve 前 `tryCharge*`；不足 → **立即** `budget_exhausted`，**禁止**跳过节点假完成。  
 - 客户端 **不可**覆盖预算或 `tauClaim`（env `TAU_CLAIM` 唯一源）。
 
-##### S2 **未**实现的边（禁止 HOW/代码假接线）
+##### **未**实现的边（禁止 HOW/代码假接线）
 
-| PRD/路线图概念 | S2 行为 |
+| PRD/路线图概念 | 当前行为 |
 |----------------|---------|
 | multi_hop / max_hops 环 | reason 枚举保留 `max_hops_exceeded`；图内 **无** hop 边 |
 | CRAG grade → refine | **无** |
-| rewrite / coref 解析 | `coref_unresolved` 枚举保留；rewrite **启动禁开** |
+| 按需加深（窗外再取 K 条） | **无** |
+| L2 runner / 准出 | **无**（题面草案另见 [l2-eval](./l2-eval.md)） |
+| rewrite / coref | **P2.5 已实现**最小边；**默认关**；`coref_unresolved` 仅开路径可达 |
 | 官方 LangGraph 条件边 | 线性 `runAskGraph` 即可 |
 
 ##### 改图检查单（X-06）
@@ -224,7 +247,7 @@ route
 | `minSupport` | 仅 verified 有意义 |
 | `suggestedActions` · `userMessage` | 拒答文案/动作 |
 | `sessionId` · `mode` · `latencyMs` | 壳字段 |
-| `debug` | 仅 `options.debug=true`；须含 `rewriteUsed: false`（P2） |
+| `debug` | 仅 `options.debug=true`；`rewriteUsed` **跟图**（关时仍 false）；可含 `standaloneQuestion` |
 
 流内 `internal_guard` final：`userMessage` 可提示稍后重试；**禁止** `status=answered`。
 
@@ -238,7 +261,7 @@ route
 | `GATEWAY_MODE` | 空→按 URL 推断 | 无 `GATEWAY_BASE_URL` → mock |
 | `GATEWAY_RERANK_FALLBACK_URL` | 空 | QUAL-3 第二 rerank 节点 |
 | `RERANK_MIN_NODES` | 按 `APP_ENV` | staging/prod 默认 2；dev/test 默认 1；见 [model-gateway](./model-gateway.md) §9 |
-| `SESSION_REWRITE_ENABLED` | `false` | **`true` → 启动失败** |
+| `SESSION_REWRITE_ENABLED` | `false` | dogfood 可 `true`；**禁止**仓库默认改 true |
 | `ASK_RATE_LIMIT_RPM` | `0` | 0=关闭 |
 | `AUTH_ENFORCE` | `false` | **不影响** ask 成员闸（始终 enforce 成员） |
 | `LANGFUSE_ENABLED` | `false` | 真 SDK 不阻塞 ask |
@@ -270,12 +293,12 @@ route
 - **Good**：库外题 → `abstained`；citations `[]`  
 - **Good**：流 `data-ask-final` 与同步 JSON 字段一致；web 只信 schema 校验后的 final  
 - **Good**：execute throw → 流内仍有 `data-ask-final` + `internal_guard`（不卡 loading）  
-- **Base**：`options` 省略 → 默认 mode/stream 行为；`rewriteUsed=false`  
+- **Base**：`options` 省略 → 默认 mode/stream 行为；关路径 `rewriteUsed=false`  
 - **Bad**：客户端传 `tauClaim` / 把 `scope` 放进 options → 400  
 - **Bad**：rerank 挂仍 `answered`  
 - **Bad**：stream catch **只**写 `data-status` error、无 final  
 - **Bad**：把会话历史文本塞进 evidence_snapshot  
-- **Bad**：`SESSION_REWRITE_ENABLED=true` 启动成功（必须拒绝）
+- **Bad**：仓库默认 `SESSION_REWRITE_ENABLED=true` 或对外宣传连续追问已开
 
 ### 6. Tests Required
 
@@ -289,7 +312,8 @@ route
 | sessions | 跨 session 零共享；历史 ≠ evidence；list query 非法 limit → 400 |
 | feedback | queue query 非法 status → 400；合法 status 过滤；无 `feedback.queue` → 403 |
 | gateway | mock/http；QUAL-3 dual endpoints；失败 reason 映射 |
-| env | `SESSION_REWRITE_ENABLED=true` 校验失败；`RERANK_MIN_NODES` 与 endpoint 数 |
+| env | 默认 / `'false'` → false；`'true'` 解析成功；默认值不得变 true；`RERANK_MIN_NODES` 与 endpoint 数 |
+| graph rewrite | 关+session 不调 loader/rewrite；开+窗 retrieve=standalone；`resolved=false`/非法 JSON → `coref_unresolved` 且 retrieve 0；J2x 隔离；历史≠evidence；fast/空窗/无 session 不 rewrite |
 | web | `useChat` + `data-ask-final`；B13 FeedbackBar → `createAskFeedback`；三态 UI；无自写 SSE |
 
 证据路径：`apps/api/src/**/*.test.ts`（`graph` · `ask` · `retrieve` · `sessions` · `feedback` · `obs`）。

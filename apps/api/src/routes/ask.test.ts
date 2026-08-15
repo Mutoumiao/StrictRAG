@@ -61,6 +61,7 @@ function sampleAnswered(requestId = 'req-test'): ExecuteAskResult {
       reason: 'verified',
       suggestedActions: [],
       mode: 'balanced',
+      rewriteUsed: false,
       evidence_snapshot: [
         {
           chunkId: CHUNK,
@@ -261,6 +262,7 @@ describe('POST ask sync + SSE', () => {
           citations: [],
           suggestedActions: [],
           mode: 'balanced',
+          rewriteUsed: false,
           evidence_snapshot: [],
         },
       }),
@@ -693,7 +695,7 @@ describe('executeAsk trace + graph wiring', () => {
     expect(result.response.sessionId).toBe(SID);
     expect(result.response.debug?.rewriteUsed).toBe(false);
     expect(saved[0]?.sessionId).toBe(SID);
-    expect(saved[0]?.configSnap?.rewriteUsed).toBe(false);
+    expect(saved[0]?.configSnap?.sessionRewriteEnabledDefault).toBe(false);
     // 历史原文不得出现在 evidence 或 citations
     const evidenceBlob = JSON.stringify(saved[0]?.evidenceSnapshot);
     expect(evidenceBlob).not.toContain(HISTORY_LEAK);

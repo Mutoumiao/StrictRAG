@@ -5,6 +5,11 @@ import type { MembershipSlot, RetrieveScope } from '../services/retrieve/types.j
 export type AskMode = 'fast' | 'balanced' | 'strict';
 export type RouteLabel = 'chitchat' | 'single';
 
+export type SessionWindowTurn = {
+  role: 'user' | 'assistant';
+  content: string;
+};
+
 export type GraphEvidence = {
   chunkId: string;
   docId: string;
@@ -70,6 +75,13 @@ export type AskGraphState = {
   llmCalls: number;
   retrieveCalls: number;
 
+  /** 用户原文；init = input.question */
+  rawQuestion: string;
+  /** 改写结果；未改写则缺省 */
+  standaloneQuestion?: string;
+  /** 本轮是否真正调用了 rewrite 且采用 standalone */
+  rewriteUsed: boolean;
+
   /** 本轮 evidence 快照（与 trace 同源；永不含会话历史） */
   evidence_snapshot?: GraphEvidence[];
 };
@@ -86,6 +98,8 @@ export type AskGraphResult = {
   suggestedActions: { type: string; label: string }[];
   sessionId?: string | null;
   mode: AskMode;
+  standaloneQuestion?: string;
+  rewriteUsed: boolean;
   /** 与 finalize 同源；仅本轮 KB chunk，禁止会话历史 */
   evidence_snapshot: GraphEvidence[];
   debug?: {
@@ -109,6 +123,8 @@ export function initState(input: AskGraphInput): AskGraphState {
     locale: input.locale ?? 'zh-CN',
     scope: input.scope,
     tauClaim: input.tauClaim,
+    rawQuestion: input.question,
+    rewriteUsed: false,
     evidence: [],
     citations: [],
     claims: [],

@@ -19,30 +19,29 @@ const TauSchema = z
     }
   });
 
-/** 与 env.ts 中 SESSION_REWRITE_ENABLED superRefine 对齐 */
-const RewriteSchema = z
-  .object({
-    SESSION_REWRITE_ENABLED: z
-      .enum(['true', 'false'])
-      .default('false')
-      .transform((v) => v === 'true'),
-  })
-  .superRefine((data, ctx) => {
-    if (data.SESSION_REWRITE_ENABLED) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['SESSION_REWRITE_ENABLED'],
-        message: 'P2 禁止 SESSION_REWRITE_ENABLED=true',
-      });
-    }
-  });
+/** 与 env.ts 中 SESSION_REWRITE_ENABLED 对齐（dogfood 可 true；默认 false） */
+const RewriteSchema = z.object({
+  SESSION_REWRITE_ENABLED: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+});
 
-describe('SESSION_REWRITE_ENABLED P2 gate (U8)', () => {
-  it('default false ok', () => {
-    expect(RewriteSchema.safeParse({}).success).toBe(true);
+describe('SESSION_REWRITE_ENABLED (U8 dogfood)', () => {
+  it('default / omitted → false', () => {
+    const r = RewriteSchema.safeParse({});
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.SESSION_REWRITE_ENABLED).toBe(false);
   });
-  it('true rejected', () => {
-    expect(RewriteSchema.safeParse({ SESSION_REWRITE_ENABLED: 'true' }).success).toBe(false);
+  it('explicit false → false', () => {
+    const r = RewriteSchema.safeParse({ SESSION_REWRITE_ENABLED: 'false' });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.SESSION_REWRITE_ENABLED).toBe(false);
+  });
+  it('true parses successfully (dogfood)', () => {
+    const r = RewriteSchema.safeParse({ SESSION_REWRITE_ENABLED: 'true' });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.SESSION_REWRITE_ENABLED).toBe(true);
   });
 });
 
