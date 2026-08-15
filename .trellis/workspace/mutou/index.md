@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 2
-- **Last Active**: 2026-08-04
+- **Total Sessions**: 3
+- **Last Active**: 2026-08-15
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~73 | Active |
+| `journal-1.md` | ~107 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 3 | 2026-08-15 | P2.5-L2 题面草案建集并归档 | `8bc7656` | `main` |
 | 2 | 2026-08-04 | Auth dual-JWT + catalog + spec commit | `7991aba` | `main` |
 | 1 | 2026-08-04 | Phase0-1 live demo + archive | - | `main` |
 <!-- @@@/auto:session-history -->
