@@ -16,7 +16,7 @@
 |------|------------------------------|
 | 已落地主轴 | P0/P1 入库 · S2 最小 ask · S2c 运营薄页 · 若干接线/策略/反馈 |
 | 默认依赖 | ES mock · Gateway 可 mock · `AUTH_ENFORCE` 默认关 · rewrite 强制关 · scan `mock_clean` |
-| 明确未做 / 债 | 生产 ES+IK（B8）· 真杀毒（QUAL-2）· L1 业务签字真跑 · CRAG/multi_hop · 完整运营台 · Better Auth 生产 IdP |
+| 明确未做 / 债 | 生产 ES+IK（B8）· 真杀毒（QUAL-2）· L1 业务人签/ADR-046（真跑数字已落）· CRAG/multi_hop · 完整运营台 · Better Auth 生产 IdP |
 
 **IS 入口**：[`docs/module-status/README.md`](../../../docs/module-status/README.md)（能力矩阵 + 包文）。
 

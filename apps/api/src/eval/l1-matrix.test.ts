@@ -3,8 +3,11 @@ import { describe, expect, it } from 'vitest';
 import {
   accumulate,
   cellFor,
+  computeSignoffEligible,
   coverage,
   emptyMatrix,
+  goldTypeCounts,
+  SIGNOFF_MIN_PER_CLASS,
   type GoldType,
   type L1Outcome,
 } from './l1-matrix.js';
@@ -58,5 +61,49 @@ describe('coverage', () => {
   it('分母 0 → null', () => {
     expect(coverage(emptyMatrix())).toBeNull();
     expect(coverage({ A: 0, B: 0, C: 5, D: 5 })).toBeNull();
+  });
+});
+
+describe('goldTypeCounts', () => {
+  it('false_premise 计入不可答类', () => {
+    expect(
+      goldTypeCounts([
+        { type: 'answerable' },
+        { type: 'answerable' },
+        { type: 'unanswerable' },
+        { type: 'false_premise' },
+      ]),
+    ).toEqual({ answerable: 2, unanswerableClass: 2 });
+  });
+});
+
+describe('computeSignoffEligible', () => {
+  const full = {
+    answerable: SIGNOFF_MIN_PER_CLASS,
+    unanswerableClass: SIGNOFF_MIN_PER_CLASS,
+  };
+
+  it('仅 live 且两类各≥30 为 true', () => {
+    expect(computeSignoffEligible('live', full)).toBe(true);
+  });
+
+  it('mock / unknown 即使满规模也 false', () => {
+    expect(computeSignoffEligible('mock', full)).toBe(false);
+    expect(computeSignoffEligible('unknown', full)).toBe(false);
+  });
+
+  it('live 但截断/缺类 false', () => {
+    expect(
+      computeSignoffEligible('live', {
+        answerable: SIGNOFF_MIN_PER_CLASS,
+        unanswerableClass: SIGNOFF_MIN_PER_CLASS - 1,
+      }),
+    ).toBe(false);
+    expect(
+      computeSignoffEligible('live', {
+        answerable: 5,
+        unanswerableClass: 5,
+      }),
+    ).toBe(false);
   });
 });

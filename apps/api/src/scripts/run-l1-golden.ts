@@ -11,8 +11,10 @@ import { uuidv7 } from 'uuidv7';
 
 import {
   accumulate,
+  computeSignoffEligible,
   coverage,
   emptyMatrix,
+  goldTypeCounts,
   type GoldType,
   type L1Cell,
   type L1Matrix,
@@ -55,6 +57,9 @@ export type L1Report = {
   signoffEligible: boolean;
   ranAt: string;
   caseCount: number;
+  /** 本跑实际题量（受 L1_MAX_CASES 截断） */
+  answerableCount: number;
+  unanswerableClassCount: number;
   matrix: L1Matrix;
   coverage: number | null;
   errorCount: number;
@@ -76,6 +81,8 @@ export type RunL1Options = {
   executeDeps?: ExecuteAskDeps;
   /** 写入 PG eval_runs；默认看 L1_PERSIST_EVAL */
   persistEval?: boolean;
+  /** 单测注入；默认读 env.RETRIEVE_ES_MODE */
+  esMode?: string;
 };
 
 /** 报告 ranAt(ISO) → 写库本地格式串；纯函数便于单测 */
@@ -235,6 +242,8 @@ export function formatReportMd(report: L1Report): string {
     `| ranAt | ${report.ranAt} |`,
     `| kbId | ${report.kbId} |`,
     `| caseCount | ${report.caseCount} |`,
+    `| answerableCount | ${report.answerableCount} |`,
+    `| unanswerableClassCount | ${report.unanswerableClassCount} |`,
     `| retrieve_mode | **${report.retrieve_mode}** |`,
     `| mode | ${report.mode} |`,
     `| signoffEligible | ${report.signoffEligible} |`,
@@ -307,14 +316,17 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
     });
   }
 
-  const mode = resolveEvalMode();
+  const mode = resolveEvalMode(opts.esMode);
+  const counts = goldTypeCounts(cases);
   const report: L1Report = {
     mode,
     retrieve_mode: mode,
-    // ponytail: live≠自动签字；仅挡 mock 静默进包
-    signoffEligible: mode === 'live',
+    // ponytail: live≠自动签字；规模不足/mock 一律 false
+    signoffEligible: computeSignoffEligible(mode, counts),
     ranAt: new Date().toISOString(),
     caseCount: rows.length,
+    answerableCount: counts.answerable,
+    unanswerableClassCount: counts.unanswerableClass,
     matrix,
     coverage: coverage(matrix),
     errorCount,
@@ -376,6 +388,8 @@ async function main(): Promise<void> {
           signoffEligible: report.signoffEligible,
           evalRunId: report.evalRunId ?? null,
           caseCount: report.caseCount,
+          answerableCount: report.answerableCount,
+          unanswerableClassCount: report.unanswerableClassCount,
           matrix: report.matrix,
           coverage: report.coverage,
           errorCount: report.errorCount,

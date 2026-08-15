@@ -16,7 +16,8 @@
 | `RETRIEVE_ES_MODE` | sparse | L1 `retrieve_mode` | `signoffEligible` |
 |--------------------|--------|--------------------|-------------------|
 | `mock`（默认） | 进程内 token 重叠 | `mock` | `false` |
-| `http` | ES BM25 `_search` | `live` | `true`（仍须人审） |
+| `http` + 可答/不可答类各≥30 | ES BM25 `_search` | `live` | `true`（仍须人审；≠ 业务 PASS） |
+| `http` + `L1_MAX_CASES` 截断 / 缺类 | 同上 | `live` | `false`（规模门） |
 
 失败时 **禁止** 静默回落 mock：http 模式缺 URL / ES 挂掉 → ask/retrieve `internal_guard`。
 
@@ -81,9 +82,13 @@ pnpm --filter @strict-rag/api exec tsx src/scripts/run-l1-golden.ts
 {
   "retrieve_mode": "live",
   "mode": "live",
-  "signoffEligible": true
+  "signoffEligible": false,
+  "answerableCount": 5,
+  "unanswerableClassCount": 0
 }
 ```
+
+全量（不设 `L1_MAX_CASES`，gold 各≥30）才可能 `signoffEligible: true`。
 
 ### 3.3 失败归因
 

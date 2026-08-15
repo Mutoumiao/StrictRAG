@@ -99,7 +99,7 @@ ask 演示：先 seed `kb_members` + Bearer；入库演示继续 `AUTH_ENFORCE=f
 
 | 项 | 说明 |
 |----|------|
-| Gold | 仓根 `fixtures/l1/gold.yaml`（≥30；逻辑 doc id 见 `fixtures/l1/README.md`） |
+| Gold | 仓根 `fixtures/l1/gold.yaml`（可答 30 + 不可答类 30；逻辑 doc id 见 `fixtures/l1/README.md`） |
 | 样例报告 | `fixtures/l1/sample-report.md` |
 | 最近跑 | `artifacts/l1-last-run.{json,md}`（gitignore；含 `retrieve_mode` / `signoffEligible`） |
 | 矩阵 | `src/eval/l1-matrix.ts`（纯函数；单测进 CI） |
@@ -114,9 +114,10 @@ pnpm --filter @strict-rag/api test
 L1_KB_ID=<kb-uuid> L1_MAX_CASES=5 \
   pnpm --filter @strict-rag/api exec tsx src/scripts/run-l1-golden.ts
 
-# live（须 ES + RETRIEVE_ES_MODE=http；见 live-retrieve-profile）
-# 全量 30 签字规模 → B10-followup
-L1_KB_ID=<kb-uuid> pnpm --filter @strict-rag/api exec tsx src/scripts/run-l1-golden.ts
+# live 全量（须 ES + RETRIEVE_ES_MODE=http；见 live-retrieve-profile）
+# 截断冒烟 signoffEligible=false；全量各≥30 才可能 true
+RETRIEVE_ES_MODE=http ELASTICSEARCH_URL=http://127.0.0.1:9200 \
+  L1_KB_ID=<kb-uuid> pnpm --filter @strict-rag/api exec tsx src/scripts/run-l1-golden.ts
 ```
 
 | 环境变量 | 用途 |
@@ -130,7 +131,7 @@ L1_KB_ID=<kb-uuid> pnpm --filter @strict-rag/api exec tsx src/scripts/run-l1-gol
 | `L1_PERSIST_EVAL` | `1`/`true` 时写入 PG `eval_runs`（需 migration `0006`） |
 
 `eval_runs` 账本（B10-followup 工程）：表 `@strict-rag/db` · migration `packages/db/drizzle/0006_b10_eval_runs.sql`。  
-业务签字真跑仍须 live + **B3-W 后重跑**；mock 行 `signoff_eligible=0`。
+`signoffEligible` = live **且** 两类各≥30。业务 PASS 另须 RACI 人签 + ADR-046 快照；coverage=0 / 全 `internal_guard` **禁止**当成绩单。
 
 ## 模型 Gateway（S2 · #4）
 

@@ -44,3 +44,37 @@ export function coverage(matrix: L1Matrix): number | null {
   if (den === 0) return null;
   return matrix.A / den;
 }
+
+/** 签字规模门：可答 / 不可答类各 ≥30（B10-followup） */
+export const SIGNOFF_MIN_PER_CLASS = 30;
+
+export type GoldTypeCounts = {
+  answerable: number;
+  /** unanswerable + false_premise */
+  unanswerableClass: number;
+};
+
+export function goldTypeCounts(cases: ReadonlyArray<{ type: GoldType }>): GoldTypeCounts {
+  let answerable = 0;
+  let unanswerableClass = 0;
+  for (const c of cases) {
+    if (c.type === 'answerable') answerable += 1;
+    else unanswerableClass += 1;
+  }
+  return { answerable, unanswerableClass };
+}
+
+/**
+ * mock / unknown / 截断冒烟一律不可签字。
+ * live 只是必要条件；规模门不满足仍 false（≠ 业务人签 PASS）。
+ */
+export function computeSignoffEligible(
+  retrieveMode: 'mock' | 'live' | 'unknown',
+  counts: GoldTypeCounts,
+): boolean {
+  return (
+    retrieveMode === 'live' &&
+    counts.answerable >= SIGNOFF_MIN_PER_CLASS &&
+    counts.unanswerableClass >= SIGNOFF_MIN_PER_CLASS
+  );
+}

@@ -172,6 +172,8 @@ describe('buildEvalRunInsert / evalRunDbRanAt', () => {
       signoffEligible: false,
       ranAt: '2026-08-09T12:34:56.000Z',
       caseCount: 2,
+      answerableCount: 1,
+      unanswerableClassCount: 1,
       matrix: { A: 1, B: 0, C: 0, D: 1 },
       coverage: 1,
       errorCount: 0,
@@ -204,7 +206,9 @@ describe('buildEvalRunInsert / evalRunDbRanAt', () => {
       retrieve_mode: 'live',
       signoffEligible: true,
       ranAt: '2026-08-09T00:00:00.000Z',
-      caseCount: 0,
+      caseCount: 60,
+      answerableCount: 30,
+      unanswerableClassCount: 30,
       matrix: { A: 0, B: 0, C: 0, D: 0 },
       coverage: null,
       errorCount: 0,
@@ -251,7 +255,10 @@ describe('runL1Golden mock graphDeps path', () => {
     expect(report.coverage).toBe(0.5);
     expect(report.mode).toMatch(/mock|live|unknown/);
     expect(report.retrieve_mode).toBe(report.mode);
-    expect(report.signoffEligible).toBe(report.mode === 'live');
+    expect(report.answerableCount).toBe(3);
+    expect(report.unanswerableClassCount).toBe(2);
+    // 截断/小集：即使进程是 live 也不可签字
+    expect(report.signoffEligible).toBe(false);
     expect(report.kbId).toBe('kb-test');
     expect(report.cases.some((c) => c.outcome === 'error')).toBe(true);
 
@@ -262,6 +269,9 @@ describe('runL1Golden mock graphDeps path', () => {
     expect(json).toHaveProperty('mode');
     expect(json).toHaveProperty('retrieve_mode');
     expect(json).toHaveProperty('signoffEligible');
+    expect(json.signoffEligible).toBe(false);
+    expect(json).toHaveProperty('answerableCount');
+    expect(json).toHaveProperty('unanswerableClassCount');
     expect(json).toHaveProperty('ranAt');
     expect(json).toHaveProperty('coverage');
 
@@ -287,7 +297,55 @@ describe('runL1Golden mock graphDeps path', () => {
       execute: async () => abstained(),
     });
     expect(report.caseCount).toBe(2);
+    expect(report.answerableCount).toBe(2);
+    expect(report.unanswerableClassCount).toBe(0);
     expect(report.matrix.B).toBe(2);
+    expect(report.signoffEligible).toBe(false);
+  });
+
+  it('live + 各≥30 → signoffEligible；同规模 mock → false', async () => {
+    const dir = tmp();
+    const cases = [
+      ...Array.from({ length: 30 }, (_, i) => ({
+        id: `a${i}`,
+        question: `aq${i}`,
+        type: 'answerable',
+      })),
+      ...Array.from({ length: 27 }, (_, i) => ({
+        id: `u${i}`,
+        question: `uq${i}`,
+        type: 'unanswerable',
+      })),
+      ...Array.from({ length: 3 }, (_, i) => ({
+        id: `f${i}`,
+        question: `fq${i}`,
+        type: 'false_premise',
+      })),
+    ];
+    const goldPath = goldFile(dir, cases);
+    const live = await runL1Golden({
+      goldPath,
+      outDir: path.join(dir, 'out-live'),
+      kbId: 'kb',
+      persistEval: false,
+      esMode: 'http',
+      execute: async () => abstained(),
+    });
+    expect(live.retrieve_mode).toBe('live');
+    expect(live.answerableCount).toBe(30);
+    expect(live.unanswerableClassCount).toBe(30);
+    expect(live.signoffEligible).toBe(true);
+
+    const mock = await runL1Golden({
+      goldPath,
+      outDir: path.join(dir, 'out-mock'),
+      kbId: 'kb',
+      persistEval: false,
+      esMode: 'mock',
+      execute: async () => abstained(),
+    });
+    expect(mock.retrieve_mode).toBe('mock');
+    expect(mock.signoffEligible).toBe(false);
   });
 });
 
@@ -300,6 +358,8 @@ describe('writeL1Report', () => {
       signoffEligible: false,
       ranAt: '2026-08-09T00:00:00.000Z',
       caseCount: 0,
+      answerableCount: 0,
+      unanswerableClassCount: 0,
       matrix: { A: 0, B: 0, C: 0, D: 0 },
       coverage: null,
       errorCount: 0,

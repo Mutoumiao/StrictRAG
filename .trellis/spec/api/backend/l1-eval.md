@@ -17,7 +17,7 @@
 |------|:------:|:---------:|
 | `mode` / `retrieve_mode` = mock | ✅ 可 | ❌ |
 | = live（`RETRIEVE_ES_MODE=http` 等） | ✅ 可 | 必要条件，**非充分** |
-| `signoffEligible` | 仅标注 | 须 true **且** 人工签 |
+| `signoffEligible` | 仅标注 | 须 true（live+规模） **且** 人工签 |
 | coverage 数字 | 工程观察 | 仅 live + 人签后可进门禁叙事 |
 
 **Wrong**：PR 全绿 → 路线图勾「L1 已过」。  
@@ -40,6 +40,8 @@
 | `cellFor(type, outcome)` | `eval/l1-matrix.ts` | → `'A'\|'B'\|'C'\|'D'\|null` |
 | `accumulate(matrix, type, outcome)` | 同上 | 就地 +1 格；error → 返回 `1`（error 增量） |
 | `coverage(matrix)` | 同上 | `A/(A+B)`；分母 0 → `null` |
+| `goldTypeCounts(cases)` | 同上 | `{ answerable, unanswerableClass }` |
+| `computeSignoffEligible(mode, counts)` | 同上 | live ∧ 各≥`SIGNOFF_MIN_PER_CLASS`(30) |
 | `loadGold(goldPath)` | `scripts/run-l1-golden.ts` | 读 JSON 形 gold；失败抛 `GoldLoadError` |
 | `runL1Golden(opts)` | 同上 | 串行批跑 + 写报告；可注入 `execute` |
 | `executeAsk(params, deps?)` | `services/ask/execute.ts` | 批跑 **必须** `deps.skipTrace: true` |
@@ -86,7 +88,8 @@ Seed 规模：可答 30 + 不可答类 30（含 `false_premise`）；**mock 数�
 |------|------|
 | `mode` | `'mock' \| 'live' \| 'unknown'` ← `resolveEvalMode(RETRIEVE_ES_MODE)`（历史字段） |
 | `retrieve_mode` | 与 `mode` 同步（OPS-1 签字归因） |
-| `signoffEligible` | 仅 `live` → `true`；**≠** 自动业务签字 |
+| `signoffEligible` | `live` **且** 本跑 `answerable≥30` ∧ `unanswerableClass≥30` → `true`；mock / unknown / 截断冒烟 → `false`；**≠** 自动业务签字 |
+| `answerableCount` / `unanswerableClassCount` | 本跑实际题量（受 `L1_MAX_CASES` 截断）；`false_premise` 计入不可答类 |
 | `evalRunId?` | `L1_PERSIST_EVAL` 写入 `eval_runs` 后的 id |
 | `ranAt` | ISO 字符串（artifact / report_json）；**写库** `eval_runs.ran_at` 用 `formatLocalDateTime`（`evalRunDbRanAt`） |
 | `caseCount` / `errorCount` | number |
@@ -167,7 +170,7 @@ type RunL1Options = {
 | 层 | 文件 | 断言点 |
 |----|------|--------|
 | 纯函数 | `eval/l1-matrix.test.ts` | A/B/C/D 映射；error→null；accumulate error 增量；coverage 分母 0→null |
-| CLI/IO | `scripts/run-l1-golden.test.ts` | loadGold 合法/非法；`resolveEvalMode` 三态；注入 execute 得矩阵；写出 json+md；error 题不污染格 |
+| CLI/IO | `scripts/run-l1-golden.test.ts` | loadGold 合法/非法；`resolveEvalMode` 三态；注入 execute 得矩阵；写出 json+md；error 题不污染格；live+30/30→signoffEligible；mock/截断→false |
 | 集成（可选） | 同文件 mock graphDeps 路径 | `runL1Golden` + `executeDeps.graphDeps` 不撞 DB trace |
 
 **CI 边界**：单元/注入测必须绿；**不要求** 默认 PR 流水线跑真实 Gateway + ES。
@@ -273,6 +276,7 @@ for (const c of cases) {
 | 禁止 | 原因 |
 |------|------|
 | mock coverage 写进业务签字 / 宣称「L1 门禁 PASS」 | 产品红线；仅工程 seed |
+| `L1_MAX_CASES` 截断 live 冒烟仍标 `signoffEligible=true` | 规模门；须两类各≥30 |
 | 批跑省略 `skipTrace` | 污染 traces |
 | CI 强制 live LLM 全量 | flaky / 成本；与本窗边界冲突 |
 | 把 `false_premise` 算进 A 侧分母 | 覆盖率仅 `A/(A+B)`，分母只有 answerable |
@@ -289,6 +293,6 @@ for (const c of cases) {
 - Fixture 说明：`fixtures/l1/README.md` · 跑法：`apps/api/README.md`  
 - IS：`docs/module-status/api.md` · backlog B10 挂账 `08-06-project-backlog`  
 - 已做（工程）：`eval_runs` 表 + `persistEvalRun` / `L1_PERSIST_EVAL` · gold≥60 · OPS-1 `retrieve_mode`/`signoffEligible` · B10-RACI `fixtures/l1/RACI.md`  
-- 未做：**业务签字真跑数字**（人 + live 环境）· worker-eval · L2/L3  
-- 签字禁令：`signoffEligible=true` **仅** `retrieve_mode=live`；**≠** 自动业务 PASS；人审仍禁「仅 env Gateway 绿灯」（见 live profile §4.5）  
+- 未做：业务人签 / ADR-046 配置快照 · worker-eval · L2/L3  
+- 签字禁令：`signoffEligible=true` = `retrieve_mode=live` **且** 两类各≥30；**≠** 自动业务 PASS；coverage=0 / 全 `internal_guard`（无真实 Gateway）**禁止**当成绩单；人审仍禁「仅 env Gateway 绿灯」（见 live profile §4.5）  
 
