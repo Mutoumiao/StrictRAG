@@ -139,3 +139,37 @@ Active Trellis tasks already 0 (P0/P1 archived). Committed interim dual-JWT iden
 ### Next Steps
 
 - None - task complete
+
+
+## Session 5: P2.5-L2R 工程 runner 并归档
+
+**Date**: 2026-08-16
+**Task**: P2.5-L2R 工程 runner 并归档
+**Package**: admin
+**Branch**: `main`
+
+### Summary
+
+落地 run-l2-golden 串行批跑 + 进程内窗 + 末轮机械分；signoffEligible 恒 false。回写 HOW / module-status / 总 backlog P2.5-L2R=部分。≠ L2 准出 / ≠ 默认开 rewrite / ≠ 写 eval_runs。任务已归档。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `dbba2f8` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
