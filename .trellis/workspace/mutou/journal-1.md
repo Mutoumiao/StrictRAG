@@ -377,3 +377,41 @@ P2.5-EXT：显式库外文档回溯抑制 document 加码（不查末轮 docId�
 ### Next Steps
 
 - None - task complete
+
+
+## Session 12: 归档 P2.5-SIG/L3F/L2S 与 P3b-META
+
+**Date**: 2026-08-16
+**Task**: 归档 P2.5-SIG/L3F/L2S 与 P3b-META
+**Package**: api
+**Branch**: `main`
+
+### Summary
+
+按任务提交并归档：四态派生、主题投诉、L2 过期告警、文档部门字段。工程绿≠准出≠部门强制。未 push。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b9d5740` | (see git log) |
+| `e61fa09` | (see git log) |
+| `e13cc3a` | (see git log) |
+| `80b31e7` | (see git log) |
+| `5df66e4` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

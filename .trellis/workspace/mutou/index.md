@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 11
+- **Total Sessions**: 12
 - **Last Active**: 2026-08-16
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~379 | Active |
+| `journal-1.md` | ~417 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 12 | 2026-08-16 | 归档 P2.5-SIG/L3F/L2S 与 P3b-META | `b9d5740`, `e61fa09`, `e13cc3a`, `80b31e7`, `5df66e4` | `main` |
 | 11 | 2026-08-16 | P2.5-L3A 护栏告警最小 | `eed231b` | `main` |
 | 10 | 2026-08-16 | P2.5-EXT 库外文档回溯抑制并归档 | `05b15b3` | `main` |
 | 9 | 2026-08-16 | P2.5-DOC 文档回溯检索加码并归档 | `9bde93f` | `main` |
