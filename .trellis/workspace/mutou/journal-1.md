@@ -343,3 +343,37 @@ P2.5-EXT：显式库外文档回溯抑制 document 加码（不查末轮 docId�
 ### Next Steps
 
 - None - task complete
+
+
+## Session 11: P2.5-L3A 护栏告警最小
+
+**Date**: 2026-08-16
+**Task**: P2.5-L3A 护栏告警最小
+**Package**: admin
+**Branch**: `main`
+
+### Summary
+
+抽取并落地 P2.5-L3A：recordL3Ask 闩 coref_fail 率与 dogfood rewrite 告警（Pino warn + l3_guard_alert_total）。只告警不熔断。trellis-check + review 通过后提交。≠准出/≠默认开 rewrite。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `eed231b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
