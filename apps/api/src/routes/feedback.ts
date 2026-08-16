@@ -17,6 +17,7 @@ import {
   type ResolveKbMember,
 } from '../auth/middleware.js';
 import { fail, ok } from '../lib/response.js';
+import { recordL3TopicComplaint } from '../obs/index.js';
 import { getAskTraceByRequestId } from '../services/ask/traces.js';
 import { documentRepo } from '../services/documents.js';
 import {
@@ -30,6 +31,7 @@ export type TraceLookup = (requestId: string) => Promise<{
   kbId: string;
   userId: string;
   tenantId: string;
+  sessionId?: string | null;
 } | null>;
 
 export type FeedbackRouteDeps = {
@@ -76,6 +78,7 @@ export function createFeedbackRoutes(deps: FeedbackRouteDeps = {}) {
         kbId: t.kbId,
         userId: t.userId,
         tenantId: t.tenantId,
+        sessionId: t.sessionId,
       };
     });
   const getKb = deps.getKb ?? ((id: string) => documentRepo.getKb(id));
@@ -126,6 +129,14 @@ export function createFeedbackRoutes(deps: FeedbackRouteDeps = {}) {
       category: parsed.data.category,
       comment: parsed.data.comment,
     });
+
+    if (parsed.data.rating === 'down') {
+      try {
+        recordL3TopicComplaint({ hasSession: Boolean(trace.sessionId) });
+      } catch {
+        // ponytail: 打点失败不挡 201
+      }
+    }
 
     return ok(c, toPublic(row), 201);
   });

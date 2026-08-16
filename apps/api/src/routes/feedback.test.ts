@@ -1,10 +1,11 @@
 import { Hono } from 'hono';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 
 import { attachAuthMiddleware, type AuthVariables } from '../auth/middleware.js';
 import { issueTokenPair } from '../auth/identity/token-service.js';
 import { requestIdMiddleware } from '../middleware/request-id.js';
+import { metricGet, metricsReset } from '../obs/index.js';
 import { createMemoryFeedbackRepo } from '../services/feedback.js';
 import { createFeedbackRoutes } from './feedback.js';
 
@@ -52,6 +53,10 @@ function buildApp(opts: {
 }
 
 describe('feedback API', () => {
+  beforeEach(() => {
+    metricsReset();
+  });
+
   it('成员可提交 feedback', async () => {
     const { userId, accessToken } = await token(['web_consumer']);
     const { app } = buildApp({ members: new Set([userId]) });
@@ -191,5 +196,69 @@ describe('feedback API', () => {
       body: JSON.stringify({ status: 'dismissed' }),
     });
     expect(res.status).toBe(403);
+  });
+
+  it('down + 非空 sessionId → 201 且 l3_topic_complaint_total=1', async () => {
+    const { userId, accessToken } = await token(['web_consumer']);
+    const { app, repo } = buildApp({ members: new Set([userId]) });
+    const requestId = 'req-l3f-down-session';
+    repo.seedTrace({
+      requestId,
+      kbId: KB,
+      userId: 'any',
+      tenantId: TENANT,
+      sessionId: uuidv7(),
+    });
+
+    const res = await app.request(`/api/v1/ask/${requestId}/feedback`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ rating: 'down' }),
+    });
+    expect(res.status).toBe(201);
+    expect(metricGet('l3_topic_complaint_total')).toBe(1);
+  });
+
+  it('down 无 session → 201 且计数不加', async () => {
+    const { userId, accessToken } = await token(['web_consumer']);
+    const { app } = buildApp({ members: new Set([userId]) });
+
+    const res = await app.request(`/api/v1/ask/${REQ}/feedback`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ rating: 'down' }),
+    });
+    expect(res.status).toBe(201);
+    expect(metricGet('l3_topic_complaint_total')).toBe(0);
+  });
+
+  it('up + 有 session → 201 且计数不加', async () => {
+    const { userId, accessToken } = await token(['web_consumer']);
+    const { app, repo } = buildApp({ members: new Set([userId]) });
+    const requestId = 'req-l3f-up-session';
+    repo.seedTrace({
+      requestId,
+      kbId: KB,
+      userId: 'any',
+      tenantId: TENANT,
+      sessionId: uuidv7(),
+    });
+
+    const res = await app.request(`/api/v1/ask/${requestId}/feedback`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ rating: 'up' }),
+    });
+    expect(res.status).toBe(201);
+    expect(metricGet('l3_topic_complaint_total')).toBe(0);
   });
 });

@@ -5,11 +5,14 @@ export {
   metricsReset,
   recordAskResult,
   recordL3Ask,
+  recordL3TopicComplaint,
+  evaluateL2Stale,
   recordLlmCall,
   recordRerank,
   recordRateLimited,
   L3_CORE_FAIL_RATE_MIN_SESSION,
   L3_CORE_FAIL_RATE_THRESHOLD,
+  L3_TOPIC_COMPLAINT_THRESHOLD,
 } from './metrics.js';
 export {
   checkFixedWindowRateLimit,

@@ -201,18 +201,26 @@ export function createMemoryFeedbackRepo(): FeedbackRepo & {
     kbId: string;
     userId: string;
     tenantId: string;
+    sessionId?: string | null;
   }): void;
   getTrace(requestId: string): {
     requestId: string;
     kbId: string;
     userId: string;
     tenantId: string;
+    sessionId?: string | null;
   } | null;
 } {
   const items = new Map<string, FeedbackRow>();
   const traces = new Map<
     string,
-    { requestId: string; kbId: string; userId: string; tenantId: string }
+    {
+      requestId: string;
+      kbId: string;
+      userId: string;
+      tenantId: string;
+      sessionId?: string | null;
+    }
   >();
 
   return {

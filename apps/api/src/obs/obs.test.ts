@@ -16,10 +16,13 @@ import {
   getTraceRecord,
   L3_CORE_FAIL_RATE_MIN_SESSION,
   L3_CORE_FAIL_RATE_THRESHOLD,
+  L3_TOPIC_COMPLAINT_THRESHOLD,
+  evaluateL2Stale,
   metricGet,
   metricsReset,
   recordAskResult,
   recordL3Ask,
+  recordL3TopicComplaint,
   recordLlmCall,
   recordRerank,
   resetRateLimitStore,
@@ -265,6 +268,130 @@ describe('recordL3Ask 护栏告警闩', () => {
     recordSessionAsks(L3_CORE_FAIL_RATE_MIN_SESSION, 'coref_unresolved');
     expect(metricGet('l3_guard_alert_total', { kind: 'rewrite_dogfood' })).toBe(1);
     expect(metricGet('l3_guard_alert_total', { kind: 'coref_fail_rate' })).toBe(1);
+  });
+});
+
+describe('recordL3TopicComplaint', () => {
+  let warn: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    warn = vi.spyOn(logger, 'warn').mockImplementation(() => logger);
+  });
+
+  afterEach(() => {
+    warn.mockRestore();
+  });
+
+  it('无 session 不加', () => {
+    recordL3TopicComplaint({ hasSession: false });
+    expect(metricGet('l3_topic_complaint_total')).toBe(0);
+    expect(metricGet('l3_guard_alert_total', { kind: 'topic_complaint' })).toBe(0);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('有 session +1', () => {
+    recordL3TopicComplaint({ hasSession: true });
+    expect(metricGet('l3_topic_complaint_total')).toBe(1);
+    expect(metricGet('l3_guard_alert_total', { kind: 'topic_complaint' })).toBe(0);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('满 5 只告 topic_complaint 一次；第二次 down 不再 +alert', () => {
+    expect(L3_TOPIC_COMPLAINT_THRESHOLD).toBe(5);
+    for (let i = 0; i < L3_TOPIC_COMPLAINT_THRESHOLD; i += 1) {
+      recordL3TopicComplaint({ hasSession: true });
+    }
+    expect(metricGet('l3_topic_complaint_total')).toBe(5);
+    expect(metricGet('l3_guard_alert_total', { kind: 'topic_complaint' })).toBe(1);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(
+      { event: 'l3_guard', kind: 'topic_complaint', complaints: 5 },
+      'l3 guard alert',
+    );
+
+    recordL3TopicComplaint({ hasSession: true });
+    expect(metricGet('l3_topic_complaint_total')).toBe(6);
+    expect(metricGet('l3_guard_alert_total', { kind: 'topic_complaint' })).toBe(1);
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  it('metricsReset 后闩与计数清零', () => {
+    for (let i = 0; i < L3_TOPIC_COMPLAINT_THRESHOLD; i += 1) {
+      recordL3TopicComplaint({ hasSession: true });
+    }
+    expect(metricGet('l3_topic_complaint_total')).toBe(5);
+    expect(metricGet('l3_guard_alert_total', { kind: 'topic_complaint' })).toBe(1);
+
+    metricsReset();
+    expect(metricGet('l3_topic_complaint_total')).toBe(0);
+    expect(metricGet('l3_guard_alert_total', { kind: 'topic_complaint' })).toBe(0);
+
+    recordL3TopicComplaint({ hasSession: true });
+    expect(metricGet('l3_topic_complaint_total')).toBe(1);
+    expect(metricGet('l3_guard_alert_total', { kind: 'topic_complaint' })).toBe(0);
+  });
+});
+
+describe('evaluateL2Stale', () => {
+  let warn: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    warn = vi.spyOn(logger, 'warn').mockImplementation(() => logger);
+  });
+
+  afterEach(() => {
+    warn.mockRestore();
+  });
+
+  it('rewriteEnvOn=false 或缺省 → 即使 last=null 也不告', () => {
+    evaluateL2Stale({ current: 'cur', last: null });
+    evaluateL2Stale({ rewriteEnvOn: false, current: 'cur', last: null });
+    expect(metricGet('l3_guard_alert_total', { kind: 'l2_stale' })).toBe(0);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('rewriteEnvOn=true 且 last 缺失 → alert=1 + Pino two-arg warn；第二次不 +1', () => {
+    evaluateL2Stale({ rewriteEnvOn: true, current: 'cur' });
+    expect(metricGet('l3_guard_alert_total', { kind: 'l2_stale' })).toBe(1);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(
+      expect.objectContaining({ event: 'l3_guard', kind: 'l2_stale' }),
+      'l3 guard alert',
+    );
+
+    evaluateL2Stale({ rewriteEnvOn: true, current: 'cur', last: null });
+    expect(metricGet('l3_guard_alert_total', { kind: 'l2_stale' })).toBe(1);
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  it('last === current → 不告', () => {
+    evaluateL2Stale({ rewriteEnvOn: true, current: 'same', last: 'same' });
+    expect(metricGet('l3_guard_alert_total', { kind: 'l2_stale' })).toBe(0);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('last !== current → 告一次', () => {
+    evaluateL2Stale({ rewriteEnvOn: true, current: 'now', last: 'old' });
+    expect(metricGet('l3_guard_alert_total', { kind: 'l2_stale' })).toBe(1);
+    expect(warn).toHaveBeenCalledWith(
+      expect.objectContaining({ event: 'l3_guard', kind: 'l2_stale' }),
+      'l3 guard alert',
+    );
+
+    evaluateL2Stale({ rewriteEnvOn: true, current: 'now', last: 'old' });
+    expect(metricGet('l3_guard_alert_total', { kind: 'l2_stale' })).toBe(1);
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  it('metricsReset 清闩', () => {
+    evaluateL2Stale({ rewriteEnvOn: true, current: 'now', last: null });
+    expect(metricGet('l3_guard_alert_total', { kind: 'l2_stale' })).toBe(1);
+
+    metricsReset();
+    expect(metricGet('l3_guard_alert_total', { kind: 'l2_stale' })).toBe(0);
+
+    evaluateL2Stale({ rewriteEnvOn: true, current: 'now', last: null });
+    expect(metricGet('l3_guard_alert_total', { kind: 'l2_stale' })).toBe(1);
   });
 });
 

@@ -8,7 +8,7 @@ import { logger } from '../logger.js';
 export type MetricLabels = Record<string, string | number | boolean | undefined>;
 
 type CounterKey = string;
-type L3GuardKind = 'coref_fail_rate' | 'rewrite_dogfood';
+type L3GuardKind = 'coref_fail_rate' | 'rewrite_dogfood' | 'topic_complaint' | 'l2_stale';
 
 const counters = new Map<CounterKey, number>();
 const l3AlertLatched = new Set<L3GuardKind>();
@@ -16,6 +16,8 @@ const l3AlertLatched = new Set<L3GuardKind>();
 // ponytail: 进程寿命比，不是运维 PRD 的 1h 滑窗；要滑窗另开
 export const L3_CORE_FAIL_RATE_MIN_SESSION = 20;
 export const L3_CORE_FAIL_RATE_THRESHOLD = 0.2;
+// ponytail: 进程寿命近似，不是运维 PRD 的 1h 滑窗
+export const L3_TOPIC_COMPLAINT_THRESHOLD = 5;
 
 function key(name: string, labels?: MetricLabels): CounterKey {
   if (!labels) return name;
@@ -93,6 +95,27 @@ function latchL3GuardAlerts(rewriteEnvOn: boolean): void {
   ) {
     latchL3GuardAlert('coref_fail_rate', { sessionAsk, corefFail });
   }
+}
+
+export function recordL3TopicComplaint(input: { hasSession: boolean }): void {
+  if (!input.hasSession) return;
+  metricInc('l3_topic_complaint_total');
+  const complaints = metricGet('l3_topic_complaint_total');
+  if (complaints >= L3_TOPIC_COMPLAINT_THRESHOLD) {
+    latchL3GuardAlert('topic_complaint', { complaints });
+  }
+}
+
+// ponytail: last 由调用方注入；本函数零 I/O。env 开且从未 persist L2 时会与 rewrite_dogfood 叠告，允许。
+export function evaluateL2Stale(input: {
+  rewriteEnvOn?: boolean;
+  current: string;
+  last?: string | null;
+}): void {
+  if (input.rewriteEnvOn !== true) return;
+  const stale = !input.last || input.last !== input.current;
+  if (!stale) return;
+  latchL3GuardAlert('l2_stale', { kind: 'l2_stale' });
 }
 
 export function recordLlmCall(purpose: string, ok: boolean): void {
