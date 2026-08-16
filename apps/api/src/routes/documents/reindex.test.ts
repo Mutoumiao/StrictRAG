@@ -40,6 +40,8 @@ vi.mock('../../services/documents.js', () => ({
         docState.chunkStrategy = opts.chunkStrategy;
       }
     },
+    getKb: async (id: string) =>
+      id === KB ? { id: KB, tenantId: TENANT, configJson: {} } : null,
   },
 }));
 

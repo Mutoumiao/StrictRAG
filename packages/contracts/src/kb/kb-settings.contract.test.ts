@@ -51,6 +51,16 @@ describe('PatchKbSettingsBodySchema', () => {
       }).success,
     ).toBe(false);
   });
+
+  it('accepts dataClass whitelist values', () => {
+    expect(PatchKbSettingsBodySchema.safeParse({ dataClass: 'internal' }).success).toBe(true);
+    expect(PatchKbSettingsBodySchema.safeParse({ dataClass: 'sensitive' }).success).toBe(true);
+  });
+
+  it('rejects invalid dataClass', () => {
+    expect(PatchKbSettingsBodySchema.safeParse({ dataClass: 'public' }).success).toBe(false);
+    expect(PatchKbSettingsBodySchema.safeParse({ dataClass: 'secret' }).success).toBe(false);
+  });
 });
 
 describe('KbSettingsSchema', () => {
@@ -74,5 +84,18 @@ describe('KbSettingsSchema', () => {
         sessionRewrite: { enabledDefault: true, locked: false },
       }).success,
     ).toBe(false);
+  });
+
+  it('defaults dataClass to internal when omitted', () => {
+    const r = KbSettingsSchema.safeParse({
+      kbId: '01900000-0000-7000-8000-000000000099',
+      name: 'KB',
+      allowedModes: ['balanced'] as const,
+      defaultMode: 'balanced' as const,
+      qualitySnapshot: { tauClaim: 0.5 },
+      sessionRewrite: { enabledDefault: false, locked: true },
+    });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.dataClass).toBe('internal');
   });
 });

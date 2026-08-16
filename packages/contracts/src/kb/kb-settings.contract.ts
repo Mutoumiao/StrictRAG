@@ -8,6 +8,10 @@ export type AskMode = z.infer<typeof AskModeSchema>;
 export const DEFAULT_ALLOWED_MODES: AskMode[] = ['strict', 'balanced', 'fast'];
 export const DEFAULT_DEFAULT_MODE: AskMode = 'balanced';
 
+/** KB 语料分级；缺省 / 旧行 = internal。sensitive 入池闸见 complete，≠ 已解禁 */
+export const DataClassSchema = z.enum(['internal', 'sensitive']);
+export type DataClass = z.infer<typeof DataClassSchema>;
+
 /** GET 只读：质量 snapshot（禁止经 settings 写 τ） */
 export const QualitySnapshotSchema = z.object({
   tauClaim: z.number().min(0).max(1),
@@ -32,6 +36,8 @@ export const KbSettingsSchema = z.object({
   defaultMode: AskModeSchema,
   /** KB 允许的 doc_type 枚举；空数组 = 未限制（ask scope 任意） */
   docTypes: z.array(z.string().min(1).max(64)).max(32).default([]),
+  /** 缺省 internal，旧 GET 无此字段仍 parse */
+  dataClass: DataClassSchema.default('internal'),
   qualitySnapshot: QualitySnapshotSchema,
   sessionRewrite: SessionRewriteLockSchema,
 });
@@ -55,6 +61,7 @@ export const PatchKbSettingsBodySchema = z
     defaultMode: AskModeSchema.optional(),
     /** 写入允许的 doc_type 列表；[] 表示清除限制 */
     docTypes: z.array(z.string().min(1).max(64)).max(32).optional(),
+    dataClass: DataClassSchema.optional(),
   })
   .strict()
   .refine((v) => Object.keys(v).length > 0, { message: '至少提供一个可写字段' });

@@ -89,6 +89,7 @@ describe('kb settings routes (ADR-054 / B2)', () => {
         sessionRewrite: { enabledDefault: boolean; locked: boolean };
         allowedModes: string[];
         defaultMode: string;
+        dataClass: string;
       };
     };
     expect(body.ok).toBe(true);
@@ -98,6 +99,7 @@ describe('kb settings routes (ADR-054 / B2)', () => {
     expect(body.data.sessionRewrite).toEqual({ enabledDefault: false, locked: true });
     expect(body.data.allowedModes).toContain('balanced');
     expect(body.data.defaultMode).toBe('balanced');
+    expect(body.data.dataClass).toBe('internal');
   });
 
   it('PATCH 白名单字段 → 200 并回读一致', async () => {
@@ -136,6 +138,44 @@ describe('kb settings routes (ADR-054 / B2)', () => {
     const getBody = (await get.json()) as { data: { name: string; defaultMode: string } };
     expect(getBody.data.name).toBe('Renamed');
     expect(getBody.data.defaultMode).toBe('strict');
+  });
+
+  it('PATCH dataClass=sensitive → 200 并回读', async () => {
+    const { userId, accessToken } = await token(['kb_admin']);
+    const app = buildApp(new Set([userId]));
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/settings`, {
+      method: 'PATCH',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ dataClass: 'sensitive' }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { dataClass: string } };
+    expect(body.data.dataClass).toBe('sensitive');
+
+    const get = await app.request(`/api/v1/knowledge-bases/${KB}/settings`, {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    const getBody = (await get.json()) as { data: { dataClass: string } };
+    expect(getBody.data.dataClass).toBe('sensitive');
+  });
+
+  it('PATCH 非法 dataClass → 400 VALIDATION_ERROR', async () => {
+    const { userId, accessToken } = await token(['kb_admin']);
+    const app = buildApp(new Set([userId]));
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/settings`, {
+      method: 'PATCH',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ dataClass: 'public' }),
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: { code: string } };
+    expect(body.error.code).toBe('VALIDATION_ERROR');
   });
 
   it('PATCH 含 tauClaim → 400', async () => {

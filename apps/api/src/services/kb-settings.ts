@@ -2,6 +2,7 @@ import {
   DEFAULT_ALLOWED_MODES,
   DEFAULT_DEFAULT_MODE,
   type AskMode,
+  type DataClass,
   type KbSettings,
   type PatchKbSettingsBody,
   type QualitySnapshot,
@@ -68,6 +69,29 @@ export function parseDocTypesFromConfig(
   return out;
 }
 
+/** config_json.dataClass；只认 sensitive，其余/缺省 → internal */
+export function parseDataClassFromConfig(
+  config: Record<string, unknown> | null | undefined,
+): DataClass {
+  return config?.dataClass === 'sensitive' ? 'sensitive' : 'internal';
+}
+
+/**
+ * P3b-SENS：sensitive 且 ACL 未就绪则挡 complete。
+ * 未就绪 = DEPT_ACL_ENFORCE !== 'true' 或 ownerDeptId 空。读 process.env 字符串。
+ */
+export function isSensitiveCompleteBlocked(params: {
+  dataClass: DataClass;
+  ownerDeptId: string | null | undefined;
+  deptAclEnforce: string | undefined;
+}): boolean {
+  if (params.dataClass !== 'sensitive') return false;
+  const enforceOn = params.deptAclEnforce === 'true';
+  const hasOwner =
+    typeof params.ownerDeptId === 'string' && params.ownerDeptId.trim().length > 0;
+  return !enforceOn || !hasOwner;
+}
+
 /**
  * B2-W：ask 入口档位闸。
  * 请求未带 mode → defaultMode；带了必须 ∈ allowedModes。
@@ -119,6 +143,7 @@ export function buildKbSettingsView(input: {
     allowedModes,
     defaultMode,
     docTypes: parseDocTypesFromConfig(input.row.configJson ?? {}),
+    dataClass: parseDataClassFromConfig(input.row.configJson ?? {}),
     qualitySnapshot: input.quality,
     sessionRewrite: { enabledDefault: false, locked: true },
   };
@@ -142,12 +167,14 @@ export function mergeKbSettingsPatch(
   | { ok: false; message: string } {
   const prev = parseModesFromConfig(row.configJson ?? {});
   const prevDocTypes = parseDocTypesFromConfig(row.configJson ?? {});
+  const prevDataClass = parseDataClassFromConfig(row.configJson ?? {});
   const nextName = body.name !== undefined ? body.name : row.name;
   const nextDesc =
     body.description !== undefined ? body.description : (row.description ?? null);
   const nextAllowed = body.allowedModes ?? prev.allowedModes;
   const nextDefault = body.defaultMode ?? prev.defaultMode;
   const nextDocTypes = body.docTypes !== undefined ? body.docTypes : prevDocTypes;
+  const nextDataClass = body.dataClass !== undefined ? body.dataClass : prevDataClass;
 
   if (!nextAllowed.includes(nextDefault)) {
     return {
@@ -161,6 +188,7 @@ export function mergeKbSettingsPatch(
     allowedModes: nextAllowed,
     defaultMode: nextDefault,
     docTypes: nextDocTypes,
+    dataClass: nextDataClass,
   };
 
   const diff: Record<string, { from: unknown; to: unknown }> = {};
@@ -176,6 +204,9 @@ export function mergeKbSettingsPatch(
   }
   if (JSON.stringify(nextDocTypes) !== JSON.stringify(prevDocTypes)) {
     diff.docTypes = { from: prevDocTypes, to: nextDocTypes };
+  }
+  if (nextDataClass !== prevDataClass) {
+    diff.dataClass = { from: prevDataClass, to: nextDataClass };
   }
 
   return {

@@ -65,19 +65,21 @@ export function createKbSettingsRoutes(deps?: {
 | `allowedModes?` | `AskMode[]` 非空 · **唯一** |
 | `defaultMode?` | ∈ 合并后 `allowedModes` |
 | `docTypes?` | `string[]` · max 32 · 唯一；空 = 不限制；ask `scope.docTypes` 须为其子集 |
+| `dataClass?` | `internal` \| `sensitive`；缺省 / 旧行 = `internal` |
 
-**禁止** body 键：`tauClaim` · `crag*` · `allowDegradedGenerate` · `sessionRewrite*` · `retrieveK` · `route` · 密钥等 → Zod 失败 → 400。
+**禁止** body 键：`tauClaim` · `crag*` · `allowDegradedGenerate` · `sessionRewrite*` · `retrieveK` · `route` · 密钥等 → Zod 失败 → 400。  
+**仍不放开** τ / rewrite 写键。`dataClass=sensitive` **≠** 敏感已解禁。
 
 **GET/PATCH data**（`KbSettings`）：
 
-`kbId, name, description?, allowedModes, defaultMode, docTypes?, qualitySnapshot, sessionRewrite`
+`kbId, name, description?, allowedModes, defaultMode, docTypes?, dataClass, qualitySnapshot, sessionRewrite`
 
 | 只读区 | 形状 |
 |--------|------|
 | `qualitySnapshot` | `{ tauClaim, gatePackageId?, effectiveAt? }`；τ ← `env.TAU_CLAIM` |
 | `sessionRewrite` | **固定** `{ enabledDefault: false, locked: true }` |
 
-**持久化**：`name`/`description` → 列；modes → `knowledge_bases.config_json`。无 migration。
+**持久化**：`name`/`description` → 列；modes / `docTypes` / `dataClass` → `knowledge_bases.config_json`。无 migration。
 
 ### 4. Validation & Error Matrix
 
@@ -86,22 +88,22 @@ export function createKbSettingsRoutes(deps?: {
 | 无/无效 Bearer | 401 | `UNAUTHORIZED` |
 | 无 `kb.config.write` | 403 | `FORBIDDEN` |
 | 有码非 KB 成员（非超管） | 403 | `FORBIDDEN` |
-| body 空 / 禁字段 / modes 重复 | 400 | `VALIDATION_ERROR` |
+| body 空 / 禁字段 / modes 重复 / 非法 `dataClass` | 400 | `VALIDATION_ERROR` |
 | `defaultMode` ∉ `allowedModes` | 400 | `VALIDATION_ERROR` |
 | KB 不存在 | 404 | `NOT_FOUND` |
 
 ### 5. Good / Base / Bad
 
 - **Good**：kb_admin 成员 PATCH name/modes → 200 回读一致；GET 见 τ 与 rewrite 锁  
-- **Base**：config_json 空 → 默认全 modes + `balanced`  
-- **Bad**：PATCH `tauClaim`；列表/设置 UI 提供 rewrite 开关；`requirePermissionWhenEnforced`
+- **Base**：config_json 空 → 默认全 modes + `balanced` + `dataClass=internal`  
+- **Bad**：PATCH `tauClaim`；列表/设置 UI 提供 rewrite 开关；`requirePermissionWhenEnforced`；宣称敏感已解禁
 
 ### 6. Tests Required
 
 | 测 | 断言 |
 |----|------|
-| `routes/kb-settings.test.ts` | doc_operator 403；非成员 403；GET quality+锁；PATCH 回读；τ/sessionRewrite 400；defaultMode 越界 400；未知 KB 404 |
-| `kb-settings.contract.test.ts` | strict 拒禁字段；modes 去重；sessionRewrite 形状 |
+| `routes/kb-settings.test.ts` | doc_operator 403；非成员 403；GET quality+锁+`dataClass=internal`；PATCH 回读；PATCH `dataClass`；非法 `dataClass` 400；τ/sessionRewrite 400；defaultMode 越界 400；未知 KB 404 |
+| `kb-settings.contract.test.ts` | strict 拒禁字段；modes 去重；sessionRewrite 形状；`dataClass` 缺省 internal |
 
 ### 7. Wrong vs Correct
 
@@ -155,3 +157,4 @@ assertScopeDocTypesAllowed({ scopeDocTypes?, kbDocTypes })
 |----|------|
 | gatePackageId / effectiveAt 真值 | 现恒 null；签字包流属 ADR-046 |
 | admin 写 KB 级 model_bindings UI | 运行时 resolve 已接（B2-W）；运营写 UI 可后置 |
+| 敏感入池解禁 | **闸有、解禁无**。`dataClass` 可写；complete 对 `sensitive` fail-closed（`DEPT_ACL_ENFORCE===true` ∧ `ownerDeptId` 非空才放行本闸）。**禁止**宣称敏感语料已可入池 |

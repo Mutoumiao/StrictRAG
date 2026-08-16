@@ -30,6 +30,10 @@ import {
   resolveDocumentChunkStrategy,
 } from '../../services/chunk-strategies.js';
 import { documentRepo } from '../../services/documents.js';
+import {
+  isSensitiveCompleteBlocked,
+  parseDataClassFromConfig,
+} from '../../services/kb-settings.js';
 import { enqueueIngest } from '../../services/queue.js';
 import { effectiveMaxUploadBytes, getStorage } from '../../services/storage.js';
 import { toDetail, toListItem } from './mappers.js';
@@ -172,6 +176,23 @@ documentRoutes.post(
     });
     if (!strategyGate.ok) {
       return fail(c, BizCode.VALIDATION_ERROR, strategyGate.message, 400);
+    }
+
+    // P3b-SENS：策略闸之后、markComplete 之前。敏感闸有、解禁无。
+    const kb = await documentRepo.getKb(kbId);
+    const dataClass = parseDataClassFromConfig(kb?.configJson ?? null);
+    if (
+      isSensitiveCompleteBlocked({
+        dataClass,
+        ownerDeptId: doc.ownerDeptId,
+        deptAclEnforce: process.env.DEPT_ACL_ENFORCE,
+      })
+    ) {
+      return fail(
+        c,
+        BizCode.RULE_VIOLATION,
+        'sensitive knowledge base cannot complete until department ACL is ready',
+      );
     }
 
     await documentRepo.markCompletePending(docId, head.byteSize, {
