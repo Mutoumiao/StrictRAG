@@ -62,6 +62,7 @@ function sampleAnswered(requestId = 'req-test'): ExecuteAskResult {
       suggestedActions: [],
       mode: 'balanced',
       rewriteUsed: false,
+      sessionDeepened: false,
       evidence_snapshot: [
         {
           chunkId: CHUNK,
@@ -263,6 +264,7 @@ describe('POST ask sync + SSE', () => {
           suggestedActions: [],
           mode: 'balanced',
           rewriteUsed: false,
+          sessionDeepened: false,
           evidence_snapshot: [],
         },
       }),

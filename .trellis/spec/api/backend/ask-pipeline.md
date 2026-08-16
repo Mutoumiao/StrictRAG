@@ -121,7 +121,7 @@ routes/ask.ts
 #### 图边表（线性状态机 · X-06 · 源码 `graph/run.ts`）
 
 > **形态**：顺序函数调用，**不是** LangGraph 条件边 DSL。下表是 agent 改 `run.ts` 时的**可执行边契约**。  
-> **SSOT**：实现以本表 + 源码为准；PRD 多跳/CRAG/加深边**未**实现，禁止假画。
+> **SSOT**：实现以本表 + 源码为准；PRD 多跳/CRAG **未**实现；加深仅显式回溯（见下），禁止假画 intent LLM / document·external。
 
 ##### 关路径（仓库默认 · `rewriteEnabled=false`）
 
@@ -137,7 +137,8 @@ session_load → rewrite?
   └─(成功)──► question=standalone；rewriteUsed=true → route
 ```
 
-无 session / 空窗 / fast：不 rewrite。开但未注入 loader：当空窗，**禁止** 500。
+无 session / 空窗 / fast：不 rewrite。开但未注入 loader：当空窗，**禁止** 500。  
+`sessionDeepened`：开路径 ∧ 窗内有 user ∧ `isExplicitSessionBackref(rawQuestion)`；关 / 空窗 / 跳过保持 false。窗由 loader `clipSessionWindow(..., { deepened })` 裁一次（默认 2 user / ≤6；显式回溯 4 user / 硬顶 8）；图不二次加深。
 
 ```text
 route
@@ -211,10 +212,10 @@ route
 |----------------|---------|
 | multi_hop / max_hops 环 | reason 枚举保留 `max_hops_exceeded`；图内 **无** hop 边 |
 | CRAG grade → refine | **无** |
-| 按需加深（窗外再取 K 条） | **无** |
+| 按需加深（窗外再取 K 条） | **显式回溯已落**（`isExplicitSessionBackref` + `clipSessionWindow({ deepened })` 硬顶 8）；**无** intent LLM / **无** document·external 检索加码 / **无**二次加深 |
 | L2 runner / 准出 | **工程 runner 有**（`scripts/run-l2-golden.ts`）；**准出无**（另见 [l2-eval](./l2-eval.md)） |
 | rewrite / coref | **P2.5 已实现**最小边；**默认关**；`coref_unresolved` 仅开路径可达 |
-| L3 打点 / 自动熔断 | **打点有**（`recordL3Ask` 三键）；**自动熔断 / 面板无**（见 [l3-metrics](./l3-metrics.md)） |
+| L3 打点 / 自动熔断 | **打点有**（`recordL3Ask` 四键）；**自动熔断 / 面板无**（见 [l3-metrics](./l3-metrics.md)） |
 | 官方 LangGraph 条件边 | 线性 `runAskGraph` 即可 |
 
 ##### 改图检查单（X-06）
@@ -248,7 +249,7 @@ route
 | `minSupport` | 仅 verified 有意义 |
 | `suggestedActions` · `userMessage` | 拒答文案/动作 |
 | `sessionId` · `mode` · `latencyMs` | 壳字段 |
-| `debug` | 仅 `options.debug=true`；`rewriteUsed` **跟图**（关时仍 false）；可含 `standaloneQuestion` |
+| `debug` | 仅 `options.debug=true`；`rewriteUsed` / `sessionDeepened` **跟图**（关时仍 false）；可含 `standaloneQuestion` |
 
 流内 `internal_guard` final：`userMessage` 可提示稍后重试；**禁止** `status=answered`。
 

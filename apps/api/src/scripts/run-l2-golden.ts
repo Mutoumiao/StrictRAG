@@ -25,7 +25,7 @@ import {
   type ExecuteAskParams,
   type ExecuteAskResult,
 } from '../services/ask/index.js';
-import { clipSessionWindow } from '../services/ask/session-window.js';
+import { clipSessionWindow, isExplicitSessionBackref } from '../services/ask/session-window.js';
 import { getGateway, getGatewayForTenant } from '../services/gateway/index.js';
 import { createDefaultRetrieveDeps } from '../services/retrieve/index.js';
 import { defaultOutDir, resolveEvalMode, resolveRepoRoot } from './run-l1-golden.js';
@@ -225,7 +225,9 @@ export async function runL2Golden(opts: RunL2Options): Promise<L2Report> {
           ...(sessionId
             ? {
                 loadSessionWindow: async ({ sessionId: sid }: { sessionId: string }) =>
-                  clipSessionWindow(windows.get(sid) ?? []),
+                  clipSessionWindow(windows.get(sid) ?? [], {
+                    deepened: isExplicitSessionBackref(turn.text),
+                  }),
               }
             : {}),
         } as GraphDeps;

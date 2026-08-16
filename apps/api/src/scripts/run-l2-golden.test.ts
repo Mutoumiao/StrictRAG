@@ -111,6 +111,7 @@ function answered(patch?: {
       mode: 'balanced',
       sessionId: null,
       rewriteUsed: patch?.rewriteUsed ?? false,
+      sessionDeepened: false,
       evidence_snapshot: patch?.evidenceText
         ? [{ chunkId: 'c1', docId: 'd1', text: patch.evidenceText }]
         : [],

@@ -81,6 +81,8 @@ export type AskGraphState = {
   standaloneQuestion?: string;
   /** 本轮是否真正调用了 rewrite 且采用 standalone */
   rewriteUsed: boolean;
+  /** 开路径 ∧ 窗有 user ∧ 显式会话回溯；关/空窗保持 false */
+  sessionDeepened: boolean;
 
   /** 本轮 evidence 快照（与 trace 同源；永不含会话历史） */
   evidence_snapshot?: GraphEvidence[];
@@ -100,6 +102,7 @@ export type AskGraphResult = {
   mode: AskMode;
   standaloneQuestion?: string;
   rewriteUsed: boolean;
+  sessionDeepened: boolean;
   /** 与 finalize 同源；仅本轮 KB chunk，禁止会话历史 */
   evidence_snapshot: GraphEvidence[];
   debug?: {
@@ -125,6 +128,7 @@ export function initState(input: AskGraphInput): AskGraphState {
     tauClaim: input.tauClaim,
     rawQuestion: input.question,
     rewriteUsed: false,
+    sessionDeepened: false,
     evidence: [],
     citations: [],
     claims: [],

@@ -35,6 +35,7 @@ import {
   type SessionWindowTurn,
 } from './state.js';
 import { recordLlmCall } from '../obs/metrics.js';
+import { isExplicitSessionBackref } from '../services/ask/session-window.js';
 import { noopTracer, type SpanTracer } from './tracer.js';
 
 export type GraphChat = (
@@ -106,6 +107,7 @@ function finalize(
     mode: s.mode,
     standaloneQuestion: s.standaloneQuestion,
     rewriteUsed: s.rewriteUsed,
+    sessionDeepened: s.sessionDeepened,
     // 快照仅 state.evidence（retrieve 本轮）；永不含会话原文
     evidence_snapshot: s.evidence_snapshot ?? s.evidence ?? [],
     debug: {
@@ -186,6 +188,11 @@ async function loadAndMaybeRewrite(
   if (!window.some((t) => t.role === 'user')) {
     return { ok: true, state };
   }
+
+  state = {
+    ...state,
+    sessionDeepened: isExplicitSessionBackref(state.rawQuestion),
+  };
 
   const span = tracer.startSpan('ask.rewrite');
   const chat = await chargeAndChat(

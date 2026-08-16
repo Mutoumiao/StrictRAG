@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { clipAssistantContent, clipSessionWindow } from './session-window.js';
+import {
+  clipAssistantContent,
+  clipSessionWindow,
+  isExplicitSessionBackref,
+} from './session-window.js';
 
 describe('clipSessionWindow', () => {
   it('keeps last 2 users and assistants between/after them', () => {
@@ -52,6 +56,57 @@ describe('clipSessionWindow', () => {
     const long = '问'.repeat(200);
     const out = clipSessionWindow([{ role: 'user', content: long }]);
     expect(out[0]?.content).toBe(long);
+  });
+
+  it('deepened: last 4 users, hard cap 8', () => {
+    const msgs: { role: 'user' | 'assistant'; content: string }[] = [
+      { role: 'user', content: 'u0' },
+      { role: 'assistant', content: 'a0' },
+      { role: 'user', content: 'u1' },
+      { role: 'assistant', content: 'a1' },
+      { role: 'user', content: 'u2' },
+      { role: 'assistant', content: 'a2' },
+      { role: 'user', content: 'u3' },
+      { role: 'assistant', content: 'a3' },
+      { role: 'user', content: 'u4' },
+      { role: 'assistant', content: 'a4' },
+    ];
+    const def = clipSessionWindow(msgs);
+    expect(def.map((t) => t.content)).toEqual(['u3', 'a3', 'u4', 'a4']);
+    expect(def.filter((t) => t.role === 'user')).toHaveLength(2);
+    expect(def.length).toBeLessThanOrEqual(6);
+
+    const deep = clipSessionWindow(msgs, { deepened: true });
+    expect(deep.length).toBeLessThanOrEqual(8);
+    expect(deep.filter((t) => t.role === 'user').length).toBeLessThanOrEqual(4);
+    expect(deep.map((t) => t.content)).toEqual(['u1', 'a1', 'u2', 'a2', 'u3', 'a3', 'u4', 'a4']);
+    expect(deep.map((t) => t.content)).not.toContain('u0');
+  });
+
+  it('deepened still clips assistant content', () => {
+    const out = clipSessionWindow(
+      [
+        { role: 'user', content: 'q' },
+        { role: 'assistant', content: '住宿上限500元。后续还有长段解释。' },
+      ],
+      { deepened: true },
+    );
+    expect(out[1]?.content).toBe('住宿上限500元。');
+  });
+});
+
+describe('isExplicitSessionBackref', () => {
+  it('hits explicit session backref phrases', () => {
+    expect(isExplicitSessionBackref('根据刚才说的住宿标准，餐补怎么算？')).toBe(true);
+    expect(isExplicitSessionBackref('我之前跟你聊过')).toBe(true);
+    expect(isExplicitSessionBackref('我刚刚说过')).toBe(true);
+    expect(isExplicitSessionBackref('根据之前说的')).toBe(true);
+  });
+
+  it('does not treat bare 刚才 / 之前 as backref', () => {
+    expect(isExplicitSessionBackref('刚才提交的请假单进度')).toBe(false);
+    expect(isExplicitSessionBackref('之前的制度文件在哪')).toBe(false);
+    expect(isExplicitSessionBackref('那餐补呢？')).toBe(false);
   });
 });
 

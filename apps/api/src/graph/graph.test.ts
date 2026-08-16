@@ -543,6 +543,7 @@ describe('runAskGraph P2.5 rewrite min', () => {
       );
       expect(purposes, c.name).not.toContain('rewrite');
       expect(r.rewriteUsed, c.name).toBe(false);
+      expect(r.sessionDeepened, c.name).toBe(false);
       if (c.name === 'no session' || c.name === 'fast') {
         expect(loaderCalls, c.name).toBe(0);
       }
@@ -573,6 +574,80 @@ describe('runAskGraph P2.5 rewrite min', () => {
     );
     expect(r).toMatchObject({ status: 'abstained', reason: 'budget_exhausted' });
     expect(retrieveCount).toBe(0);
+  });
+
+  it('on + explicit backref + long window → sessionDeepened=true', async () => {
+    const r = await runAskGraph(
+      baseInput({ sessionId: SID, question: '根据刚才说的住宿标准，餐补怎么算？' }),
+      deps({
+        rewriteEnabled: true,
+        loadSessionWindow: async () => [
+          { role: 'user', content: 'u1 年假天数' },
+          { role: 'assistant', content: 'a1 15天' },
+          { role: 'user', content: 'u2 差旅住宿' },
+          { role: 'assistant', content: 'a2 上限500' },
+          { role: 'user', content: 'u3 机票怎么报' },
+          { role: 'assistant', content: 'a3 经济舱' },
+          { role: 'user', content: 'u4 住宿标准是什么？' },
+          { role: 'assistant', content: 'a4 上限500元。' },
+        ],
+        chat: rewriteHappyChat,
+      }),
+    );
+    expect(r.sessionDeepened).toBe(true);
+    expect(r.rewriteUsed).toBe(true);
+  });
+
+  it('on + weak coref 那餐补呢 → sessionDeepened=false', async () => {
+    const r = await runAskGraph(
+      baseInput({ sessionId: SID, question: '那餐补呢？' }),
+      deps({
+        rewriteEnabled: true,
+        loadSessionWindow: async () => [
+          { role: 'user', content: '差旅住宿标准是什么？' },
+          { role: 'assistant', content: '住宿上限 500 元。' },
+        ],
+        chat: rewriteHappyChat,
+      }),
+    );
+    expect(r.sessionDeepened).toBe(false);
+  });
+
+  it('off rewrite + explicit backref → sessionDeepened=false', async () => {
+    const r = await runAskGraph(
+      baseInput({ sessionId: SID, question: '根据刚才说的住宿标准，餐补怎么算？' }),
+      deps({
+        rewriteEnabled: false,
+        loadSessionWindow: async () => [{ role: 'user', content: '差旅住宿' }],
+        chat: happyChat,
+      }),
+    );
+    expect(r.sessionDeepened).toBe(false);
+    expect(r.rewriteUsed).toBe(false);
+  });
+
+  it('deepened window text never enters evidence', async () => {
+    const window = [
+      { role: 'user' as const, content: 'DEEPWIN_SECRET_U1' },
+      { role: 'assistant' as const, content: 'DEEPWIN_SECRET_A1' },
+      { role: 'user' as const, content: 'DEEPWIN_SECRET_U2' },
+      { role: 'assistant' as const, content: 'DEEPWIN_SECRET_A2' },
+    ];
+    const r = await runAskGraph(
+      baseInput({ sessionId: SID, question: '根据刚才说的住宿标准，餐补怎么算？' }),
+      deps({
+        rewriteEnabled: true,
+        loadSessionWindow: async () => window,
+        chat: rewriteHappyChat,
+      }),
+    );
+    const ev = r.evidence_snapshot.map((e) => e.text).join('\0');
+    for (const t of window) {
+      expect(ev).not.toContain(t.content);
+    }
+    expect(JSON.stringify(r.citations)).not.toContain('DEEPWIN_SECRET');
+    expect(r.sessionDeepened).toBe(true);
+    expect(r.reason).toBe('verified');
   });
 
   it('enabled but no loader: skip rewrite, no 500', async () => {

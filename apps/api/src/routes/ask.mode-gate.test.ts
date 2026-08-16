@@ -44,6 +44,7 @@ function answered(mode: string): ExecuteAskResult {
       suggestedActions: [],
       mode: mode as 'balanced',
       rewriteUsed: false,
+      sessionDeepened: false,
       evidence_snapshot: [],
     },
   };

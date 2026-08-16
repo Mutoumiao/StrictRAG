@@ -18,6 +18,7 @@ export type SaveAskTraceInput = {
   rawQuestion: string;
   standaloneQuestion?: string | null;
   rewriteUsed?: boolean;
+  sessionDeepened?: boolean;
   answer?: string;
   evidenceSnapshot: EvidenceSnapshotItem[];
   graphTrace?: Record<string, unknown>;
@@ -42,7 +43,7 @@ export async function saveAskTrace(input: SaveAskTraceInput): Promise<{ id: stri
     rawQuestion: input.rawQuestion,
     standaloneQuestion: input.standaloneQuestion ?? null,
     rewriteUsed: input.rewriteUsed ? 1 : 0,
-    sessionDeepened: 0,
+    sessionDeepened: input.sessionDeepened ? 1 : 0,
     answer: input.answer ?? null,
     evidenceSnapshot: input.evidenceSnapshot,
     graphTrace: input.graphTrace ?? null,

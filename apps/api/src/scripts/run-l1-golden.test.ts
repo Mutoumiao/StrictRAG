@@ -71,6 +71,7 @@ function answered(): ExecuteAskResult {
       mode: 'balanced',
       sessionId: null,
       rewriteUsed: false,
+      sessionDeepened: false,
       evidence_snapshot: [],
     },
   };

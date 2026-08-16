@@ -69,12 +69,36 @@ describe('recordL3Ask', () => {
     expect(metricGet('l3_session_ask_total')).toBe(1);
   });
 
+  it('sessionDeepened true +1；缺省/false 不加', () => {
+    recordL3Ask({
+      rewriteUsed: false,
+      reason: 'verified',
+      hasSession: true,
+      sessionDeepened: true,
+    });
+    expect(metricGet('l3_session_deepened_total')).toBe(1);
+    recordL3Ask({ rewriteUsed: false, reason: 'verified', hasSession: true });
+    recordL3Ask({
+      rewriteUsed: false,
+      reason: 'verified',
+      hasSession: true,
+      sessionDeepened: false,
+    });
+    expect(metricGet('l3_session_deepened_total')).toBe(1);
+  });
+
   it('metricsReset 后为 0', () => {
-    recordL3Ask({ rewriteUsed: true, reason: 'coref_unresolved', hasSession: true });
+    recordL3Ask({
+      rewriteUsed: true,
+      reason: 'coref_unresolved',
+      hasSession: true,
+      sessionDeepened: true,
+    });
     metricsReset();
     expect(metricGet('l3_rewrite_used_total')).toBe(0);
     expect(metricGet('l3_coref_fail_total')).toBe(0);
     expect(metricGet('l3_session_ask_total')).toBe(0);
+    expect(metricGet('l3_session_deepened_total')).toBe(0);
   });
 });
 
@@ -183,6 +207,7 @@ describe('ask route 429 RATE_LIMITED', () => {
             suggestedActions: [],
             mode: 'balanced',
             rewriteUsed: false,
+            sessionDeepened: false,
             evidence_snapshot: [],
           },
         }),

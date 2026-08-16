@@ -14,7 +14,7 @@ import { createAskTracer, recordAskResult, recordL3Ask } from '../../obs/index.j
 import { getGateway, getGatewayForTenant } from '../gateway/index.js';
 import { createDefaultRetrieveDeps } from '../retrieve/index.js';
 import { sessionsRepo } from '../sessions.js';
-import { clipSessionWindow } from './session-window.js';
+import { clipSessionWindow, isExplicitSessionBackref } from './session-window.js';
 import { saveAskTrace } from './traces.js';
 
 export type ExecuteAskParams = {
@@ -75,6 +75,7 @@ function toAskResponse(
     base.debug = {
       ...(graph.debug ?? {}),
       rewriteUsed: graph.rewriteUsed,
+      sessionDeepened: graph.sessionDeepened,
       sessionRewriteEnabledDefault: env.SESSION_REWRITE_ENABLED,
       ...(graph.standaloneQuestion ? { standaloneQuestion: graph.standaloneQuestion } : {}),
     };
@@ -137,7 +138,9 @@ export async function executeAsk(
         kbId: input.kbId,
         userId: input.userId ?? params.userId,
       });
-      return clipSessionWindow(messages);
+      return clipSessionWindow(messages, {
+        deepened: isExplicitSessionBackref(params.body.question),
+      });
     };
   }
 
@@ -171,6 +174,7 @@ export async function executeAsk(
     rewriteUsed: graph.rewriteUsed,
     reason: graph.reason,
     hasSession: Boolean(params.body.sessionId),
+    sessionDeepened: graph.sessionDeepened,
   });
   obs.finish({
     answered: response.status === 'answered',
@@ -196,6 +200,7 @@ export async function executeAsk(
         rawQuestion: params.body.question,
         standaloneQuestion: graph.standaloneQuestion ?? null,
         rewriteUsed: graph.rewriteUsed,
+        sessionDeepened: graph.sessionDeepened,
         answer: response.answer,
         evidenceSnapshot,
         graphTrace: graph.debug
