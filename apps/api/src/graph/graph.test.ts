@@ -734,6 +734,89 @@ describe('runAskGraph P2.5 rewrite min', () => {
     expect(r.reason).toBe('verified');
   });
 
+  it('external backref discards preferred; documentBackref=false', async () => {
+    const HIST = 'EXT_SECRET_WINDOW';
+    let seenPreferred: readonly string[] | undefined;
+    const purposes: string[] = [];
+    const r = await runAskGraph(
+      baseInput({
+        sessionId: SID,
+        question: '网上那份文件怎么说',
+        preferredDocIds: [DOC],
+      }),
+      deps({
+        rewriteEnabled: false,
+        retrieve: async ({ preferredDocIds }) => {
+          seenPreferred = preferredDocIds;
+          return {
+            ok: true,
+            evidence: evidenceOk,
+            meta: {
+              esMode: 'mock',
+              candidateCount: 1,
+              denseHits: 1,
+              sparseHits: 1,
+              preferredAdopted: true,
+            },
+          };
+        },
+        chat: async (purpose, messages) => {
+          purposes.push(purpose);
+          return happyChat(purpose, messages);
+        },
+      }),
+    );
+    expect(r.externalBackref).toBe(true);
+    expect(r.documentBackref).toBe(false);
+    expect(r.sessionDeepened).toBe(false);
+    expect(seenPreferred).toBeUndefined();
+    expect(JSON.stringify(r.evidence_snapshot)).not.toContain(HIST);
+    expect(JSON.stringify(r.citations)).not.toContain(HIST);
+    expect(purposes).toContain('judge');
+    expect(r.reason).toBe('verified');
+  });
+
+  it('external does not set sessionDeepened; session+external still deepens', async () => {
+    const HIST = 'EXT_SESSION_SECRET';
+    let seenPreferred: readonly string[] | undefined;
+    const r = await runAskGraph(
+      baseInput({
+        sessionId: SID,
+        question: '根据刚才说的网上那份文件',
+        preferredDocIds: [DOC],
+      }),
+      deps({
+        rewriteEnabled: true,
+        loadSessionWindow: async () => [
+          { role: 'user', content: HIST },
+          { role: 'assistant', content: '窗内原文不得进证据' },
+        ],
+        retrieve: async ({ preferredDocIds }) => {
+          seenPreferred = preferredDocIds;
+          return {
+            ok: true,
+            evidence: evidenceOk,
+            meta: {
+              esMode: 'mock',
+              candidateCount: 1,
+              denseHits: 1,
+              sparseHits: 1,
+              preferredAdopted: true,
+            },
+          };
+        },
+        chat: rewriteHappyChat,
+      }),
+    );
+    expect(r.externalBackref).toBe(true);
+    expect(r.documentBackref).toBe(false);
+    expect(r.sessionDeepened).toBe(true);
+    expect(seenPreferred).toBeUndefined();
+    expect(JSON.stringify(r.evidence_snapshot)).not.toContain(HIST);
+    expect(JSON.stringify(r.citations)).not.toContain(HIST);
+    expect(r.reason).toBe('verified');
+  });
+
   it('document backref but preferred not adopted → documentBackref=false', async () => {
     const r = await runAskGraph(
       baseInput({

@@ -37,6 +37,7 @@ import {
 import { recordLlmCall } from '../obs/metrics.js';
 import {
   isExplicitDocumentBackref,
+  isExplicitExternalBackref,
   isExplicitSessionBackref,
 } from '../services/ask/session-window.js';
 import { noopTracer, type SpanTracer } from './tracer.js';
@@ -113,6 +114,7 @@ function finalize(
     rewriteUsed: s.rewriteUsed,
     sessionDeepened: s.sessionDeepened,
     documentBackref: s.documentBackref,
+    externalBackref: isExplicitExternalBackref(s.rawQuestion),
     // 快照仅 state.evidence（retrieve 本轮）；永不含会话原文
     evidence_snapshot: s.evidence_snapshot ?? s.evidence ?? [],
     debug: {
@@ -284,12 +286,15 @@ export async function runAskGraph(
     state = { ...state, retrieveCalls: state.retrieveCalls + 1 };
 
     let r: RetrieveResult;
+    const externalBackref = isExplicitExternalBackref(state.rawQuestion);
+    // ponytail: 库外回溯丢掉 preferred，防测/旁路仍传入
+    const preferredDocIds = externalBackref ? undefined : state.preferredDocIds;
     const retrieveInput = {
       kbId: state.kbId,
       question: state.question,
       membership: state.membership,
       scope: state.scope,
-      preferredDocIds: state.preferredDocIds,
+      preferredDocIds,
     };
     if (deps.retrieve) {
       r = await deps.retrieve(retrieveInput);
@@ -313,7 +318,7 @@ export async function runAskGraph(
       lifecycle: e.lifecycle,
       score: e.score,
     }));
-    const preferredSet = new Set(state.preferredDocIds ?? []);
+    const preferredSet = new Set(preferredDocIds ?? []);
     const adopted =
       preferredSet.size > 0 &&
       (r.meta.preferredAdopted === true ||
@@ -324,7 +329,8 @@ export async function runAskGraph(
       ...state,
       evidence,
       evidence_snapshot: evidence,
-      documentBackref: isExplicitDocumentBackref(state.rawQuestion) && adopted,
+      documentBackref:
+        isExplicitDocumentBackref(state.rawQuestion) && !externalBackref && adopted,
     };
     span.end({ evidenceCount: evidence.length });
   }

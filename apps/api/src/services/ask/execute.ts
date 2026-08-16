@@ -17,6 +17,7 @@ import { sessionsRepo, type SessionsRepo } from '../sessions.js';
 import {
   clipSessionWindow,
   isExplicitDocumentBackref,
+  isExplicitExternalBackref,
   isExplicitSessionBackref,
 } from './session-window.js';
 import { saveAskTrace } from './traces.js';
@@ -83,6 +84,7 @@ function toAskResponse(
       rewriteUsed: graph.rewriteUsed,
       sessionDeepened: graph.sessionDeepened,
       documentBackref: graph.documentBackref ?? false,
+      externalBackref: graph.externalBackref ?? false,
       sessionRewriteEnabledDefault: env.SESSION_REWRITE_ENABLED,
       ...(graph.standaloneQuestion ? { standaloneQuestion: graph.standaloneQuestion } : {}),
     };
@@ -152,9 +154,13 @@ export async function executeAsk(
     };
   }
 
-  // ponytail: 加码不绑 rewrite；无 session / 未命中不查末轮
+  // ponytail: 加码不绑 rewrite；external 抑制；无 session / 未命中不查末轮
   let preferredDocIds: string[] | undefined;
-  if (params.body.sessionId && isExplicitDocumentBackref(params.body.question)) {
+  if (
+    params.body.sessionId &&
+    isExplicitDocumentBackref(params.body.question) &&
+    !isExplicitExternalBackref(params.body.question)
+  ) {
     const ids = await repo.listLastEvidenceDocIds({
       sessionId: params.body.sessionId,
       kbId: params.kbId,
@@ -196,6 +202,7 @@ export async function executeAsk(
     hasSession: Boolean(params.body.sessionId),
     sessionDeepened: graph.sessionDeepened,
     documentBackref: graph.documentBackref,
+    externalBackref: graph.externalBackref,
   });
   obs.finish({
     answered: response.status === 'answered',

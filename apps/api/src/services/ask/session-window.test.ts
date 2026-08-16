@@ -5,6 +5,7 @@ import {
   clipAssistantContent,
   clipSessionWindow,
   isExplicitDocumentBackref,
+  isExplicitExternalBackref,
   isExplicitSessionBackref,
   uniqueEvidenceDocIds,
 } from './session-window.js';
@@ -135,6 +136,30 @@ describe('isExplicitDocumentBackref', () => {
   });
 });
 
+describe('isExplicitExternalBackref', () => {
+  it('hits explicit external document backref phrases', () => {
+    expect(isExplicitExternalBackref('网上那份文件怎么说')).toBe(true);
+    expect(isExplicitExternalBackref('外网这篇制度还有用吗')).toBe(true);
+    expect(isExplicitExternalBackref('新闻里那份文档的适用范围')).toBe(true);
+    expect(isExplicitExternalBackref('互联网上该材料谁发的')).toBe(true);
+  });
+
+  it('does not treat in-kb document / session / bare 网上 as external', () => {
+    expect(isExplicitExternalBackref('那份文件还有补充吗')).toBe(false);
+    expect(isExplicitExternalBackref('这份文档的适用范围')).toBe(false);
+    expect(isExplicitExternalBackref('刚才提交的请假单')).toBe(false);
+    expect(isExplicitExternalBackref('网上报名入口')).toBe(false);
+  });
+
+  it('is orthogonal to session; suppresses document boost only at wiring', () => {
+    expect(isExplicitExternalBackref('网上那份文件怎么说')).toBe(true);
+    expect(isExplicitDocumentBackref('网上那份文件怎么说')).toBe(true);
+    expect(isExplicitSessionBackref('网上那份文件怎么说')).toBe(false);
+    expect(isExplicitExternalBackref('根据刚才说的网上那份文件')).toBe(true);
+    expect(isExplicitSessionBackref('根据刚才说的网上那份文件')).toBe(true);
+  });
+});
+
 describe('uniqueEvidenceDocIds', () => {
   it('preserves order and drops dup / empty', () => {
     expect(
@@ -148,6 +173,21 @@ describe('uniqueEvidenceDocIds', () => {
     ).toEqual(['a', 'b']);
     expect(uniqueEvidenceDocIds(null)).toEqual([]);
     expect(uniqueEvidenceDocIds(undefined)).toEqual([]);
+  });
+});
+
+describe('external-only backref does not deepen window', () => {
+  it('clipSessionWindow stays ≤2 user / ≤6', () => {
+    expect(isExplicitExternalBackref('网上那份文件怎么说')).toBe(true);
+    expect(isExplicitSessionBackref('网上那份文件怎么说')).toBe(false);
+    const msgs: { role: 'user' | 'assistant'; content: string }[] = [];
+    for (let i = 0; i < 5; i++) {
+      msgs.push({ role: 'user', content: `u${i}` });
+      msgs.push({ role: 'assistant', content: `a${i}` });
+    }
+    const out = clipSessionWindow(msgs);
+    expect(out.filter((t) => t.role === 'user').length).toBeLessThanOrEqual(2);
+    expect(out.length).toBeLessThanOrEqual(6);
   });
 });
 

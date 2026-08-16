@@ -109,7 +109,7 @@ artifacts/                 # gitignore；l1-last-run.{json,md}
 | HTTP 路由 | 默认 `routes/<domain>.ts` + `app.ts` 挂载；**ARCH-P1a 试点**域目录 = `routes/documents/`（`index.ts` 导出 Hono） | route 内 SQL / 长 Prompt / ES DSL；**禁止**同 PR 全量搬家其它域 |
 | 业务编排 | `services/<domain>.ts` 或 `services/<domain>/` | 在 `routes` 堆事务 |
 | 身份/验码 | `auth/**` | handler 私写 JWT 解析 |
-| Ask 图 | `graph/**` + `services/ask` + `services/retrieve` | 第二套平行图抄本；文档回溯判定在 `session-window.ts`，提权在 `retrieve.ts`（RRF 后、rerank 前），禁 intent LLM |
+| Ask 图 | `graph/**` + `services/ask` + `services/retrieve` | 第二套平行图抄本；文档/库外回溯判定在 `session-window.ts`，提权在 `retrieve.ts`（RRF 后、rerank 前），禁 intent LLM |
 | 契约类型 | `@strict-rag/contracts` | apps 内 `type XxxResponse` |
 | OpenAPI / Scalar（ARCH-P2-1） | `openapi/document.ts` + `openapi/routes.ts`；schema **只**从 contracts Zod 派生 | 平行手写字段表当 SSOT；OpenAPIHono 全量重写 route；宣称生产发布流水线 |
 | 入库重活 | **enqueue** → worker | api 内跑 chunk/embed |

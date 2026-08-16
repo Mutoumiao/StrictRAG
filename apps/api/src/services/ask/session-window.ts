@@ -18,6 +18,14 @@ export function isExplicitDocumentBackref(q: string): boolean {
   return /(?:这份|那份|这篇|那篇|上面那[份篇个]?|该).{0,6}(?:文档|文件|制度|材料)/.test(q);
 }
 
+/** 显式库外文档回溯：贴「网上/外网/互联网/新闻里/公开报道」+ 近距「这份/那份…」+ 文档类词 */
+export function isExplicitExternalBackref(q: string): boolean {
+  // ponytail: 只挡「库外那份文件」误触发 document 加码
+  return /(?:网上|外网|互联网上?|新闻里|公开报道).{0,12}(?:这份|那份|这篇|那篇|该)?.{0,6}(?:文档|文件|制度|材料)/.test(
+    q,
+  );
+}
+
 /** 末轮 evidence snapshot 的保序去重 docId；空/缺省 → [] */
 export function uniqueEvidenceDocIds(
   snapshot: ReadonlyArray<{ docId?: string }> | null | undefined,

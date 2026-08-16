@@ -106,6 +106,24 @@ describe('recordL3Ask', () => {
     expect(metricGet('l3_document_backref_total')).toBe(1);
   });
 
+  it('externalBackref true +1；缺省/false 不加', () => {
+    recordL3Ask({
+      rewriteUsed: false,
+      reason: 'verified',
+      hasSession: true,
+      externalBackref: true,
+    });
+    expect(metricGet('l3_external_backref_total')).toBe(1);
+    recordL3Ask({ rewriteUsed: false, reason: 'verified', hasSession: true });
+    recordL3Ask({
+      rewriteUsed: false,
+      reason: 'verified',
+      hasSession: true,
+      externalBackref: false,
+    });
+    expect(metricGet('l3_external_backref_total')).toBe(1);
+  });
+
   it('metricsReset 后为 0', () => {
     recordL3Ask({
       rewriteUsed: true,
@@ -113,6 +131,7 @@ describe('recordL3Ask', () => {
       hasSession: true,
       sessionDeepened: true,
       documentBackref: true,
+      externalBackref: true,
     });
     metricsReset();
     expect(metricGet('l3_rewrite_used_total')).toBe(0);
@@ -120,6 +139,7 @@ describe('recordL3Ask', () => {
     expect(metricGet('l3_session_ask_total')).toBe(0);
     expect(metricGet('l3_session_deepened_total')).toBe(0);
     expect(metricGet('l3_document_backref_total')).toBe(0);
+    expect(metricGet('l3_external_backref_total')).toBe(0);
   });
 });
 
@@ -414,6 +434,112 @@ describe('executeAsk wires tracer spans', () => {
     expect(result.graph.sessionDeepened).toBe(false);
     expect(result.response.debug?.documentBackref).toBe(true);
     expect(metricGet('l3_document_backref_total')).toBe(1);
+  });
+
+  it('external backref + last evidence → 不查 preferred；l3_external_backref_total', async () => {
+    const { executeAsk } = await import('../services/ask/execute.js');
+    const userId = uuidv7();
+    const mem = createMemorySessionsRepo();
+    const sess = await mem.create({
+      kbId: KB,
+      tenantId: '01900000-0000-7000-8000-000000000001',
+      userId,
+    });
+    const DOC = '22222222-2222-7222-8222-222222222222';
+    const CHUNK = '11111111-1111-7111-8111-111111111111';
+    mem.appendTrace({
+      sessionId: sess.sessionId,
+      kbId: KB,
+      userId,
+      requestId: 'prev',
+      question: '年假',
+      answer: '15天',
+      status: 'answered',
+      reason: 'verified',
+      evidenceDocIds: [DOC],
+    });
+    let listed = 0;
+    const sessions = {
+      ...mem,
+      listLastEvidenceDocIds: async (
+        input: Parameters<typeof mem.listLastEvidenceDocIds>[0],
+      ) => {
+        listed += 1;
+        return mem.listLastEvidenceDocIds(input);
+      },
+    };
+    let seenPreferred: readonly string[] | undefined = ['sentinel'];
+    const result = await executeAsk(
+      {
+        requestId: `req-ext-${uuidv7().slice(0, 8)}`,
+        kbId: KB,
+        tenantId: '01900000-0000-7000-8000-000000000001',
+        userId,
+        membership: 'member',
+        body: {
+          question: '网上那份文件怎么说',
+          sessionId: sess.sessionId,
+          options: { mode: 'balanced', debug: true },
+        },
+      },
+      {
+        skipTrace: true,
+        sessions,
+        graphDeps: {
+          retrieve: async ({ preferredDocIds }) => {
+            seenPreferred = preferredDocIds;
+            return {
+              ok: true,
+              evidence: [
+                {
+                  chunkId: CHUNK,
+                  docId: DOC,
+                  title: '制度',
+                  text: '适用范围为本公司',
+                  preview: '适用范围',
+                  lifecycle: 'active',
+                  score: 0.9,
+                },
+              ],
+              meta: {
+                esMode: 'mock',
+                candidateCount: 1,
+                denseHits: 1,
+                sparseHits: 1,
+                preferredAdopted: true,
+              },
+            };
+          },
+          chat: async (purpose) => {
+            if (purpose === 'generate') {
+              return JSON.stringify({
+                answer: '适用范围为本公司。',
+                citations: [CHUNK],
+                insufficient: false,
+              });
+            }
+            if (purpose === 'claim_split') {
+              return JSON.stringify({
+                claims: [{ text: '适用范围为本公司', chunkIds: [CHUNK] }],
+              });
+            }
+            if (purpose === 'judge') {
+              return JSON.stringify({ scores: [0.95] });
+            }
+            throw new Error(`unexpected ${purpose}`);
+          },
+        },
+      },
+    );
+    expect(listed).toBe(0);
+    expect(seenPreferred).toBeUndefined();
+    expect(result.graph.externalBackref).toBe(true);
+    expect(result.graph.documentBackref).toBe(false);
+    expect(result.graph.sessionDeepened).toBe(false);
+    expect(result.response.debug?.externalBackref).toBe(true);
+    expect(result.response.debug?.documentBackref).toBe(false);
+    expect(metricGet('l3_external_backref_total')).toBe(1);
+    expect(metricGet('l3_document_backref_total')).toBe(0);
   });
 
   it('knowledge happy path records route→retrieve→generate→claim_split→verify→finalize', async () => {
