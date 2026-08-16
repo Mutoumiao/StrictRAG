@@ -37,7 +37,8 @@
         "L2_USER_ID",
         "L2_GOLD_PATH",
         "L2_OUT_DIR",
-        "L2_REWRITE_ENABLED"
+        "L2_REWRITE_ENABLED",
+        "L2_PERSIST_EVAL"
       ]
     },
     "check-types": {
@@ -79,7 +80,8 @@
         "L2_USER_ID",
         "L2_GOLD_PATH",
         "L2_OUT_DIR",
-        "L2_REWRITE_ENABLED"
+        "L2_REWRITE_ENABLED",
+        "L2_PERSIST_EVAL"
       ]
     }
   }

@@ -1,8 +1,8 @@
 # L2 多轮题面（工程草案 + 工程 runner）
 
 > **有工程 runner ≠ 准出。** 本目录是可版本化剧本 + 形状校验。  
-> runner 只做串行批跑与末轮机械分；**没有** `eval_runs` 落库、**没有** 准出数字。  
-> **禁止**把「已有 gold / 已有 CLI」写成 L2 通过、可默认开 rewrite、或可宣传连续追问。
+> runner 只做串行批跑与末轮机械分；可选 `L2_PERSIST_EVAL` 写 `eval_runs`（`run_type=session_multiturn`）；**有账本 ≠ 准出**。  
+> **禁止**把「已有 gold / 已有 CLI / 已 persist」写成 L2 通过、可默认开 rewrite、或可宣传连续追问。
 
 ## 文件
 
@@ -29,6 +29,7 @@ L2_KB_ID=<kb-uuid> pnpm --filter @strict-rag/api exec tsx src/scripts/run-l2-gol
 | `L2_MAX_CASES` | 否 | 正整数截断；非法 → exit 2 |
 | `L2_GOLD_PATH` / `L2_OUT_DIR` | 否 | 默认 `fixtures/l2/gold.yaml` / `<repo>/artifacts` |
 | `L2_REWRITE_ENABLED` | 否 | 仅本跑注入 `graphDeps.rewriteEnabled`；**不**改仓库默认 |
+| `L2_PERSIST_EVAL` | 否 | `1`/`true` → insert `eval_runs`；默认关；**≠** 准出 |
 | `L2_TENANT_ID` / `L2_USER_ID` | 否 | 与 L1 相同 dev uuid |
 
 报告：`artifacts/l2-last-run.json` + `.md`（gitignore）。`signoffEligible` **恒 false**。  
@@ -74,6 +75,6 @@ CI 只钉纯函数 + mock `execute`；**禁止**把本跑数字写成 L2 通过�
 
 ## 本窗不做
 
-- 写 `eval_runs` / ADR-046 快照 / 主题 LLM judge
+- 把 persist 当准出 / 算出 `signoffEligible=true` / ADR-046 快照 / 主题 LLM judge
 - 打开仓库默认 `SESSION_REWRITE_ENABLED`
 - 宣称 L2 准出 / 全文 P2 / 生产 ES / 连续追问已开

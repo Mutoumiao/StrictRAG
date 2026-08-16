@@ -2,12 +2,14 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { defaultL2GoldPath } from '../eval/l2-gold.js';
 import type { ExecuteAskDeps, ExecuteAskParams, ExecuteAskResult } from '../services/ask/index.js';
+import { evalRunDbRanAt } from './run-l1-golden.js';
 import {
   acceptHit,
+  buildL2EvalRunInsert,
   historyLeaked,
   nextSessionId,
   parseL2CliEnv,
@@ -183,6 +185,7 @@ describe('runL2Golden (injected execute)', () => {
       goldPath,
       outDir: path.join(dir, 'out'),
       kbId: 'kb',
+      persistEval: false,
       execute: async (params, deps) => {
         expect(deps?.skipTrace).toBe(true);
         seen.push(params.body.sessionId ?? undefined);
@@ -208,6 +211,7 @@ describe('runL2Golden (injected execute)', () => {
       goldPath,
       outDir: path.join(dir, 'out'),
       kbId: 'kb',
+      persistEval: false,
       execute: async (params, deps) => {
         const sid = params.body.sessionId;
         const loader = deps?.graphDeps?.loadSessionWindow;
@@ -237,6 +241,7 @@ describe('runL2Golden (injected execute)', () => {
       goldPath,
       outDir: path.join(dir, 'out'),
       kbId: 'kb',
+      persistEval: false,
       execute: async (params) => {
         seen.push(params.body.sessionId ?? undefined);
         return answered();
@@ -261,6 +266,7 @@ describe('runL2Golden (injected execute)', () => {
       goldPath,
       outDir: path.join(dir, 'out'),
       kbId: 'kb',
+      persistEval: false,
       execute: async (params) => {
         seen.push(params);
         return answered();
@@ -289,6 +295,7 @@ describe('runL2Golden (injected execute)', () => {
       goldPath,
       outDir: path.join(dir, 'out'),
       kbId: 'kb',
+      persistEval: false,
       execute: async (params) => {
         const q = params.body.question;
         if (q === 'a1' || q === 'b1') {
@@ -318,6 +325,7 @@ describe('runL2Golden (injected execute)', () => {
       goldPath,
       outDir: path.join(dir, 'out'),
       kbId: 'kb',
+      persistEval: false,
       execute: async (params) => {
         if (params.body.question === prior) return answered();
         return answered({ evidenceText: `引用：${prior}` });
@@ -347,6 +355,7 @@ describe('runL2Golden (injected execute)', () => {
       goldPath,
       outDir: path.join(dir, 'out'),
       kbId: 'kb',
+      persistEval: false,
       rewriteEnabled: true,
       execute: async () => answered({ rewriteUsed: true }),
     });
@@ -373,6 +382,7 @@ describe('runL2Golden (injected execute)', () => {
       goldPath,
       outDir: path.join(dir, 'out'),
       kbId: 'kb',
+      persistEval: false,
       rewriteEnabled: false,
       execute: async (_params, d) => {
         deps.push(d ?? {});
@@ -391,6 +401,7 @@ describe('runL2Golden (injected execute)', () => {
       goldPath: defaultL2GoldPath(),
       outDir: path.join(dir, 'out'),
       kbId: 'kb',
+      persistEval: false,
       esMode: 'http',
       execute: async () => answered({ rewriteUsed: true }),
     });
@@ -427,6 +438,7 @@ describe('runL2Golden (injected execute)', () => {
       goldPath,
       outDir: path.join(dir, 'out'),
       kbId: 'kb',
+      persistEval: false,
       execute: async (params) => {
         if (params.body.question === 'boom') throw new Error('gateway down');
         return answered();
@@ -438,5 +450,196 @@ describe('runL2Golden (injected execute)', () => {
     expect(report.cases[0]?.verdict).toBe('error');
     expect(report.cases[0]?.errorMessage).toMatch(/gateway down/);
     expect(report.cases[1]?.verdict).toBe('pass');
+  });
+});
+
+describe('buildL2EvalRunInsert / persist gate', () => {
+  const prevPersist = process.env.L2_PERSIST_EVAL;
+
+  afterEach(() => {
+    if (prevPersist === undefined) delete process.env.L2_PERSIST_EVAL;
+    else process.env.L2_PERSIST_EVAL = prevPersist;
+  });
+
+  function sampleReport(patch?: Partial<L2Report>): L2Report {
+    return {
+      run_type: 'session_multiturn',
+      signoffEligible: false,
+      retrieve_mode: 'mock',
+      mode: 'mock',
+      rewriteEnabled: false,
+      ranAt: '2026-08-16T12:34:56.000Z',
+      kbId: '01900000-0000-7000-8000-0000000000aa',
+      caseCount: 2,
+      passCount: 1,
+      failCount: 1,
+      errorCount: 0,
+      zeroToleranceHits: 0,
+      cases: [],
+      ...patch,
+    };
+  }
+
+  it('maps report → session_multiturn; signoff 0; matrix 0; coverage null; ranAt local', () => {
+    const report = sampleReport();
+    const row = buildL2EvalRunInsert(report, {
+      goldPath: '/g.yaml',
+      tenantId: '01900000-0000-7000-8000-000000000001',
+    });
+    expect(row.runType).toBe('session_multiturn');
+    expect(row.runType).not.toBe('golden_2x2');
+    expect(row.signoffEligible).toBe('0');
+    expect(row.matrixA).toBe(0);
+    expect(row.matrixB).toBe(0);
+    expect(row.matrixC).toBe(0);
+    expect(row.matrixD).toBe(0);
+    expect(row.coverage).toBeNull();
+    expect(row.caseCount).toBe(2);
+    expect(row.errorCount).toBe(0);
+    expect(row.retrieveMode).toBe('mock');
+    expect(row.goldPath).toBe('/g.yaml');
+    expect(row.ranAt).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+    expect(row.ranAt).not.toContain('T');
+    expect(row.ranAt).not.toContain('Z');
+    expect(evalRunDbRanAt(report.ranAt)).toBe(row.ranAt);
+  });
+
+  it('live report still maps signoffEligible to 0', () => {
+    const row = buildL2EvalRunInsert(sampleReport({ retrieve_mode: 'live', mode: 'live' }), {});
+    expect(row.signoffEligible).toBe('0');
+    expect(row.runType).toBe('session_multiturn');
+  });
+
+  it('persistEval: false → no evalRunId, persist not called', async () => {
+    delete process.env.L2_PERSIST_EVAL;
+    const dir = tmp();
+    const goldPath = goldFile(dir, [
+      caseRow('l2-np-001', [
+        { text: 'q1', session: 'same' },
+        { text: 'q2', session: 'same' },
+      ]),
+    ]);
+    const persist = vi.fn(async () => 'should-not-run');
+    const report = await runL2Golden({
+      goldPath,
+      outDir: path.join(dir, 'out'),
+      kbId: 'kb',
+      persistEval: false,
+      persist,
+      execute: async () => answered(),
+    });
+    expect(report.evalRunId).toBeUndefined();
+    expect(report).not.toHaveProperty('evalRunId');
+    expect(persist).not.toHaveBeenCalled();
+  });
+
+  it('persistEval: true uses injected persist (no real PG)', async () => {
+    const dir = tmp();
+    const goldPath = goldFile(dir, [
+      caseRow('l2-p-001', [
+        { text: 'q1', session: 'same' },
+        { text: 'q2', session: 'same' },
+      ]),
+    ]);
+    const persist = vi.fn(async () => '019l2-eval-run-id');
+    const report = await runL2Golden({
+      goldPath,
+      outDir: path.join(dir, 'out'),
+      kbId: 'kb',
+      persistEval: true,
+      persist,
+      execute: async () => answered(),
+    });
+    expect(persist).toHaveBeenCalledOnce();
+    expect(report.evalRunId).toBe('019l2-eval-run-id');
+    expect(report.signoffEligible).toBe(false);
+  });
+
+  it('L2_PERSIST_EVAL=1 / true opens persist; other values do not', async () => {
+    const dir = tmp();
+    const goldPath = goldFile(dir, [
+      caseRow('l2-env-001', [{ text: 'standalone', session: 'none' }], {
+        type: 'no_session',
+        rewriteUsed: false,
+      }),
+    ]);
+    const persist = vi.fn(async () => 'from-env');
+
+    for (const [raw, want] of [
+      ['1', true],
+      ['true', true],
+      ['0', false],
+      ['false', false],
+      ['yes', false],
+    ] as const) {
+      persist.mockClear();
+      process.env.L2_PERSIST_EVAL = raw;
+      const report = await runL2Golden({
+        goldPath,
+        outDir: path.join(dir, `out-${raw}`),
+        kbId: 'kb',
+        persist,
+        execute: async () => answered(),
+      });
+      if (want) {
+        expect(persist).toHaveBeenCalledOnce();
+        expect(report.evalRunId).toBe('from-env');
+      } else {
+        expect(persist).not.toHaveBeenCalled();
+        expect(report.evalRunId).toBeUndefined();
+      }
+    }
+
+    persist.mockClear();
+    delete process.env.L2_PERSIST_EVAL;
+    const unset = await runL2Golden({
+      goldPath,
+      outDir: path.join(dir, 'out-unset'),
+      kbId: 'kb',
+      persist,
+      execute: async () => answered(),
+    });
+    expect(persist).not.toHaveBeenCalled();
+    expect(unset.evalRunId).toBeUndefined();
+  });
+
+  it('persistEval: false wins over L2_PERSIST_EVAL=1', async () => {
+    process.env.L2_PERSIST_EVAL = '1';
+    const dir = tmp();
+    const goldPath = goldFile(dir, [
+      caseRow('l2-win-p', [{ text: 'standalone', session: 'none' }], {
+        type: 'no_session',
+        rewriteUsed: false,
+      }),
+    ]);
+    const persist = vi.fn(async () => 'x');
+    const report = await runL2Golden({
+      goldPath,
+      outDir: path.join(dir, 'out'),
+      kbId: 'kb',
+      persistEval: false,
+      persist,
+      execute: async () => answered(),
+    });
+    expect(persist).not.toHaveBeenCalled();
+    expect(report.evalRunId).toBeUndefined();
+  });
+
+  it('real gold + persist mock + esMode http → signoffEligible still false', async () => {
+    const dir = tmp();
+    const persist = vi.fn(async () => 'live-persist-id');
+    const report = await runL2Golden({
+      goldPath: defaultL2GoldPath(),
+      outDir: path.join(dir, 'out'),
+      kbId: 'kb',
+      esMode: 'http',
+      persistEval: true,
+      persist,
+      execute: async () => answered({ rewriteUsed: true }),
+    });
+    expect(report.retrieve_mode).toBe('live');
+    expect(report.signoffEligible).toBe(false);
+    expect(report.evalRunId).toBe('live-persist-id');
+    expect(persist).toHaveBeenCalledOnce();
   });
 });

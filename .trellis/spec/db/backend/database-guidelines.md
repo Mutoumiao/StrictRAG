@@ -145,10 +145,10 @@ Runtime 放行 HOW → [api auth-authorization](../../api/backend/auth-authoriza
 | `schema/ask/ask-sessions.ts` | 会话壳（无 rewrite 近窗） |
 | `schema/ask/ask-traces.ts` | 请求轨迹 / evidence_snapshot |
 | `schema/ask/ask-feedback.ts` | 反馈队列（B13） |
-| `schema/ask/eval-runs.ts` | L1 批跑归档（migration `0006_b10_eval_runs`；`L1_PERSIST_EVAL`） |
+| `schema/ask/eval-runs.ts` | L1 `golden_2x2` / L2 `session_multiturn` 批跑归档（migration `0006_b10_eval_runs`；`L1_PERSIST_EVAL` / `L2_PERSIST_EVAL`） |
 
 `evidence_snapshot` **仅**本轮 retrieve 切片；禁止塞会话原文。  
-`eval_runs` 写库时间用 `formatLocalDateTime`（见 [l1-eval](../../api/backend/l1-eval.md)）；mock 跑 `signoff_eligible=0`。
+`eval_runs` 写库时间用 `formatLocalDateTime`（见 [l1-eval](../../api/backend/l1-eval.md) / [l2-eval](../../api/backend/l2-eval.md)）。L2 也可写 `run_type=session_multiturn`；L2 `signoff_eligible` **仍 0**。mock 跑 `signoff_eligible=0`。有账本 ≠ 准出。
 
 ---
 

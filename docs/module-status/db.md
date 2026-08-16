@@ -39,7 +39,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 
 ### Schema · ask（S2）
 - `ask_sessions` · `ask_traces`（含 evidence 快照类型）· `ask_feedback`
-- **B10-followup**：`eval_runs`（`retrieve_mode` / 2×2 / `report_json` / `signoff_eligible` 等；migration `0006_b10_eval_runs`）
+- **B10-followup / P2.5-L2P**：`eval_runs`（L1 `golden_2x2` / L2 `session_multiturn`；L2 `signoff_eligible` 恒 0；migration `0006_b10_eval_runs`）
 - schema 单测：`schema/ask/ask-schema.test.ts`
 
 ### Migrations（journal 7 条）

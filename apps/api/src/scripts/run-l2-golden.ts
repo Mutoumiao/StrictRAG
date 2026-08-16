@@ -7,6 +7,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { evalRuns } from '@strict-rag/db';
 import { uuidv7 } from 'uuidv7';
 
 import {
@@ -17,6 +18,7 @@ import {
   type L2SessionRef,
   type L2Type,
 } from '../eval/l2-gold.js';
+
 import { env } from '../env.js';
 import { chatFromGateway, type GraphDeps } from '../graph/index.js';
 import {
@@ -26,9 +28,15 @@ import {
   type ExecuteAskResult,
 } from '../services/ask/index.js';
 import { clipSessionWindow, isExplicitSessionBackref } from '../services/ask/session-window.js';
+import { getDb } from '../services/db.js';
 import { getGateway, getGatewayForTenant } from '../services/gateway/index.js';
 import { createDefaultRetrieveDeps } from '../services/retrieve/index.js';
-import { defaultOutDir, resolveEvalMode, resolveRepoRoot } from './run-l1-golden.js';
+import {
+  defaultOutDir,
+  evalRunDbRanAt,
+  resolveEvalMode,
+  resolveRepoRoot,
+} from './run-l1-golden.js';
 
 type WindowTurn = { role: 'user' | 'assistant'; content: string };
 
@@ -50,6 +58,7 @@ export type L2CaseRow = {
 export type L2Report = {
   run_type: 'session_multiturn';
   signoffEligible: false;
+  evalRunId?: string;
   retrieve_mode: 'mock' | 'live' | 'unknown';
   mode: L2Report['retrieve_mode'];
   rewriteEnabled: boolean;
@@ -63,6 +72,8 @@ export type L2Report = {
   cases: L2CaseRow[];
 };
 
+export type L2PersistOpts = { goldPath?: string; tenantId?: string; notes?: string };
+
 export type RunL2Options = {
   goldPath: string;
   outDir: string;
@@ -74,6 +85,10 @@ export type RunL2Options = {
   executeDeps?: ExecuteAskDeps;
   esMode?: string;
   rewriteEnabled?: boolean;
+  /** 写入 PG eval_runs；默认看 L2_PERSIST_EVAL */
+  persistEval?: boolean;
+  /** 单测注入；默认 persistL2EvalRun（勿连真 PG） */
+  persist?: (report: L2Report, opts: L2PersistOpts) => Promise<string>;
 };
 
 export type L2CliParse =
@@ -125,6 +140,40 @@ function resolveRewriteEnabled(optsValue: boolean | undefined): boolean {
   return env.SESSION_REWRITE_ENABLED;
 }
 
+/** insert 行形状（不含 id）；纯映射，DB I/O 在 persistL2EvalRun */
+export function buildL2EvalRunInsert(
+  report: L2Report,
+  opts: L2PersistOpts,
+): Omit<typeof evalRuns.$inferInsert, 'id' | 'createdAt' | 'updatedAt'> {
+  return {
+    tenantId: opts.tenantId ?? null,
+    kbId: report.kbId,
+    runType: 'session_multiturn',
+    retrieveMode: report.retrieve_mode,
+    signoffEligible: '0',
+    goldPath: opts.goldPath ?? null,
+    caseCount: report.caseCount,
+    matrixA: 0,
+    matrixB: 0,
+    matrixC: 0,
+    matrixD: 0,
+    coverage: null,
+    errorCount: report.errorCount,
+    ranAt: evalRunDbRanAt(report.ranAt),
+    reportJson: report,
+    notes: opts.notes ?? null,
+  };
+}
+
+/** 将 L2 报告插入 eval_runs；返回 id。禁止调用 L1 persistEvalRun（会写死 golden_2x2）。 */
+export async function persistL2EvalRun(report: L2Report, opts: L2PersistOpts): Promise<string> {
+  const id = uuidv7();
+  await getDb()
+    .insert(evalRuns)
+    .values({ id, ...buildL2EvalRunInsert(report, opts) });
+  return id;
+}
+
 export function writeL2Report(
   outDir: string,
   report: L2Report,
@@ -152,6 +201,7 @@ export function formatL2ReportMd(report: L2Report): string {
     `| mode | ${report.mode} |`,
     `| rewriteEnabled | ${report.rewriteEnabled} |`,
     `| signoffEligible | ${report.signoffEligible} |`,
+    `| evalRunId | ${report.evalRunId ?? 'n/a'} |`,
     `| caseCount | ${report.caseCount} |`,
     `| passCount | ${report.passCount} |`,
     `| failCount | ${report.failCount} |`,
@@ -306,6 +356,20 @@ export async function runL2Golden(opts: RunL2Options): Promise<L2Report> {
   };
 
   writeL2Report(opts.outDir, report);
+
+  const shouldPersist =
+    opts.persistEval === true ||
+    (opts.persistEval !== false &&
+      (process.env.L2_PERSIST_EVAL === '1' || process.env.L2_PERSIST_EVAL === 'true'));
+  if (shouldPersist) {
+    // ponytail: 写完文件再 persist；失败上抛，禁止静默当已归档
+    report.evalRunId = await (opts.persist ?? persistL2EvalRun)(report, {
+      goldPath: opts.goldPath,
+      tenantId,
+    });
+    writeL2Report(opts.outDir, report);
+  }
+
   return report;
 }
 
@@ -332,6 +396,7 @@ async function main(): Promise<void> {
           run_type: report.run_type,
           retrieve_mode: report.retrieve_mode,
           signoffEligible: false,
+          evalRunId: report.evalRunId ?? null,
           rewriteEnabled: report.rewriteEnabled,
           caseCount: report.caseCount,
           passCount: report.passCount,

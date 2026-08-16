@@ -113,7 +113,7 @@ artifacts/                 # gitignore；l1-last-run.{json,md}
 | 契约类型 | `@strict-rag/contracts` | apps 内 `type XxxResponse` |
 | OpenAPI / Scalar（ARCH-P2-1） | `openapi/document.ts` + `openapi/routes.ts`；schema **只**从 contracts Zod 派生 | 平行手写字段表当 SSOT；OpenAPIHono 全量重写 route；宣称生产发布流水线 |
 | 入库重活 | **enqueue** → worker | api 内跑 chunk/embed |
-| 评测 CLI | `eval/` + `scripts/run-l1-golden.ts` + `scripts/run-l2-golden.ts` | HTTP 自调用假 L1/L2；L2 **禁止**当准出 / 写 `eval_runs` |
+| 评测 CLI | `eval/` + `scripts/run-l1-golden.ts` + `scripts/run-l2-golden.ts` | HTTP 自调用假 L1/L2；L2 可选 persist `eval_runs`（`session_multiturn`）；**禁止**当准出 |
 | L2 题面 | `eval/l2-gold.ts` + 仓根 `fixtures/l2/` | 改 gold 形状；开仓库默认 rewrite |
 | 观测 | `obs/**` | 业务 route 打无结构 console 当指标 |
 | 中间件 | `middleware/**` 或 `app.ts` 薄编排 | 每个 route 复制 timeout/bodyLimit |

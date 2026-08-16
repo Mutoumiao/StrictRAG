@@ -7,13 +7,13 @@
 | 成熟度 | **可演示**（已包含：P0/P1 入库 + S2 最小问答 + B1–B6 最小运营 API + B10 L1 工程 seed + B12 策略闸 + B13 反馈 API；演示依赖 mock ES / 通常走 mock Gateway；L1 **≠** 业务签字门禁） |
 | 默认依赖模式 | 检索：`RETRIEVE_ES_MODE=mock`（默认 mock ES）；鉴权：临时双 JWT，`AUTH_ENFORCE` **默认 `false`**；rewrite：`SESSION_REWRITE_ENABLED` **默认 false**（图边已落；dogfood 可开；**≠** 准出）；对象存储：`local`（`STORAGE_LOCAL_DIR=.data/objects`）；Gateway：`GATEWAY_MODE=''`（空按 `GATEWAY_BASE_URL` 推断，缺 URL 走 mock）；上传上限 `INGEST_MAX_FILE_BYTES=52_428_800`（50 MiB）/ 天花板 `INGEST_MAX_FILE_BYTES_CEILING=209_715_200`（200 MiB）；`LANGFUSE_ENABLED=false`；`OBS_MEMORY_TRACE=true`。**B3-W/B2-W**：ask 读取 platform 绑定 + **KB scope 绑定覆盖（只读 list，无 PUT KB 绑定 HTTP）**；**B4-W**：每请求从 DB `user_roles` hydrate；**无** `DEPT_ACL_ENFORCE` env；`ASK_RATE_LIMIT_RPM=0`；L1 CLI 需显式指定 `L1_KB_ID`（可选 `L1_PERSIST_EVAL`） |
 | 关联模块 | 入库演示还需要 `worker` + PostgreSQL + Redis；契约 `@strict-rag/contracts`（含 `IMPLEMENTED_CHUNK_STRATEGIES` / `IngestJobData`）；schema `@strict-rag/db`（含 `eval_runs`）；L1 gold / RACI 在仓根 `fixtures/l1/`；L2 题面草案在 `fixtures/l2/` |
-| 最近更新 | 2026-08-16（**P2.5-DEEP** 显式回溯加深部分；intent LLM / document·external 无；rewrite 默认仍关） |
+| 最近更新 | 2026-08-16（**P2.5-L2P** 可选 persist eval_runs；signoffEligible 仍 false；**≠** 准出） |
 | Spec | `.trellis/spec/api/backend/`（含 [dashboard](../../.trellis/spec/api/backend/dashboard.md) · [l1-eval](../../.trellis/spec/api/backend/l1-eval.md) · [l2-eval](../../.trellis/spec/api/backend/l2-eval.md) · [l3-metrics](../../.trellis/spec/api/backend/l3-metrics.md)） |
 | PRD | `prds/05-api` · `04-pipelines` · `08-quality` · `09-security` |
 
 ## 一句话状态
 
-基于 Hono 的 HTTP 后端：入库 API、临时双 JWT 鉴权、单轮问答图 / **AI SDK UI Message Stream** 流式输出以及会话外壳均已落地；另有 **L1 黄金集工程 seed**（文件 gold + CLI 批跑 `executeAsk(skipTrace)` + 2×2 报告）与 **L2 多轮题面 + 工程 runner**（`fixtures/l2/` + `run-l2-golden`；**≠** 准出）。检索默认 **mock ES**，鉴权**不是**生产级 IdP；**mock L1 数字禁止当业务签字**；**rewrite 图边已落、默认关**；**显式回溯加深部分**（**≠** 准出 / **≠** 对外连续追问）。
+基于 Hono 的 HTTP 后端：入库 API、临时双 JWT 鉴权、单轮问答图 / **AI SDK UI Message Stream** 流式输出以及会话外壳均已落地；另有 **L1 黄金集工程 seed**（文件 gold + CLI 批跑 `executeAsk(skipTrace)` + 2×2 报告）与 **L2 多轮题面 + 工程 runner + 可选 persist**（`fixtures/l2/` + `run-l2-golden`；可写 `eval_runs`；**≠** 准出）。检索默认 **mock ES**，鉴权**不是**生产级 IdP；**mock L1 数字禁止当业务签字**；**rewrite 图边已落、默认关**；**显式回溯加深部分**（**≠** 准出 / **≠** 对外连续追问）。
 
 ---
 
@@ -113,13 +113,14 @@
 - CI 范围：矩阵纯测 + mock 注入测 + es-sparse 单元测；**默认不**在 CI 跑真 LLM / 真 ES 全量；样例文 `fixtures/l1/sample-report.md`（非 live 签字数字）
 - **边界**：**禁止**把 `retrieve_mode=mock` 或 coverage=0 / 全 `internal_guard` 写入业务签字页；`eval_runs` 可 `L1_PERSIST_EVAL=1` 写入（db migration 0006）；无 worker-eval；**L3 打点部分（无自动熔断）**；**签字真跑数字** 2026-08-14 live ×2 已落（B10-followup）；ADR-046 快照绑定已落（`eval/adr046-snapshot.ts`）；业务 PASS 仍须人签（本跑 `businessPass=false`）
 
-### 评测 L2 题面 + 工程 runner（P2.5-L2 / P2.5-L2R · 部分 · ≠ 准出）
+### 评测 L2 题面 + 工程 runner + 可选 persist（P2.5-L2 / P2.5-L2R / P2.5-L2P · 部分 · ≠ 准出）
 - 仓根 `fixtures/l2/gold.yaml`：**≥15** 条多轮剧本；`run_type=session_multiturn`；`signoffEligible=false`；扩展名 yaml、**内容为 JSON**；9 类各至少 1 条（含 `session_isolation` / J2x）
 - 纯函数 `apps/api/src/eval/l2-gold.ts`：`loadL2Gold` + `l2TypeCoverage`；错误类 `L2GoldLoadError`；单测同目录加载真实 gold
 - 工程 runner `apps/api/src/scripts/run-l2-golden.ts`：复用 `loadL2Gold`；进程内窗 + `executeAsk(skipTrace)`；末轮机械分；报告 `signoffEligible` **恒 false**
+- 可选 persist：`L2_PERSIST_EVAL=1`/`true` 或 `persistEval: true` → insert `eval_runs`（`run_type=session_multiturn` · `signoff_eligible='0'` · matrix 全 0 · coverage null）；报告回填 `evalRunId`
 - 语料草案 `fixtures/l2/corpus/`（travel-stay / meal-allowance / leave-policy）；**未**走 worker 入库
 - 说明：`fixtures/l2/README.md` · 模板 `sample-report.md` · owner 占位 `RACI.md`（待指派）
-- **边界**：有 CLI；**无** 准出、**无** `eval_runs` 多轮账本；rewrite 图边已落、**默认关**；**禁止**把 runner / 草案条数当 L2 通过
+- **边界**：有 CLI；可 persist；**无** 准出 / **无** 人签；rewrite 图边已落、**默认关**；**禁止**把 runner / persist / 草案条数当 L2 通过
 
 ---
 
@@ -131,7 +132,7 @@
 |----|------|
 | 生产级 ES + IK 分词 / 多租户 | `http` 切片可签字归因（OPS-1）；默认仍 `mock`；**≠** 全文 B8（IK、Router、入库双写） |
 | rewrite / 多轮指代消解 | 图边 `session_load`→`rewrite` **已落**；默认关；dogfood 可开；**显式回溯加深部分**（硬顶 8；**无** intent LLM / **无** document·external）；**≠** L2 准出 / **≠** 对外连续追问；会话历史**不等于**检索证据 |
-| L2 准出 / 多轮 runner | 题面草案 + **工程 CLI** 已落；**无**真跑归档 / 人签；图边/runner ≠ 准出 |
+| L2 准出 / 多轮 runner | 题面草案 + **工程 CLI** + 可选 `eval_runs` persist 已落；**无**真跑准出 / 人签；图边/runner/persist ≠ 准出 |
 | L3 自动熔断 / 面板 | **打点有**（四 counter）；**无**超阈关默认 / 收窄窗 / Grafana |
 | CRAG / multi_hop | 未进入本阶段范围 |
 | 完整 ACL / 部门强制隔离 | 目前只有 KB 成员校验 + 权限码 + 可配置的组织骨架；**检索仍是成员可见全库**（B5 未开启 DEPT_ACL） |
@@ -164,7 +165,7 @@
 | OpenAPI paths 为代表性子集 | 联调时部分端点不在文档中 | ARCH-P2-1 有意非全量；扩展 paths 时继续 `$ref` contracts |
 | sessions / auth TokenPair / documents status 出口使用 `as` 断言 | 存在 D1 类型漂移面 | 以类型标注为主，未做全量 Schema.parse 校验 |
 | L1 业务签字包 / 远程 CI 红线任务 / live 门禁数字 | 工程：gold≥60 + CLI + 2×2 + `eval_runs`（`L1_PERSIST_EVAL`）+ OPS-1 live 切片；**mock 数字禁止签字**；无默认 CI 真 LLM；**无**业务签字真跑归档 | B10 seed `08-09-b10-l1-golden-min` · followup **部分** `08-11-b10-followup-eval-runs`；P0 红线表 ≠ L1；AUTH enforce 测 → **QUAL-1**；HOW → `.trellis/spec/api/backend/l1-eval.md` |
-| L2 准出 / runner | 题面草案≥15 + 工程 CLI + 注入测；**未真跑准出**；图边已落默认关 **≠** 准出 | P2.5-L2 **部分** `08-15-p25-l2-gold-min` · P2.5-L2R **部分** `08-16-p25-l2-runner-min` · P2.5-RW **部分** `08-15-p25-rewrite-graph-min`；HOW → `.trellis/spec/api/backend/l2-eval.md` |
+| L2 准出 / runner | 题面草案≥15 + 工程 CLI + 注入测 + 可选 persist；**未真跑准出**；图边已落默认关 **≠** 准出 | P2.5-L2 **部分** `08-15-p25-l2-gold-min` · P2.5-L2R **部分** `08-16-p25-l2-runner-min` · P2.5-L2P **部分** `08-16-p25-l2-persist-min` · P2.5-RW **部分** `08-15-p25-rewrite-graph-min`；HOW → `.trellis/spec/api/backend/l2-eval.md` |
 | L3 自动熔断 / 面板 | 四 counter 已落（含 `l3_session_deepened_total`）；**无**自动关默认 / 无面板 | P2.5-L3 **部分** `08-16-p25-l3-metrics-min` · P2.5-DEEP **部分** `08-16-p25-deepen-min`；HOW → `.trellis/spec/api/backend/l3-metrics.md` |
 
 ---

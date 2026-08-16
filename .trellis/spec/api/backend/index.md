@@ -23,7 +23,8 @@
 - [ ] 触及按需加深 / `sessionDeepened` 时是否读 [ask-pipeline](./ask-pipeline.md)（显式回溯已落；禁 intent LLM / document·external 加码 / 默认改窗）？
 - [ ] 密钥是否仅服务端 env（JWT 禁止 prod 默认 dev-only）？  
 - [ ] 触及 L1 评测时是否读 [l1-eval](./l1-eval.md)（`skipTrace` · error 出格 · mock 禁签字 · turbo `L1_*`）？  
-- [ ] 触及 L2 题面/runner 时是否读 [l2-eval](./l2-eval.md)（图边/CLI 落地 ≠ 准出；**禁止**默认开 rewrite / 把 runner 当准出）？  
+- [ ] 触及 L2 题面/runner 时是否读 [l2-eval](./l2-eval.md)（图边/CLI/persist 落地 ≠ 准出；**禁止**默认开 rewrite / 把 runner 或 persist 当准出）？  
+- [ ] 是否误把 L2 persist / `evalRunId` 写成准出或算出 `signoffEligible=true`？  
 - [ ] 触及 L3 打点时是否读 [l3-metrics](./l3-metrics.md)（有 counter ≠ 准出 / ≠ 自动熔断；**禁止**按计数改默认）？  
 
 ## Quality Check
@@ -56,7 +57,7 @@
 | [departments](./departments.md) | **B5 部门壳** · `dept.manage` / 用户归属 · 禁环 · **≠** DEPT_ACL 强制 |
 | [dashboard](./dashboard.md) | **B6 数据面板薄壳** · `dashboard.view` · 只读 summary ≤5 · **≠** APM |
 | [l1-eval](./l1-eval.md) | **B10** L1 工程 seed + eval_runs · OPS-1 `retrieve_mode` · **≠** 业务签字真跑 |
-| [l2-eval](./l2-eval.md) | **P2.5-L2/L2R** 多轮题面 + 工程 runner · **≠** 准出 / **≠** 默认开 rewrite |
+| [l2-eval](./l2-eval.md) | **P2.5-L2/L2R/L2P** 多轮题面 + 工程 runner + 可选 persist · **≠** 准出 / **≠** 默认开 rewrite |
 | [l3-metrics](./l3-metrics.md) | **P2.5-L3** 多轮护栏打点 · **≠** 准出 / **≠** 自动熔断 / **≠** 面板 |
 
 ## 依赖（package.json）

@@ -213,7 +213,7 @@ route
 | multi_hop / max_hops 环 | reason 枚举保留 `max_hops_exceeded`；图内 **无** hop 边 |
 | CRAG grade → refine | **无** |
 | 按需加深（窗外再取 K 条） | **显式回溯已落**（`isExplicitSessionBackref` + `clipSessionWindow({ deepened })` 硬顶 8）；**无** intent LLM / **无** document·external 检索加码 / **无**二次加深 |
-| L2 runner / 准出 | **工程 runner 有**（`scripts/run-l2-golden.ts`）；**准出无**（另见 [l2-eval](./l2-eval.md)） |
+| L2 runner / 准出 | **工程 runner 有**（`scripts/run-l2-golden.ts`）；可选 `eval_runs`（`L2_PERSIST_EVAL`）；**准出无**（另见 [l2-eval](./l2-eval.md)） |
 | rewrite / coref | **P2.5 已实现**最小边；**默认关**；`coref_unresolved` 仅开路径可达 |
 | L3 打点 / 自动熔断 | **打点有**（`recordL3Ask` 四键）；**自动熔断 / 面板无**（见 [l3-metrics](./l3-metrics.md)） |
 | 官方 LangGraph 条件边 | 线性 `runAskGraph` 即可 |

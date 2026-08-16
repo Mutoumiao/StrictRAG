@@ -131,7 +131,8 @@ RETRIEVE_ES_MODE=http ELASTICSEARCH_URL=http://127.0.0.1:9200 \
 | `L1_PERSIST_EVAL` | `1`/`true` 时写入 PG `eval_runs`（需 migration `0006`） |
 
 `eval_runs` 账本（B10-followup 工程）：表 `@strict-rag/db` · migration `packages/db/drizzle/0006_b10_eval_runs.sql`。  
-`signoffEligible` = live **且** 两类各≥30。ADR-046 快照随批跑写入并绑定 eval 身份；`signedPackage`/`businessPass` 另须四要素（含人签）且 coverage>0、非全 `internal_guard`。**禁止**当成绩单。
+`signoffEligible` = live **且** 两类各≥30。ADR-046 快照随批跑写入并绑定 eval 身份；`signedPackage`/`businessPass` 另须四要素（含人签）且 coverage>0、非全 `internal_guard`。**禁止**当成绩单。  
+L2 可选 `L2_PERSIST_EVAL=1` 写同一张表（`run_type=session_multiturn`；`signoff_eligible` 恒 `0`；**有账本 ≠ 准出**）。
 
 ## 模型 Gateway（S2 · #4）
 

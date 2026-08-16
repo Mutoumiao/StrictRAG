@@ -2,7 +2,8 @@
 
 > **本文件不是一次真实批跑。** 所有结果格均为 `n/a（模板）`。  
 > **禁止**填入 mock / 臆造 live 数字后当准出附件。  
-> 工程 runner 已有（`scripts/run-l2-golden.ts`）；`signoffEligible` 在报告上硬为 `false`。
+> 工程 runner 已有（`scripts/run-l2-golden.ts`）；`signoffEligible` 在报告上硬为 `false`。  
+> 可选 `L2_PERSIST_EVAL` 写 `eval_runs`；**有账本 ≠ 准出**。
 
 | 字段 | 值 |
 |------|-----|
@@ -13,6 +14,7 @@
 | mode | n/a（模板） |
 | rewriteEnabled | n/a（模板） |
 | signoffEligible | `false`（字面量；live retrieve 也不得改 true） |
+| evalRunId | n/a（模板；`L2_PERSIST_EVAL` 开时才有） |
 | caseCount | n/a（模板） |
 | passCount | n/a（模板） |
 | failCount | n/a（模板） |
@@ -60,6 +62,8 @@ pnpm --filter @strict-rag/api test -- src/eval/l2-gold.test.ts
 pnpm --filter @strict-rag/api test -- src/scripts/run-l2-golden.test.ts
 # 本地批跑（需 L2_KB_ID；写出 artifacts/l2-last-run.*；≠ 准出）
 L2_KB_ID=<kb-uuid> pnpm --filter @strict-rag/api exec tsx src/scripts/run-l2-golden.ts
+# 可选落库（仍 ≠ 准出；signoffEligible 仍 false）
+L2_KB_ID=<kb-uuid> L2_PERSIST_EVAL=1 pnpm --filter @strict-rag/api exec tsx src/scripts/run-l2-golden.ts
 ```
 
-真跑归档与人签属后续 P2.5 task，**不**在本目录伪造。
+真跑数字与人签属后续 P2.5 task，**不**在本目录伪造。
