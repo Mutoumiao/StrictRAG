@@ -5,7 +5,11 @@
  * 请求/响应类型来自 @strict-rag/contracts。
  */
 
-import type { DocumentDetail, DocumentListItem } from '@strict-rag/contracts';
+import type {
+  DocumentDetail,
+  DocumentListItem,
+  PatchDocumentMetaBody,
+} from '@strict-rag/contracts';
 
 import { http } from '@/lib/http';
 
@@ -15,4 +19,8 @@ export async function listDocuments(kbId: string) {
 
 export async function getDocument(docId: string) {
   return http.get<DocumentDetail>(`/api/v1/documents/${docId}`);
+}
+
+export async function patchDocumentMeta(docId: string, body: PatchDocumentMetaBody) {
+  return http.patch<DocumentDetail, PatchDocumentMetaBody>(`/api/v1/documents/${docId}`, body);
 }
