@@ -29,6 +29,7 @@ import { memberRoutes } from './routes/members.js';
 import { modelGatewayRoutes } from './routes/model-gateway.js';
 import { dashboardRoutes } from './routes/dashboard.js';
 import { departmentsRoutes } from './routes/departments.js';
+import { deptGrantsRoutes } from './routes/dept-grants.js';
 import { platformUsersRolesRoutes } from './routes/platform-users-roles.js';
 import { sessionRoutes } from './routes/sessions.js';
 import { createOpenApiRoutes } from './openapi/routes.js';
@@ -86,6 +87,7 @@ export function createApp() {
   app.route('/api/v1', modelGatewayRoutes);
   app.route('/api/v1', platformUsersRolesRoutes);
   app.route('/api/v1', departmentsRoutes);
+  app.route('/api/v1', deptGrantsRoutes);
   app.route('/api/v1', dashboardRoutes);
   app.route('/api/v1', sessionRoutes);
   app.route('/api/v1', feedbackRoutes);
