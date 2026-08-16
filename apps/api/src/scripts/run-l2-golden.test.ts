@@ -4,7 +4,9 @@ import path from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { l2RewriteFingerprint } from '../eval/l2-fingerprint.js';
 import { defaultL2GoldPath } from '../eval/l2-gold.js';
+import { rewriteSystemPrompt } from '../graph/prompts.js';
 import type { ExecuteAskDeps, ExecuteAskParams, ExecuteAskResult } from '../services/ask/index.js';
 import { evalRunDbRanAt } from './run-l1-golden.js';
 import {
@@ -508,6 +510,14 @@ describe('buildL2EvalRunInsert / persist gate', () => {
     const row = buildL2EvalRunInsert(sampleReport({ retrieve_mode: 'live', mode: 'live' }), {});
     expect(row.signoffEligible).toBe('0');
     expect(row.runType).toBe('session_multiturn');
+  });
+
+  it('reportJson.l2Fingerprint matches current prompt+empty model; signoff stays 0', () => {
+    const row = buildL2EvalRunInsert(sampleReport(), {});
+    const json = row.reportJson as { l2Fingerprint?: string };
+    expect(row.signoffEligible).toBe('0');
+    expect(json.l2Fingerprint).toBe(l2RewriteFingerprint(rewriteSystemPrompt(), ''));
+    expect(l2RewriteFingerprint(`${rewriteSystemPrompt()}x`, '')).not.toBe(json.l2Fingerprint);
   });
 
   it('persistEval: false → no evalRunId, persist not called', async () => {

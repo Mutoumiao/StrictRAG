@@ -38,15 +38,17 @@
 | `defaultL2GoldPath()` | 同上 | `<repo>/fixtures/l2/gold.yaml` |
 | `nextSessionId` / `acceptHit` / `historyLeaked` | `scripts/run-l2-golden.ts` | 分配 / 末轮机械分 |
 | `runL2Golden(opts)` | 同上 | 串行批跑 + 进程内窗；可注入 `execute`；`persistEval?` |
-| `buildL2EvalRunInsert` | 同上 | 纯映射：`runType=session_multiturn` · `signoffEligible='0'` · `matrix*=0` · `coverage=null` |
+| `buildL2EvalRunInsert` | 同上 | 纯映射：`runType=session_multiturn` · `signoffEligible='0'` · `matrix*=0` · `coverage=null` · `reportJson.l2Fingerprint`（prompt+model；**≠** 准出） |
+| `l2RewriteFingerprint` | `eval/l2-fingerprint.ts` | SHA-256 hex（prompt + NUL + modelId）；不要把窗/问句/evidence 算进去 |
 | `persistL2EvalRun` | 同上 | insert `eval_runs`；**禁止**调用 L1 `persistEvalRun`（会写死 `golden_2x2`） |
 | `writeL2Report` | 同上 | `artifacts/l2-last-run.json` + `.md` |
 | `parseL2CliEnv` | 同上 | `L2_KB_ID` 缺 / 非法 `L2_MAX_CASES` → exit 2 |
 
 批跑 **必须** `skipTrace: true`；窗用 `clipSessionWindow` 注入 `loadSessionWindow`，**不**读 `ask_traces`。  
-**禁止**把加载器塞进 `run-l1-golden.ts`；**禁止**把 runner / persist 当准出。
+**禁止**把加载器塞进 `run-l1-golden.ts`；**禁止**把 runner / persist / `l2Fingerprint` 当准出。
 
-`persistEval === true` 或（未显式 false 且 `L2_PERSIST_EVAL` 为 `1`/`true`）才写库；默认关。写完文件报告后再 persist；失败上抛（CLI exit 1）。`signoffEligible` **字面量 false**（含 live）。
+`persistEval === true` 或（未显式 false 且 `L2_PERSIST_EVAL` 为 `1`/`true`）才写库；默认关。写完文件报告后再 persist；失败上抛（CLI exit 1）。`signoffEligible` **字面量 false**（含 live）。  
+persist 的 `reportJson` **可带** `l2Fingerprint`（当前 `rewriteSystemPrompt()` + 注入 `rewriteModelId`，默认 `''`）供 L2 过期告警比对；**有指纹 ≠ 准出**。旧行缺指纹视为无法比对，不抛错。
 
 ---
 
@@ -106,7 +108,8 @@ CLI 退出码：`0` 写出报告（含 fail/error 题）；`2` 缺 `L2_KB_ID` / 
 | 加载 | `eval/l2-gold.test.ts` | 非法 JSON / 错 run_type / 重复 id / no_session+same / 缺 type |
 | 覆盖 | 同上 | 真实 gold `cases.length≥15` 且 `missing=[]` |
 | runner | `scripts/run-l2-golden.test.ts` | same/new/none 分配；跨 case 不串窗；泄漏 fail；accept 命中 pass；rewrite 关 + expected true → fail；真 gold+注入 `caseCount≥15` 且 `signoffEligible===false`；execute throw → error |
-| persist | 同上 | mapper：`runType=session_multiturn` / `'0'` / matrix 0 / coverage null / ranAt 非 ISO-Z；`persistEval: false` 不碰 DB；开闸用 persist mock，不连真 PG |
+| persist | 同上 | mapper：`runType=session_multiturn` / `'0'` / matrix 0 / coverage null / ranAt 非 ISO-Z / `reportJson.l2Fingerprint` 与函数一致；`persistEval: false` 不碰 DB；开闸用 persist mock，不连真 PG |
+| 指纹 | `eval/l2-fingerprint.test.ts` | 同输入稳定；改 prompt 一字或改 modelId 则变 |
 
 ---
 
@@ -116,7 +119,7 @@ CLI 退出码：`0` 写出报告（含 fail/error 题）；`2` 缺 `L2_KB_ID` / 
 |------|------|
 | mock / 未跑数字进签字或准出页 | 双轨；sample-report 必须 `n/a（模板）` |
 | 未准出把默认改为 `SESSION_REWRITE_ENABLED=true` | 图边 ≠ 准出；phase-scaffold 禁止默认 true |
-| 把 runner / persist 当 L2 准出 / 算出 `signoffEligible=true` | 本窗 signoffEligible 字面量 false；有账本 ≠ 准出 |
+| 把 runner / persist / `l2Fingerprint` 当 L2 准出 / 算出 `signoffEligible=true` | 本窗 signoffEligible 字面量 false；有账本 / 有指纹 ≠ 准出 |
 | 调用 L1 `persistEvalRun` 吞 L2 报告 | 会写死 `golden_2x2` + 伪造 matrix |
 | ADR-046 / 主题 judge | 对齐 L1 也曾拆 follow-up |
 | 把 L2 case 塞进 `fixtures/l1/gold.yaml` | 账本必须分列 |

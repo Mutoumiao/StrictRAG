@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { evalRuns } from '@strict-rag/db';
 import { uuidv7 } from 'uuidv7';
 
+import { l2RewriteFingerprint } from '../eval/l2-fingerprint.js';
 import {
   defaultL2GoldPath,
   loadL2Gold,
@@ -21,6 +22,7 @@ import {
 
 import { env } from '../env.js';
 import { chatFromGateway, type GraphDeps } from '../graph/index.js';
+import { rewriteSystemPrompt } from '../graph/prompts.js';
 import {
   executeAsk,
   type ExecuteAskDeps,
@@ -72,7 +74,13 @@ export type L2Report = {
   cases: L2CaseRow[];
 };
 
-export type L2PersistOpts = { goldPath?: string; tenantId?: string; notes?: string };
+export type L2PersistOpts = {
+  goldPath?: string;
+  tenantId?: string;
+  notes?: string;
+  /** 注入 rewrite purpose 模型身份；默认 ''。不要把窗/问句算进指纹 */
+  rewriteModelId?: string;
+};
 
 export type RunL2Options = {
   goldPath: string;
@@ -160,7 +168,10 @@ export function buildL2EvalRunInsert(
     coverage: null,
     errorCount: report.errorCount,
     ranAt: evalRunDbRanAt(report.ranAt),
-    reportJson: report,
+    reportJson: {
+      ...report,
+      l2Fingerprint: l2RewriteFingerprint(rewriteSystemPrompt(), opts.rewriteModelId ?? ''),
+    },
     notes: opts.notes ?? null,
   };
 }
