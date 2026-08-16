@@ -415,3 +415,37 @@ P2.5-EXT：显式库外文档回溯抑制 document 加码（不查末轮 docId�
 ### Next Steps
 
 - None - task complete
+
+
+## Session 13: P3b-DOCUI/GRANT/SENS/DEPT 落地并归档
+
+**Date**: 2026-08-17
+**Task**: P3b-DOCUI/GRANT/SENS/DEPT 落地并归档
+**Package**: admin
+**Branch**: `main`
+
+### Summary
+
+按任务提交并归档四个 P3b 子任务：DOCUI 文档部门薄页、GRANT 跨部门授权表 CRUD、SENS 敏感 complete 闸、DEPT 检索精确过滤默认关。不等于强制已上或敏感已解禁。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0dae9a3` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
