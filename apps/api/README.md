@@ -15,7 +15,7 @@ Hono + Node HTTP API。
 | **Memory tracer** | `OBS_MEMORY_TRACE=true`（默认）：每次 ask 记录 `kb.ask` 主链 span（route→…→finalize） |
 | **Langfuse** | `LANGFUSE_ENABLED=true` 时打 mock export 日志；真 SDK 后接；关开关不影响 ask |
 | **限流** | **L1 ask 仅**：`ASK_RATE_LIMIT_RPM`（默认 **0**=关）；试点可设 `30`；超限 **429** `RATE_LIMITED`。**生产主闸在网关 L0**，进程内非全局限流方案 |
-| **指标** | `ask_total` / `ask_ok` / `ask_fail` · `llm_call_total` · `rerank_total` · `ask_rate_limited_total` |
+| **指标** | `ask_total` / `ask_ok` / `ask_fail` · `llm_call_total` · `rerank_total` · `ask_rate_limited_total` · L3 六键 + `l3_guard_alert_total`（告警≠熔断） |
 | **`GET /metrics`** | 进程内快照；**默认无鉴权**；生产须网络隔离 / 反向代理保护 |
 | **日志上下文** | `requestId, tenantId, userId, kbId, sessionId?`（ask 路径） |
 

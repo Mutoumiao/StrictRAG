@@ -8,6 +8,8 @@ export {
   recordLlmCall,
   recordRerank,
   recordRateLimited,
+  L3_CORE_FAIL_RATE_MIN_SESSION,
+  L3_CORE_FAIL_RATE_THRESHOLD,
 } from './metrics.js';
 export {
   checkFixedWindowRateLimit,

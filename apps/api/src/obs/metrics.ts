@@ -3,11 +3,19 @@
  * 非 Prometheus 全量；可 snapshot / 打日志聚合。完整直方图 → P4。
  */
 
+import { logger } from '../logger.js';
+
 export type MetricLabels = Record<string, string | number | boolean | undefined>;
 
 type CounterKey = string;
+type L3GuardKind = 'coref_fail_rate' | 'rewrite_dogfood';
 
 const counters = new Map<CounterKey, number>();
+const l3AlertLatched = new Set<L3GuardKind>();
+
+// ponytail: 进程寿命比，不是运维 PRD 的 1h 滑窗；要滑窗另开
+export const L3_CORE_FAIL_RATE_MIN_SESSION = 20;
+export const L3_CORE_FAIL_RATE_THRESHOLD = 0.2;
 
 function key(name: string, labels?: MetricLabels): CounterKey {
   if (!labels) return name;
@@ -34,6 +42,7 @@ export function metricsSnapshot(): Record<string, number> {
 
 export function metricsReset(): void {
   counters.clear();
+  l3AlertLatched.clear();
 }
 
 /** ask 结果：status / reason */
@@ -46,7 +55,7 @@ export function recordAskResult(input: {
   metricInc(input.ok ? 'ask_ok' : 'ask_fail', { reason: input.reason });
 }
 
-/** L3 多轮护栏打点。只计数，不改默认 / 不熔断。 */
+/** L3 多轮护栏打点 + 进程内告警闩。只告警，不改默认 / 不熔断。 */
 export function recordL3Ask(input: {
   rewriteUsed: boolean;
   reason: string;
@@ -54,6 +63,7 @@ export function recordL3Ask(input: {
   sessionDeepened?: boolean;
   documentBackref?: boolean;
   externalBackref?: boolean;
+  rewriteEnvOn?: boolean;
 }): void {
   if (input.rewriteUsed) metricInc('l3_rewrite_used_total');
   if (input.reason === 'coref_unresolved') metricInc('l3_coref_fail_total');
@@ -61,6 +71,28 @@ export function recordL3Ask(input: {
   if (input.sessionDeepened) metricInc('l3_session_deepened_total');
   if (input.documentBackref) metricInc('l3_document_backref_total');
   if (input.externalBackref) metricInc('l3_external_backref_total');
+  latchL3GuardAlerts(input.rewriteEnvOn === true);
+}
+
+function latchL3GuardAlert(kind: L3GuardKind, extra: Record<string, unknown>): void {
+  if (l3AlertLatched.has(kind)) return;
+  l3AlertLatched.add(kind);
+  metricInc('l3_guard_alert_total', { kind });
+  logger.warn({ event: 'l3_guard', kind, ...extra }, 'l3 guard alert');
+}
+
+function latchL3GuardAlerts(rewriteEnvOn: boolean): void {
+  if (rewriteEnvOn) {
+    latchL3GuardAlert('rewrite_dogfood', { rewriteEnvOn: true });
+  }
+  const sessionAsk = metricGet('l3_session_ask_total');
+  const corefFail = metricGet('l3_coref_fail_total');
+  if (
+    sessionAsk >= L3_CORE_FAIL_RATE_MIN_SESSION &&
+    corefFail / sessionAsk >= L3_CORE_FAIL_RATE_THRESHOLD
+  ) {
+    latchL3GuardAlert('coref_fail_rate', { sessionAsk, corefFail });
+  }
 }
 
 export function recordLlmCall(purpose: string, ok: boolean): void {

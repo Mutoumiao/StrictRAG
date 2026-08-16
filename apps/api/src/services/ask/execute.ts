@@ -203,6 +203,7 @@ export async function executeAsk(
     sessionDeepened: graph.sessionDeepened,
     documentBackref: graph.documentBackref,
     externalBackref: graph.externalBackref,
+    rewriteEnvOn: env.SESSION_REWRITE_ENABLED,
   });
   obs.finish({
     answered: response.status === 'answered',
