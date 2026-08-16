@@ -24,13 +24,41 @@ export const DEFAULT_RRF_K = 60;
 export const DEFAULT_RETRIEVE_K = 150;
 export const DEFAULT_RERANK_TOP_N = 20;
 
+/**
+ * RRF 后、rerank 前：闸内 preferred doc 的 chunk 提前或补入，再截断 retrieveK。
+ * 无 preferred / 闸外 id → 原 fused。不是独占过滤，不扩 ACL。
+ */
+export function promotePreferredDocChunks(
+  fused: { id: string; score: number }[],
+  corpus: CorpusChunk[],
+  preferredDocIds: readonly string[] | undefined,
+  retrieveK: number,
+): { id: string; score: number }[] {
+  if (!preferredDocIds?.length) return fused.slice(0, retrieveK);
+
+  const preferred = new Set(preferredDocIds);
+  const byId = new Map(corpus.map((c) => [c.chunkId, c]));
+  const fusedIds = new Set(fused.map((f) => f.id));
+  const inFused: { id: string; score: number }[] = [];
+  const rest: { id: string; score: number }[] = [];
+  for (const f of fused) {
+    const docId = byId.get(f.id)?.docId;
+    if (docId && preferred.has(docId)) inFused.push(f);
+    else rest.push(f);
+  }
+  const extras = corpus
+    .filter((c) => preferred.has(c.docId) && !fusedIds.has(c.chunkId))
+    .map((c) => ({ id: c.chunkId, score: 0 }));
+  return [...inFused, ...extras, ...rest].slice(0, retrieveK);
+}
+
 function fail(reason: AskReason, message?: string): RetrieveResult {
   return { ok: false, reason, message };
 }
 
 /**
  * 混合检索主入口（可注入 deps，单测不连库）。
- * 顺序：成员位 → 空库 → dense∥sparse → RRF → Gateway rerank。
+ * 顺序：成员位 → 空库 → dense∥sparse → RRF → preferred 提权 → Gateway rerank。
  * 禁止 RRF-only answered。
  */
 export async function runRetrieve(
@@ -111,10 +139,21 @@ export async function runRetrieve(
     return fail('low_retrieval', 'no hybrid candidates');
   }
 
-  const fused = rrfFuse([denseRanked, sparseRanked], DEFAULT_RRF_K).slice(0, retrieveK);
+  const fused = promotePreferredDocChunks(
+    rrfFuse([denseRanked, sparseRanked], DEFAULT_RRF_K),
+    corpus,
+    input.preferredDocIds,
+    retrieveK,
+  );
   if (fused.length === 0) {
     return fail('low_retrieval', 'rrf empty');
   }
+  const preferredSet = input.preferredDocIds?.length
+    ? new Set(input.preferredDocIds)
+    : undefined;
+  const preferredAdopted = Boolean(
+    preferredSet && corpus.some((c) => preferredSet.has(c.docId)),
+  );
 
   const candidates = fused
     .map((f) => {
@@ -181,6 +220,7 @@ export async function runRetrieve(
       candidateCount: candidates.length,
       denseHits: denseRanked.length,
       sparseHits: sparseRanked.length,
+      preferredAdopted,
     },
   };
 }

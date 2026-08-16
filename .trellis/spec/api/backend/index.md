@@ -20,7 +20,7 @@
 - [ ] 是否避免 route 内 SQL / ES DSL / 长 Prompt？  
 - [ ] 是否误把 `SESSION_REWRITE_ENABLED` **默认**改 true、宣称连续追问已开或生产 ES？  
 - [ ] 触及 rewrite 图边时是否读 [ask-pipeline](./ask-pipeline.md) 开/关两态？
-- [ ] 触及按需加深 / `sessionDeepened` 时是否读 [ask-pipeline](./ask-pipeline.md)（显式回溯已落；禁 intent LLM / document·external 加码 / 默认改窗）？
+- [ ] 触及按需加深 / `sessionDeepened` / `documentBackref` 时是否读 [ask-pipeline](./ask-pipeline.md)（session 加深 + document 加码已落；禁 intent LLM / 默认改窗 / 无 external）？
 - [ ] 密钥是否仅服务端 env（JWT 禁止 prod 默认 dev-only）？  
 - [ ] 触及 L1 评测时是否读 [l1-eval](./l1-eval.md)（`skipTrace` · error 出格 · mock 禁签字 · turbo `L1_*`）？  
 - [ ] 触及 L2 题面/runner 时是否读 [l2-eval](./l2-eval.md)（图边/CLI/persist 落地 ≠ 准出；**禁止**默认开 rewrite / 把 runner 或 persist 当准出）？  

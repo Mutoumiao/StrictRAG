@@ -12,6 +12,28 @@ export function isExplicitSessionBackref(q: string): boolean {
   return /(?:刚才|之前|刚刚).{0,6}(?:说[过的]|聊)/.test(q);
 }
 
+/** 显式文档回溯：贴「这份/那份/这篇/那篇/上面那/该 + 文档|文件|制度|材料」 */
+export function isExplicitDocumentBackref(q: string): boolean {
+  // ponytail: 正则够用，不新开 intent LLM
+  return /(?:这份|那份|这篇|那篇|上面那[份篇个]?|该).{0,6}(?:文档|文件|制度|材料)/.test(q);
+}
+
+/** 末轮 evidence snapshot 的保序去重 docId；空/缺省 → [] */
+export function uniqueEvidenceDocIds(
+  snapshot: ReadonlyArray<{ docId?: string }> | null | undefined,
+): string[] {
+  if (!snapshot?.length) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const item of snapshot) {
+    const id = item.docId;
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  return out;
+}
+
 /** 助手一句截断：去掉 citations 全文，再取首句且 ≤160 字 */
 export function clipAssistantContent(content: string): string {
   const stripped = content

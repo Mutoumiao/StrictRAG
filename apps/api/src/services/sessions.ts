@@ -2,6 +2,7 @@ import { askSessions, askTraces } from '@strict-rag/db';
 import { and, asc, desc, eq } from 'drizzle-orm';
 import { uuidv7 } from 'uuidv7';
 
+import { uniqueEvidenceDocIds } from './ask/session-window.js';
 import { getDb } from './db.js';
 
 export type SessionSummaryRow = {
@@ -45,6 +46,12 @@ export type SessionsRepo = {
     kbId: string;
     userId: string;
   }): Promise<SessionMessageRow[]>;
+  /** 本 session 最近一条 ask_traces 的去重 evidence docId；无归属 → [] */
+  listLastEvidenceDocIds(input: {
+    sessionId: string;
+    kbId: string;
+    userId: string;
+  }): Promise<string[]>;
 };
 
 function mapSession(row: {
@@ -175,6 +182,24 @@ export const sessionsRepo: SessionsRepo = {
     }
     return messages;
   },
+
+  async listLastEvidenceDocIds(input) {
+    const owned = await this.getOwned(input);
+    if (!owned) return [];
+    const [row] = await getDb()
+      .select({ evidenceSnapshot: askTraces.evidenceSnapshot })
+      .from(askTraces)
+      .where(
+        and(
+          eq(askTraces.sessionId, input.sessionId),
+          eq(askTraces.kbId, input.kbId),
+          eq(askTraces.userId, input.userId),
+        ),
+      )
+      .orderBy(desc(askTraces.createdAt))
+      .limit(1);
+    return uniqueEvidenceDocIds(row?.evidenceSnapshot);
+  },
 };
 
 /** 内存会话仓：单测隔离 / 无 DB */
@@ -189,6 +214,8 @@ export function createMemorySessionsRepo(): SessionsRepo & {
     answer: string;
     status: 'answered' | 'abstained';
     reason: string;
+    /** 默认不写，保持旧测不沾 evidence */
+    evidenceDocIds?: string[];
   }): void;
   /** 暴露 traces 供断言：不得含他 session */
   dumpTraces(sessionId: string): { question: string; answer: string }[];
@@ -204,6 +231,7 @@ export function createMemorySessionsRepo(): SessionsRepo & {
     status: 'answered' | 'abstained';
     reason: string;
     createdAt: string;
+    evidenceDocIds?: string[];
   };
 
   const sessions = new Map<string, StoreSession>();
@@ -289,6 +317,21 @@ export function createMemorySessionsRepo(): SessionsRepo & {
         });
       }
       return messages;
+    },
+
+    async listLastEvidenceDocIds(input) {
+      const owned = await this.getOwned(input);
+      if (!owned) return [];
+      const rows = traces
+        .filter(
+          (t) =>
+            t.sessionId === input.sessionId &&
+            t.kbId === input.kbId &&
+            t.userId === input.userId,
+        )
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+      const last = rows.at(-1);
+      return uniqueEvidenceDocIds(last?.evidenceDocIds?.map((docId) => ({ docId })));
     },
 
     appendTrace(input) {

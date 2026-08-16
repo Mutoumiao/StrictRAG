@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
+import { createMemorySessionsRepo } from '../sessions.js';
 import {
   clipAssistantContent,
   clipSessionWindow,
+  isExplicitDocumentBackref,
   isExplicitSessionBackref,
+  uniqueEvidenceDocIds,
 } from './session-window.js';
 
 describe('clipSessionWindow', () => {
@@ -107,6 +110,99 @@ describe('isExplicitSessionBackref', () => {
     expect(isExplicitSessionBackref('刚才提交的请假单进度')).toBe(false);
     expect(isExplicitSessionBackref('之前的制度文件在哪')).toBe(false);
     expect(isExplicitSessionBackref('那餐补呢？')).toBe(false);
+  });
+});
+
+describe('isExplicitDocumentBackref', () => {
+  it('hits explicit document backref phrases', () => {
+    expect(isExplicitDocumentBackref('这份文档的适用范围是什么')).toBe(true);
+    expect(isExplicitDocumentBackref('那份文件还有补充吗')).toBe(true);
+    expect(isExplicitDocumentBackref('上面那篇制度谁签的')).toBe(true);
+    expect(isExplicitDocumentBackref('该文档的生效日期')).toBe(true);
+  });
+
+  it('does not treat 刚才请假 / 那餐补 / 根据刚才说的 as document backref', () => {
+    expect(isExplicitDocumentBackref('刚才提交的请假单')).toBe(false);
+    expect(isExplicitDocumentBackref('那餐补呢')).toBe(false);
+    expect(isExplicitDocumentBackref('根据刚才说的')).toBe(false);
+  });
+
+  it('is orthogonal to session backref', () => {
+    expect(isExplicitDocumentBackref('这份文档的适用范围是什么')).toBe(true);
+    expect(isExplicitSessionBackref('这份文档的适用范围是什么')).toBe(false);
+    expect(isExplicitDocumentBackref('根据刚才说的，那份文档还有补充吗')).toBe(true);
+    expect(isExplicitSessionBackref('根据刚才说的，那份文档还有补充吗')).toBe(true);
+  });
+});
+
+describe('uniqueEvidenceDocIds', () => {
+  it('preserves order and drops dup / empty', () => {
+    expect(
+      uniqueEvidenceDocIds([
+        { docId: 'a' },
+        { docId: 'b' },
+        { docId: 'a' },
+        {},
+        { docId: '' },
+      ]),
+    ).toEqual(['a', 'b']);
+    expect(uniqueEvidenceDocIds(null)).toEqual([]);
+    expect(uniqueEvidenceDocIds(undefined)).toEqual([]);
+  });
+});
+
+describe('document-only backref does not deepen window', () => {
+  it('clipSessionWindow stays ≤2 user / ≤6', () => {
+    expect(isExplicitDocumentBackref('这份文档的适用范围是什么')).toBe(true);
+    expect(isExplicitSessionBackref('这份文档的适用范围是什么')).toBe(false);
+    const msgs: { role: 'user' | 'assistant'; content: string }[] = [];
+    for (let i = 0; i < 5; i++) {
+      msgs.push({ role: 'user', content: `u${i}` });
+      msgs.push({ role: 'assistant', content: `a${i}` });
+    }
+    const out = clipSessionWindow(msgs);
+    expect(out.filter((t) => t.role === 'user').length).toBeLessThanOrEqual(2);
+    expect(out.length).toBeLessThanOrEqual(6);
+  });
+});
+
+describe('listLastEvidenceDocIds (memory)', () => {
+  it('returns last trace docIds; other session / unowned → []', async () => {
+    const mem = createMemorySessionsRepo();
+    const a = await mem.create({ kbId: 'kb1', tenantId: 't1', userId: 'u1' });
+    const b = await mem.create({ kbId: 'kb1', tenantId: 't1', userId: 'u1' });
+    mem.appendTrace({
+      sessionId: a.sessionId,
+      kbId: 'kb1',
+      userId: 'u1',
+      requestId: 'r1',
+      question: 'q',
+      answer: 'a',
+      status: 'answered',
+      reason: 'verified',
+      evidenceDocIds: ['doc-a', 'doc-a', 'doc-b'],
+    });
+    expect(
+      await mem.listLastEvidenceDocIds({
+        sessionId: a.sessionId,
+        kbId: 'kb1',
+        userId: 'u1',
+      }),
+    ).toEqual(['doc-a', 'doc-b']);
+    expect(
+      await mem.listLastEvidenceDocIds({
+        sessionId: b.sessionId,
+        kbId: 'kb1',
+        userId: 'u1',
+      }),
+    ).toEqual([]);
+    expect(
+      await mem.listLastEvidenceDocIds({
+        sessionId: a.sessionId,
+        kbId: 'kb1',
+        userId: 'other',
+      }),
+    ).toEqual([]);
   });
 });
 

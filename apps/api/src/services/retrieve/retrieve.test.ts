@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { GatewayError } from '../gateway/index.js';
 import { mockEmbedVector } from '../gateway/mock-client.js';
 import { rrfFuse } from './rrf.js';
-import { runRetrieve } from './retrieve.js';
+import { promotePreferredDocChunks, runRetrieve } from './retrieve.js';
 import { cosine, sparseOverlapScore } from './scoring.js';
 import type { CorpusChunk, RetrieveDeps } from './types.js';
 
@@ -203,6 +203,101 @@ describe('runRetrieve dual gate via corpus', () => {
       }),
     );
     expect(r).toMatchObject({ ok: false, reason: 'internal_guard' });
+  });
+});
+
+describe('promotePreferredDocChunks', () => {
+  it('no preferred → original fused slice', () => {
+    const fused = [
+      { id: 'c1', score: 0.9 },
+      { id: 'c2', score: 0.8 },
+    ];
+    expect(promotePreferredDocChunks(fused, [], undefined, 2)).toEqual(fused);
+    expect(promotePreferredDocChunks(fused, [], [], 1)).toEqual([{ id: 'c1', score: 0.9 }]);
+  });
+
+  it('promotes in-fused preferred and inserts gated extras; keeps others', () => {
+    const fused = [
+      { id: 'c1', score: 0.9 },
+      { id: 'c2', score: 0.8 },
+      { id: 'c3', score: 0.1 },
+    ];
+    const corpus = [
+      chunk('c1', 'other-hi', { docId: 'd-other' }),
+      chunk('c2', 'other-mid', { docId: 'd-other' }),
+      chunk('c3', 'pref-low', { docId: 'd-pref' }),
+      chunk('c4', 'pref-miss', { docId: 'd-pref' }),
+    ];
+    const out = promotePreferredDocChunks(fused, corpus, ['d-pref'], 3);
+    expect(out.map((x) => x.id)).toEqual(['c3', 'c4', 'c1']);
+  });
+
+  it('drops preferred not in gated corpus', () => {
+    const fused = [
+      { id: 'c1', score: 0.9 },
+      { id: 'c2', score: 0.8 },
+    ];
+    const corpus = [chunk('c1', 'a', { docId: 'd1' }), chunk('c2', 'b', { docId: 'd2' })];
+    expect(promotePreferredDocChunks(fused, corpus, ['d-ghost'], 2)).toEqual(fused);
+  });
+});
+
+describe('runRetrieve preferredDocIds', () => {
+  it('gated preferred chunk is earlier in rerank candidates', async () => {
+    const corpus = [
+      chunk('o1', 'annual leave policy 15 days', { docId: 'd-other' }),
+      chunk('o2', 'annual leave request manager', { docId: 'd-other' }),
+      chunk('o3', 'annual leave calendar holiday', { docId: 'd-other' }),
+      chunk('p1', 'zzzz wifi password wall sticker', { docId: 'd-pref' }),
+    ];
+    const seen: string[][] = [];
+    const rerankSpy: RetrieveDeps['rerank'] = async (query, passages, topN) => {
+      seen.push(passages);
+      return passages.slice(0, topN).map((_, index) => ({ index, score: 1 - index * 0.01 }));
+    };
+    const base = {
+      kbId: 'kb1',
+      question: 'annual leave policy days',
+      membership: 'member' as const,
+      retrieveK: 2,
+      rerankTopN: 2,
+    };
+    const off = await runRetrieve(base, deps(corpus, { rerank: rerankSpy }));
+    const on = await runRetrieve(
+      { ...base, preferredDocIds: ['d-pref'] },
+      deps(corpus, { rerank: rerankSpy }),
+    );
+    expect(off.ok && on.ok).toBe(true);
+    const offPass = seen[0] ?? [];
+    const onPass = seen[1] ?? [];
+    expect(onPass[0]).toContain('wifi password');
+    expect(offPass[0]).not.toContain('wifi password');
+    if (on.ok) {
+      expect(on.evidence.every((e) => corpus.some((c) => c.chunkId === e.chunkId))).toBe(true);
+      expect(on.meta.preferredAdopted).toBe(true);
+    }
+  });
+
+  it('preferred outside corpus → same as no boost', async () => {
+    const corpus = [chunk('c1', 'leave policy 15 days', { docId: 'd1' })];
+    const seen: string[][] = [];
+    const rerankSpy: RetrieveDeps['rerank'] = async (_q, passages, topN) => {
+      seen.push(passages);
+      return passages.slice(0, topN).map((_, index) => ({ index, score: 1 }));
+    };
+    const base = {
+      kbId: 'kb1',
+      question: 'leave policy',
+      membership: 'member' as const,
+    };
+    await runRetrieve(base, deps(corpus, { rerank: rerankSpy }));
+    const r = await runRetrieve(
+      { ...base, preferredDocIds: ['d-ghost'] },
+      deps(corpus, { rerank: rerankSpy }),
+    );
+    expect(r.ok).toBe(true);
+    expect(seen[0]).toEqual(seen[1]);
+    if (r.ok) expect(r.meta.preferredAdopted).toBe(false);
   });
 });
 

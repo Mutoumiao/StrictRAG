@@ -44,6 +44,8 @@ export type RetrieveInput = {
   /** 服务端默认；禁止客户端透传 */
   retrieveK?: number;
   rerankTopN?: number;
+  /** 闸后提权；不扩 ACL / 不独占过滤 */
+  preferredDocIds?: readonly string[];
 };
 
 export type RetrieveOk = {
@@ -54,6 +56,8 @@ export type RetrieveOk = {
     candidateCount: number;
     denseHits: number;
     sparseHits: number;
+    /** 闸后语料里实际命中 ≥1 个 preferred docId */
+    preferredAdopted?: boolean;
   };
 };
 

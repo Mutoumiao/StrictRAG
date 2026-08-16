@@ -12,6 +12,7 @@ export {
   runRetrieve,
   retrieve,
   createDefaultRetrieveDeps,
+  promotePreferredDocChunks,
   DEFAULT_RRF_K,
   DEFAULT_RETRIEVE_K,
   DEFAULT_RERANK_TOP_N,

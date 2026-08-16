@@ -38,6 +38,8 @@ export type AskGraphInput = {
   scope?: RetrieveScope;
   /** 仅服务端 env TAU_CLAIM */
   tauClaim: number;
+  /** 文档回溯加码；闸后才采用 */
+  preferredDocIds?: readonly string[];
 };
 
 export type AskGraphState = {
@@ -83,6 +85,9 @@ export type AskGraphState = {
   rewriteUsed: boolean;
   /** 开路径 ∧ 窗有 user ∧ 显式会话回溯；关/空窗保持 false */
   sessionDeepened: boolean;
+  /** 命中文档回溯 ∧ 闸后采用 ≥1 preferred；不翻聊天窗 */
+  documentBackref: boolean;
+  preferredDocIds?: readonly string[];
 
   /** 本轮 evidence 快照（与 trace 同源；永不含会话历史） */
   evidence_snapshot?: GraphEvidence[];
@@ -103,6 +108,7 @@ export type AskGraphResult = {
   standaloneQuestion?: string;
   rewriteUsed: boolean;
   sessionDeepened: boolean;
+  documentBackref?: boolean;
   /** 与 finalize 同源；仅本轮 KB chunk，禁止会话历史 */
   evidence_snapshot: GraphEvidence[];
   debug?: {
@@ -129,6 +135,8 @@ export function initState(input: AskGraphInput): AskGraphState {
     rawQuestion: input.question,
     rewriteUsed: false,
     sessionDeepened: false,
+    documentBackref: false,
+    preferredDocIds: input.preferredDocIds,
     evidence: [],
     citations: [],
     claims: [],

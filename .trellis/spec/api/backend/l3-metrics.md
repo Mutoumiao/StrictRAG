@@ -3,7 +3,7 @@
 > 路径：`apps/api/src/obs/metrics.ts` `recordL3Ask` · 接线 `services/ask/execute.ts`  
 > 产品语义：`prds/08-quality/02-evaluation-and-gates.md` §0 L3 · `prds/10-delivery/02-ops-runbook.md` §2.5  
 > 任务：`08-16-p25-l3-metrics-min`  
-> **本窗状态**：四条 counter **已落**；**无** 自动熔断 / **无** 面板 / **≠** L2 准出。
+> **本窗状态**：五条 counter **已落**（含 `l3_document_backref_total`）；**无** 自动熔断 / **无** 面板 / **≠** L2 准出。
 
 ---
 
@@ -11,7 +11,7 @@
 
 | 轨 | 含义 | **禁止**宣称 |
 |----|------|--------------|
-| **打点** | `GET /metrics` 能读到四键；单测钉 true/false | 「L3 护栏已上」/「准出 PASS」 |
+| **打点** | `GET /metrics` 能读到五键；单测钉 true/false | 「L3 护栏已上」/「准出 PASS」 |
 | **动作** | 超阈关默认 session / 收窄窗 | 本窗 **不接线**；人工看表决策 |
 
 **Wrong**：计数升高 → 自动改 `SESSION_REWRITE_ENABLED` 或 `clipSessionWindow`。  
@@ -22,7 +22,7 @@
 ## 1. 签名
 
 ```ts
-recordL3Ask({ rewriteUsed, reason, hasSession, sessionDeepened? }): void
+recordL3Ask({ rewriteUsed, reason, hasSession, sessionDeepened?, documentBackref? }): void
 ```
 
 | 计数名 | +1 条件 |
@@ -31,9 +31,10 @@ recordL3Ask({ rewriteUsed, reason, hasSession, sessionDeepened? }): void
 | `l3_coref_fail_total` | `reason === 'coref_unresolved'` |
 | `l3_session_ask_total` | `hasSession === true`（请求带 `sessionId`，无论 rewrite 是否开） |
 | `l3_session_deepened_total` | `sessionDeepened === true`（可选；缺省当 false） |
+| `l3_document_backref_total` | `documentBackref === true`（可选；缺省当 false；**≠** 自动熔断） |
 
 接线：`executeAsk` 在 `recordAskResult` **之后**调用。`skipTrace` 批跑也计（与 ask 结果同源）。  
-**不**改 `recordAskResult` 签名。**不**新建 `obs/l3.ts`。**不**改 `graph/run.ts`。
+`documentBackref` **由**图 retrieve 写入；本文件只计数。**不**改 `recordAskResult` 签名。**不**新建 `obs/l3.ts`。**禁止**按计数改 env / 窗。
 
 ---
 

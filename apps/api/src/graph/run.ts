@@ -35,7 +35,10 @@ import {
   type SessionWindowTurn,
 } from './state.js';
 import { recordLlmCall } from '../obs/metrics.js';
-import { isExplicitSessionBackref } from '../services/ask/session-window.js';
+import {
+  isExplicitDocumentBackref,
+  isExplicitSessionBackref,
+} from '../services/ask/session-window.js';
 import { noopTracer, type SpanTracer } from './tracer.js';
 
 export type GraphChat = (
@@ -50,6 +53,7 @@ export type GraphDeps = {
     question: string;
     membership: AskGraphInput['membership'];
     scope?: AskGraphInput['scope'];
+    preferredDocIds?: readonly string[];
   }) => Promise<RetrieveResult>;
   retrieveDeps?: RetrieveDeps;
   chat: GraphChat;
@@ -108,6 +112,7 @@ function finalize(
     standaloneQuestion: s.standaloneQuestion,
     rewriteUsed: s.rewriteUsed,
     sessionDeepened: s.sessionDeepened,
+    documentBackref: s.documentBackref,
     // 快照仅 state.evidence（retrieve 本轮）；永不含会话原文
     evidence_snapshot: s.evidence_snapshot ?? s.evidence ?? [],
     debug: {
@@ -279,23 +284,17 @@ export async function runAskGraph(
     state = { ...state, retrieveCalls: state.retrieveCalls + 1 };
 
     let r: RetrieveResult;
+    const retrieveInput = {
+      kbId: state.kbId,
+      question: state.question,
+      membership: state.membership,
+      scope: state.scope,
+      preferredDocIds: state.preferredDocIds,
+    };
     if (deps.retrieve) {
-      r = await deps.retrieve({
-        kbId: state.kbId,
-        question: state.question,
-        membership: state.membership,
-        scope: state.scope,
-      });
+      r = await deps.retrieve(retrieveInput);
     } else if (deps.retrieveDeps) {
-      r = await runRetrieve(
-        {
-          kbId: state.kbId,
-          question: state.question,
-          membership: state.membership,
-          scope: state.scope,
-        },
-        deps.retrieveDeps,
-      );
+      r = await runRetrieve(retrieveInput, deps.retrieveDeps);
     } else {
       throw new Error('GraphDeps: retrieve or retrieveDeps required');
     }
@@ -314,11 +313,18 @@ export async function runAskGraph(
       lifecycle: e.lifecycle,
       score: e.score,
     }));
+    const preferredSet = new Set(state.preferredDocIds ?? []);
+    const adopted =
+      preferredSet.size > 0 &&
+      (r.meta.preferredAdopted === true ||
+        (r.meta.preferredAdopted !== false &&
+          r.evidence.some((e) => preferredSet.has(e.docId))));
     // 硬禁：会话历史永不进 evidence
     state = {
       ...state,
       evidence,
       evidence_snapshot: evidence,
+      documentBackref: isExplicitDocumentBackref(state.rawQuestion) && adopted,
     };
     span.end({ evidenceCount: evidence.length });
   }

@@ -650,6 +650,120 @@ describe('runAskGraph P2.5 rewrite min', () => {
     expect(r.reason).toBe('verified');
   });
 
+  it('document-only backref: sessionDeepened=false; retrieve gets preferred', async () => {
+    const HIST = 'DOC_ONLY_SECRET_HIST';
+    let seenPreferred: readonly string[] | undefined;
+    const purposes: string[] = [];
+    const r = await runAskGraph(
+      baseInput({
+        sessionId: SID,
+        question: '这份文档的适用范围是什么',
+        preferredDocIds: [DOC],
+      }),
+      deps({
+        rewriteEnabled: true,
+        loadSessionWindow: async () => [
+          { role: 'user', content: HIST },
+          { role: 'assistant', content: '根据聊天年假999天' },
+        ],
+        retrieve: async ({ preferredDocIds }) => {
+          seenPreferred = preferredDocIds;
+          return {
+            ok: true,
+            evidence: evidenceOk,
+            meta: {
+              esMode: 'mock',
+              candidateCount: 1,
+              denseHits: 1,
+              sparseHits: 1,
+              preferredAdopted: true,
+            },
+          };
+        },
+        chat: async (purpose, messages) => {
+          purposes.push(purpose);
+          return rewriteHappyChat(purpose, messages);
+        },
+      }),
+    );
+    expect(r.sessionDeepened).toBe(false);
+    expect(r.documentBackref).toBe(true);
+    expect(seenPreferred).toEqual([DOC]);
+    expect(JSON.stringify(r.evidence_snapshot)).not.toContain(HIST);
+    expect(JSON.stringify(r.citations)).not.toContain(HIST);
+    expect(purposes).toContain('judge');
+    expect(r.reason).toBe('verified');
+  });
+
+  it('both session+document: deepen and pass preferred; history ≠ evidence', async () => {
+    const HIST = 'BOTH_SECRET_WINDOW';
+    let seenPreferred: readonly string[] | undefined;
+    const r = await runAskGraph(
+      baseInput({
+        sessionId: SID,
+        question: '根据刚才说的，那份文档还有补充吗',
+        preferredDocIds: [DOC],
+      }),
+      deps({
+        rewriteEnabled: true,
+        loadSessionWindow: async () => [
+          { role: 'user', content: HIST },
+          { role: 'assistant', content: '窗内原文不得进证据' },
+        ],
+        retrieve: async ({ preferredDocIds }) => {
+          seenPreferred = preferredDocIds;
+          return {
+            ok: true,
+            evidence: evidenceOk,
+            meta: {
+              esMode: 'mock',
+              candidateCount: 1,
+              denseHits: 1,
+              sparseHits: 1,
+              preferredAdopted: true,
+            },
+          };
+        },
+        chat: rewriteHappyChat,
+      }),
+    );
+    expect(r.sessionDeepened).toBe(true);
+    expect(r.documentBackref).toBe(true);
+    expect(seenPreferred).toEqual([DOC]);
+    expect(JSON.stringify(r.evidence_snapshot)).not.toContain(HIST);
+    expect(r.reason).toBe('verified');
+  });
+
+  it('document backref but preferred not adopted → documentBackref=false', async () => {
+    const r = await runAskGraph(
+      baseInput({
+        sessionId: SID,
+        question: '这份文档的适用范围是什么',
+        preferredDocIds: ['ghost-doc'],
+      }),
+      deps({
+        rewriteEnabled: false,
+        retrieve: async ({ preferredDocIds }) => {
+          expect(preferredDocIds).toEqual(['ghost-doc']);
+          return {
+            ok: true,
+            evidence: evidenceOk,
+            meta: {
+              esMode: 'mock',
+              candidateCount: 1,
+              denseHits: 1,
+              sparseHits: 1,
+              preferredAdopted: false,
+            },
+          };
+        },
+        chat: happyChat,
+      }),
+    );
+    expect(r.sessionDeepened).toBe(false);
+    expect(r.documentBackref).toBe(false);
+  });
+
   it('enabled but no loader: skip rewrite, no 500', async () => {
     const purposes: string[] = [];
     const r = await runAskGraph(

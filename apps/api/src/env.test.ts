@@ -27,6 +27,14 @@ const RewriteSchema = z.object({
     .transform((v) => v === 'true'),
 });
 
+/** 与 env.ts 中 AUTH_ENFORCE 对齐（禁止仓库默认改 true） */
+const AuthEnforceSchema = z.object({
+  AUTH_ENFORCE: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+});
+
 describe('SESSION_REWRITE_ENABLED (U8 dogfood)', () => {
   it('default / omitted → false', () => {
     const r = RewriteSchema.safeParse({});
@@ -42,6 +50,19 @@ describe('SESSION_REWRITE_ENABLED (U8 dogfood)', () => {
     const r = RewriteSchema.safeParse({ SESSION_REWRITE_ENABLED: 'true' });
     expect(r.success).toBe(true);
     if (r.success) expect(r.data.SESSION_REWRITE_ENABLED).toBe(true);
+  });
+});
+
+describe('AUTH_ENFORCE default stays false', () => {
+  it('default / omitted → false', () => {
+    const r = AuthEnforceSchema.safeParse({});
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.AUTH_ENFORCE).toBe(false);
+  });
+  it('explicit false → false', () => {
+    const r = AuthEnforceSchema.safeParse({ AUTH_ENFORCE: 'false' });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.AUTH_ENFORCE).toBe(false);
   });
 });
 

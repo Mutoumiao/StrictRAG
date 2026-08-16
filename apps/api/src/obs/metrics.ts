@@ -52,11 +52,13 @@ export function recordL3Ask(input: {
   reason: string;
   hasSession: boolean;
   sessionDeepened?: boolean;
+  documentBackref?: boolean;
 }): void {
   if (input.rewriteUsed) metricInc('l3_rewrite_used_total');
   if (input.reason === 'coref_unresolved') metricInc('l3_coref_fail_total');
   if (input.hasSession) metricInc('l3_session_ask_total');
   if (input.sessionDeepened) metricInc('l3_session_deepened_total');
+  if (input.documentBackref) metricInc('l3_document_backref_total');
 }
 
 export function recordLlmCall(purpose: string, ok: boolean): void {

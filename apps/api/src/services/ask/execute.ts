@@ -13,8 +13,12 @@ import { childLogger } from '../../logger.js';
 import { createAskTracer, recordAskResult, recordL3Ask } from '../../obs/index.js';
 import { getGateway, getGatewayForTenant } from '../gateway/index.js';
 import { createDefaultRetrieveDeps } from '../retrieve/index.js';
-import { sessionsRepo } from '../sessions.js';
-import { clipSessionWindow, isExplicitSessionBackref } from './session-window.js';
+import { sessionsRepo, type SessionsRepo } from '../sessions.js';
+import {
+  clipSessionWindow,
+  isExplicitDocumentBackref,
+  isExplicitSessionBackref,
+} from './session-window.js';
 import { saveAskTrace } from './traces.js';
 
 export type ExecuteAskParams = {
@@ -40,6 +44,8 @@ export type ExecuteAskDeps = {
   skipTrace?: boolean;
   /** 跳过默认 tracer 注入（graphDeps 已自带 tracer 时） */
   skipDefaultTracer?: boolean;
+  /** 单测注入内存仓；生产默认 PG */
+  sessions?: SessionsRepo;
 };
 
 function toEvidenceSnapshot(graph: AskGraphResult): EvidenceSnapshotItem[] {
@@ -76,6 +82,7 @@ function toAskResponse(
       ...(graph.debug ?? {}),
       rewriteUsed: graph.rewriteUsed,
       sessionDeepened: graph.sessionDeepened,
+      documentBackref: graph.documentBackref ?? false,
       sessionRewriteEnabledDefault: env.SESSION_REWRITE_ENABLED,
       ...(graph.standaloneQuestion ? { standaloneQuestion: graph.standaloneQuestion } : {}),
     };
@@ -130,10 +137,11 @@ export async function executeAsk(
     graphDeps.tracer = obs.tracer;
   }
 
+  const repo = deps.sessions ?? sessionsRepo;
   graphDeps.rewriteEnabled ??= env.SESSION_REWRITE_ENABLED;
   if (graphDeps.rewriteEnabled && params.body.sessionId && !graphDeps.loadSessionWindow) {
     graphDeps.loadSessionWindow = async (input) => {
-      const messages = await sessionsRepo.listMessages({
+      const messages = await repo.listMessages({
         sessionId: input.sessionId,
         kbId: input.kbId,
         userId: input.userId ?? params.userId,
@@ -142,6 +150,17 @@ export async function executeAsk(
         deepened: isExplicitSessionBackref(params.body.question),
       });
     };
+  }
+
+  // ponytail: 加码不绑 rewrite；无 session / 未命中不查末轮
+  let preferredDocIds: string[] | undefined;
+  if (params.body.sessionId && isExplicitDocumentBackref(params.body.question)) {
+    const ids = await repo.listLastEvidenceDocIds({
+      sessionId: params.body.sessionId,
+      kbId: params.kbId,
+      userId: params.userId,
+    });
+    if (ids.length) preferredDocIds = ids;
   }
 
   const graph = await runAskGraph(
@@ -156,6 +175,7 @@ export async function executeAsk(
       locale,
       scope: params.body.scope,
       tauClaim: env.TAU_CLAIM,
+      preferredDocIds,
     },
     graphDeps,
   );
@@ -175,6 +195,7 @@ export async function executeAsk(
     reason: graph.reason,
     hasSession: Boolean(params.body.sessionId),
     sessionDeepened: graph.sessionDeepened,
+    documentBackref: graph.documentBackref,
   });
   obs.finish({
     answered: response.status === 'answered',

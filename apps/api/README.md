@@ -65,7 +65,7 @@ curl -sS -X POST http://127.0.0.1:4000/api/v1/auth/admin/dev-login \
 - `AUTH_ENFORCE=false`（默认）：**入库** API 无鉴权，供 `pnpm demo:ingest`（**勿改默认 true**，否则 demo 全 401）
 - `AUTH_ENFORCE=true`：入库 API 挂 `requirePermissionWhenEnforced`（须 Bearer + 权限码；`:kbId` 路径另查 `kb_members`，`super_admin` 旁路）
 - `/auth/me` 始终 `requireAuth`
-- **ask / members / sessions**（设计 §9.1）：**始终**登录 + 成员闸，与 `AUTH_ENFORCE` 无关；`demo:ingest` 不走这些路由
+- **ask / members / sessions**（设计 §9.1）：**始终**登录 + 成员闸，与 `AUTH_ENFORCE` 无关；`demo:ingest` 不走这些路由。文档回溯加码已落（不翻聊天；**≠** 连续追问已开）
 
 ### 成员 API（S2-1）
 
