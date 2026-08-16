@@ -207,3 +207,37 @@ recordL3Ask 三键 + executeAsk 接线；HOW/IS/08-06/交付回写部分。无�
 ### Next Steps
 
 - None - task complete
+
+
+## Session 7: P2.5-DEEP 显式回溯加深并归档
+
+**Date**: 2026-08-16
+**Task**: P2.5-DEEP 显式回溯加深并归档
+**Package**: api
+**Branch**: `main`
+
+### Summary
+
+显式回溯加深硬顶 8 + sessionDeepened 跟图写 traces/L3；HOW/IS/08-06/交付回写部分。无 intent LLM/≠准出/≠默认开。任务已归档。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6080eb4` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
