@@ -39,6 +39,7 @@ import {
   isExplicitDocumentBackref,
   isExplicitExternalBackref,
   isExplicitSessionBackref,
+  resolveBackReference,
 } from '../services/ask/session-window.js';
 import { noopTracer, type SpanTracer } from './tracer.js';
 
@@ -115,6 +116,7 @@ function finalize(
     sessionDeepened: s.sessionDeepened,
     documentBackref: s.documentBackref,
     externalBackref: isExplicitExternalBackref(s.rawQuestion),
+    backReference: resolveBackReference(s.rawQuestion),
     // 快照仅 state.evidence（retrieve 本轮）；永不含会话原文
     evidence_snapshot: s.evidence_snapshot ?? s.evidence ?? [],
     debug: {

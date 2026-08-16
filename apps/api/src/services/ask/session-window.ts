@@ -26,6 +26,17 @@ export function isExplicitExternalBackref(q: string): boolean {
   );
 }
 
+export type BackReference = 'none' | 'session' | 'document' | 'external';
+
+/** 优先级：external > session > document > none。不替换三布尔、不当加深开关。 */
+export function resolveBackReference(q: string): BackReference {
+  // ponytail: 派生只读三正则，不改动作
+  if (isExplicitExternalBackref(q)) return 'external';
+  if (isExplicitSessionBackref(q)) return 'session';
+  if (isExplicitDocumentBackref(q)) return 'document';
+  return 'none';
+}
+
 /** 末轮 evidence snapshot 的保序去重 docId；空/缺省 → [] */
 export function uniqueEvidenceDocIds(
   snapshot: ReadonlyArray<{ docId?: string }> | null | undefined,

@@ -1,5 +1,6 @@
 import type { AskReason, AskCitation } from '@strict-rag/contracts';
 
+import type { BackReference } from '../services/ask/session-window.js';
 import type { MembershipSlot, RetrieveScope } from '../services/retrieve/types.js';
 
 export type AskMode = 'fast' | 'balanced' | 'strict';
@@ -111,6 +112,8 @@ export type AskGraphResult = {
   documentBackref?: boolean;
   /** 命中库外文档回溯正则；默认 false；≠ 新拒答 */
   externalBackref?: boolean;
+  /** 只读派生；不替换三布尔、不当加深开关 */
+  backReference?: BackReference;
   /** 与 finalize 同源；仅本轮 KB chunk，禁止会话历史 */
   evidence_snapshot: GraphEvidence[];
   debug?: {

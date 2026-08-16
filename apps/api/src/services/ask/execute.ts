@@ -19,6 +19,7 @@ import {
   isExplicitDocumentBackref,
   isExplicitExternalBackref,
   isExplicitSessionBackref,
+  resolveBackReference,
 } from './session-window.js';
 import { saveAskTrace } from './traces.js';
 
@@ -63,6 +64,7 @@ function toAskResponse(
   graph: AskGraphResult,
   latencyMs: number,
   debug?: boolean,
+  rawQuestion?: string,
 ): AskResponse {
   const base: AskResponse = {
     requestId: graph.requestId,
@@ -85,6 +87,7 @@ function toAskResponse(
       sessionDeepened: graph.sessionDeepened,
       documentBackref: graph.documentBackref ?? false,
       externalBackref: graph.externalBackref ?? false,
+      backReference: graph.backReference ?? resolveBackReference(rawQuestion ?? ''),
       sessionRewriteEnabledDefault: env.SESSION_REWRITE_ENABLED,
       ...(graph.standaloneQuestion ? { standaloneQuestion: graph.standaloneQuestion } : {}),
     };
@@ -187,7 +190,12 @@ export async function executeAsk(
   );
 
   const latencyMs = Date.now() - started;
-  const response = toAskResponse(graph, latencyMs, params.body.options?.debug === true);
+  const response = toAskResponse(
+    graph,
+    latencyMs,
+    params.body.options?.debug === true,
+    params.body.question,
+  );
   const evidenceSnapshot = toEvidenceSnapshot(graph);
 
   // 指标 + Langfuse mock scores（拒答也完整 trace）

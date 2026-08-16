@@ -7,6 +7,7 @@ import {
   isExplicitDocumentBackref,
   isExplicitExternalBackref,
   isExplicitSessionBackref,
+  resolveBackReference,
   uniqueEvidenceDocIds,
 } from './session-window.js';
 
@@ -157,6 +158,33 @@ describe('isExplicitExternalBackref', () => {
     expect(isExplicitSessionBackref('网上那份文件怎么说')).toBe(false);
     expect(isExplicitExternalBackref('根据刚才说的网上那份文件')).toBe(true);
     expect(isExplicitSessionBackref('根据刚才说的网上那份文件')).toBe(true);
+  });
+});
+
+describe('resolveBackReference', () => {
+  it('网上那份文件 → external', () => {
+    expect(resolveBackReference('网上那份文件')).toBe('external');
+  });
+
+  it('刚才说过请假 → session', () => {
+    expect(isExplicitSessionBackref('刚才说过请假')).toBe(true);
+    expect(resolveBackReference('刚才说过请假')).toBe('session');
+  });
+
+  it('那份文件还有补充吗 → document', () => {
+    expect(resolveBackReference('那份文件还有补充吗')).toBe('document');
+  });
+
+  it('制度有效期 → none', () => {
+    expect(resolveBackReference('制度有效期')).toBe('none');
+  });
+
+  it('双命中：字段 session，document 布尔仍 true', () => {
+    const dual = '根据刚才说的，那份文档还有补充吗';
+    expect(resolveBackReference(dual)).toBe('session');
+    expect(isExplicitDocumentBackref(dual)).toBe(true);
+    expect(resolveBackReference('刚才说的那份文件')).toBe('session');
+    expect(isExplicitDocumentBackref('刚才说的那份文件')).toBe(true);
   });
 });
 

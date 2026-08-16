@@ -121,7 +121,7 @@ routes/ask.ts
 #### 图边表（线性状态机 · X-06 · 源码 `graph/run.ts`）
 
 > **形态**：顺序函数调用，**不是** LangGraph 条件边 DSL。下表是 agent 改 `run.ts` 时的**可执行边契约**。  
-> **SSOT**：实现以本表 + 源码为准；PRD 多跳/CRAG **未**实现；加深仅 session 显式回溯；document 只加码检索；external 只抑制加码；禁止假画 intent LLM / `backReference` 四态。
+> **SSOT**：实现以本表 + 源码为准；PRD 多跳/CRAG **未**实现；加深仅 session 显式回溯；document 只加码检索；external 只抑制加码；`backReference` 四态已派生（只读三正则，不驱动加深/加码/抑制）；禁止假画 intent LLM。
 
 ##### 关路径（仓库默认 · `rewriteEnabled=false`）
 
@@ -212,7 +212,7 @@ route
 |----------------|---------|
 | multi_hop / max_hops 环 | reason 枚举保留 `max_hops_exceeded`；图内 **无** hop 边 |
 | CRAG grade → refine | **无** |
-| 按需加深（窗外再取 K 条） | **session 加深已落**（`isExplicitSessionBackref` + `clipSessionWindow({ deepened })` 硬顶 8）；**document 加码已落**（`isExplicitDocumentBackref` + 末轮 `docId` → `promotePreferredDocChunks`，不翻聊天）；**external 抑制已落**（`isExplicitExternalBackref` → 不查末轮 docId、丢弃 preferred）；**无** intent LLM / **无**二次加深 |
+| 按需加深（窗外再取 K 条） | **session 加深已落**（`isExplicitSessionBackref` + `clipSessionWindow({ deepened })` 硬顶 8）；**document 加码已落**（`isExplicitDocumentBackref` + 末轮 `docId` → `promotePreferredDocChunks`，不翻聊天）；**external 抑制已落**（`isExplicitExternalBackref` → 不查末轮 docId、丢弃 preferred）；**四态已派生**（`resolveBackReference`：external > session > document > none；不替换三布尔）；**无** intent LLM / **无**二次加深 |
 | L2 runner / 准出 | **工程 runner 有**（`scripts/run-l2-golden.ts`）；可选 `eval_runs`（`L2_PERSIST_EVAL`）；**准出无**（另见 [l2-eval](./l2-eval.md)） |
 | rewrite / coref | **P2.5 已实现**最小边；**默认关**；`coref_unresolved` 仅开路径可达 |
 | L3 打点 / 自动熔断 | **打点+告警有**（`recordL3Ask` 六键 + `l3_guard_alert_total`；Pino warn 每 kind 一闩）；**自动熔断 / 面板无**（见 [l3-metrics](./l3-metrics.md)） |
@@ -249,7 +249,7 @@ route
 | `minSupport` | 仅 verified 有意义 |
 | `suggestedActions` · `userMessage` | 拒答文案/动作 |
 | `sessionId` · `mode` · `latencyMs` | 壳字段 |
-| `debug` | 仅 `options.debug=true`；`rewriteUsed` / `sessionDeepened` / `documentBackref` / `externalBackref` **跟图**（关时仍 false）；可含 `standaloneQuestion` |
+| `debug` | 仅 `options.debug=true`；`rewriteUsed` / `sessionDeepened` / `documentBackref` / `externalBackref` **跟图**（关时仍 false）；`backReference` 四态只读派生；可含 `standaloneQuestion` |
 
 流内 `internal_guard` final：`userMessage` 可提示稍后重试；**禁止** `status=answered`。
 

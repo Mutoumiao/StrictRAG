@@ -596,6 +596,7 @@ describe('runAskGraph P2.5 rewrite min', () => {
     );
     expect(r.sessionDeepened).toBe(true);
     expect(r.rewriteUsed).toBe(true);
+    expect(r.backReference).toBe('session');
   });
 
   it('on + weak coref 那餐补呢 → sessionDeepened=false', async () => {
@@ -688,6 +689,7 @@ describe('runAskGraph P2.5 rewrite min', () => {
     );
     expect(r.sessionDeepened).toBe(false);
     expect(r.documentBackref).toBe(true);
+    expect(r.backReference).toBe('document');
     expect(seenPreferred).toEqual([DOC]);
     expect(JSON.stringify(r.evidence_snapshot)).not.toContain(HIST);
     expect(JSON.stringify(r.citations)).not.toContain(HIST);
@@ -729,6 +731,7 @@ describe('runAskGraph P2.5 rewrite min', () => {
     );
     expect(r.sessionDeepened).toBe(true);
     expect(r.documentBackref).toBe(true);
+    expect(r.backReference).toBe('session');
     expect(seenPreferred).toEqual([DOC]);
     expect(JSON.stringify(r.evidence_snapshot)).not.toContain(HIST);
     expect(r.reason).toBe('verified');
@@ -769,6 +772,7 @@ describe('runAskGraph P2.5 rewrite min', () => {
     expect(r.externalBackref).toBe(true);
     expect(r.documentBackref).toBe(false);
     expect(r.sessionDeepened).toBe(false);
+    expect(r.backReference).toBe('external');
     expect(seenPreferred).toBeUndefined();
     expect(JSON.stringify(r.evidence_snapshot)).not.toContain(HIST);
     expect(JSON.stringify(r.citations)).not.toContain(HIST);
@@ -811,6 +815,7 @@ describe('runAskGraph P2.5 rewrite min', () => {
     expect(r.externalBackref).toBe(true);
     expect(r.documentBackref).toBe(false);
     expect(r.sessionDeepened).toBe(true);
+    expect(r.backReference).toBe('external');
     expect(seenPreferred).toBeUndefined();
     expect(JSON.stringify(r.evidence_snapshot)).not.toContain(HIST);
     expect(JSON.stringify(r.citations)).not.toContain(HIST);
@@ -845,6 +850,7 @@ describe('runAskGraph P2.5 rewrite min', () => {
     );
     expect(r.sessionDeepened).toBe(false);
     expect(r.documentBackref).toBe(false);
+    expect(r.backReference).toBe('document');
   });
 
   it('enabled but no loader: skip rewrite, no 500', async () => {
