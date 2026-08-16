@@ -120,4 +120,22 @@ export const documentRepo = {
       .set({ chunkStrategy })
       .where(eq(documents.id, docId));
   },
+
+  /** P3b-META：只改部门/密级两列；不改 lifecycle、不入队 */
+  async patchMeta(
+    docId: string,
+    patch: {
+      ownerDeptId?: string | null;
+      visibilityLevel?: 10 | 20 | 30 | 40;
+    },
+  ) {
+    const set: {
+      ownerDeptId?: string | null;
+      visibilityLevel?: 10 | 20 | 30 | 40;
+    } = {};
+    if (patch.ownerDeptId !== undefined) set.ownerDeptId = patch.ownerDeptId;
+    if (patch.visibilityLevel !== undefined) set.visibilityLevel = patch.visibilityLevel;
+    if (Object.keys(set).length === 0) return;
+    await getDb().update(documents).set(set).where(eq(documents.id, docId));
+  },
 };

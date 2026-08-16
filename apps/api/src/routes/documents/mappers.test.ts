@@ -49,6 +49,24 @@ describe('documents mappers（ARCH-P1a 域内纯函数）', () => {
     expect(detail.embedReady).toBe(true);
   });
 
+  it('旧行缺部门字段 → ownerDeptId=null、visibilityLevel=20', () => {
+    const detail = toDetail(base);
+    expect(detail.ownerDeptId).toBeNull();
+    expect(detail.visibilityLevel).toBe(20);
+    expect(toListItem(base)).not.toHaveProperty('ownerDeptId');
+    expect(toListItem(base)).not.toHaveProperty('visibilityLevel');
+  });
+
+  it('toDetail 回读已写部门字段', () => {
+    const detail = toDetail({
+      ...base,
+      ownerDeptId: '01900000-0000-7000-8000-0000000000de',
+      visibilityLevel: 30,
+    });
+    expect(detail.ownerDeptId).toBe('01900000-0000-7000-8000-0000000000de');
+    expect(detail.visibilityLevel).toBe(30);
+  });
+
   it('缺省可选字段 → null', () => {
     const sparse: DocMapSource = {
       ...base,
@@ -59,6 +77,8 @@ describe('documents mappers（ARCH-P1a 域内纯函数）', () => {
       docType: undefined,
       createdAt: undefined,
       updatedAt: undefined,
+      ownerDeptId: undefined,
+      visibilityLevel: undefined,
     };
     const detail = toDetail(sparse);
     expect(detail.byteSize).toBeNull();
@@ -68,5 +88,7 @@ describe('documents mappers（ARCH-P1a 域内纯函数）', () => {
     expect(detail.docType).toBeNull();
     expect(detail.createdAt).toBeNull();
     expect(detail.updatedAt).toBeNull();
+    expect(detail.ownerDeptId).toBeNull();
+    expect(detail.visibilityLevel).toBe(20);
   });
 });

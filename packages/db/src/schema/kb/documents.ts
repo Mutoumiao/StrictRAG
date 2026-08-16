@@ -47,6 +47,10 @@ export const documents = pgTable('documents', {
   embedReady: integer('embed_ready').notNull().default(0),
   esReady: integer('es_ready').notNull().default(0),
 
+  /** P3b-META：可空 = 库级；强制隔离未接 */
+  ownerDeptId: uuid('owner_dept_id'), // 可空 = 库级
+  visibilityLevel: integer('visibility_level').notNull().default(20),
+
   effectiveFrom: text('effective_from'),
   effectiveTo: text('effective_to'),
   supersedesDocId: uuid('supersedes_doc_id'),

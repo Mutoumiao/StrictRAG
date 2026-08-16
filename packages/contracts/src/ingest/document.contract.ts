@@ -128,6 +128,15 @@ export const DocumentListItemSchema = z.object({
 });
 export type DocumentListItem = z.infer<typeof DocumentListItemSchema>;
 
+/** 文档可见级：10/20/30/40（P3b-META；检索强制未接） */
+export const VisibilityLevelSchema = z.union([
+  z.literal(10),
+  z.literal(20),
+  z.literal(30),
+  z.literal(40),
+]);
+export type VisibilityLevel = z.infer<typeof VisibilityLevelSchema>;
+
 /**
  * GET /documents/:docId 公开详情（非 DB 行直出）。
  * 不含 parsedText / 对象内部密钥类字段。
@@ -141,8 +150,21 @@ export const DocumentDetailSchema = DocumentListItemSchema.extend({
   docType: z.string().nullable().optional(),
   createdAt: z.string().nullable().optional(),
   updatedAt: z.string().nullable().optional(),
+  ownerDeptId: z.string().uuid().nullable().optional(),
+  visibilityLevel: VisibilityLevelSchema.optional(),
 });
 export type DocumentDetail = z.infer<typeof DocumentDetailSchema>;
+
+/** PATCH /documents/:docId — 只写这两字段 */
+export const PatchDocumentMetaBodySchema = z
+  .object({
+    ownerDeptId: z.string().uuid().nullable().optional(),
+    visibilityLevel: VisibilityLevelSchema.optional(),
+  })
+  .refine((b) => b.ownerDeptId !== undefined || b.visibilityLevel !== undefined, {
+    message: 'at least one field',
+  });
+export type PatchDocumentMetaBody = z.infer<typeof PatchDocumentMetaBodySchema>;
 
 /** POST …/documents/:docId/approve | reject */
 export const DocumentApprovalActionResponseSchema = z.object({

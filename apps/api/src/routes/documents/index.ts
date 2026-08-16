@@ -11,6 +11,7 @@ import {
   type PutObjectResponse,
   type ReindexDocumentResponse,
   type UploadUrlResponse,
+  PatchDocumentMetaBodySchema,
   PatchLifecycleBodySchema,
   ReindexDocumentBodySchema,
   UploadUrlBodySchema,
@@ -18,7 +19,7 @@ import {
 import { Hono } from 'hono';
 import { uuidv7 } from 'uuidv7';
 
-import { requirePermissionWhenEnforced } from '../../auth/middleware.js';
+import { requirePermission, requirePermissionWhenEnforced } from '../../auth/middleware.js';
 import { canBecomeActive, canEnqueueScan, scanDeniedCode } from '../../gates/approval-scan.js';
 import { checkUploadByteSize } from '../../gates/upload-size.js';
 import { fail, ok } from '../../lib/response.js';
@@ -387,6 +388,30 @@ documentRoutes.patch(
     return ok(c, data);
   },
 );
+
+/** PATCH /api/v1/documents/:docId — 只写 ownerDeptId / visibilityLevel；不改 lifecycle、不入队 */
+documentRoutes.patch('/documents/:docId', requirePermission('doc.editor'), async (c) => {
+  const docId = c.req.param('docId');
+  const parsed = PatchDocumentMetaBodySchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) {
+    return fail(c, BizCode.VALIDATION_ERROR, 'invalid body', 400, parsed.error.flatten());
+  }
+
+  const doc = await documentRepo.getDoc(docId);
+  if (!doc) {
+    return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
+  }
+
+  await documentRepo.patchMeta(docId, {
+    ownerDeptId: parsed.data.ownerDeptId,
+    visibilityLevel: parsed.data.visibilityLevel,
+  });
+  const updated = await documentRepo.getDoc(docId);
+  if (!updated) {
+    return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
+  }
+  return ok(c, toDetail(updated));
+});
 
 /** GET /api/v1/documents/:docId */
 documentRoutes.get('/documents/:docId', requirePermissionWhenEnforced('doc.view'), async (c) => {

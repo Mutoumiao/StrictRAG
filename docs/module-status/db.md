@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（schema + client + 检索谓词底座；**无**业务服务层） |
 | 默认依赖模式 | 需要调用方提供 `DATABASE_URL`；时间列使用本地格式字符串（见 ORM PRD） |
 | 关联模块 | `api` 与 `worker` 共用 client / schema；检索闸门谓词被 api retrieve 复用 |
-| 最近更新 | 2026-08-13（embedding=jsonb · `ingest_jobs` 表由 worker 最小写 · 检索闸不含 indexVersion · 反向审计补 `baseColumns`） |
+| 最近更新 | 2026-08-16（P3b-META：`documents.owner_dept_id` / `visibility_level` 已落；**强制未接**） |
 | Spec | `.trellis/spec/db/backend/` |
 | PRD | `prds/03-data` · `prds/02-engineering/02-orm-drizzle.md` |
 
@@ -32,7 +32,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 - **B5**：`departments` · `user_departments`（migration `0005_b5_departments`）
 
 ### Schema · kb（入库主轴）
-- `knowledge_bases` · `documents`（含 **`chunkStrategy` / `chunkStrategyParams`**）· `chunks` · `chunk_manifests`
+- `knowledge_bases` · `documents`（含 **`chunkStrategy` / `chunkStrategyParams`** · **P3b-META** `owner_dept_id` / `visibility_level` 默认 20；**强制未接**）· `chunks` · `chunk_manifests`
 - `chunk_embeddings`：**`embedding` 列为 jsonb `number[]`**（演示 mock 向量；**不是** native pgvector/`vector` 列）
 - `ingest_jobs`：schema 已有；**worker** `job-ledger` 按阶段边界最小写（**非**本包服务层；无查询 API；同 doc 锁在 worker Redis 侧）
 - `kb_members`
@@ -42,8 +42,8 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 - **B10-followup / P2.5-L2P**：`eval_runs`（L1 `golden_2x2` / L2 `session_multiturn`；L2 `signoff_eligible` 恒 0；migration `0006_b10_eval_runs`）
 - schema 单测：`schema/ask/ask-schema.test.ts`
 
-### Migrations（journal 7 条）
-- `0000_phase0_schema_meta` → `0006_b10_eval_runs`（`drizzle/meta/_journal.json`）
+### Migrations（journal 8 条）
+- `0000_phase0_schema_meta` → `0007_p3b_doc_dept_meta`（`drizzle/meta/_journal.json`）
 - 脚本：`db:generate` / `db:migrate` / `db:studio`（运维产品化流水线 **不**在本包宣称）
 
 ### 查询谓词
@@ -57,7 +57,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 
 | 项 | 说明 |
 |----|------|
-| 部门强制检索 / 跨部门授权 / 文档 owner_dept | 组织表已落地；检索 principals 与 grant 表未做 |
+| 部门强制检索 / 跨部门授权 | 文档 `owner_dept_id` / `visibility_level` **已有列**（`0007`）；检索 principals 与 grant 表未做；**无** DEPT_ACL |
 | 权限三表终态 | 现为 `codes_json` 过渡；迁表须 ADR |
 | `ingest_jobs` 完整运维账本 | 表有；worker 最小写；查询面无（锁见 worker Redis） |
 | 业务签字 live 真跑数字 | 表 `eval_runs` 可落库；真跑属 api/ops |

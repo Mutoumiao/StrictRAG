@@ -4,6 +4,7 @@ import type {
   DocumentListItem,
   DocumentStatus,
   Lifecycle,
+  VisibilityLevel,
 } from '@strict-rag/contracts';
 
 /** 列表/详情映射所需的最小文档行形状（与 documentRepo 行字段对齐，不绑 repo 实现） */
@@ -26,6 +27,8 @@ export type DocMapSource = {
   docType?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
+  ownerDeptId?: string | null;
+  visibilityLevel?: number | null;
 };
 
 export function toListItem(r: DocMapSource): DocumentListItem {
@@ -54,5 +57,7 @@ export function toDetail(r: DocMapSource): DocumentDetail {
     docType: r.docType ?? null,
     createdAt: r.createdAt ?? null,
     updatedAt: r.updatedAt ?? null,
+    ownerDeptId: r.ownerDeptId ?? null,
+    visibilityLevel: (r.visibilityLevel ?? 20) as VisibilityLevel,
   };
 }

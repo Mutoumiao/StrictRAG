@@ -2,7 +2,7 @@
 
 > 路径：`apps/api/src/routes/departments.ts` · `services/departments.ts`  
 > PRD：`prds/05-api` §2.12 · ADR-057  
-> 切片：**最小**（树 CRUD + 用户归属）；**≠** `DEPT_ACL_ENFORCE` 检索强制 / 文档密级 / cross-grant
+> 切片：**最小**（树 CRUD + 用户归属）；文档 `ownerDeptId` / `visibilityLevel` **字段已落、强制未接**；**≠** `DEPT_ACL_ENFORCE` 检索强制 / cross-grant
 
 ---
 
@@ -39,7 +39,8 @@ DB：`departments` · `user_departments`（`packages/db` · migration `0005_b5_d
 
 - DTO：`@strict-rag/contracts` · `departments.contract.ts`
 - 权限：`dept.manage`（树）· `user.manage`（归属）
-- **无**检索 principals / 文档 `ownerDeptId`
+- 文档 `ownerDeptId` / `visibilityLevel` **字段已落**（GET 详情回读 · `PATCH /documents/:docId` 只写这两列 · `doc.editor` 始终验码）；**强制未接**（retrieve 不按部门滤）
+- **无**检索 principals / `dept_cross_grants` 运行时
 
 ### 4. Validation & Error Matrix
 

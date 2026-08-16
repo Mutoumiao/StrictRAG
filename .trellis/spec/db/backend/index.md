@@ -2,7 +2,7 @@
 
 > 路径：`packages/db`  
 > 消费者：`apps/api` · `apps/worker`（**必须**共用）  
-> 现状：KB/文档/chunk/manifest/embed/ingest_jobs + **ask_*** + **eval_runs**（B10-followup 工程）+ users + **platform_roles/user_roles** + **departments/user_departments** + model_providers/bindings；`query/retrieval-gate`；migrate 在 `drizzle/`（含 `0006_b10_eval_runs`）。
+> 现状：KB/文档/chunk/manifest/embed/ingest_jobs + **ask_*** + **eval_runs**（B10-followup 工程）+ users + **platform_roles/user_roles** + **departments/user_departments** + model_providers/bindings；`documents.owner_dept_id` / `visibility_level` **已有列**（P3b-META；**强制未接**）；`query/retrieval-gate`；migrate 在 `drizzle/`（含 `0007_p3b_doc_dept_meta`）。
 
 ---
 

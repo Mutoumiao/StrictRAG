@@ -132,7 +132,7 @@ Runtime 放行 HOW → [api auth-authorization](../../api/backend/auth-authoriza
 |------|---------------|:-----:|:-----------:|
 | `departments` 树 | **已有**（B5） | 部分 UI/API | — |
 | `user_departments` | **已有** | 部分 | — |
-| `documents.owner_dept_id` / `visibility_level` | 查 schema 是否列齐 | 可存 | **`DEPT_ACL_ENFORCE`** 默认 false |
+| `documents.owner_dept_id` / `visibility_level` | **已有列**（`0007_p3b_doc_dept_meta`；空 dept=库级 · level 默认 20） | 可存 | **强制未接**；本窗 **不**引入 `DEPT_ACL_ENFORCE` |
 | `dept_cross_grants` | 按 migration | 可后置 | P3 |
 | retrieve 部门谓词 | **未**并入默认 L0 | — | 另开 feature；**禁止**假装已强制 |
 
