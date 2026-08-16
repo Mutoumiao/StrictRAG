@@ -309,3 +309,37 @@ L2 runner 可选写入已有 eval_runs（session_multiturn）；signoffEligible 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 10: P2.5-EXT 库外文档回溯抑制并归档
+
+**Date**: 2026-08-16
+**Task**: P2.5-EXT 库外文档回溯抑制并归档
+**Package**: admin
+**Branch**: `main`
+
+### Summary
+
+P2.5-EXT：显式库外文档回溯抑制 document 加码（不查末轮 docId、丢弃 preferred）。externalBackref 跟图写 debug/L3。标签部分。≠准出/≠默认开rewrite/≠intent LLM/≠external当证据/≠连续追问已开。P2.5-IDX 仍索引。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `05b15b3` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
