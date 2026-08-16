@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 8
+- **Total Sessions**: 9
 - **Last Active**: 2026-08-16
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~277 | Active |
+| `journal-1.md` | ~311 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 9 | 2026-08-16 | P2.5-DOC 文档回溯检索加码并归档 | `9bde93f` | `main` |
 | 8 | 2026-08-16 | P2.5-L2P 可选 eval_runs persist 并归档 | `ac10bce` | `main` |
 | 7 | 2026-08-16 | P2.5-DEEP 显式回溯加深并归档 | `6080eb4` | `main` |
 | 6 | 2026-08-16 | P2.5-L3 多轮护栏打点并归档 | `f70d524` | `main` |

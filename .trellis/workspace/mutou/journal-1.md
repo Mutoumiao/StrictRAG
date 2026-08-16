@@ -275,3 +275,37 @@ L2 runner 可选写入已有 eval_runs（session_multiturn）；signoffEligible 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 9: P2.5-DOC 文档回溯检索加码并归档
+
+**Date**: 2026-08-16
+**Task**: P2.5-DOC 文档回溯检索加码并归档
+**Package**: admin
+**Branch**: `main`
+
+### Summary
+
+显式文档回溯时用上轮 evidence docId 提权，不加深聊天窗；documentBackref 跟图写 debug/L3；P2.5-DOC=部分；P2.5-IDX 仍索引；无 intent LLM / 无 external / ≠ 准出 / ≠ 默认开 / ≠ 连续追问已开。任务已归档。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9bde93f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
