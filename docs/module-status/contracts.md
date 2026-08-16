@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（支撑 P0/P1 入库 + S2 问答/会话/反馈/成员 + B1–B6 运营契约 + **B12 策略码 / ingest job**；**非**全量 OpenAPI） |
 | 默认依赖模式 | 纯库；无运行时开关 |
 | 关联模块 | 被 `api` · `worker` · `web` · `admin` 消费；是全仓错误码、响应信封、队列名与 **可写分片策略集** 的唯一来源 |
-| 最近更新 | 2026-08-13（补漏 AskScope / AskOptions / AskMode + DEFAULT_*） |
+| 最近更新 | 2026-08-17（P3b-SENS `dataClass` · P3b-GRANT `DeptCrossGrant`） |
 | Spec | `.trellis/spec/contracts/library/` |
 | PRD | `prds/05-api` · 各域契约与 PRD 短名对齐 |
 
@@ -55,7 +55,8 @@
 
 ### 知识库设置（B2）
 - `AskModeSchema`（`strict` / `balanced` / `fast`）+ `DEFAULT_ALLOWED_MODES` / `DEFAULT_DEFAULT_MODE`（`kb/kb-settings.contract`）
-- `KbSettings` / `PatchKbSettingsBodySchema`（strict 白名单 + modes 唯一性）（`kb/kb-settings.contract`）
+- `KbSettings` / `PatchKbSettingsBodySchema`（strict 白名单 + modes 唯一性 + `dataClass` 默认 internal）（`kb/kb-settings.contract`）
+- `DeptCrossGrant` / `CreateDeptCrossGrantBodySchema`（`system/dept-grants.contract`）
 - `qualitySnapshot` · `sessionRewrite` 锁定形状；禁止 τ / rewrite 写键
 
 ### 模型网关（B3）

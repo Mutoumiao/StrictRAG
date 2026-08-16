@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（schema + client + 检索谓词底座；**无**业务服务层） |
 | 默认依赖模式 | 需要调用方提供 `DATABASE_URL`；时间列使用本地格式字符串（见 ORM PRD） |
 | 关联模块 | `api` 与 `worker` 共用 client / schema；检索闸门谓词被 api retrieve 复用 |
-| 最近更新 | 2026-08-16（P3b-META：`documents.owner_dept_id` / `visibility_level` 已落；**强制未接**） |
+| 最近更新 | 2026-08-17（P3b-GRANT：`dept_cross_grants` 已落；**检索未消费**） |
 | Spec | `.trellis/spec/db/backend/` |
 | PRD | `prds/03-data` · `prds/02-engineering/02-orm-drizzle.md` |
 
@@ -57,7 +57,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 
 | 项 | 说明 |
 |----|------|
-| 部门强制检索 / 跨部门授权 | 文档 `owner_dept_id` / `visibility_level` **已有列**（`0007`）；检索 principals 与 grant 表未做；**无** DEPT_ACL |
+| 部门强制检索 / 跨部门授权 | 文档部门列 `0007`；`dept_cross_grants` `0008`（**检索未消费**）；过滤在 api 默认关 |
 | 权限三表终态 | 现为 `codes_json` 过渡；迁表须 ADR |
 | `ingest_jobs` 完整运维账本 | 表有；worker 最小写；查询面无（锁见 worker Redis） |
 | 业务签字 live 真跑数字 | 表 `eval_runs` 可落库；真跑属 api/ops |
