@@ -241,3 +241,37 @@ recordL3Ask 三键 + executeAsk 接线；HOW/IS/08-06/交付回写部分。无�
 ### Next Steps
 
 - None - task complete
+
+
+## Session 8: P2.5-L2P 可选 eval_runs persist 并归档
+
+**Date**: 2026-08-16
+**Task**: P2.5-L2P 可选 eval_runs persist 并归档
+**Package**: admin
+**Branch**: `main`
+
+### Summary
+
+L2 runner 可选写入已有 eval_runs（session_multiturn）；signoffEligible 仍恒 false；P2.5-L2P=部分；P2.5-IDX 仍索引；≠ 准出 / ≠ 默认开 rewrite / ≠ 人签。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ac10bce` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
