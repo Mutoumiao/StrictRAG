@@ -21,8 +21,8 @@ apps/api/src/
     budget.ts · reasons.ts · tracer.ts · graph.test.ts
   routes/
     auth.ts                # dev-login · refresh · me · bootstrap ensureUserRoleCodes
-    documents/             # ARCH-P1a 试点：按域目录（P1 入库 + B12 complete/reindex 闸）
-      index.ts             # export documentRoutes · 挂载仍 app.route('/api/v1', …)
+    documents/             # ARCH-P1a 试点：按域目录（P1 入库 + B12 complete/reindex 闸 + P3b-META PATCH）
+      index.ts             # export documentRoutes · PATCH /documents/:docId 只写部门两字段
       mappers.ts           # toListItem / toDetail 纯函数
     chunks.ts              # B1 分片只读 list/detail（ADR-052）
     members.ts             # 成员 list/invite/delete
@@ -57,6 +57,8 @@ apps/api/src/
     l1-matrix.test.ts
     l2-gold.ts             # L2 多轮题面加载 / 覆盖（纯函数）
     l2-gold.test.ts
+    l2-fingerprint.ts      # P2.5-L2S：rewrite prompt+model 指纹（纯函数；≠ 准出）
+    l2-fingerprint.test.ts
     adr046-snapshot.ts     # ADR-046 配置快照绑定 + 硬门单向 + 四要素 / businessPass 闸
     adr046-snapshot.test.ts
   scripts/
