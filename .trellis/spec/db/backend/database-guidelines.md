@@ -132,9 +132,9 @@ Runtime 放行 HOW → [api auth-authorization](../../api/backend/auth-authoriza
 |------|---------------|:-----:|:-----------:|
 | `departments` 树 | **已有**（B5） | 部分 UI/API | — |
 | `user_departments` | **已有** | 部分 | — |
-| `documents.owner_dept_id` / `visibility_level` | **已有列**（`0007_p3b_doc_dept_meta`；空 dept=库级 · level 默认 20） | 可存 | **强制未接**；本窗 **不**引入 `DEPT_ACL_ENFORCE` |
-| `dept_cross_grants` | 按 migration | 可后置 | P3 |
-| retrieve 部门谓词 | **未**并入默认 L0 | — | 另开 feature；**禁止**假装已强制 |
+| `documents.owner_dept_id` / `visibility_level` | **已有列**（`0007_p3b_doc_dept_meta`；空 dept=库级 · level 默认 20） | 可存 | api 过滤默认关 |
+| `dept_cross_grants` | **已有表**（`0008_p3b_dept_cross_grants`；`(user_id, dept_id)` 唯一） | 可存 | **检索未消费** |
+| retrieve 部门谓词 | api `filterDocsForDeptAcl`（默认关） | — | **禁止**假装 ADR-057 全文已强制 |
 
 **HOW**：部门表可演进，但 **不得** 在 db HOW 写「检索已按 ADR-057 全强制」直至 enforce 开关与测齐备。
 

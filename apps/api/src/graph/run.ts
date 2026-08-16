@@ -54,6 +54,8 @@ export type GraphDeps = {
     kbId: string;
     question: string;
     membership: AskGraphInput['membership'];
+    /** 开 DEPT_ACL_ENFORCE 时算归属；缺省 = 无归属 */
+    userId?: string;
     scope?: AskGraphInput['scope'];
     preferredDocIds?: readonly string[];
   }) => Promise<RetrieveResult>;
@@ -295,6 +297,7 @@ export async function runAskGraph(
       kbId: state.kbId,
       question: state.question,
       membership: state.membership,
+      userId: state.userId,
       scope: state.scope,
       preferredDocIds,
     };

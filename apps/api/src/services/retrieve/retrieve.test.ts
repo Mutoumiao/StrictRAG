@@ -108,6 +108,26 @@ describe('runRetrieve dual gate via corpus', () => {
     expect(ids).not.toContain('c2');
   });
 
+  it('forwards userId to loadCorpus', async () => {
+    let seen: string | undefined;
+    const r = await runRetrieve(
+      {
+        kbId: 'kb1',
+        question: 'leave policy',
+        membership: 'member',
+        userId: 'u-dept',
+      },
+      deps([chunk('c1', 'leave policy 15 days')], {
+        loadCorpus: async (input) => {
+          seen = input.userId;
+          return [chunk('c1', 'leave policy 15 days')];
+        },
+      }),
+    );
+    expect(r.ok).toBe(true);
+    expect(seen).toBe('u-dept');
+  });
+
   it('super_admin same path as member (no doc-acl terms)', async () => {
     const r = await runRetrieve(
       {

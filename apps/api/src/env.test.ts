@@ -66,6 +66,32 @@ describe('AUTH_ENFORCE default stays false', () => {
   });
 });
 
+/** 与 env.ts 中 DEPT_ACL_ENFORCE 对齐（禁止仓库默认改 true） */
+const DeptAclEnforceSchema = z.object({
+  DEPT_ACL_ENFORCE: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+});
+
+describe('DEPT_ACL_ENFORCE default stays false', () => {
+  it('default / omitted → false', () => {
+    const r = DeptAclEnforceSchema.safeParse({});
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.DEPT_ACL_ENFORCE).toBe(false);
+  });
+  it('explicit false → false', () => {
+    const r = DeptAclEnforceSchema.safeParse({ DEPT_ACL_ENFORCE: 'false' });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.DEPT_ACL_ENFORCE).toBe(false);
+  });
+  it('true parses (opt-in)', () => {
+    const r = DeptAclEnforceSchema.safeParse({ DEPT_ACL_ENFORCE: 'true' });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.DEPT_ACL_ENFORCE).toBe(true);
+  });
+});
+
 describe('tauClaim unique source', () => {
   it('accepts single TAU_CLAIM', () => {
     const r = TauSchema.safeParse({ TAU_CLAIM: '0.5' });

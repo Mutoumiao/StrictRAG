@@ -40,6 +40,8 @@ export type RetrieveInput = {
   kbId: string;
   question: string;
   membership: MembershipSlot;
+  /** 开 DEPT_ACL_ENFORCE 时算归属；缺省 = 无归属 */
+  userId?: string;
   scope?: RetrieveScope;
   /** 服务端默认；禁止客户端透传 */
   retrieveK?: number;
@@ -73,6 +75,7 @@ export type RetrieveResult = RetrieveOk | RetrieveFail;
 export type CorpusLoader = (input: {
   kbId: string;
   scope?: RetrieveScope;
+  userId?: string;
 }) => Promise<CorpusChunk[]>;
 
 /** http 模式 sparse：返回有序 chunkId；失败应抛错（禁止静默空） */

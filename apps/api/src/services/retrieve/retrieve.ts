@@ -70,7 +70,11 @@ export async function runRetrieve(
   }
 
   // super_admin 与 member 同检索谓词；P2 无 docId terms ACL
-  const corpus = await deps.loadCorpus({ kbId: input.kbId, scope: input.scope });
+  const corpus = await deps.loadCorpus({
+    kbId: input.kbId,
+    scope: input.scope,
+    userId: input.userId,
+  });
   if (corpus.length === 0) {
     return fail('kb_not_ready', 'no ready∧active documents in kb');
   }

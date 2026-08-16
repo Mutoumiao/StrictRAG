@@ -16,6 +16,11 @@ import {
   type ChunkRow,
   type ChunksRepo,
 } from '../services/chunks.js';
+import {
+  isDeptAclEnforced,
+  isDocVisibleForDeptAcl,
+  loadDeptAssignments,
+} from '../services/retrieve/dept-acl.js';
 
 export type ChunkRouteDeps = {
   chunks?: ChunksRepo;
@@ -57,6 +62,12 @@ export function createChunkRoutes(deps: ChunkRouteDeps = {}): Hono<{ Variables: 
     if (!doc) {
       return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
     }
+    if (isDeptAclEnforced()) {
+      const assignments = await loadDeptAssignments(doc.tenantId, c.get('auth')?.userId);
+      if (!isDocVisibleForDeptAcl(doc, assignments, true)) {
+        return fail(c, BizCode.FORBIDDEN, 'department acl denied', 403);
+      }
+    }
 
     const rows = await repo.listByDocVersion({
       docId,
@@ -88,6 +99,12 @@ export function createChunkRoutes(deps: ChunkRouteDeps = {}): Hono<{ Variables: 
     const doc = await repo.getDoc(docId);
     if (!doc) {
       return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
+    }
+    if (isDeptAclEnforced()) {
+      const assignments = await loadDeptAssignments(doc.tenantId, c.get('auth')?.userId);
+      if (!isDocVisibleForDeptAcl(doc, assignments, true)) {
+        return fail(c, BizCode.FORBIDDEN, 'department acl denied', 403);
+      }
     }
 
     const row = await repo.getById(docId, chunkId, doc.indexVersion);

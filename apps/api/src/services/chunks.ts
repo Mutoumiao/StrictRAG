@@ -23,6 +23,9 @@ export type DocChunkContext = {
   indexVersion: number;
   status: string;
   lifecycle: string;
+  tenantId?: string;
+  ownerDeptId?: string | null;
+  visibilityLevel?: number | null;
 };
 
 export type ListChunksInput = {
@@ -51,6 +54,9 @@ export const chunksRepo: ChunksRepo = {
         indexVersion: documents.indexVersion,
         status: documents.status,
         lifecycle: documents.lifecycle,
+        tenantId: documents.tenantId,
+        ownerDeptId: documents.ownerDeptId,
+        visibilityLevel: documents.visibilityLevel,
       })
       .from(documents)
       .where(eq(documents.id, docId))

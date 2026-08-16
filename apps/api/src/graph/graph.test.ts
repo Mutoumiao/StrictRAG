@@ -113,6 +113,26 @@ describe('runAskGraph M1 route+retrieve', () => {
     expect(r.citations).toEqual([]);
   });
 
+  it('retrieve 透传 userId（P3b-DEPT 缝）', async () => {
+    let seen: string | undefined;
+    const r = await runAskGraph(
+      baseInput({ userId: 'u-dept' }),
+      deps({
+        chat: happyChat,
+        retrieve: async (input) => {
+          seen = input.userId;
+          return {
+            ok: true,
+            evidence: evidenceOk,
+            meta: { esMode: 'mock', candidateCount: 1, denseHits: 1, sparseHits: 1 },
+          };
+        },
+      }),
+    );
+    expect(r.status).toBe('answered');
+    expect(seen).toBe('u-dept');
+  });
+
   it('empty evidence → low_retrieval abstained', async () => {
     const r = await runAskGraph(
       baseInput(),

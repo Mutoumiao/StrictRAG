@@ -7,6 +7,11 @@ import {
 import { and, eq, inArray } from 'drizzle-orm';
 
 import { getDb } from '../db.js';
+import {
+  filterDocsForDeptAcl,
+  isDeptAclEnforced,
+  loadDeptAssignments,
+} from './dept-acl.js';
 import type { CorpusChunk, CorpusLoader, RetrieveScope } from './types.js';
 
 /** 文档侧双闸门 + 可选 docTypes（loadCorpusFromDb / hasRetrievableDocs 共用） */
@@ -39,11 +44,16 @@ export function filterDocsForRetrieve<T extends DocForRetrieve>(
  * draft / superseded / 非 ready 不进。
  * sparse mock 用 body_text/preview；dense 用 chunk_embeddings。
  */
-export const loadCorpusFromDb: CorpusLoader = async ({ kbId, scope }) => {
+export const loadCorpusFromDb: CorpusLoader = async ({ kbId, scope, userId }) => {
   const db = getDb();
   const docs = await db.select().from(documents).where(eq(documents.kbId, kbId));
 
-  const allowed = filterDocsForRetrieve(docs, scope);
+  const dual = filterDocsForRetrieve(docs, scope);
+  const enforce = isDeptAclEnforced();
+  const assignments = enforce
+    ? await loadDeptAssignments(dual[0]?.tenantId, userId)
+    : [];
+  const allowed = filterDocsForDeptAcl(dual, { assignments, enforce });
 
   if (allowed.length === 0) return [];
 
@@ -90,9 +100,18 @@ export const loadCorpusFromDb: CorpusLoader = async ({ kbId, scope }) => {
   });
 };
 
-/** 空库/无可检索文档判定用：是否存在 ready∧active（含 scope） */
-export async function hasRetrievableDocs(kbId: string, scope?: RetrieveScope): Promise<boolean> {
+/** 空库/无可检索文档判定用：是否存在 ready∧active（含 scope + 同一部门滤） */
+export async function hasRetrievableDocs(
+  kbId: string,
+  scope?: RetrieveScope,
+  userId?: string,
+): Promise<boolean> {
   const db = getDb();
   const docs = await db.select().from(documents).where(eq(documents.kbId, kbId));
-  return filterDocsForRetrieve(docs, scope).length > 0;
+  const dual = filterDocsForRetrieve(docs, scope);
+  const enforce = isDeptAclEnforced();
+  const assignments = enforce
+    ? await loadDeptAssignments(dual[0]?.tenantId, userId)
+    : [];
+  return filterDocsForDeptAcl(dual, { assignments, enforce }).length > 0;
 }

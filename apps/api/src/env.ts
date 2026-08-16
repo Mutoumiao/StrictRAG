@@ -91,6 +91,14 @@ const EnvSchema = z
       .default('false')
       .transform((v) => v === 'true'),
     /**
+     * 检索/预览部门精确匹配（ADR-057 子集）。仓库默认 false。
+     * **禁止**默认 true / 宣称全文隔离（无继承、无 grant、无 ES）。
+     */
+    DEPT_ACL_ENFORCE: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((v) => v === 'true'),
+    /**
      * 会话近窗 rewrite（ADR-047）。仓库默认 false。
      * dogfood 可设 true；**禁止**把默认改 true / 宣称 L2 准出。
      */

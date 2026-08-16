@@ -34,6 +34,11 @@ import {
   isSensitiveCompleteBlocked,
   parseDataClassFromConfig,
 } from '../../services/kb-settings.js';
+import {
+  isDeptAclEnforced,
+  isDocVisibleForDeptAcl,
+  loadDeptAssignments,
+} from '../../services/retrieve/dept-acl.js';
 import { enqueueIngest } from '../../services/queue.js';
 import { effectiveMaxUploadBytes, getStorage } from '../../services/storage.js';
 import { toDetail, toListItem } from './mappers.js';
@@ -440,6 +445,12 @@ documentRoutes.get('/documents/:docId', requirePermissionWhenEnforced('doc.view'
   const doc = await documentRepo.getDoc(docId);
   if (!doc) {
     return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
+  }
+  if (isDeptAclEnforced()) {
+    const assignments = await loadDeptAssignments(doc.tenantId, c.get('auth')?.userId);
+    if (!isDocVisibleForDeptAcl(doc, assignments, true)) {
+      return fail(c, BizCode.FORBIDDEN, 'department acl denied', 403);
+    }
   }
   return ok(c, toDetail(doc));
 });
