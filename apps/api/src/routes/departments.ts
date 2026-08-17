@@ -37,7 +37,7 @@ export type DepartmentsRouteDeps = {
 /**
  * 部门组织壳（ADR-057 / B5）。
  * 树 → dept.manage；用户归属 → user.manage。
- * **未**实现 DEPT_ACL_ENFORCE 检索强制。
+ * 本路由只做树 / 归属；检索过滤在 retrieve/dept-acl。
  */
 export function createDepartmentsRoutes(
   deps: DepartmentsRouteDeps = {},

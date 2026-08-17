@@ -38,6 +38,8 @@ import {
   isDeptAclEnforced,
   isDocVisibleForDeptAcl,
   loadDeptAssignments,
+  loadDeptGrants,
+  loadDeptNodes,
 } from '../../services/retrieve/dept-acl.js';
 import { enqueueIngest } from '../../services/queue.js';
 import { effectiveMaxUploadBytes, getStorage } from '../../services/storage.js';
@@ -447,8 +449,13 @@ documentRoutes.get('/documents/:docId', requirePermissionWhenEnforced('doc.view'
     return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
   }
   if (isDeptAclEnforced()) {
-    const assignments = await loadDeptAssignments(doc.tenantId, c.get('auth')?.userId);
-    if (!isDocVisibleForDeptAcl(doc, assignments, true)) {
+    const userId = c.get('auth')?.userId;
+    const [assignments, depts, grants] = await Promise.all([
+      loadDeptAssignments(doc.tenantId, userId),
+      loadDeptNodes(doc.tenantId),
+      loadDeptGrants(doc.tenantId, userId),
+    ]);
+    if (!isDocVisibleForDeptAcl(doc, assignments, true, depts, grants)) {
       return fail(c, BizCode.FORBIDDEN, 'department acl denied', 403);
     }
   }

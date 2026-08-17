@@ -91,8 +91,8 @@ const EnvSchema = z
       .default('false')
       .transform((v) => v === 'true'),
     /**
-     * 检索/预览部门精确匹配（ADR-057 子集）。仓库默认 false。
-     * **禁止**默认 true / 宣称全文隔离（无继承、无 grant、无 ES）。
+     * 检索/预览部门过滤（ADR-057 子集：精确 ∪ 祖先 + 精确 grant）。仓库默认 false。
+     * **禁止**默认 true / 宣称全文隔离（无 ES 查询期、无解禁）。
      */
     DEPT_ACL_ENFORCE: z
       .enum(['true', 'false'])

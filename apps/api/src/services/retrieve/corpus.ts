@@ -11,6 +11,8 @@ import {
   filterDocsForDeptAcl,
   isDeptAclEnforced,
   loadDeptAssignments,
+  loadDeptGrants,
+  loadDeptNodes,
 } from './dept-acl.js';
 import type { CorpusChunk, CorpusLoader, RetrieveScope } from './types.js';
 
@@ -50,10 +52,15 @@ export const loadCorpusFromDb: CorpusLoader = async ({ kbId, scope, userId }) =>
 
   const dual = filterDocsForRetrieve(docs, scope);
   const enforce = isDeptAclEnforced();
-  const assignments = enforce
-    ? await loadDeptAssignments(dual[0]?.tenantId, userId)
-    : [];
-  const allowed = filterDocsForDeptAcl(dual, { assignments, enforce });
+  const tenantId = dual[0]?.tenantId;
+  const [assignments, depts, grants] = enforce
+    ? await Promise.all([
+        loadDeptAssignments(tenantId, userId),
+        loadDeptNodes(tenantId),
+        loadDeptGrants(tenantId, userId),
+      ])
+    : [[], [], []];
+  const allowed = filterDocsForDeptAcl(dual, { assignments, enforce, depts, grants });
 
   if (allowed.length === 0) return [];
 
@@ -110,8 +117,13 @@ export async function hasRetrievableDocs(
   const docs = await db.select().from(documents).where(eq(documents.kbId, kbId));
   const dual = filterDocsForRetrieve(docs, scope);
   const enforce = isDeptAclEnforced();
-  const assignments = enforce
-    ? await loadDeptAssignments(dual[0]?.tenantId, userId)
-    : [];
-  return filterDocsForDeptAcl(dual, { assignments, enforce }).length > 0;
+  const tenantId = dual[0]?.tenantId;
+  const [assignments, depts, grants] = enforce
+    ? await Promise.all([
+        loadDeptAssignments(tenantId, userId),
+        loadDeptNodes(tenantId),
+        loadDeptGrants(tenantId, userId),
+      ])
+    : [[], [], []];
+  return filterDocsForDeptAcl(dual, { assignments, enforce, depts, grants }).length > 0;
 }

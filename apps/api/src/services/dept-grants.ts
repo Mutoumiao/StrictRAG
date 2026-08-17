@@ -114,7 +114,7 @@ export function createMemoryDeptGrantsRepo(): DeptGrantsRepo {
   };
 }
 
-/** 生产 Drizzle 实现。检索路径禁止调用本 repo。 */
+/** 生产 Drizzle 实现。DEPT_ACL_ENFORCE 关时检索禁止调用；开时 retrieve 可读 listGrants。 */
 export const deptGrantsRepo: DeptGrantsRepo = {
   async listGrants(filter) {
     const conds = [

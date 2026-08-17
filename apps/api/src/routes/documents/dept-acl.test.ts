@@ -48,6 +48,8 @@ vi.mock('../../services/retrieve/dept-acl.js', async (importOriginal) => {
     ...actual,
     isDeptAclEnforced: () => deptAcl.enforce,
     loadDeptAssignments: async () => deptAcl.assignments,
+    loadDeptNodes: async () => [],
+    loadDeptGrants: async () => [],
   };
 });
 

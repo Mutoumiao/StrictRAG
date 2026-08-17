@@ -20,6 +20,8 @@ import {
   isDeptAclEnforced,
   isDocVisibleForDeptAcl,
   loadDeptAssignments,
+  loadDeptGrants,
+  loadDeptNodes,
 } from '../services/retrieve/dept-acl.js';
 
 export type ChunkRouteDeps = {
@@ -63,8 +65,13 @@ export function createChunkRoutes(deps: ChunkRouteDeps = {}): Hono<{ Variables: 
       return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
     }
     if (isDeptAclEnforced()) {
-      const assignments = await loadDeptAssignments(doc.tenantId, c.get('auth')?.userId);
-      if (!isDocVisibleForDeptAcl(doc, assignments, true)) {
+      const userId = c.get('auth')?.userId;
+      const [assignments, depts, grants] = await Promise.all([
+        loadDeptAssignments(doc.tenantId, userId),
+        loadDeptNodes(doc.tenantId),
+        loadDeptGrants(doc.tenantId, userId),
+      ]);
+      if (!isDocVisibleForDeptAcl(doc, assignments, true, depts, grants)) {
         return fail(c, BizCode.FORBIDDEN, 'department acl denied', 403);
       }
     }
@@ -101,8 +108,13 @@ export function createChunkRoutes(deps: ChunkRouteDeps = {}): Hono<{ Variables: 
       return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
     }
     if (isDeptAclEnforced()) {
-      const assignments = await loadDeptAssignments(doc.tenantId, c.get('auth')?.userId);
-      if (!isDocVisibleForDeptAcl(doc, assignments, true)) {
+      const userId = c.get('auth')?.userId;
+      const [assignments, depts, grants] = await Promise.all([
+        loadDeptAssignments(doc.tenantId, userId),
+        loadDeptNodes(doc.tenantId),
+        loadDeptGrants(doc.tenantId, userId),
+      ]);
+      if (!isDocVisibleForDeptAcl(doc, assignments, true, depts, grants)) {
         return fail(c, BizCode.FORBIDDEN, 'department acl denied', 403);
       }
     }

@@ -4,7 +4,7 @@ import { baseColumns } from '../_shard/base-columns.js';
 
 /**
  * 跨部门授权（ADR-057 / P3b-GRANT）。
- * 表可存可回读；检索零读本表。granted_at 复用 created_at，不另开时间列。
+ * 表可存可回读；enforce 开时 api retrieve 可读未过期精确行。granted_at 复用 created_at。
  * 唯一：(user_id, dept_id) 普通唯一索引；过期后再授 = 先 DELETE 再 POST。
  */
 export const deptCrossGrants = pgTable(

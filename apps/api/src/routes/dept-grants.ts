@@ -36,7 +36,7 @@ export type DeptGrantsRouteDeps = {
 /**
  * 跨部门授权 CRUD（ADR-057 / P3b-GRANT）。
  * 始终 requirePermission('dept.manage')，不走 WhenEnforced。
- * 检索零读本表。
+ * CRUD 不读检索。enforce 开时 retrieve 可读未过期精确 grant。
  */
 export function createDeptGrantsRoutes(
   deps: DeptGrantsRouteDeps = {},
