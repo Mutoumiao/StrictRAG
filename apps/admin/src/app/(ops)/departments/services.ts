@@ -6,8 +6,10 @@
 
 import type {
   CreateDepartmentBody,
+  CreateDeptCrossGrantBody,
   Department,
   DepartmentTreeNode,
+  DeptCrossGrant,
   PatchDepartmentBody,
   PutUserDepartmentsBody,
   UserDepartmentsView,
@@ -17,10 +19,13 @@ import { mapBizError } from '@/lib/map-biz-error';
 
 import {
   createDepartment,
+  createDeptCrossGrant,
   deleteDepartment,
+  deleteDeptCrossGrant,
   getUserDepartments,
   listDepartmentTree,
   listDepartments,
+  listDeptCrossGrants,
   patchDepartment,
   putUserDepartments,
 } from './api';
@@ -89,6 +94,39 @@ export async function saveUserDepts(
   try {
     const view = await putUserDepartments(userId, body);
     return { ok: true, view };
+  } catch (err) {
+    return { ok: false, message: mapBizError(err) };
+  }
+}
+
+export async function loadGrants(): Promise<
+  { ok: true; grants: DeptCrossGrant[] } | { ok: false; message: string }
+> {
+  try {
+    const grants = await listDeptCrossGrants();
+    return { ok: true, grants };
+  } catch (err) {
+    return { ok: false, message: mapBizError(err) };
+  }
+}
+
+export async function createGrant(
+  body: CreateDeptCrossGrantBody,
+): Promise<{ ok: true; grant: DeptCrossGrant } | { ok: false; message: string }> {
+  try {
+    const grant = await createDeptCrossGrant(body);
+    return { ok: true, grant };
+  } catch (err) {
+    return { ok: false, message: mapBizError(err) };
+  }
+}
+
+export async function removeGrant(
+  id: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  try {
+    await deleteDeptCrossGrant(id);
+    return { ok: true };
   } catch (err) {
     return { ok: false, message: mapBizError(err) };
   }

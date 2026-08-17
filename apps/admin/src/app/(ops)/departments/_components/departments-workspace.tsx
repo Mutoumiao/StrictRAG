@@ -1,12 +1,17 @@
 'use client';
 
 /**
- * 部门组织薄页：树列表 + 新建/启停/删除 + 用户归属（userId 粘贴）。
- * 不宣称 DEPT_ACL 检索强制。
+ * 部门组织薄页：树列表 + 用户归属 + 跨部门授权表。
+ * 表可配，检索是否消费另见开关。不宣称 DEPT_ACL 检索强制。
  */
 
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import type { Department, DepartmentTreeNode } from '@strict-rag/contracts';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import type {
+  Department,
+  DepartmentTreeNode,
+  DeptCrossGrant,
+  VisibilityLevel,
+} from '@strict-rag/contracts';
 import { Button } from '@strict-rag/ui/components/ui/button';
 import { Input } from '@strict-rag/ui/components/ui/input';
 import { Label } from '@strict-rag/ui/components/ui/label';
@@ -15,12 +20,17 @@ import { useAdminAuth } from '@/components/auth-guard';
 
 import {
   createDept,
+  createGrant,
   loadDeptWorkspace,
+  loadGrants,
   loadUserDepts,
   removeDept,
+  removeGrant,
   saveUserDepts,
   updateDept,
 } from '../services';
+
+const VISIBILITY_LEVELS: VisibilityLevel[] = [10, 20, 30, 40];
 
 function flattenTree(
   nodes: DepartmentTreeNode[],
@@ -57,6 +67,15 @@ export function DepartmentsWorkspace() {
   const [assignLeader, setAssignLeader] = useState(false);
   const [assignView, setAssignView] = useState<string | null>(null);
 
+  const [grants, setGrants] = useState<DeptCrossGrant[]>([]);
+  const [grantLoadError, setGrantLoadError] = useState(false);
+  const grantGen = useRef(0);
+  const [grantUserId, setGrantUserId] = useState('');
+  const [grantDeptId, setGrantDeptId] = useState('');
+  const [grantLevel, setGrantLevel] = useState<VisibilityLevel>(20);
+  const [grantExpires, setGrantExpires] = useState('');
+  const [grantReason, setGrantReason] = useState('');
+
   const load = useCallback(async () => {
     if (!canManage) {
       setState('error');
@@ -76,9 +95,27 @@ export function DepartmentsWorkspace() {
     setState('ready');
   }, [canManage]);
 
+  const loadGrantList = useCallback(async () => {
+    if (!canManage) return;
+    const gen = ++grantGen.current;
+    const r = await loadGrants();
+    if (gen !== grantGen.current) return;
+    if (!r.ok) {
+      setError(r.message);
+      setGrantLoadError(true);
+      return;
+    }
+    setGrantLoadError(false);
+    setGrants(r.grants);
+  }, [canManage]);
+
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    void loadGrantList();
+  }, [loadGrantList]);
 
   async function onCreate(e: FormEvent) {
     e.preventDefault();
@@ -177,6 +214,49 @@ export function DepartmentsWorkspace() {
     await onLoadAssign();
   }
 
+  async function onCreateGrant(e: FormEvent) {
+    e.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setFlash(null);
+    setError(null);
+    const r = await createGrant({
+      userId: grantUserId.trim(),
+      deptId: grantDeptId.trim(),
+      maxVisibilityLevel: grantLevel,
+      expiresAt: grantExpires.trim() === '' ? null : grantExpires.trim(),
+      ...(grantReason.trim() ? { reason: grantReason.trim() } : {}),
+    });
+    if (!r.ok) {
+      setBusy(false);
+      setError(r.message);
+      return;
+    }
+    setGrantUserId('');
+    setGrantDeptId('');
+    setGrantExpires('');
+    setGrantReason('');
+    setFlash('已创建授权');
+    await loadGrantList();
+    setBusy(false);
+  }
+
+  async function onDeleteGrant(id: string) {
+    if (busy) return;
+    setBusy(true);
+    setFlash(null);
+    setError(null);
+    const r = await removeGrant(id);
+    if (!r.ok) {
+      setBusy(false);
+      setError(r.message);
+      return;
+    }
+    setFlash('已删除授权');
+    await loadGrantList();
+    setBusy(false);
+  }
+
   if (!canManage) {
     return (
       <div className="p-6">
@@ -193,7 +273,7 @@ export function DepartmentsWorkspace() {
       <header>
         <h1 className="text-lg font-semibold">部门</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          组织树 CRUD 与用户归属（壳）。未开启检索部门强制（DEPT_ACL_ENFORCE）。
+          组织树 CRUD 与用户归属（壳）。跨部门授权表可配，检索是否消费另见开关。未开启检索部门强制（DEPT_ACL_ENFORCE）。
         </p>
       </header>
 
@@ -374,6 +454,106 @@ export function DepartmentsWorkspace() {
           </form>
         </section>
       )}
+
+      <section className="space-y-3 rounded-lg border border-border p-4">
+        <div>
+          <h2 className="text-sm font-medium">跨部门授权</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            表可配，检索是否消费另见开关
+          </p>
+        </div>
+        <form className="grid gap-3 sm:grid-cols-2" onSubmit={(e) => void onCreateGrant(e)}>
+          <div className="space-y-1">
+            <Label htmlFor="grant-user">授权用户</Label>
+            <Input
+              id="grant-user"
+              value={grantUserId}
+              onChange={(e) => setGrantUserId(e.target.value)}
+              placeholder="uuid"
+              required
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="grant-dept">授权部门</Label>
+            <Input
+              id="grant-dept"
+              value={grantDeptId}
+              onChange={(e) => setGrantDeptId(e.target.value)}
+              placeholder="uuid"
+              required
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="grant-level">可见级</Label>
+            <select
+              id="grant-level"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+              value={grantLevel}
+              onChange={(e) => setGrantLevel(Number(e.target.value) as VisibilityLevel)}
+            >
+              {VISIBILITY_LEVELS.map((level) => (
+                <option key={level} value={level}>
+                  {level}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="grant-expires">过期时间</Label>
+            <Input
+              id="grant-expires"
+              value={grantExpires}
+              onChange={(e) => setGrantExpires(e.target.value)}
+              placeholder="yyyy-MM-dd HH:mm:ss"
+            />
+          </div>
+          <div className="space-y-1 sm:col-span-2">
+            <Label htmlFor="grant-reason">原因</Label>
+            <Input
+              id="grant-reason"
+              value={grantReason}
+              onChange={(e) => setGrantReason(e.target.value)}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <Button type="submit" disabled={busy || !grantUserId.trim() || !grantDeptId.trim()}>
+              新建授权
+            </Button>
+          </div>
+        </form>
+        {grantLoadError ? (
+          <p className="text-sm text-muted-foreground">授权列表加载失败</p>
+        ) : grants.length === 0 ? (
+          <p className="text-sm text-muted-foreground">暂无授权</p>
+        ) : (
+          <ul className="divide-y divide-border rounded-lg border border-border">
+            {grants.map((g) => (
+              <li
+                key={g.id}
+                className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm"
+              >
+                <div className="min-w-0 break-all text-xs">
+                  <div>userId {g.userId}</div>
+                  <div>deptId {g.deptId}</div>
+                  <div>level {g.maxVisibilityLevel}</div>
+                  <div>expiresAt {g.expiresAt ?? '—'}</div>
+                  <div>reason {g.reason ?? '—'}</div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={busy}
+                  aria-label="删除授权"
+                  onClick={() => void onDeleteGrant(g.id)}
+                >
+                  删除
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

@@ -7,8 +7,10 @@
 
 import type {
   CreateDepartmentBody,
+  CreateDeptCrossGrantBody,
   Department,
   DepartmentTreeNode,
+  DeptCrossGrant,
   PatchDepartmentBody,
   PutUserDepartmentsBody,
   UserDepartmentsView,
@@ -45,4 +47,19 @@ export async function putUserDepartments(userId: string, body: PutUserDepartment
     `/api/v1/admin/users/${userId}/departments`,
     body,
   );
+}
+
+export async function listDeptCrossGrants() {
+  return http.get<DeptCrossGrant[]>('/api/v1/admin/dept-cross-grants');
+}
+
+export async function createDeptCrossGrant(body: CreateDeptCrossGrantBody) {
+  return http.post<DeptCrossGrant, CreateDeptCrossGrantBody>(
+    '/api/v1/admin/dept-cross-grants',
+    body,
+  );
+}
+
+export async function deleteDeptCrossGrant(id: string) {
+  return http.delete<{ id: string; deleted: boolean }>(`/api/v1/admin/dept-cross-grants/${id}`);
 }
