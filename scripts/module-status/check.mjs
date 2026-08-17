@@ -179,6 +179,9 @@ function negatedIn(doc, token) {
   return false;
 }
 
+// 产物 / 目录简写（非本包源码路径；已由上下文说明）
+const PATH_STOP = new Set(['l1-gate-snapshot.json', 'corpus']);
+
 function checkPaths(doc) {
   const pkg = DOC_PKG[doc];
   const roots = pkg ? pathRoots(pkg) : [];
@@ -220,6 +223,7 @@ function checkPaths(doc) {
     }
     // 相对简写（文件/目录）
     if (/\.(ts|tsx|md|sql|json|mjs|css|yaml|yml|js)$/.test(clean) || isDir) {
+      if (PATH_STOP.has(clean)) continue;
       const cands = expandBraces(clean);
       const ok = cands.some((c) => findInRoots(c, roots, isDir));
       if (!ok) {
@@ -290,7 +294,7 @@ const UPPER_STOP = new Set([
   'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B9', 'B10', 'B11', 'B12', 'B13',
   'R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R8', 'R9', 'R10',
   // 配置 / 概念名（非导出符号）
-  'DEPT_ACL_ENFORCE', 'L1_KB_ID', 'L1_PERSIST_EVAL', 'L1_MAX_CASES', 'L1_TENANT_ID',
+  'DEPT_ACL_ENFORCE', 'L1_KB_ID', 'L1_PERSIST_EVAL', 'L2_PERSIST_EVAL', 'L1_MAX_CASES', 'L1_TENANT_ID',
   'L1_USER_ID', 'L1_GOLD_PATH', 'L1_OUT_DIR', 'NEXT_PUBLIC_API_BASE_URL',
   'UNAUTHORIZED', 'SESSION_DISABLED', 'NEXT_PUBLIC_APP_ENV', 'OPENAPI',
 ]);
@@ -358,7 +362,7 @@ const SNAKE_STOP = new Set([
   'false', 'true', 'worker', 'api', 'env', 'dashboard', 'execute', 'timeout', 'name',
   'description', 'mode', 'codes', 'body_text', 'kb_settings_patch', 'doc_operator',
   'super_admin', 'codes_json', 'embedding', 'vector', 'retrieve_mode', 'report_json',
-  'signoff_eligible',
+  'signoff_eligible', 'session_multiturn', 'golden_2x2',
 ]);
 
 function checkTables(doc) {
