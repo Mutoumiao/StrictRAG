@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（S2c 运营薄壳：文档 / 审批 / 成员 / 分片 / 设置 / 模型 + 用户 / 角色 / 部门 + **数据面板** + **反馈队列**） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT + admin **dev-login**（经 api）· 知识库 = 手工填写 uuid · 菜单 = `clipMenuForShell` 裁剪（catalog 为 SSOT）· API 默认 `http://127.0.0.1:4000` |
 | 关联模块 | API 依赖：`api` 的文档 / 审批 / 成员 / 分片 / 设置 / 模型 / 用户角色 / 部门 / dashboard / **feedback-queue**；菜单与权限码：`admin-catalog`；类型：`contracts`；样式：`ui` |
-| 最近更新 | 2026-08-17（P3b-DOCUI：文档行内改部门字段；**无**强制开关 UI） |
+| 最近更新 | 2026-08-17（P3b-GRUI：部门页可配 grant；**无**强制开关 UI） |
 | Spec | `.trellis/spec/admin/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · 审批 / 成员相关 API |
 
@@ -62,7 +62,7 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 - `/departments`：组织树列表、新建根 / 子部门、启用停用、删除（要求无子部门且无成员）、用户归属管理（查询归属 + **主部门 / 负责人**标记，需要 `user.manage` 权限）
 - 需要 `dept.manage` 权限；无权限时显示 403 状态；数据路径仅 `departments/api.ts` 一处
 - 文档页可点行改 `ownerDeptId` / `visibilityLevel`（`doc.editor` 裁保存；**无**强制开关 UI）
-- **没有**跨部门授权 UI、**没有** DEPT_ACL 开关的运营页
+- 部门页可配跨部门授权（uuid 粘贴 + 级别 + 可选过期；**检索是否消费看 api `DEPT_ACL_ENFORCE`**）；**没有** DEPT_ACL 开关运营页
 
 ### 审批中心
 - `/approvals`：待审批 / 已通过 两个分栏
@@ -86,7 +86,7 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 - 类型 `@strict-rag/contracts`；菜单 / 权限码 `@strict-rag/admin-catalog`
 - 样式：Tailwind v4 + ui 主题；构建 `next build --webpack`
 - **单元 / 组件测试**：外壳 / Guard / 审批 / dashboard + **P0 R5/R6** + `lib/kb-context.test.ts`（admin KB key 不与 web 混写）+ `auth/client-session.test.ts`（admin session 与 web 隔离）
-  - **没有** documents / members / chunks / settings / models / users / roles / departments / **feedback** 工作区测；**没有** E2E；**没有** http 全路径 refresh 集成测
+  - **没有** members / chunks / settings / models / users / roles / **feedback** 工作区测；documents / departments 工作区测已有；**没有** E2E；**没有** http 全路径 refresh 集成测
 
 ---
 

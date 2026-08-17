@@ -266,7 +266,7 @@ route
 | `SESSION_REWRITE_ENABLED` | `false` | dogfood 可 `true`；**禁止**仓库默认改 true |
 | `ASK_RATE_LIMIT_RPM` | `0` | 0=关闭 |
 | `AUTH_ENFORCE` | `false` | **不影响** ask 成员闸（始终 enforce 成员） |
-| `DEPT_ACL_ENFORCE` | `false` | 精确匹配；**无**继承 / **无** grant / **无** ES；**禁止**默认改 true |
+| `DEPT_ACL_ENFORCE` | `false` | 开时精确 ∪ 祖先 + 精确 grant；**无** ES 查询期 / **禁止**默认改 true |
 | `LANGFUSE_ENABLED` | `false` | 真 SDK 不阻塞 ask |
 | `OBS_MEMORY_TRACE` | `true` | 进程内 tracer |
 

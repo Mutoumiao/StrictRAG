@@ -5,15 +5,15 @@
 | 路径 | `apps/api` |
 | 端口 | 4000 |
 | 成熟度 | **可演示**（已包含：P0/P1 入库 + S2 最小问答 + B1–B6 最小运营 API + B10 L1 工程 seed + B12 策略闸 + B13 反馈 API；演示依赖 mock ES / 通常走 mock Gateway；L1 **≠** 业务签字门禁） |
-| 默认依赖模式 | 检索：`RETRIEVE_ES_MODE=mock`（默认 mock ES）；鉴权：临时双 JWT，`AUTH_ENFORCE` **默认 `false`**；rewrite：`SESSION_REWRITE_ENABLED` **默认 false**（图边已落；dogfood 可开；**≠** 准出）；对象存储：`local`（`STORAGE_LOCAL_DIR=.data/objects`）；Gateway：`GATEWAY_MODE=''`（空按 `GATEWAY_BASE_URL` 推断，缺 URL 走 mock）；上传上限 `INGEST_MAX_FILE_BYTES=52_428_800`（50 MiB）/ 天花板 `INGEST_MAX_FILE_BYTES_CEILING=209_715_200`（200 MiB）；`LANGFUSE_ENABLED=false`；`OBS_MEMORY_TRACE=true`。**B3-W/B2-W**：ask 读取 platform 绑定 + **KB scope 绑定覆盖（只读 list，无 PUT KB 绑定 HTTP）**；**B4-W**：每请求从 DB `user_roles` hydrate；`DEPT_ACL_ENFORCE` **默认 `false`**（精确匹配；**无**继承 / **无** grant / **无** ES）；`ASK_RATE_LIMIT_RPM=0`；L1 CLI 需显式指定 `L1_KB_ID`（可选 `L1_PERSIST_EVAL`） |
+| 默认依赖模式 | 检索：`RETRIEVE_ES_MODE=mock`（默认 mock ES）；鉴权：临时双 JWT，`AUTH_ENFORCE` **默认 `false`**；rewrite：`SESSION_REWRITE_ENABLED` **默认 false**（图边已落；dogfood 可开；**≠** 准出）；对象存储：`local`（`STORAGE_LOCAL_DIR=.data/objects`）；Gateway：`GATEWAY_MODE=''`（空按 `GATEWAY_BASE_URL` 推断，缺 URL 走 mock）；上传上限 `INGEST_MAX_FILE_BYTES=52_428_800`（50 MiB）/ 天花板 `INGEST_MAX_FILE_BYTES_CEILING=209_715_200`（200 MiB）；`LANGFUSE_ENABLED=false`；`OBS_MEMORY_TRACE=true`。**B3-W/B2-W**：ask 读取 platform 绑定 + **KB scope 绑定覆盖（只读 list，无 PUT KB 绑定 HTTP）**；**B4-W**：每请求从 DB `user_roles` hydrate；`DEPT_ACL_ENFORCE` **默认 `false`**（开时精确 ∪ 祖先 + 精确 grant；**无** ES 查询期）；`ASK_RATE_LIMIT_RPM=0`；L1 CLI 需显式指定 `L1_KB_ID`（可选 `L1_PERSIST_EVAL`） |
 | 关联模块 | 入库演示还需要 `worker` + PostgreSQL + Redis；契约 `@strict-rag/contracts`（含 `IMPLEMENTED_CHUNK_STRATEGIES` / `IngestJobData`）；schema `@strict-rag/db`（含 `eval_runs`）；L1 gold / RACI 在仓根 `fixtures/l1/`；L2 题面草案在 `fixtures/l2/` |
-| 最近更新 | 2026-08-17（P3b-GRANT 表+CRUD · P3b-SENS 敏感闸 · P3b-DEPT 精确过滤默认关；**≠** 准出 / **≠** 部门强制已上 / **≠** 敏感已解禁） |
+| 最近更新 | 2026-08-17（P3b-INH 祖先继承 · P3b-GRT 精确 grant 进检索；默认仍关；**≠** 强制已上 / **≠** ES 查询期 / **≠** 解禁） |
 | Spec | `.trellis/spec/api/backend/`（含 [dashboard](../../.trellis/spec/api/backend/dashboard.md) · [l1-eval](../../.trellis/spec/api/backend/l1-eval.md) · [l2-eval](../../.trellis/spec/api/backend/l2-eval.md) · [l3-metrics](../../.trellis/spec/api/backend/l3-metrics.md)） |
 | PRD | `prds/05-api` · `04-pipelines` · `08-quality` · `09-security` |
 
 ## 一句话状态
 
-基于 Hono 的 HTTP 后端：入库 API、临时双 JWT 鉴权、单轮问答图 / **AI SDK UI Message Stream** 流式输出以及会话外壳均已落地；另有 **L1 黄金集工程 seed**（文件 gold + CLI 批跑 `executeAsk(skipTrace)` + 2×2 报告）与 **L2 多轮题面 + 工程 runner + 可选 persist**（`fixtures/l2/` + `run-l2-golden`；可写 `eval_runs`；**≠** 准出）。检索默认 **mock ES**，鉴权**不是**生产级 IdP；**mock L1 数字禁止当业务签字**；**rewrite 图边已落、默认关**；**显式回溯加深部分**；**文档回溯检索加码部分**；**库外文档回溯抑制部分**；**四态派生部分**（**≠** 准出 / **≠** 对外连续追问）。文档部门字段 **可存可回读**；`DEPT_ACL_ENFORCE` **默认关**（精确匹配；**无**继承 / **无** grant / **无** ES）；敏感 KB complete **fail-closed**（**无**解禁）。
+基于 Hono 的 HTTP 后端：入库 API、临时双 JWT 鉴权、单轮问答图 / **AI SDK UI Message Stream** 流式输出以及会话外壳均已落地；另有 **L1 黄金集工程 seed**（文件 gold + CLI 批跑 `executeAsk(skipTrace)` + 2×2 报告）与 **L2 多轮题面 + 工程 runner + 可选 persist**（`fixtures/l2/` + `run-l2-golden`；可写 `eval_runs`；**≠** 准出）。检索默认 **mock ES**，鉴权**不是**生产级 IdP；**mock L1 数字禁止当业务签字**；**rewrite 图边已落、默认关**；**显式回溯加深部分**；**文档回溯检索加码部分**；**库外文档回溯抑制部分**；**四态派生部分**（**≠** 准出 / **≠** 对外连续追问）。文档部门字段 **可存可回读**；`DEPT_ACL_ENFORCE` **默认关**（开时精确 ∪ 祖先 + 精确 grant；**无** ES 查询期）；敏感 KB complete **fail-closed**（**无**解禁）。
 
 ---
 
@@ -80,8 +80,8 @@
 - 禁止成环；已禁用的部门不可再挂新用户；删除仍有子部门或仍有用户的部门会返回 400
 - 数据表：`departments` / `user_departments`；migration `0005_b5_departments`；测试用内存仓库
 - 文档 `ownerDeptId` / `visibilityLevel` **已落库可回读**（`PATCH /documents/:docId` · `doc.editor` 始终验码；migration `0007`）
-- `GET/POST/DELETE /admin/dept-cross-grants`（`dept.manage` 始终验；migration `0008`）；**检索不读** grant 表
-- `DEPT_ACL_ENFORCE` **默认 false**：开时 retrieve / 文档预览 / chunks 精确匹配过滤（`filterDocsForDeptAcl`）；**无**祖先继承 / **无** grant 消费 / **无** ES 对称
+- `GET/POST/DELETE /admin/dept-cross-grants`（`dept.manage` 始终验；migration `0008`）；enforce 开时 retrieve/预览读未过期**精确** grant（不沿子树）
+- `DEPT_ACL_ENFORCE` **默认 false**：开时 `filterDocsForDeptAcl` 为精确 ∪ 祖先 + 精确 grant（预览与 retrieve 同函数）；**无** ES 查询期对称 / **无** 默认开
 - KB `dataClass`（`internal`|`sensitive`，缺省 internal）：`sensitive` complete 在 ACL 未就绪时 400 `RULE_VIOLATION`（**≠**解禁）
 
 ### 数据面板（B6 · 薄壳 · 只读）
@@ -138,7 +138,7 @@
 | L2 准出 / 多轮 runner | 题面草案 + **工程 CLI** + 可选 `eval_runs` persist 已落；**无**真跑准出 / 人签；图边/runner/persist ≠ 准出 |
 | L3 自动熔断 / 面板 | **打点+告警有**（六 counter + 主题投诉 + `l3_guard_alert_total` 含 `l2_stale`）；**无**超阈关默认 / 收窄窗 / Grafana |
 | CRAG / multi_hop | 未进入本阶段范围 |
-| 完整 ACL / 部门强制隔离 | 开关有、默认关、精确匹配；**无**继承 / **无** grant / **无** ES |
+| 完整 ACL / 部门强制隔离 | 开关有、默认关；开时精确 ∪ 祖先 + 精确 grant；**无** ES / **无** 默认开 |
 | 生产 IdP | 仍是临时双 JWT；**B4-W** 已读 `user_roles` hydrate（≠ Better Auth / 密码登录） |
 
 ### 其他包的 UI / 产品面挂账（非本包义务）
@@ -148,7 +148,7 @@
 | 知识库设置 admin 全量 UI（分片策略弹窗 / KB 模型绑定写 UI） | API：**docTypes + mode 闸 + KB 绑定读路径已接线**；admin 写 UI 可 defer |
 | 按历史 indexVersion 浏览分片 | ADR-052 明确 P2 阶段不做 |
 | Mongo 作为正文权威存储 | 目前演示读取的是 PG 的 `body_text` 字段；接真 Mongo 见 B9 |
-| 跨部门授权、DEPT_ACL 强制 | grant 表可存；过滤默认关；**检索未消费 grant**；ADR-057 全文未上 |
+| 跨部门授权、DEPT_ACL 强制 | grant 可存可配；过滤默认关；开时精确 grant 进检索（不沿子树）；ADR-057 全文未上 |
 | APM / 时序观测大盘 | B6 仅为 `GET /admin/dashboard/summary` 只读计数 + processReady，**不是**观测生产向 |
 | 反馈 API / UI | **本包 API 已有** `routes/feedback`；web 答后 + admin 队列 UI 见各自包文；SLA `docs/ops/feedback-sla.md` |
 | L1 业务签字门禁 / live 覆盖率闸 / 真跑数字 | 文件账本 + 可选 `eval_runs`；live 全量 30/30 已跑（`signoffEligible=true`）；ADR-046 快照可绑定；本跑 coverage=0 **不**宣称 L1 门禁 PASS；人签见 **B10-followup** 余量 |
