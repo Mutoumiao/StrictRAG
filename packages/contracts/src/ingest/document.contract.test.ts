@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  CompleteUploadBodySchema,
   DocumentDetailSchema,
   DocumentListItemSchema,
   PatchDocumentMetaBodySchema,
@@ -29,6 +30,37 @@ describe('VisibilityLevelSchema', () => {
 
   it.each([41, 15, 0, 50, '20'])('rejects %s', (level) => {
     expect(VisibilityLevelSchema.safeParse(level).success).toBe(false);
+  });
+});
+
+describe('CompleteUploadBodySchema', () => {
+  it('accepts empty / legacy body', () => {
+    expect(CompleteUploadBodySchema.safeParse({}).success).toBe(true);
+    expect(CompleteUploadBodySchema.safeParse({ declaredByteSize: 12 }).success).toBe(true);
+    expect(
+      CompleteUploadBodySchema.safeParse({ chunkStrategy: 'structure_paragraph' }).success,
+    ).toBe(true);
+  });
+
+  it('accepts ownerDeptId uuid or null', () => {
+    expect(
+      CompleteUploadBodySchema.safeParse({
+        ownerDeptId: '01900000-0000-7000-8000-0000000000de',
+      }).success,
+    ).toBe(true);
+    expect(CompleteUploadBodySchema.safeParse({ ownerDeptId: null }).success).toBe(true);
+  });
+
+  it('accepts visibilityLevel 10/20/30/40', () => {
+    expect(CompleteUploadBodySchema.safeParse({ visibilityLevel: 10 }).success).toBe(true);
+    expect(CompleteUploadBodySchema.safeParse({ visibilityLevel: 40 }).success).toBe(true);
+  });
+
+  it('rejects invalid ownerDeptId / visibilityLevel', () => {
+    expect(CompleteUploadBodySchema.safeParse({ ownerDeptId: 'not-a-uuid' }).success).toBe(false);
+    expect(CompleteUploadBodySchema.safeParse({ ownerDeptId: 'hr' }).success).toBe(false);
+    expect(CompleteUploadBodySchema.safeParse({ visibilityLevel: 41 }).success).toBe(false);
+    expect(CompleteUploadBodySchema.safeParse({ visibilityLevel: 15 }).success).toBe(false);
   });
 });
 

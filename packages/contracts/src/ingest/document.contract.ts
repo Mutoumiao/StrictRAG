@@ -50,6 +50,15 @@ export const UploadUrlResponseSchema = z.object({
 });
 export type UploadUrlResponse = z.infer<typeof UploadUrlResponseSchema>;
 
+/** 文档可见级：10/20/30/40（P3b-META；检索强制默认关） */
+export const VisibilityLevelSchema = z.union([
+  z.literal(10),
+  z.literal(20),
+  z.literal(30),
+  z.literal(40),
+]);
+export type VisibilityLevel = z.infer<typeof VisibilityLevelSchema>;
+
 export const CompleteUploadBodySchema = z.object({
   /** 可选：客户端声称的 size；服务端以对象实际大小为准 */
   declaredByteSize: z.number().int().nonnegative().optional(),
@@ -58,6 +67,8 @@ export const CompleteUploadBodySchema = z.object({
    * 多策略并存且文档尚无策略时 **必选**（未传 → 400）；已有策略可省略并保留。
    */
   chunkStrategy: z.string().min(1).max(64).optional(),
+  ownerDeptId: z.string().uuid().nullable().optional(),
+  visibilityLevel: VisibilityLevelSchema.optional(),
 });
 export type CompleteUploadBody = z.infer<typeof CompleteUploadBodySchema>;
 
@@ -127,15 +138,6 @@ export const DocumentListItemSchema = z.object({
   esReady: z.boolean(),
 });
 export type DocumentListItem = z.infer<typeof DocumentListItemSchema>;
-
-/** 文档可见级：10/20/30/40（P3b-META；检索强制未接） */
-export const VisibilityLevelSchema = z.union([
-  z.literal(10),
-  z.literal(20),
-  z.literal(30),
-  z.literal(40),
-]);
-export type VisibilityLevel = z.infer<typeof VisibilityLevelSchema>;
 
 /**
  * GET /documents/:docId 公开详情（非 DB 行直出）。
