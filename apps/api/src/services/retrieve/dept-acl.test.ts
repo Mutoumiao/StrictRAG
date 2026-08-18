@@ -192,6 +192,112 @@ describe('filterDocsForDeptAcl', () => {
     ).map((d) => d.id);
     expect(ids).toEqual(['lib', 'a20', 'a30', 'b20', 'b30']);
   });
+
+  it('inherit false：祖先不可见子孙 20，精确同部门仍可见', () => {
+    const ancestorIds = filterDocsForDeptAcl(docs, {
+      assignments: [{ deptId: DEPT_A, isLeader: false }],
+      enforce: true,
+      depts: tree,
+      inheritDown: false,
+    }).map((d) => d.id);
+    expect(ancestorIds).toEqual(['lib', 'a20']);
+    expect(ancestorIds).not.toContain('b20');
+
+    const exactIds = filterDocsForDeptAcl(docs, {
+      assignments: [{ deptId: DEPT_B, isLeader: false }],
+      enforce: true,
+      depts: tree,
+      inheritDown: false,
+    }).map((d) => d.id);
+    expect(exactIds).toEqual(['lib', 'b20']);
+
+    expect(
+      isDocVisibleForDeptAcl(
+        { ownerDeptId: DEPT_B, visibilityLevel: 20 },
+        [{ deptId: DEPT_A, isLeader: true }],
+        true,
+        tree,
+        undefined,
+        undefined,
+        undefined,
+        false,
+      ),
+    ).toBe(false);
+  });
+
+  it('inherit false 不关精确 grant', () => {
+    expect(
+      isDocVisibleForDeptAcl(
+        { ownerDeptId: DEPT_B, visibilityLevel: 20 },
+        [],
+        true,
+        tree,
+        [{ deptId: DEPT_B, maxVisibilityLevel: 20, expiresAt: null }],
+        undefined,
+        undefined,
+        false,
+      ),
+    ).toBe(true);
+    const ids = filterDocsForDeptAcl(docs, {
+      assignments: [],
+      enforce: true,
+      depts: tree,
+      grants: [{ deptId: DEPT_B, maxVisibilityLevel: 20, expiresAt: null }],
+      inheritDown: false,
+    }).map((d) => d.id);
+    expect(ids).toEqual(['lib', 'b20']);
+  });
+
+  it('inherit 缺省/true：祖先仍可见子孙 20', () => {
+    const omitted = filterDocsForDeptAcl(docs, {
+      assignments: [{ deptId: DEPT_A, isLeader: false }],
+      enforce: true,
+      depts: tree,
+    }).map((d) => d.id);
+    const explicit = filterDocsForDeptAcl(docs, {
+      assignments: [{ deptId: DEPT_A, isLeader: false }],
+      enforce: true,
+      depts: tree,
+      inheritDown: true,
+    }).map((d) => d.id);
+    expect(omitted).toEqual(['lib', 'a20', 'b20']);
+    expect(explicit).toEqual(['lib', 'a20', 'b20']);
+  });
+
+  it('env DEPT_INHERIT_DOWN=false 时谓词缺省也不走祖先', () => {
+    const prev = process.env.DEPT_INHERIT_DOWN;
+    process.env.DEPT_INHERIT_DOWN = 'false';
+    try {
+      expect(
+        isDocVisibleForDeptAcl(
+          { ownerDeptId: DEPT_B, visibilityLevel: 20 },
+          [{ deptId: DEPT_A, isLeader: true }],
+          true,
+          tree,
+        ),
+      ).toBe(false);
+      const ids = filterDocsForDeptAcl(docs, {
+        assignments: [{ deptId: DEPT_A, isLeader: false }],
+        enforce: true,
+        depts: tree,
+      }).map((d) => d.id);
+      expect(ids).not.toContain('b20');
+    } finally {
+      if (prev === undefined) delete process.env.DEPT_INHERIT_DOWN;
+      else process.env.DEPT_INHERIT_DOWN = prev;
+    }
+  });
+
+  it('enforce 关时 inherit false 不影响（全可见）', () => {
+    expect(
+      filterDocsForDeptAcl(docs, {
+        assignments: [],
+        enforce: false,
+        depts: tree,
+        inheritDown: false,
+      }).map((d) => d.id),
+    ).toEqual(['lib', 'a20', 'a30', 'b20']);
+  });
 });
 
 describe('isGrantActive', () => {
@@ -291,6 +397,45 @@ describe('dept acl grants', () => {
         [{ deptId: DEPT_B, maxVisibilityLevel: 40, expiresAt: null }],
       ),
     ).toBe(true);
+  });
+
+  it('bypass 开 → 他部门 level 40 可见', () => {
+    expect(
+      isDocVisibleForDeptAcl(
+        { ownerDeptId: DEPT_B, visibilityLevel: 40 },
+        [],
+        true,
+        tree,
+        undefined,
+        undefined,
+        true,
+      ),
+    ).toBe(true);
+    const ids = filterDocsForDeptAcl(docs, {
+      assignments: [],
+      enforce: true,
+      bypass: true,
+    }).map((d) => d.id);
+    expect(ids).toEqual(['lib', 'a20', 'a30', 'b20']);
+  });
+
+  it('bypass 关 / 缺省 → 非超管仍拦', () => {
+    expect(
+      isDocVisibleForDeptAcl({ ownerDeptId: DEPT_B, visibilityLevel: 40 }, [], true, tree),
+    ).toBe(false);
+    expect(
+      filterDocsForDeptAcl(docs, { assignments: [], enforce: true, bypass: false }).map(
+        (d) => d.id,
+      ),
+    ).toEqual(['lib']);
+  });
+
+  it('enforce 关时 bypass 不影响', () => {
+    expect(
+      filterDocsForDeptAcl(docs, { assignments: [], enforce: false, bypass: true }).map(
+        (d) => d.id,
+      ),
+    ).toEqual(['lib', 'a20', 'a30', 'b20']);
   });
 
   it('userId / tenantId 缺 → 无 grant，不抛', async () => {

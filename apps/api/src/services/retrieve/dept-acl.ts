@@ -8,6 +8,11 @@ export function isDeptAclEnforced(): boolean {
   return process.env.DEPT_ACL_ENFORCE === 'true';
 }
 
+/** 缺省/true → 继承开；仅字面 `'false'` 关祖先。 */
+export function isDeptInheritDown(): boolean {
+  return process.env.DEPT_INHERIT_DOWN !== 'false';
+}
+
 export type DeptAclDoc = {
   ownerDeptId?: string | null;
   visibilityLevel?: number | null;
@@ -40,6 +45,7 @@ function effectiveLevel(
   assignments: readonly DeptAssignment[],
   ownerDeptId: string | null,
   depts?: readonly DeptAclNode[],
+  inheritDown = true,
 ): number | null {
   if (ownerDeptId == null) {
     return assignments.some((a) => a.isLeader) ? 30 : 20;
@@ -51,7 +57,10 @@ function effectiveLevel(
     const exact = a.deptId === ownerDeptId;
     const node = byId.get(a.deptId);
     const ancestor =
-      owner != null && node != null && isAncestorPath(node.path, owner.path);
+      inheritDown &&
+      owner != null &&
+      node != null &&
+      isAncestorPath(node.path, owner.path);
     if (!exact && !ancestor) continue;
     const lvl = a.isLeader ? 30 : 20;
     max = max == null ? lvl : Math.max(max, lvl);
@@ -75,7 +84,7 @@ function grantEffectiveLevel(
   return max;
 }
 
-/** 精确 ∪ 祖先；grant 仅精确 owner 部门。enforce=false 一律可见。 */
+/** 精确 ∪ 祖先（inheritDown=false 不算祖先）；grant 仅精确 owner 部门。enforce=false 一律可见。bypass=超管绕过。 */
 export function isDocVisibleForDeptAcl(
   doc: DeptAclDoc,
   assignments: readonly DeptAssignment[],
@@ -83,11 +92,19 @@ export function isDocVisibleForDeptAcl(
   depts?: readonly DeptAclNode[],
   grants?: readonly DeptAclGrant[],
   now?: string,
+  bypass?: boolean,
+  inheritDown?: boolean,
 ): boolean {
   if (!enforce) return true;
+  if (bypass) return true;
   const vis = doc.visibilityLevel ?? 20;
   const ownerDeptId = doc.ownerDeptId ?? null;
-  const assignEff = effectiveLevel(assignments, ownerDeptId, depts);
+  const assignEff = effectiveLevel(
+    assignments,
+    ownerDeptId,
+    depts,
+    inheritDown ?? isDeptInheritDown(),
+  );
   const grantEff = grantEffectiveLevel(
     grants,
     ownerDeptId,
@@ -110,12 +127,25 @@ export function filterDocsForDeptAcl<T extends DeptAclDoc>(
     depts?: readonly DeptAclNode[];
     grants?: readonly DeptAclGrant[];
     now?: string;
+    bypass?: boolean;
+    inheritDown?: boolean;
   },
 ): T[] {
   if (!opts.enforce) return [...docs];
+  if (opts.bypass) return [...docs];
   const now = opts.now ?? formatLocalDateTime();
+  const inheritDown = opts.inheritDown ?? isDeptInheritDown();
   return docs.filter((d) =>
-    isDocVisibleForDeptAcl(d, opts.assignments, true, opts.depts, opts.grants, now),
+    isDocVisibleForDeptAcl(
+      d,
+      opts.assignments,
+      true,
+      opts.depts,
+      opts.grants,
+      now,
+      undefined,
+      inheritDown,
+    ),
   );
 }
 

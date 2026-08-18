@@ -92,6 +92,32 @@ describe('DEPT_ACL_ENFORCE default stays false', () => {
   });
 });
 
+/** 与 env.ts 中 DEPT_INHERIT_DOWN 对齐（禁止仓库默认改 false） */
+const DeptInheritDownSchema = z.object({
+  DEPT_INHERIT_DOWN: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((v) => v === 'true'),
+});
+
+describe('DEPT_INHERIT_DOWN default stays true', () => {
+  it('default / omitted → true', () => {
+    const r = DeptInheritDownSchema.safeParse({});
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.DEPT_INHERIT_DOWN).toBe(true);
+  });
+  it('explicit true → true', () => {
+    const r = DeptInheritDownSchema.safeParse({ DEPT_INHERIT_DOWN: 'true' });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.DEPT_INHERIT_DOWN).toBe(true);
+  });
+  it('false parses (opt-out ancestor)', () => {
+    const r = DeptInheritDownSchema.safeParse({ DEPT_INHERIT_DOWN: 'false' });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.DEPT_INHERIT_DOWN).toBe(false);
+  });
+});
+
 describe('tauClaim unique source', () => {
   it('accepts single TAU_CLAIM', () => {
     const r = TauSchema.safeParse({ TAU_CLAIM: '0.5' });

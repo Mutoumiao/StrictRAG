@@ -91,12 +91,20 @@ const EnvSchema = z
       .default('false')
       .transform((v) => v === 'true'),
     /**
-     * 检索/预览部门过滤（ADR-057 子集：精确 ∪ 祖先 + 精确 grant）。仓库默认 false。
-     * **禁止**默认 true / 宣称全文隔离（无 ES 查询期、无解禁）。
+     * 检索/预览/列表部门过滤（ADR-057 子集：精确 ∪ 祖先 + 精确 grant；超管可绕过）。
+     * 仓库默认 false。**禁止**默认 true / 宣称全文隔离（无 ES 查询期、无解禁）。
      */
     DEPT_ACL_ENFORCE: z
       .enum(['true', 'false'])
       .default('false')
+      .transform((v) => v === 'true'),
+    /**
+     * 上级看下级（祖先命中）。默认 true；仅 `'false'` 关祖先。
+     * **禁止**默认改 false。≠ 默认开 DEPT_ACL_ENFORCE。
+     */
+    DEPT_INHERIT_DOWN: z
+      .enum(['true', 'false'])
+      .default('true')
       .transform((v) => v === 'true'),
     /**
      * 会话近窗 rewrite（ADR-047）。仓库默认 false。

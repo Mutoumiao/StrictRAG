@@ -47,6 +47,12 @@ vi.mock('../../services/documents.js', () => ({
     markCompletePending: async (id: string, size: number) => {
       completeState.markCalls.push({ id, size });
     },
+    patchMeta: async (
+      _id: string,
+      patch: { ownerDeptId?: string | null; visibilityLevel?: number },
+    ) => {
+      if (patch.ownerDeptId !== undefined) completeState.ownerDeptId = patch.ownerDeptId;
+    },
   },
 }));
 
@@ -77,7 +83,7 @@ function buildApp() {
   return app;
 }
 
-async function postComplete() {
+async function postComplete(payload: Record<string, unknown> = {}) {
   const app = buildApp();
   const accessToken = await token();
   return app.request(`/api/v1/knowledge-bases/${KB}/documents/${DOC}/complete`, {
@@ -86,7 +92,7 @@ async function postComplete() {
       authorization: `Bearer ${accessToken}`,
       'content-type': 'application/json',
     },
-    body: JSON.stringify({}),
+    body: JSON.stringify(payload),
   });
 }
 
@@ -133,5 +139,35 @@ describe('P3b-SENS complete 敏感闸', () => {
     const res = await postComplete();
     expect(res.status).toBe(200);
     expect(completeState.markCalls).toEqual([{ id: DOC, size: 12 }]);
+  });
+
+  it('sensitive + enforce + complete 同请求带 ownerDeptId → 200 且 markComplete', async () => {
+    completeState.dataClass = 'sensitive';
+    completeState.ownerDeptId = null;
+    vi.stubEnv('DEPT_ACL_ENFORCE', 'true');
+    const res = await postComplete({ ownerDeptId: DEPT });
+    expect(res.status).toBe(200);
+    expect(completeState.ownerDeptId).toBe(DEPT);
+    expect(completeState.markCalls).toEqual([{ id: DOC, size: 12 }]);
+  });
+
+  it('sensitive + enforce + 库上已有部门 + complete 显式 null → 仍 400', async () => {
+    completeState.dataClass = 'sensitive';
+    completeState.ownerDeptId = DEPT;
+    vi.stubEnv('DEPT_ACL_ENFORCE', 'true');
+    const res = await postComplete({ ownerDeptId: null });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: { code: string } };
+    expect(body.error.code).toBe('RULE_VIOLATION');
+    expect(completeState.ownerDeptId).toBeNull();
+    expect(completeState.markCalls).toHaveLength(0);
+  });
+
+  it('非法 ownerDeptId → 400，不 markComplete', async () => {
+    const res = await postComplete({ ownerDeptId: 'not-a-uuid' });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: { code: string } };
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+    expect(completeState.markCalls).toHaveLength(0);
   });
 });

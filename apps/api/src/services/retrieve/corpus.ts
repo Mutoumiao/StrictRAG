@@ -46,21 +46,33 @@ export function filterDocsForRetrieve<T extends DocForRetrieve>(
  * draft / superseded / 非 ready 不进。
  * sparse mock 用 body_text/preview；dense 用 chunk_embeddings。
  */
-export const loadCorpusFromDb: CorpusLoader = async ({ kbId, scope, userId }) => {
+export const loadCorpusFromDb: CorpusLoader = async ({
+  kbId,
+  scope,
+  userId,
+  bypassDeptAcl,
+}) => {
   const db = getDb();
   const docs = await db.select().from(documents).where(eq(documents.kbId, kbId));
 
   const dual = filterDocsForRetrieve(docs, scope);
   const enforce = isDeptAclEnforced();
   const tenantId = dual[0]?.tenantId;
-  const [assignments, depts, grants] = enforce
-    ? await Promise.all([
+  const skipDeptIo = !enforce || bypassDeptAcl === true;
+  const [assignments, depts, grants] = skipDeptIo
+    ? [[], [], []]
+    : await Promise.all([
         loadDeptAssignments(tenantId, userId),
         loadDeptNodes(tenantId),
         loadDeptGrants(tenantId, userId),
-      ])
-    : [[], [], []];
-  const allowed = filterDocsForDeptAcl(dual, { assignments, enforce, depts, grants });
+      ]);
+  const allowed = filterDocsForDeptAcl(dual, {
+    assignments,
+    enforce,
+    depts,
+    grants,
+    bypass: bypassDeptAcl,
+  });
 
   if (allowed.length === 0) return [];
 
@@ -112,18 +124,28 @@ export async function hasRetrievableDocs(
   kbId: string,
   scope?: RetrieveScope,
   userId?: string,
+  bypassDeptAcl?: boolean,
 ): Promise<boolean> {
   const db = getDb();
   const docs = await db.select().from(documents).where(eq(documents.kbId, kbId));
   const dual = filterDocsForRetrieve(docs, scope);
   const enforce = isDeptAclEnforced();
   const tenantId = dual[0]?.tenantId;
-  const [assignments, depts, grants] = enforce
-    ? await Promise.all([
+  const skipDeptIo = !enforce || bypassDeptAcl === true;
+  const [assignments, depts, grants] = skipDeptIo
+    ? [[], [], []]
+    : await Promise.all([
         loadDeptAssignments(tenantId, userId),
         loadDeptNodes(tenantId),
         loadDeptGrants(tenantId, userId),
-      ])
-    : [[], [], []];
-  return filterDocsForDeptAcl(dual, { assignments, enforce, depts, grants }).length > 0;
+      ]);
+  return (
+    filterDocsForDeptAcl(dual, {
+      assignments,
+      enforce,
+      depts,
+      grants,
+      bypass: bypassDeptAcl,
+    }).length > 0
+  );
 }

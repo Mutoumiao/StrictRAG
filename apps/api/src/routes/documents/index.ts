@@ -5,7 +5,6 @@ import {
   type CreateKbResponse,
   type CompleteUploadResponse,
   type DocumentApprovalActionResponse,
-  type DocumentListItem,
   type DocumentScanEnqueueResponse,
   type PatchLifecycleResponse,
   type PutObjectResponse,
@@ -19,11 +18,12 @@ import {
 import { Hono } from 'hono';
 import { uuidv7 } from 'uuidv7';
 
+import { roleBypassesKbMembership } from '../../auth/permissions/resolve.js';
 import { requirePermission, requirePermissionWhenEnforced } from '../../auth/middleware.js';
 import { canBecomeActive, canEnqueueScan, scanDeniedCode } from '../../gates/approval-scan.js';
 import { checkUploadByteSize } from '../../gates/upload-size.js';
 import { fail, ok } from '../../lib/response.js';
-import { childLogger } from '../../logger.js';
+import { childLogger, logger } from '../../logger.js';
 import type { ApiVariables } from '../../middleware/request-id.js';
 import {
   isMultiStrategyCatalog,
@@ -35,6 +35,7 @@ import {
   parseDataClassFromConfig,
 } from '../../services/kb-settings.js';
 import {
+  filterDocsForDeptAcl,
   isDeptAclEnforced,
   isDocVisibleForDeptAcl,
   loadDeptAssignments,
@@ -65,8 +66,31 @@ documentRoutes.get(
   async (c) => {
     const kbId = c.req.param('kbId');
     const rows = await documentRepo.listDocsByKb(kbId);
-    const data: DocumentListItem[] = rows.map(toListItem);
-    return ok(c, data);
+    if (!isDeptAclEnforced()) {
+      return ok(c, rows.map(toListItem));
+    }
+    const auth = c.get('auth');
+    const bypass = roleBypassesKbMembership(auth?.roles ?? []);
+    if (bypass) {
+      logger.info(
+        { event: 'dept_acl_bypass', userId: auth?.userId, kbId },
+        'dept acl bypass',
+      );
+      return ok(c, rows.map(toListItem));
+    }
+    const tenantId = rows[0]?.tenantId;
+    const [assignments, depts, grants] = await Promise.all([
+      loadDeptAssignments(tenantId, auth?.userId),
+      loadDeptNodes(tenantId),
+      loadDeptGrants(tenantId, auth?.userId),
+    ]);
+    const visible = filterDocsForDeptAcl(rows, {
+      assignments,
+      enforce: true,
+      depts,
+      grants,
+    });
+    return ok(c, visible.map(toListItem));
   },
 );
 
@@ -185,13 +209,24 @@ documentRoutes.post(
       return fail(c, BizCode.VALIDATION_ERROR, strategyGate.message, 400);
     }
 
+    let ownerDeptId = doc.ownerDeptId;
+    if (body.data.ownerDeptId !== undefined || body.data.visibilityLevel !== undefined) {
+      await documentRepo.patchMeta(docId, {
+        ownerDeptId: body.data.ownerDeptId,
+        visibilityLevel: body.data.visibilityLevel,
+      });
+      const latest = await documentRepo.getDoc(docId);
+      // ponytail: 不用 ??，否则显式 null 会回退成旧部门、SENS fail-open
+      ownerDeptId = latest ? latest.ownerDeptId : doc.ownerDeptId;
+    }
+
     // P3b-SENS：策略闸之后、markComplete 之前。敏感闸有、解禁无。
     const kb = await documentRepo.getKb(kbId);
     const dataClass = parseDataClassFromConfig(kb?.configJson ?? null);
     if (
       isSensitiveCompleteBlocked({
         dataClass,
-        ownerDeptId: doc.ownerDeptId,
+        ownerDeptId,
         deptAclEnforce: process.env.DEPT_ACL_ENFORCE,
       })
     ) {
@@ -449,14 +484,22 @@ documentRoutes.get('/documents/:docId', requirePermissionWhenEnforced('doc.view'
     return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
   }
   if (isDeptAclEnforced()) {
-    const userId = c.get('auth')?.userId;
-    const [assignments, depts, grants] = await Promise.all([
-      loadDeptAssignments(doc.tenantId, userId),
-      loadDeptNodes(doc.tenantId),
-      loadDeptGrants(doc.tenantId, userId),
-    ]);
-    if (!isDocVisibleForDeptAcl(doc, assignments, true, depts, grants)) {
-      return fail(c, BizCode.FORBIDDEN, 'department acl denied', 403);
+    const auth = c.get('auth');
+    const bypass = roleBypassesKbMembership(auth?.roles ?? []);
+    if (bypass) {
+      logger.info(
+        { event: 'dept_acl_bypass', userId: auth?.userId, kbId: doc.kbId, docId: doc.id },
+        'dept acl bypass',
+      );
+    } else {
+      const [assignments, depts, grants] = await Promise.all([
+        loadDeptAssignments(doc.tenantId, auth?.userId),
+        loadDeptNodes(doc.tenantId),
+        loadDeptGrants(doc.tenantId, auth?.userId),
+      ]);
+      if (!isDocVisibleForDeptAcl(doc, assignments, true, depts, grants)) {
+        return fail(c, BizCode.FORBIDDEN, 'department acl denied', 403);
+      }
     }
   }
   return ok(c, toDetail(doc));

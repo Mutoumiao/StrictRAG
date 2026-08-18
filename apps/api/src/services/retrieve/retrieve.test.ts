@@ -140,6 +140,45 @@ describe('runRetrieve dual gate via corpus', () => {
     expect(r.ok).toBe(true);
   });
 
+  it('forwards bypassDeptAcl when membership is super_admin', async () => {
+    let seen: boolean | undefined;
+    const r = await runRetrieve(
+      {
+        kbId: 'kb1',
+        question: 'leave policy',
+        membership: 'super_admin',
+        userId: 'u-sa',
+      },
+      deps([chunk('c1', 'leave policy 15 days')], {
+        loadCorpus: async (input) => {
+          seen = input.bypassDeptAcl;
+          return [chunk('c1', 'leave policy 15 days')];
+        },
+      }),
+    );
+    expect(r.ok).toBe(true);
+    expect(seen).toBe(true);
+  });
+
+  it('member 不转发 bypassDeptAcl', async () => {
+    let seen: boolean | undefined;
+    const r = await runRetrieve(
+      {
+        kbId: 'kb1',
+        question: 'leave policy',
+        membership: 'member',
+      },
+      deps([chunk('c1', 'leave policy 15 days')], {
+        loadCorpus: async (input) => {
+          seen = input.bypassDeptAcl;
+          return [chunk('c1', 'leave policy 15 days')];
+        },
+      }),
+    );
+    expect(r.ok).toBe(true);
+    expect(seen).toBe(false);
+  });
+
   it('low_retrieval when no text/embedding match', async () => {
     const r = await runRetrieve(
       { kbId: 'kb1', question: 'zzzznotfound', membership: 'member' },

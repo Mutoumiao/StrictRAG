@@ -8,7 +8,9 @@ import {
 import { Hono } from 'hono';
 
 import { requirePermission, type AuthVariables } from '../auth/middleware.js';
+import { roleBypassesKbMembership } from '../auth/permissions/resolve.js';
 import { fail, ok } from '../lib/response.js';
+import { logger } from '../logger.js';
 import {
   buildBody,
   buildPreview,
@@ -65,14 +67,22 @@ export function createChunkRoutes(deps: ChunkRouteDeps = {}): Hono<{ Variables: 
       return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
     }
     if (isDeptAclEnforced()) {
-      const userId = c.get('auth')?.userId;
-      const [assignments, depts, grants] = await Promise.all([
-        loadDeptAssignments(doc.tenantId, userId),
-        loadDeptNodes(doc.tenantId),
-        loadDeptGrants(doc.tenantId, userId),
-      ]);
-      if (!isDocVisibleForDeptAcl(doc, assignments, true, depts, grants)) {
-        return fail(c, BizCode.FORBIDDEN, 'department acl denied', 403);
+      const auth = c.get('auth');
+      const bypass = roleBypassesKbMembership(auth?.roles ?? []);
+      if (bypass) {
+        logger.info(
+          { event: 'dept_acl_bypass', userId: auth?.userId, docId: doc.id },
+          'dept acl bypass',
+        );
+      } else {
+        const [assignments, depts, grants] = await Promise.all([
+          loadDeptAssignments(doc.tenantId, auth?.userId),
+          loadDeptNodes(doc.tenantId),
+          loadDeptGrants(doc.tenantId, auth?.userId),
+        ]);
+        if (!isDocVisibleForDeptAcl(doc, assignments, true, depts, grants)) {
+          return fail(c, BizCode.FORBIDDEN, 'department acl denied', 403);
+        }
       }
     }
 
@@ -108,14 +118,22 @@ export function createChunkRoutes(deps: ChunkRouteDeps = {}): Hono<{ Variables: 
       return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
     }
     if (isDeptAclEnforced()) {
-      const userId = c.get('auth')?.userId;
-      const [assignments, depts, grants] = await Promise.all([
-        loadDeptAssignments(doc.tenantId, userId),
-        loadDeptNodes(doc.tenantId),
-        loadDeptGrants(doc.tenantId, userId),
-      ]);
-      if (!isDocVisibleForDeptAcl(doc, assignments, true, depts, grants)) {
-        return fail(c, BizCode.FORBIDDEN, 'department acl denied', 403);
+      const auth = c.get('auth');
+      const bypass = roleBypassesKbMembership(auth?.roles ?? []);
+      if (bypass) {
+        logger.info(
+          { event: 'dept_acl_bypass', userId: auth?.userId, docId: doc.id },
+          'dept acl bypass',
+        );
+      } else {
+        const [assignments, depts, grants] = await Promise.all([
+          loadDeptAssignments(doc.tenantId, auth?.userId),
+          loadDeptNodes(doc.tenantId),
+          loadDeptGrants(doc.tenantId, auth?.userId),
+        ]);
+        if (!isDocVisibleForDeptAcl(doc, assignments, true, depts, grants)) {
+          return fail(c, BizCode.FORBIDDEN, 'department acl denied', 403);
+        }
       }
     }
 

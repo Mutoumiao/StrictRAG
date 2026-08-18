@@ -76,6 +76,8 @@ export type CorpusLoader = (input: {
   kbId: string;
   scope?: RetrieveScope;
   userId?: string;
+  /** P3b-SA：超管绕过部门滤；缺省 false */
+  bypassDeptAcl?: boolean;
 }) => Promise<CorpusChunk[]>;
 
 /** http 模式 sparse：返回有序 chunkId；失败应抛错（禁止静默空） */

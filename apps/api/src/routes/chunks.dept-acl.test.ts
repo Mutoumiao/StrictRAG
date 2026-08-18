@@ -97,4 +97,14 @@ describe('GET /documents/:docId/chunks 部门过滤（P3b-DEPT）', () => {
     const body = (await res.json()) as { error: { code: string } };
     expect(body.error.code).toBe('FORBIDDEN');
   });
+
+  it('开 + super_admin 跨部门 → 200', async () => {
+    deptAcl.enforce = true;
+    deptAcl.assignments = [];
+    const app = buildApp();
+    const res = await app.request(`/api/v1/documents/${DOC}/chunks`, {
+      headers: { authorization: `Bearer ${await token(['super_admin'])}` },
+    });
+    expect(res.status).toBe(200);
+  });
 });
