@@ -21,8 +21,8 @@ apps/api/src/
     budget.ts · reasons.ts · tracer.ts · graph.test.ts
   routes/
     auth.ts                # dev-login · refresh · me · bootstrap ensureUserRoleCodes
-    documents/             # ARCH-P1a 试点：按域目录（P1 入库 + B12 complete/reindex 闸 + P3b-META PATCH）
-      index.ts             # export documentRoutes · PATCH /documents/:docId 只写部门两字段
+    documents/             # ARCH-P1a 试点：按域目录（P1 入库 + B12 complete/reindex 闸 + P3b-META PATCH + complete 可写部门）
+      index.ts             # export documentRoutes · PATCH / complete 写部门两字段 · GET 列表 enforce 时同滤
       mappers.ts           # toListItem / toDetail 纯函数
     chunks.ts              # B1 分片只读 list/detail（ADR-052）
     members.ts             # 成员 list/invite/delete

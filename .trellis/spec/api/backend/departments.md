@@ -2,7 +2,7 @@
 
 > 路径：`apps/api/src/routes/departments.ts` · `services/departments.ts`  
 > PRD：`prds/05-api` §2.12 · ADR-057  
-> 切片：**最小**（树 CRUD + 用户归属）；grant 表可存；`DEPT_ACL_ENFORCE` **默认关**；开时精确 ∪ 祖先 + 精确 grant；**≠** ES 查询期 / **≠** 默认开 / **≠** 解禁
+> 切片：**最小**（树 CRUD + 用户归属）；grant 表可存；`DEPT_ACL_ENFORCE` **默认关**；开时精确 ∪ 祖先 + 精确 grant；超管可绕过；列表同滤；`DEPT_INHERIT_DOWN` 默认 true；complete 可写部门字段；**≠** ES 查询期 / **≠** 默认开 / **≠** 解禁
 
 ---
 
@@ -39,9 +39,9 @@ DB：`departments` · `user_departments`（`packages/db` · migration `0005_b5_d
 
 - DTO：`@strict-rag/contracts` · `departments.contract.ts`
 - 权限：`dept.manage`（树）· `user.manage`（归属）
-- 文档 `ownerDeptId` / `visibilityLevel` **字段已落**（GET 详情回读 · `PATCH /documents/:docId` 只写这两列 · `doc.editor` 始终验码）
-- `dept_cross_grants` 表 + `GET/POST/DELETE /admin/dept-cross-grants`（`dept.manage`）；enforce 开时 retrieve/预览读**未过期精确** grant（不沿子树）
-- `DEPT_ACL_ENFORCE` 默认 false；开时 `filterDocsForDeptAcl`：精确 ∪ 祖先 + 精确 grant（预览与 retrieve 同函数）；**无** ES 查询期对称 / **无** 默认开
+- 文档 `ownerDeptId` / `visibilityLevel` **字段已落**（GET 详情回读 · `PATCH /documents/:docId` 只写这两列 · `doc.editor` 始终验码；**complete body 可选同写**后再过 SENS）
+- `dept_cross_grants` 表 + `GET/POST/DELETE /admin/dept-cross-grants`（`dept.manage`）；enforce 开时 retrieve/预览/列表读**未过期精确** grant（不沿子树）
+- `DEPT_ACL_ENFORCE` 默认 false；开时 `filterDocsForDeptAcl`：精确 ∪ 祖先 + 精确 grant（预览、列表、retrieve 同函数）；`roleBypassesKbMembership` 绕过部门滤（Pino `dept_acl_bypass`）；`DEPT_INHERIT_DOWN` 默认 true（仅 `'false'` 关祖先）；**无** ES 查询期对称 / **无** 默认开
 
 ### 4. Validation & Error Matrix
 

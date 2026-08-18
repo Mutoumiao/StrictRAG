@@ -57,7 +57,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 
 | 项 | 说明 |
 |----|------|
-| 部门强制检索 / 跨部门授权 | 文档部门列 `0007`；`dept_cross_grants` `0008`；过滤在 api 默认关（开时精确 ∪ 祖先 + 精确 grant） |
+| 部门强制检索 / 跨部门授权 | 文档部门列 `0007`；`dept_cross_grants` `0008`；过滤在 api 默认关（开时精确 ∪ 祖先 + 精确 grant；超管可绕过；列表同滤；可关继承） |
 | 权限三表终态 | 现为 `codes_json` 过渡；迁表须 ADR |
 | `ingest_jobs` 完整运维账本 | 表有；worker 最小写；查询面无（锁见 worker Redis） |
 | 业务签字 live 真跑数字 | 表 `eval_runs` 可落库；真跑属 api/ops |

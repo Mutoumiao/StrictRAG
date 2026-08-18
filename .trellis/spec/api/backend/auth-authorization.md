@@ -354,7 +354,7 @@ if (!hasPermission(c.get('effectiveCodes'), 'approval.decide')) {
 
 **Context**：参考项目用 `roles.includes`；PRD ADR-051 要求以码为准。
 
-**Decision**：`defaultCodesForRoles`（admin-catalog 模板）∪ grants − denies；超管 `bypassKbMembership` 仅作用于 **kb scope**。
+**Decision**：`defaultCodesForRoles`（admin-catalog 模板）∪ grants − denies；超管 `bypassKbMembership` 作用于 **kb 成员闸** 与 **部门滤**（P3b-SA，`roleBypassesKbMembership`）；**仍不**跳过验码 / 双闸 / SENS。
 
 ---
 

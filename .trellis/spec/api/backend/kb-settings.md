@@ -157,4 +157,4 @@ assertScopeDocTypesAllowed({ scopeDocTypes?, kbDocTypes })
 |----|------|
 | gatePackageId / effectiveAt 真值 | 现恒 null；签字包流属 ADR-046 |
 | admin 写 KB 级 model_bindings UI | 运行时 resolve 已接（B2-W）；运营写 UI 可后置 |
-| 敏感入池解禁 | **闸有、解禁无**。`dataClass` 可写；complete 对 `sensitive` fail-closed（`DEPT_ACL_ENFORCE===true` ∧ `ownerDeptId` 非空才放行本闸）。**禁止**宣称敏感语料已可入池 |
+| 敏感入池解禁 | **闸有、解禁无**。`dataClass` 可写；complete 对 `sensitive` fail-closed（`DEPT_ACL_ENFORCE===true` ∧ `ownerDeptId` 非空才放行本闸）。complete body **可先写** `ownerDeptId` 再过本闸（P3b-UPL）。**禁止**宣称敏感语料已可入池 |
