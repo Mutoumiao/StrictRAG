@@ -5,7 +5,7 @@
  * 无 path；不做权限决策（UI 裁剪 + API 硬验）。
  */
 
-import type { DocumentListItem } from '@strict-rag/contracts';
+import type { DocumentListItem, VisibilityLevel } from '@strict-rag/contracts';
 
 import { mapBizError } from '@/lib/map-biz-error';
 
@@ -22,4 +22,21 @@ export async function loadDocumentList(kbId: string): Promise<LoadDocumentListRe
   } catch (err) {
     return { ok: false, message: mapBizError(err) };
   }
+}
+
+/** 当前已加载行本地筛。不写 URL；不是 LIST ACL。 */
+export function filterDocumentRows(
+  rows: DocumentListItem[],
+  q: { ownerDeptId: 'all' | 'lib' | string; visibilityLevel: 'all' | VisibilityLevel },
+): DocumentListItem[] {
+  return rows.filter((row) => {
+    const deptOk =
+      q.ownerDeptId === 'all'
+        ? true
+        : q.ownerDeptId === 'lib'
+          ? row.ownerDeptId == null
+          : row.ownerDeptId === q.ownerDeptId;
+    const visOk = q.visibilityLevel === 'all' ? true : row.visibilityLevel === q.visibilityLevel;
+    return deptOk && visOk;
+  });
 }

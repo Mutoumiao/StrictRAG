@@ -4,6 +4,7 @@
  * 文档薄列表：status / approval / lifecycle。
  * 点行展开详情；可改 ownerDeptId / visibilityLevel（有 doc.editor 才显示保存）。
  * 有 dept.manage 时归属用部门列表下拉；无该码仍 uuid 粘贴。不宣称强制隔离已上。
+ * 表头上方按已加载行本地筛部门/可见级；不改 GET query。
  */
 
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
@@ -28,7 +29,7 @@ import {
 import { useAdminAuth } from '@/components/auth-guard';
 import { readStoredKbId } from '@/lib/kb-context';
 
-import { loadDocumentList } from '../list.services';
+import { filterDocumentRows, loadDocumentList } from '../list.services';
 import {
   loadDepartmentOptions,
   loadDocumentDetail,
@@ -57,6 +58,10 @@ export function DocumentsWorkspace() {
   const [detail, setDetail] = useState<DocumentDetail | null>(null);
   const [detailState, setDetailState] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle');
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [filterOwnerDeptId, setFilterOwnerDeptId] = useState<'all' | 'lib' | string>('all');
+  const [filterVisibilityLevel, setFilterVisibilityLevel] = useState<'all' | VisibilityLevel>(
+    'all',
+  );
   const [ownerDeptId, setOwnerDeptId] = useState('');
   const [visibilityLevel, setVisibilityLevel] = useState<VisibilityLevel>(20);
   const [busy, setBusy] = useState(false);
@@ -108,7 +113,8 @@ export function DocumentsWorkspace() {
     }
     setRows(result.rows);
     setState('ready');
-  }, [canView]);
+    if (canManageDept && result.rows.length > 0) void ensureDeptOptions();
+  }, [canView, canManageDept]);
 
   useEffect(() => {
     void load();
@@ -197,7 +203,66 @@ export function DocumentsWorkspace() {
       ) : null}
 
       {rows.length > 0 ? (
-        <Table>
+        <div>
+          <div className="mb-3 flex flex-wrap items-end gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="doc-filter-dept">部门</Label>
+              <select
+                id="doc-filter-dept"
+                className="flex h-9 min-w-[8rem] rounded-md border border-input bg-card px-3 text-sm"
+                value={filterOwnerDeptId}
+                onChange={(e) => setFilterOwnerDeptId(e.target.value)}
+              >
+                <option value="all">全部</option>
+                <option value="lib">库级</option>
+                {deptOptions?.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+                {filterOwnerDeptId !== 'all' &&
+                filterOwnerDeptId !== 'lib' &&
+                !deptOptions?.some((d) => d.id === filterOwnerDeptId) ? (
+                  <option value={filterOwnerDeptId}>{filterOwnerDeptId}</option>
+                ) : null}
+              </select>
+            </div>
+            {canManageDept && deptOptionsError ? (
+              <div className="space-y-1.5">
+                <Label htmlFor="doc-filter-dept-uuid">部门 uuid</Label>
+                <Input
+                  id="doc-filter-dept-uuid"
+                  value={
+                    filterOwnerDeptId !== 'all' && filterOwnerDeptId !== 'lib'
+                      ? filterOwnerDeptId
+                      : ''
+                  }
+                  onChange={(e) => setFilterOwnerDeptId(e.target.value.trim() || 'all')}
+                  placeholder="粘贴部门 uuid"
+                />
+              </div>
+            ) : null}
+            <div className="space-y-1.5">
+              <Label htmlFor="doc-filter-visibility">可见级</Label>
+              <select
+                id="doc-filter-visibility"
+                className="flex h-9 min-w-[6rem] rounded-md border border-input bg-card px-3 text-sm"
+                value={filterVisibilityLevel}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setFilterVisibilityLevel(v === 'all' ? 'all' : toVisibilityLevel(v));
+                }}
+              >
+                <option value="all">全部</option>
+                {VISIBILITY_LEVELS.map((level) => (
+                  <option key={level} value={level}>
+                    {level}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <Table>
           <TableHeader>
             <TableRow className="border-b-border">
               <TableHead>标题</TableHead>
@@ -209,7 +274,10 @@ export function DocumentsWorkspace() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((r) => (
+            {filterDocumentRows(rows, {
+              ownerDeptId: filterOwnerDeptId,
+              visibilityLevel: filterVisibilityLevel,
+            }).map((r) => (
               <Fragment key={r.id}>
                 <TableRow
                   className={openId === r.id ? 'cursor-pointer bg-muted/40' : 'cursor-pointer'}
@@ -324,6 +392,7 @@ export function DocumentsWorkspace() {
             ))}
           </TableBody>
         </Table>
+        </div>
       ) : null}
     </div>
   );

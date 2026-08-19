@@ -1,8 +1,10 @@
 /**
  * 文档页：点行展开详情；无 doc.editor 不露保存；保存走 saveDocumentMeta。
  * 有 dept.manage 才下拉选部门；无该码仍 uuid 粘贴，不整页 403。
+ * 列表按已加载行本地筛部门/可见级；不改 GET query。
  */
 
+import { within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { render, screen, userEvent, waitFor } from '@/test/test-utils';
@@ -26,9 +28,13 @@ vi.mock('@/components/auth-guard', () => ({
   }),
 }));
 
-vi.mock('../list.services', () => ({
-  loadDocumentList: (...args: unknown[]) => loadDocumentList(...args),
-}));
+vi.mock('../list.services', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../list.services')>();
+  return {
+    ...actual,
+    loadDocumentList: (...args: unknown[]) => loadDocumentList(...args),
+  };
+});
 
 vi.mock('../meta.services', () => ({
   loadDocumentDetail: (...args: unknown[]) => loadDocumentDetail(...args),
@@ -39,7 +45,17 @@ vi.mock('../meta.services', () => ({
 import { DocumentsWorkspace } from './documents-workspace';
 
 const DOC_ID = '018f0000-0000-7000-8000-0000000000d1';
+const DOC_ID_2 = '018f0000-0000-7000-8000-0000000000d2';
 const DEPT_ID = '01900000-0000-7000-8000-0000000000de';
+
+function detailVisibility() {
+  return screen.getByLabelText('可见级', { selector: '#doc-visibility' });
+}
+
+function assertListCalledWithKbOnly() {
+  expect(loadDocumentList).toHaveBeenCalled();
+  expect(loadDocumentList.mock.calls.every((c) => c.length === 1 && c[0] === 'kb-1')).toBe(true);
+}
 
 const listDoc = {
   id: DOC_ID,
@@ -96,7 +112,7 @@ describe('DocumentsWorkspace', () => {
     expect(await screen.findByRole('columnheader', { name: '部门' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: '可见级' })).toBeInTheDocument();
     expect(screen.getByText(DEPT_ID)).toBeInTheDocument();
-    expect(screen.getByText('30')).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: '30' })).toBeInTheDocument();
   });
 
   it('有 doc.editor：点行后能看到两字段 + 保存按钮', async () => {
@@ -110,7 +126,7 @@ describe('DocumentsWorkspace', () => {
     await user.click(await screen.findByText('请假制度'));
 
     expect(await screen.findByLabelText('归属部门')).toBeInTheDocument();
-    expect(screen.getByLabelText('可见级')).toBeInTheDocument();
+    expect(detailVisibility()).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument();
     expect(loadDocumentDetail).toHaveBeenCalledWith(DOC_ID);
   });
@@ -126,9 +142,9 @@ describe('DocumentsWorkspace', () => {
     await user.click(await screen.findByText('请假制度'));
 
     expect(await screen.findByLabelText('归属部门')).toBeInTheDocument();
-    expect(screen.getByLabelText('可见级')).toBeInTheDocument();
+    expect(detailVisibility()).toBeInTheDocument();
     expect(screen.getByLabelText('归属部门')).toBeDisabled();
-    expect(screen.getByLabelText('可见级')).toBeDisabled();
+    expect(detailVisibility()).toBeDisabled();
     expect(screen.queryByRole('button', { name: '保存' })).not.toBeInTheDocument();
   });
 
@@ -147,7 +163,7 @@ describe('DocumentsWorkspace', () => {
     await user.click(await screen.findByText('请假制度'));
     await screen.findByLabelText('归属部门');
     await user.type(screen.getByLabelText('归属部门'), DEPT_ID);
-    await user.selectOptions(screen.getByLabelText('可见级'), '30');
+    await user.selectOptions(detailVisibility(), '30');
     await user.click(screen.getByRole('button', { name: '保存' }));
 
     await waitFor(() => {
@@ -157,7 +173,7 @@ describe('DocumentsWorkspace', () => {
       });
     });
     expect(screen.getByLabelText('归属部门')).toHaveValue(DEPT_ID);
-    expect(screen.getByLabelText('可见级')).toHaveValue('30');
+    expect(detailVisibility()).toHaveValue('30');
     expect(screen.getByText('已保存')).toBeInTheDocument();
   });
 
@@ -219,8 +235,8 @@ describe('DocumentsWorkspace', () => {
     const field = await screen.findByLabelText('归属部门');
     expect(field.tagName).toBe('SELECT');
     expect(screen.getByRole('combobox', { name: '归属部门' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: '库级' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: '人事部' })).toBeInTheDocument();
+    expect(within(field).getByRole('option', { name: '库级' })).toBeInTheDocument();
+    expect(within(field).getByRole('option', { name: '人事部' })).toBeInTheDocument();
     expect(loadDepartmentOptions).toHaveBeenCalledTimes(1);
 
     await user.selectOptions(field, DEPT_ID);
@@ -249,7 +265,7 @@ describe('DocumentsWorkspace', () => {
     const field = await screen.findByLabelText('归属部门');
     expect(field.tagName).toBe('SELECT');
     expect(field).toBeDisabled();
-    expect(screen.getByLabelText('可见级')).toBeDisabled();
+    expect(detailVisibility()).toBeDisabled();
     expect(screen.queryByRole('button', { name: '保存' })).not.toBeInTheDocument();
   });
 
@@ -270,5 +286,97 @@ describe('DocumentsWorkspace', () => {
     expect(await screen.findByText('FORBIDDEN: 需要 dept.manage')).toBeInTheDocument();
     expect(screen.queryByText('已保存')).not.toBeInTheDocument();
     expect((await screen.findByLabelText('归属部门')).tagName).toBe('INPUT');
+  });
+
+  const libRow = { ...listDoc, ownerDeptId: null, visibilityLevel: 20 as const };
+  const deptRow = {
+    ...listDoc,
+    id: DOC_ID_2,
+    title: '报销制度',
+    ownerDeptId: DEPT_ID,
+    visibilityLevel: 30 as const,
+  };
+
+  it('默认不筛：库级行与部门行都在，且 list 只带 kbId', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', 'kb-1');
+    me.permissions = ['admin.shell', 'doc.view'];
+    loadDocumentList.mockResolvedValue({ ok: true, rows: [libRow, deptRow] });
+
+    render(<DocumentsWorkspace />);
+
+    expect(await screen.findByText('请假制度')).toBeInTheDocument();
+    expect(screen.getByText('报销制度')).toBeInTheDocument();
+    expect(screen.getByLabelText('部门')).toHaveValue('all');
+    expect(screen.getByLabelText('可见级', { selector: '#doc-filter-visibility' })).toHaveValue(
+      'all',
+    );
+    assertListCalledWithKbOnly();
+  });
+
+  it('选库级：只留 ownerDeptId 为空的行', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', 'kb-1');
+    me.permissions = ['admin.shell', 'doc.view'];
+    loadDocumentList.mockResolvedValue({ ok: true, rows: [libRow, deptRow] });
+
+    render(<DocumentsWorkspace />);
+    const user = userEvent.setup();
+    await screen.findByText('请假制度');
+    await user.selectOptions(screen.getByLabelText('部门'), 'lib');
+
+    expect(screen.getByText('请假制度')).toBeInTheDocument();
+    expect(screen.queryByText('报销制度')).not.toBeInTheDocument();
+    assertListCalledWithKbOnly();
+  });
+
+  it('选可见级 30：只留 level 30', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', 'kb-1');
+    me.permissions = ['admin.shell', 'doc.view'];
+    loadDocumentList.mockResolvedValue({ ok: true, rows: [libRow, deptRow] });
+
+    render(<DocumentsWorkspace />);
+    const user = userEvent.setup();
+    await screen.findByText('请假制度');
+    await user.selectOptions(
+      screen.getByLabelText('可见级', { selector: '#doc-filter-visibility' }),
+      '30',
+    );
+
+    expect(screen.getByText('报销制度')).toBeInTheDocument();
+    expect(screen.queryByText('请假制度')).not.toBeInTheDocument();
+    assertListCalledWithKbOnly();
+  });
+
+  it('部门+可见级 AND', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', 'kb-1');
+    me.permissions = ['admin.shell', 'doc.view', 'dept.manage'];
+    loadDocumentList.mockResolvedValue({ ok: true, rows: [libRow, deptRow] });
+    loadDepartmentOptions.mockResolvedValue({ ok: true, departments: [deptOption] });
+
+    render(<DocumentsWorkspace />);
+    const user = userEvent.setup();
+    await screen.findByText('请假制度');
+    const deptFilter = screen.getByLabelText('部门');
+    await waitFor(() => {
+      expect(within(deptFilter).getByRole('option', { name: '人事部' })).toBeInTheDocument();
+    });
+
+    await user.selectOptions(deptFilter, DEPT_ID);
+    expect(screen.getByText('报销制度')).toBeInTheDocument();
+    expect(screen.queryByText('请假制度')).not.toBeInTheDocument();
+
+    await user.selectOptions(
+      screen.getByLabelText('可见级', { selector: '#doc-filter-visibility' }),
+      '20',
+    );
+    expect(screen.queryByText('报销制度')).not.toBeInTheDocument();
+    expect(screen.queryByText('请假制度')).not.toBeInTheDocument();
+
+    await user.selectOptions(
+      screen.getByLabelText('可见级', { selector: '#doc-filter-visibility' }),
+      '30',
+    );
+    expect(screen.getByText('报销制度')).toBeInTheDocument();
+    expect(screen.queryByText('请假制度')).not.toBeInTheDocument();
+    assertListCalledWithKbOnly();
   });
 });
