@@ -1,12 +1,12 @@
 'use client';
 
 /**
- * 知识库设置薄页：基本信息 / 问答档位 / 质量只读 / rewrite 锁。
- * 禁止 τ 滑块与 rewrite 开关。
+ * 知识库设置薄页：基本信息 / 语料分级 / 问答档位 / 质量只读 / rewrite 锁。
+ * 禁止 τ 滑块与 rewrite 开关。sensitive ≠ 解禁。
  */
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import type { AskMode, KbSettings } from '@strict-rag/contracts';
+import type { AskMode, DataClass, KbSettings } from '@strict-rag/contracts';
 import { Button } from '@strict-rag/ui/components/ui/button';
 import { Input } from '@strict-rag/ui/components/ui/input';
 import { Label } from '@strict-rag/ui/components/ui/label';
@@ -17,6 +17,7 @@ import { readStoredKbId } from '@/lib/kb-context';
 import { loadKbSettings, saveKbSettings } from '../services';
 
 const ALL_MODES: AskMode[] = ['strict', 'balanced', 'fast'];
+const DATA_CLASSES: DataClass[] = ['internal', 'sensitive'];
 
 export function SettingsWorkspace() {
   const { me } = useAdminAuth();
@@ -28,6 +29,7 @@ export function SettingsWorkspace() {
   const [description, setDescription] = useState('');
   const [allowedModes, setAllowedModes] = useState<AskMode[]>(['balanced']);
   const [defaultMode, setDefaultMode] = useState<AskMode>('balanced');
+  const [dataClass, setDataClass] = useState<DataClass>('internal');
   const [state, setState] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -39,6 +41,7 @@ export function SettingsWorkspace() {
     setDescription(s.description ?? '');
     setAllowedModes(s.allowedModes);
     setDefaultMode(s.defaultMode);
+    setDataClass(s.dataClass ?? 'internal');
   }, []);
 
   const load = useCallback(async () => {
@@ -96,6 +99,7 @@ export function SettingsWorkspace() {
       description: description.trim() || null,
       allowedModes,
       defaultMode,
+      dataClass,
     });
     if (result.ok) {
       applySettings(result.settings);
@@ -162,6 +166,28 @@ export function SettingsWorkspace() {
                 maxLength={2000}
               />
             </div>
+          </section>
+
+          <section className="space-y-3 rounded-lg border border-border p-4">
+            <h2 className="text-sm font-semibold">语料分级</h2>
+            <div className="space-y-2">
+              <Label htmlFor="kb-data-class">语料分级</Label>
+              <select
+                id="kb-data-class"
+                className="flex h-9 w-full max-w-xs rounded-md border border-input bg-transparent px-3 text-sm"
+                value={dataClass}
+                onChange={(e) => setDataClass(e.target.value as DataClass)}
+              >
+                {DATA_CLASSES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              sensitive 只加严 complete 闸，不是已解禁。
+            </p>
           </section>
 
           <section className="space-y-3 rounded-lg border border-border p-4">
