@@ -29,7 +29,7 @@ import {
 import { useAdminAuth } from '@/components/auth-guard';
 import { readStoredKbId } from '@/lib/kb-context';
 
-import { filterDocumentRows, loadDocumentList } from '../list.services';
+import { deptLabel, filterDocumentRows, loadDocumentList, visibilityLabel } from '../list.services';
 import {
   loadDepartmentOptions,
   loadDocumentDetail,
@@ -256,7 +256,7 @@ export function DocumentsWorkspace() {
                 <option value="all">全部</option>
                 {VISIBILITY_LEVELS.map((level) => (
                   <option key={level} value={level}>
-                    {level}
+                    {visibilityLabel(level)}
                   </option>
                 ))}
               </select>
@@ -300,10 +300,10 @@ export function DocumentsWorkspace() {
                       className="inline-block max-w-[7rem] truncate align-bottom"
                       title={r.ownerDeptId ?? undefined}
                     >
-                      {r.ownerDeptId ?? '—'}
+                      {deptLabel(r.ownerDeptId, deptOptions)}
                     </span>
                   </TableCell>
-                  <TableCell>{r.visibilityLevel}</TableCell>
+                  <TableCell>{visibilityLabel(r.visibilityLevel)}</TableCell>
                   <TableCell>{r.status}</TableCell>
                   <TableCell>{r.approvalStatus}</TableCell>
                   <TableCell>{r.lifecycle}</TableCell>
@@ -367,7 +367,7 @@ export function DocumentsWorkspace() {
                               >
                                 {VISIBILITY_LEVELS.map((level) => (
                                   <option key={level} value={level}>
-                                    {level}
+                                    {visibilityLabel(level)}
                                   </option>
                                 ))}
                               </select>

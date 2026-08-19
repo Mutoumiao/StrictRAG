@@ -24,6 +24,28 @@ export async function loadDocumentList(kbId: string): Promise<LoadDocumentListRe
   }
 }
 
+/** 列表部门列：库级 —；选项命中显示名；否则 uuid。不写 URL。 */
+export function deptLabel(
+  id: string | null | undefined,
+  options: { id: string; name: string }[] | null,
+): string {
+  if (id == null) return '—';
+  const hit = options?.find((d) => d.id === id);
+  return hit ? hit.name : String(id);
+}
+
+const VISIBILITY_LABELS: Record<VisibilityLevel, string> = {
+  10: '10 部门全员',
+  20: '20 部门成员',
+  30: '30 负责人',
+  40: '40 受限',
+};
+
+/** 文档页可见级展示：默认档中文；未知数字回退原值。不写 URL。 */
+export function visibilityLabel(level: number): string {
+  return VISIBILITY_LABELS[level as VisibilityLevel] ?? String(level);
+}
+
 /** 当前已加载行本地筛。不写 URL；不是 LIST ACL。 */
 export function filterDocumentRows(
   rows: DocumentListItem[],

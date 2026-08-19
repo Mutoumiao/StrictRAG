@@ -42,6 +42,7 @@ vi.mock('../meta.services', () => ({
   loadDepartmentOptions: (...args: unknown[]) => loadDepartmentOptions(...args),
 }));
 
+import { deptLabel, visibilityLabel } from '../list.services';
 import { DocumentsWorkspace } from './documents-workspace';
 
 const DOC_ID = '018f0000-0000-7000-8000-0000000000d1';
@@ -112,7 +113,55 @@ describe('DocumentsWorkspace', () => {
     expect(await screen.findByRole('columnheader', { name: '部门' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: '可见级' })).toBeInTheDocument();
     expect(screen.getByText(DEPT_ID)).toBeInTheDocument();
-    expect(screen.getByRole('cell', { name: '30' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: '30 负责人' })).toBeInTheDocument();
+    expect(loadDepartmentOptions).not.toHaveBeenCalled();
+  });
+
+  it('有 dept.manage 且部门树已加载：部门列显示名称，title 仍为 uuid', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', 'kb-1');
+    me.permissions = ['admin.shell', 'doc.view', 'dept.manage'];
+    loadDocumentList.mockResolvedValue({
+      ok: true,
+      rows: [{ ...listDoc, ownerDeptId: DEPT_ID, visibilityLevel: 30 }],
+    });
+    loadDepartmentOptions.mockResolvedValue({ ok: true, departments: [deptOption] });
+
+    render(<DocumentsWorkspace />);
+
+    const cell = await screen.findByRole('cell', { name: '人事部' });
+    expect(within(cell).getByTitle(DEPT_ID)).toHaveTextContent('人事部');
+    expect(screen.queryByRole('cell', { name: DEPT_ID })).not.toBeInTheDocument();
+    assertListCalledWithKbOnly();
+  });
+
+  it('库级行部门列仍是 —；未知部门 id 仍显示 uuid', async () => {
+    const unknownId = '01900000-0000-7000-8000-0000000000xx';
+    localStorage.setItem('strict-rag:admin:last-kb-id', 'kb-1');
+    me.permissions = ['admin.shell', 'doc.view', 'dept.manage'];
+    loadDocumentList.mockResolvedValue({
+      ok: true,
+      rows: [
+        { ...listDoc, ownerDeptId: null, visibilityLevel: 20 },
+        {
+          ...listDoc,
+          id: DOC_ID_2,
+          title: '报销制度',
+          ownerDeptId: unknownId,
+          visibilityLevel: 30,
+        },
+      ],
+    });
+    loadDepartmentOptions.mockResolvedValue({ ok: true, departments: [deptOption] });
+
+    render(<DocumentsWorkspace />);
+
+    expect(await screen.findByText('请假制度')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(loadDepartmentOptions).toHaveBeenCalled();
+    });
+    expect(screen.getByRole('cell', { name: '—' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: unknownId })).toBeInTheDocument();
+    assertListCalledWithKbOnly();
   });
 
   it('有 doc.editor：点行后能看到两字段 + 保存按钮', async () => {
@@ -127,6 +176,8 @@ describe('DocumentsWorkspace', () => {
 
     expect(await screen.findByLabelText('归属部门')).toBeInTheDocument();
     expect(detailVisibility()).toBeInTheDocument();
+    expect(within(detailVisibility()).getByRole('option', { name: '20 部门成员' })).toBeInTheDocument();
+    expect(within(detailVisibility()).getByRole('option', { name: '30 负责人' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument();
     expect(loadDocumentDetail).toHaveBeenCalledWith(DOC_ID);
   });
@@ -307,9 +358,12 @@ describe('DocumentsWorkspace', () => {
     expect(await screen.findByText('请假制度')).toBeInTheDocument();
     expect(screen.getByText('报销制度')).toBeInTheDocument();
     expect(screen.getByLabelText('部门')).toHaveValue('all');
-    expect(screen.getByLabelText('可见级', { selector: '#doc-filter-visibility' })).toHaveValue(
-      'all',
-    );
+    const visFilter = screen.getByLabelText('可见级', { selector: '#doc-filter-visibility' });
+    expect(visFilter).toHaveValue('all');
+    expect(within(visFilter).getByRole('option', { name: '10 部门全员' })).toBeInTheDocument();
+    expect(within(visFilter).getByRole('option', { name: '20 部门成员' })).toBeInTheDocument();
+    expect(within(visFilter).getByRole('option', { name: '30 负责人' })).toBeInTheDocument();
+    expect(within(visFilter).getByRole('option', { name: '40 受限' })).toBeInTheDocument();
     assertListCalledWithKbOnly();
   });
 
@@ -378,5 +432,38 @@ describe('DocumentsWorkspace', () => {
     expect(screen.getByText('报销制度')).toBeInTheDocument();
     expect(screen.queryByText('请假制度')).not.toBeInTheDocument();
     assertListCalledWithKbOnly();
+  });
+});
+
+describe('deptLabel', () => {
+  const options = [{ id: DEPT_ID, name: '人事部' }];
+
+  it('null / undefined 为 —', () => {
+    expect(deptLabel(null, options)).toBe('—');
+    expect(deptLabel(undefined, options)).toBe('—');
+  });
+
+  it('命中选项为名称', () => {
+    expect(deptLabel(DEPT_ID, options)).toBe('人事部');
+  });
+
+  it('无选项或未知 id 为 uuid', () => {
+    expect(deptLabel(DEPT_ID, null)).toBe(DEPT_ID);
+    expect(deptLabel(DEPT_ID, [])).toBe(DEPT_ID);
+    expect(deptLabel('unknown-id', options)).toBe('unknown-id');
+  });
+});
+
+describe('visibilityLabel', () => {
+  it('默认档为带数字的中文', () => {
+    expect(visibilityLabel(10)).toBe('10 部门全员');
+    expect(visibilityLabel(20)).toBe('20 部门成员');
+    expect(visibilityLabel(30)).toBe('30 负责人');
+    expect(visibilityLabel(40)).toBe('40 受限');
+  });
+
+  it('未知数字回退原值', () => {
+    expect(visibilityLabel(15)).toBe('15');
+    expect(visibilityLabel(41)).toBe('41');
   });
 });
