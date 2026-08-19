@@ -32,19 +32,24 @@ vi.mock('@/components/auth-guard', () => ({
   }),
 }));
 
-vi.mock('../services', () => ({
-  loadDeptWorkspace: (...args: unknown[]) => loadDeptWorkspace(...args),
-  createDept: (...args: unknown[]) => createDept(...args),
-  updateDept: (...args: unknown[]) => updateDept(...args),
-  removeDept: (...args: unknown[]) => removeDept(...args),
-  loadUserDepts: (...args: unknown[]) => loadUserDepts(...args),
-  saveUserDepts: (...args: unknown[]) => saveUserDepts(...args),
-  loadGrants: (...args: unknown[]) => loadGrants(...args),
-  loadGrantUsers: (...args: unknown[]) => loadGrantUsers(...args),
-  createGrant: (...args: unknown[]) => createGrant(...args),
-  removeGrant: (...args: unknown[]) => removeGrant(...args),
-}));
+vi.mock('../services', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../services')>();
+  return {
+    ...actual,
+    loadDeptWorkspace: (...args: unknown[]) => loadDeptWorkspace(...args),
+    createDept: (...args: unknown[]) => createDept(...args),
+    updateDept: (...args: unknown[]) => updateDept(...args),
+    removeDept: (...args: unknown[]) => removeDept(...args),
+    loadUserDepts: (...args: unknown[]) => loadUserDepts(...args),
+    saveUserDepts: (...args: unknown[]) => saveUserDepts(...args),
+    loadGrants: (...args: unknown[]) => loadGrants(...args),
+    loadGrantUsers: (...args: unknown[]) => loadGrantUsers(...args),
+    createGrant: (...args: unknown[]) => createGrant(...args),
+    removeGrant: (...args: unknown[]) => removeGrant(...args),
+  };
+});
 
+import { grantVisibilityLabel } from '../services';
 import { DepartmentsWorkspace } from './departments-workspace';
 
 const GRANT_ID = '018f0000-0000-7000-8000-0000000000g1';
@@ -124,6 +129,22 @@ function grantDeptOptionTexts() {
   return [...grantDeptSelect().options].map((o) => o.textContent);
 }
 
+function grantLevelSelect() {
+  return screen.getByLabelText('可见级') as HTMLSelectElement;
+}
+
+function grantLevelOptions() {
+  return [...grantLevelSelect().options];
+}
+
+function assignUserSelect() {
+  return screen.getByLabelText('用户 ID') as HTMLSelectElement;
+}
+
+function assignUserOptionTexts() {
+  return [...assignUserSelect().options].map((o) => o.textContent);
+}
+
 function assignDeptSelect() {
   return screen.getByLabelText('设为所属部门（单条主归属，覆盖）') as HTMLSelectElement;
 }
@@ -183,7 +204,32 @@ describe('DepartmentsWorkspace', () => {
     });
     expect(grantDeptOptionTexts()).not.toContain('已禁用部');
     expect(grantDeptOptionTexts()).toContain('选择部门');
-    expect(await screen.findByText(`deptId ${DISABLED_DEPT_ID}`)).toBeInTheDocument();
+    expect(await screen.findByText('deptId 已禁用部')).toBeInTheDocument();
+  });
+
+  it('树命中 active 部门时授权行显示部门名', async () => {
+    me.permissions = ['dept.manage'];
+    loadDeptWorkspace.mockResolvedValue(workspaceWithDepts);
+    loadGrants.mockResolvedValue({ ok: true, grants: [grantRow] });
+
+    render(<DepartmentsWorkspace />);
+
+    expect(await screen.findByText('deptId 人事部')).toBeInTheDocument();
+    expect(screen.queryByText(`deptId ${DEPT_ID}`)).not.toBeInTheDocument();
+  });
+
+  it('未知部门 uuid 时授权行仍显示 uuid', async () => {
+    const unknownId = '018f0000-0000-7000-8000-0000000000d9';
+    me.permissions = ['dept.manage'];
+    loadDeptWorkspace.mockResolvedValue(workspaceWithDepts);
+    loadGrants.mockResolvedValue({
+      ok: true,
+      grants: [{ ...grantRow, deptId: unknownId }],
+    });
+
+    render(<DepartmentsWorkspace />);
+
+    expect(await screen.findByText(`deptId ${unknownId}`)).toBeInTheDocument();
   });
 
   it('无 dept.manage：仍是现有 403 文案，看不到新建/删除', () => {
@@ -196,6 +242,34 @@ describe('DepartmentsWorkspace', () => {
     expect(screen.queryByRole('button', { name: '新建授权' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '删除授权' })).not.toBeInTheDocument();
     expect(loadGrants).not.toHaveBeenCalled();
+  });
+
+  it('授权可见级 option 用默认中文标签，value 仍是数字', async () => {
+    me.permissions = ['dept.manage'];
+    loadDeptWorkspace.mockResolvedValue({ ok: true, tree: [], flat: [] });
+    loadGrants.mockResolvedValue({ ok: true, grants: [] });
+
+    render(<DepartmentsWorkspace />);
+
+    await screen.findByRole('heading', { name: '跨部门授权' });
+    const options = grantLevelOptions();
+    expect(options.map((o) => o.textContent)).toEqual([
+      '10 部门全员',
+      '20 部门成员',
+      '30 负责人',
+      '40 受限',
+    ]);
+    expect(options.map((o) => o.value)).toEqual(['10', '20', '30', '40']);
+  });
+
+  it('授权列表行显示可见级中文标签', async () => {
+    me.permissions = ['dept.manage'];
+    loadDeptWorkspace.mockResolvedValue(workspaceWithDepts);
+    loadGrants.mockResolvedValue({ ok: true, grants: [grantRow] });
+
+    render(<DepartmentsWorkspace />);
+
+    expect(await screen.findByText('level 20 部门成员')).toBeInTheDocument();
   });
 
   it('提交新建会调 createGrant', async () => {
@@ -253,15 +327,23 @@ describe('DepartmentsWorkspace', () => {
     });
   });
 
-  it('有 user.manage：归属部门是 select，用户 ID 仍是 textbox', async () => {
+  it('有 user.manage：归属部门是 select，用户 ID 是 select', async () => {
     me.permissions = ['dept.manage', 'user.manage'];
     loadDeptWorkspace.mockResolvedValue(workspaceWithDepts);
     loadGrants.mockResolvedValue({ ok: true, grants: [] });
+    loadGrantUsers.mockResolvedValue({ ok: true, users: [activeUser, disabledUser] });
 
     render(<DepartmentsWorkspace />);
 
     expect(await screen.findByRole('heading', { name: '用户归属（需 user.manage）' })).toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: '用户 ID' })).toBeInTheDocument();
+    expect(assignUserSelect().tagName).toBe('SELECT');
+    expect(screen.getByRole('combobox', { name: '用户 ID' })).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: '用户 ID' })).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(assignUserOptionTexts()).toContain('张三');
+    });
+    expect(assignUserOptionTexts()).not.toContain('已禁用用户');
+    expect(assignUserOptionTexts()).toContain('选择用户');
     expect(assignDeptSelect().tagName).toBe('SELECT');
     expect(
       screen.getByRole('combobox', { name: '设为所属部门（单条主归属，覆盖）' }),
@@ -290,12 +372,16 @@ describe('DepartmentsWorkspace', () => {
     me.permissions = ['dept.manage', 'user.manage'];
     loadDeptWorkspace.mockResolvedValue(workspaceWithDepts);
     loadGrants.mockResolvedValue({ ok: true, grants: [] });
+    loadGrantUsers.mockResolvedValue({ ok: true, users: [activeUser, disabledUser] });
     saveUserDepts.mockResolvedValue({ ok: true, view: { assignments: [] } });
     loadUserDepts.mockResolvedValue({ ok: true, view: { assignments: [] } });
 
     render(<DepartmentsWorkspace />);
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText('用户 ID'), USER_ID);
+    await waitFor(() => {
+      expect(assignUserOptionTexts()).toContain('张三');
+    });
+    await user.selectOptions(assignUserSelect(), USER_ID);
     await waitFor(() => {
       expect(assignDeptOptionTexts()).toContain('人事部');
     });
@@ -383,5 +469,44 @@ describe('DepartmentsWorkspace', () => {
     expect(screen.queryByRole('heading', { name: '用户归属（需 user.manage）' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '保存归属' })).not.toBeInTheDocument();
     expect(screen.queryByLabelText('用户 ID')).not.toBeInTheDocument();
+  });
+
+  it('用户列表加载失败：归属用户仍是 textbox', async () => {
+    me.permissions = ['dept.manage', 'user.manage'];
+    loadDeptWorkspace.mockResolvedValue(workspaceWithDepts);
+    loadGrants.mockResolvedValue({ ok: true, grants: [] });
+    loadGrantUsers.mockResolvedValue({ ok: false, message: 'FORBIDDEN' });
+
+    render(<DepartmentsWorkspace />);
+
+    expect(await screen.findByRole('textbox', { name: '用户 ID' })).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: '用户 ID' })).not.toBeInTheDocument();
+  });
+
+  it('授权列表未知可见级回退数字', async () => {
+    me.permissions = ['dept.manage'];
+    loadDeptWorkspace.mockResolvedValue(workspaceWithDepts);
+    loadGrants.mockResolvedValue({
+      ok: true,
+      grants: [{ ...grantRow, maxVisibilityLevel: 15 as never }],
+    });
+
+    render(<DepartmentsWorkspace />);
+
+    expect(await screen.findByText('level 15')).toBeInTheDocument();
+  });
+});
+
+describe('grantVisibilityLabel', () => {
+  it('默认档为带数字的中文', () => {
+    expect(grantVisibilityLabel(10)).toBe('10 部门全员');
+    expect(grantVisibilityLabel(20)).toBe('20 部门成员');
+    expect(grantVisibilityLabel(30)).toBe('30 负责人');
+    expect(grantVisibilityLabel(40)).toBe('40 受限');
+  });
+
+  it('未知数字回退原值', () => {
+    expect(grantVisibilityLabel(15)).toBe('15');
+    expect(grantVisibilityLabel(41)).toBe('41');
   });
 });

@@ -14,6 +14,7 @@ import type {
   PlatformUser,
   PutUserDepartmentsBody,
   UserDepartmentsView,
+  VisibilityLevel,
 } from '@strict-rag/contracts';
 
 import { mapBizError } from '@/lib/map-biz-error';
@@ -144,4 +145,23 @@ export async function removeGrant(
   } catch (err) {
     return { ok: false, message: mapBizError(err) };
   }
+}
+
+export function grantDeptLabel(
+  id: string,
+  flat: { id: string; name: string }[] | null | undefined,
+): string {
+  const hit = flat?.find((d) => d.id === id);
+  return hit ? hit.name : id;
+}
+
+const GRANT_VISIBILITY_LABELS: Record<VisibilityLevel, string> = {
+  10: '10 部门全员',
+  20: '20 部门成员',
+  30: '30 负责人',
+  40: '40 受限',
+};
+
+export function grantVisibilityLabel(level: number): string {
+  return GRANT_VISIBILITY_LABELS[level as VisibilityLevel] ?? String(level);
 }

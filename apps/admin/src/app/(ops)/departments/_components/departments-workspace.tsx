@@ -22,6 +22,8 @@ import { useAdminAuth } from '@/components/auth-guard';
 import {
   createDept,
   createGrant,
+  grantDeptLabel,
+  grantVisibilityLabel,
   loadDeptWorkspace,
   loadGrantUsers,
   loadGrants,
@@ -419,12 +421,30 @@ export function DepartmentsWorkspace() {
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
               <Label htmlFor="assign-user">用户 ID</Label>
-              <Input
-                id="assign-user"
-                value={assignUserId}
-                onChange={(e) => setAssignUserId(e.target.value)}
-                placeholder="uuid"
-              />
+              {grantUsersError ? (
+                <Input
+                  id="assign-user"
+                  value={assignUserId}
+                  onChange={(e) => setAssignUserId(e.target.value)}
+                  placeholder="uuid"
+                />
+              ) : (
+                <select
+                  id="assign-user"
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                  value={assignUserId}
+                  onChange={(e) => setAssignUserId(e.target.value)}
+                >
+                  <option value="">选择用户</option>
+                  {grantUsers
+                    .filter((u) => u.status === 'active')
+                    .map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {grantUserLabel(u)}
+                      </option>
+                    ))}
+                </select>
+              )}
             </div>
             <div className="flex items-end gap-2">
               <Button
@@ -551,7 +571,7 @@ export function DepartmentsWorkspace() {
             >
               {VISIBILITY_LEVELS.map((level) => (
                 <option key={level} value={level}>
-                  {level}
+                  {grantVisibilityLabel(level)}
                 </option>
               ))}
             </select>
@@ -592,8 +612,8 @@ export function DepartmentsWorkspace() {
               >
                 <div className="min-w-0 break-all text-xs">
                   <div>userId {resolveGrantUserLabel(grantUsers, g.userId)}</div>
-                  <div>deptId {g.deptId}</div>
-                  <div>level {g.maxVisibilityLevel}</div>
+                  <div title={g.deptId}>deptId {grantDeptLabel(g.deptId, flat)}</div>
+                  <div>level {grantVisibilityLabel(g.maxVisibilityLevel)}</div>
                   <div>expiresAt {g.expiresAt ?? '—'}</div>
                   <div>reason {g.reason ?? '—'}</div>
                 </div>
