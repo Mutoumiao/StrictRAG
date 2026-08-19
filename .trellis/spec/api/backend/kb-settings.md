@@ -66,20 +66,22 @@ export function createKbSettingsRoutes(deps?: {
 | `defaultMode?` | ∈ 合并后 `allowedModes` |
 | `docTypes?` | `string[]` · max 32 · 唯一；空 = 不限制；ask `scope.docTypes` 须为其子集 |
 | `dataClass?` | `internal` \| `sensitive`；缺省 / 旧行 = `internal` |
+| `deptInheritDown?` | 布尔；GET 未写 / 旧行 default **true**；运行时未写跟 env |
 
 **禁止** body 键：`tauClaim` · `crag*` · `allowDegradedGenerate` · `sessionRewrite*` · `retrieveK` · `route` · 密钥等 → Zod 失败 → 400。  
 **仍不放开** τ / rewrite 写键。`dataClass=sensitive` **≠** 敏感已解禁。
 
 **GET/PATCH data**（`KbSettings`）：
 
-`kbId, name, description?, allowedModes, defaultMode, docTypes?, dataClass, qualitySnapshot, sessionRewrite`
+`kbId, name, description?, allowedModes, defaultMode, docTypes?, dataClass, deptInheritDown, qualitySnapshot, sessionRewrite`
 
 | 只读区 | 形状 |
 |--------|------|
 | `qualitySnapshot` | `{ tauClaim, gatePackageId?, effectiveAt? }`；τ ← `env.TAU_CLAIM` |
 | `sessionRewrite` | **固定** `{ enabledDefault: false, locked: true }` |
 
-**持久化**：`name`/`description` → 列；modes / `docTypes` / `dataClass` → `knowledge_bases.config_json`。无 migration。
+**持久化**：`name`/`description` → 列；modes / `docTypes` / `dataClass` / `deptInheritDown` → `knowledge_bases.config_json`。无 migration。  
+运行时：`parseDeptInheritDownFromConfig` 仅认字面 true/false；未写 → `isDeptInheritDown()`。GET 回读未写仍展示 true。**无** admin 设置页勾选。
 
 ### 4. Validation & Error Matrix
 
