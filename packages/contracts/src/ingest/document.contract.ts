@@ -136,12 +136,15 @@ export const DocumentListItemSchema = z.object({
   errorCode: z.string().nullable(),
   embedReady: z.boolean(),
   esReady: z.boolean(),
+  ownerDeptId: z.string().uuid().nullable().default(null),
+  visibilityLevel: VisibilityLevelSchema.default(20),
 });
 export type DocumentListItem = z.infer<typeof DocumentListItemSchema>;
 
 /**
  * GET /documents/:docId 公开详情（非 DB 行直出）。
  * 不含 parsedText / 对象内部密钥类字段。
+ * 部门字段继承列表项，避免两套默认分叉。
  */
 export const DocumentDetailSchema = DocumentListItemSchema.extend({
   tenantId: z.string().uuid(),
@@ -152,8 +155,6 @@ export const DocumentDetailSchema = DocumentListItemSchema.extend({
   docType: z.string().nullable().optional(),
   createdAt: z.string().nullable().optional(),
   updatedAt: z.string().nullable().optional(),
-  ownerDeptId: z.string().uuid().nullable().optional(),
-  visibilityLevel: VisibilityLevelSchema.optional(),
 });
 export type DocumentDetail = z.infer<typeof DocumentDetailSchema>;
 

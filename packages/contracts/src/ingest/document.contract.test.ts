@@ -108,9 +108,23 @@ describe('DocumentDetailSchema / list item', () => {
     ).toBe(true);
   });
 
-  it('list item schema has no ownerDeptId / visibilityLevel', () => {
+  it('list item schema has ownerDeptId / visibilityLevel', () => {
     const keys = Object.keys(DocumentListItemSchema.shape);
-    expect(keys).not.toContain('ownerDeptId');
-    expect(keys).not.toContain('visibilityLevel');
+    expect(keys).toContain('ownerDeptId');
+    expect(keys).toContain('visibilityLevel');
+    const parsed = DocumentListItemSchema.parse({
+      id: DETAIL_BASE.id,
+      title: DETAIL_BASE.title,
+      status: DETAIL_BASE.status,
+      approvalStatus: DETAIL_BASE.approvalStatus,
+      lifecycle: DETAIL_BASE.lifecycle,
+      byteSize: DETAIL_BASE.byteSize,
+      indexVersion: DETAIL_BASE.indexVersion,
+      errorCode: DETAIL_BASE.errorCode,
+      embedReady: DETAIL_BASE.embedReady,
+      esReady: DETAIL_BASE.esReady,
+    });
+    expect(parsed.ownerDeptId).toBeNull();
+    expect(parsed.visibilityLevel).toBe(20);
   });
 });
