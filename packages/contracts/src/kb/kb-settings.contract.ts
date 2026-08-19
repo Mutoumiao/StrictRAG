@@ -40,6 +40,8 @@ export const KbSettingsSchema = z.object({
   dataClass: DataClassSchema.default('internal'),
   /** 缺省 / 旧行 = true（ADR 默认上级看下级）；运行时未写跟 env */
   deptInheritDown: z.boolean().default(true),
+  /** 缺省 / 旧行 = false（产品默认关强制）；运行时未写跟 env */
+  deptAclEnforce: z.boolean().default(false),
   qualitySnapshot: QualitySnapshotSchema,
   sessionRewrite: SessionRewriteLockSchema,
 });
@@ -65,6 +67,7 @@ export const PatchKbSettingsBodySchema = z
     docTypes: z.array(z.string().min(1).max(64)).max(32).optional(),
     dataClass: DataClassSchema.optional(),
     deptInheritDown: z.boolean().optional(),
+    deptAclEnforce: z.boolean().optional(),
   })
   .strict()
   .refine((v) => Object.keys(v).length > 0, { message: '至少提供一个可写字段' });

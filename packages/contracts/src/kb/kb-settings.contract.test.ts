@@ -72,6 +72,17 @@ describe('PatchKbSettingsBodySchema', () => {
     expect(PatchKbSettingsBodySchema.safeParse({ deptInheritDown: 1 }).success).toBe(false);
     expect(PatchKbSettingsBodySchema.safeParse({ deptInheritDown: null }).success).toBe(false);
   });
+
+  it('accepts deptAclEnforce true/false', () => {
+    expect(PatchKbSettingsBodySchema.safeParse({ deptAclEnforce: true }).success).toBe(true);
+    expect(PatchKbSettingsBodySchema.safeParse({ deptAclEnforce: false }).success).toBe(true);
+  });
+
+  it('rejects invalid deptAclEnforce', () => {
+    expect(PatchKbSettingsBodySchema.safeParse({ deptAclEnforce: 'false' }).success).toBe(false);
+    expect(PatchKbSettingsBodySchema.safeParse({ deptAclEnforce: 1 }).success).toBe(false);
+    expect(PatchKbSettingsBodySchema.safeParse({ deptAclEnforce: null }).success).toBe(false);
+  });
 });
 
 describe('KbSettingsSchema', () => {
@@ -121,5 +132,18 @@ describe('KbSettingsSchema', () => {
     });
     expect(r.success).toBe(true);
     if (r.success) expect(r.data.deptInheritDown).toBe(true);
+  });
+
+  it('defaults deptAclEnforce to false when omitted (old GET row)', () => {
+    const r = KbSettingsSchema.safeParse({
+      kbId: '01900000-0000-7000-8000-000000000099',
+      name: 'KB',
+      allowedModes: ['balanced'] as const,
+      defaultMode: 'balanced' as const,
+      qualitySnapshot: { tauClaim: 0.5 },
+      sessionRewrite: { enabledDefault: false, locked: true },
+    });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.deptAclEnforce).toBe(false);
   });
 });
