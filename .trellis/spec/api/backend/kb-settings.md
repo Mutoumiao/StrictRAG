@@ -67,21 +67,23 @@ export function createKbSettingsRoutes(deps?: {
 | `docTypes?` | `string[]` · max 32 · 唯一；空 = 不限制；ask `scope.docTypes` 须为其子集 |
 | `dataClass?` | `internal` \| `sensitive`；缺省 / 旧行 = `internal` |
 | `deptInheritDown?` | 布尔；GET 未写 / 旧行 default **true**；运行时未写跟 env；admin 设置页可勾选，**未改不得带该键**（禁止把 GET 缺省 true 写回盖 env） |
+| `deptAclEnforce?` | 布尔；GET 未写 / 旧行 default **false**；运行时未写跟 env；**本窗无**设置页勾选 |
 
 **禁止** body 键：`tauClaim` · `crag*` · `allowDegradedGenerate` · `sessionRewrite*` · `retrieveK` · `route` · 密钥等 → Zod 失败 → 400。  
 **仍不放开** τ / rewrite 写键。`dataClass=sensitive` **≠** 敏感已解禁。
 
 **GET/PATCH data**（`KbSettings`）：
 
-`kbId, name, description?, allowedModes, defaultMode, docTypes?, dataClass, deptInheritDown, qualitySnapshot, sessionRewrite`
+`kbId, name, description?, allowedModes, defaultMode, docTypes?, dataClass, deptInheritDown, deptAclEnforce, qualitySnapshot, sessionRewrite`
 
 | 只读区 | 形状 |
 |--------|------|
 | `qualitySnapshot` | `{ tauClaim, gatePackageId?, effectiveAt? }`；τ ← `env.TAU_CLAIM` |
 | `sessionRewrite` | **固定** `{ enabledDefault: false, locked: true }` |
 
-**持久化**：`name`/`description` → 列；modes / `docTypes` / `dataClass` / `deptInheritDown` → `knowledge_bases.config_json`。无 migration。  
-运行时：`parseDeptInheritDownFromConfig` 仅认字面 true/false；未写 → `isDeptInheritDown()`。GET 回读未写仍展示 true。admin 设置页可勾选；**未改不得带该键**。
+**持久化**：`name`/`description` → 列；modes / `docTypes` / `dataClass` / `deptInheritDown` / `deptAclEnforce` → `knowledge_bases.config_json`。无 migration。  
+运行时：`parseDeptInheritDownFromConfig` 仅认字面 true/false；未写 → `isDeptInheritDown()`。GET 回读未写仍展示 true。admin 设置页可勾选；**未改不得带该键**。  
+`parseDeptAclEnforceFromConfig` 仅认字面 true/false；未写 → `isDeptAclEnforced()`。GET 未写回读 false（与运行时未写跟 env 不同）。
 
 ### 4. Validation & Error Matrix
 
@@ -159,4 +161,4 @@ assertScopeDocTypesAllowed({ scopeDocTypes?, kbDocTypes })
 |----|------|
 | gatePackageId / effectiveAt 真值 | 现恒 null；签字包流属 ADR-046 |
 | admin 写 KB 级 model_bindings UI | 运行时 resolve 已接（B2-W）；运营写 UI 可后置 |
-| 敏感入池解禁 | **闸有、解禁无**。`dataClass` 可写；complete 对 `sensitive` fail-closed（`DEPT_ACL_ENFORCE===true` ∧ `ownerDeptId` 非空才放行本闸）。complete body **可先写** `ownerDeptId` 再过本闸（P3b-UPL）。**禁止**宣称敏感语料已可入池 |
+| 敏感入池解禁 | **闸有、解禁无**。`dataClass` 可写；complete 对 `sensitive` fail-closed（解析后的 enforce 开 ∧ `ownerDeptId` 非空才放行本闸）。complete body **可先写** `ownerDeptId` 再过本闸（P3b-UPL）。**禁止**宣称敏感语料已可入池 |

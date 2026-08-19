@@ -2,7 +2,7 @@
 
 > 路径：`apps/api` · 目标端口 **4000**  
 > 现状：**P0/P1 入库** + **S2 最小 ask** + **B1–B6** + **08-11 接线**（B2-W mode/docTypes · B3-W/B4-W · B12 策略注册表 · B13 feedback UI 闭环 API · QUAL-1/3 · OPS-1 live 切片 · B10 工程 seed）。  
-> 默认：`RETRIEVE_ES_MODE=mock` · `AUTH_ENFORCE=false` · `SESSION_REWRITE_ENABLED=false`（dogfood 可开；**禁止**默认改 true）· Gateway 缺 URL→mock；**B3-W/B2-W** `getGatewayForTenant(tenant, kbId)` = env+platform+KB 覆盖（失败回退 env）· **B4-W** JWT 身份 + 每请求 DB hydrate（≤5s 缓存 · 超时回退 claims）· 文档部门字段 **已落**（GET/PATCH/complete）· `DEPT_ACL_ENFORCE` **默认 false**（开时精确 ∪ 祖先 + 精确 grant；超管可绕过；列表同滤且列表项带部门列；`DEPT_INHERIT_DOWN` 默认 true；KB `deptInheritDown` 可覆盖 env；设置页可勾选且未改不写回；无 ES 查询期） · L1 真跑数字已落（live+规模）**≠** 业务签字 PASS。
+> 默认：`RETRIEVE_ES_MODE=mock` · `AUTH_ENFORCE=false` · `SESSION_REWRITE_ENABLED=false`（dogfood 可开；**禁止**默认改 true）· Gateway 缺 URL→mock；**B3-W/B2-W** `getGatewayForTenant(tenant, kbId)` = env+platform+KB 覆盖（失败回退 env）· **B4-W** JWT 身份 + 每请求 DB hydrate（≤5s 缓存 · 超时回退 claims）· 文档部门字段 **已落**（GET/PATCH/complete）· `DEPT_ACL_ENFORCE` **默认 false**（开时精确 ∪ 祖先 + 精确 grant；超管可绕过；列表同滤且列表项带部门列；`DEPT_INHERIT_DOWN` 默认 true；KB `deptInheritDown` 可覆盖 env；设置页可勾选且未改不写回；KB `deptAclEnforce` 可覆盖 env，未写跟 env，GET 未写回读 false；无设置页强制勾选；无 ES 查询期） · L1 真跑数字已落（live+规模）**≠** 业务签字 PASS。
 
 ---
 

@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（S2c 运营薄壳：文档 / 审批 / 成员 / 分片 / 设置 / 模型 + 用户 / 角色 / 部门 + **数据面板** + **反馈队列**） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT + admin **dev-login**（经 api）· 知识库 = 手工填写 uuid · 菜单 = `clipMenuForShell` 裁剪（catalog 为 SSOT）· API 默认 `http://127.0.0.1:4000` |
 | 关联模块 | API 依赖：`api` 的文档 / 审批 / 成员 / 分片 / 设置 / 模型 / 用户角色 / 部门 / dashboard / **feedback-queue**；菜单与权限码：`admin-catalog`；类型：`contracts`；样式：`ui` |
-| 最近更新 | 2026-08-19（P3b-INHUI 可勾选 inherit · P3b-GRPICK/ASGNPICK 部门下拉 · P3b-COLF 列表本地筛；**无**强制开关 UI / **≠** 解禁） |
+| 最近更新 | 2026-08-19（P3b-USRPICK grant 用户下拉 · P3b-COLN 列表部门名 · P3b-VLAB 可见级文案；**无**强制开关 UI / **≠** 解禁） |
 | Spec | `.trellis/spec/admin/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · 审批 / 成员相关 API |
 
@@ -34,7 +34,7 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 - 需要 `dashboard.view`；无码菜单隐藏、直链 **403 态**；**不是** APM / Grafana
 
 ### 文档
-- `/documents`：按知识库拉取文档列表；表格展示部门 / 可见级 / status / approval / lifecycle（部门列为只读 uuid；可按部门/可见级**本地**筛，不加 GET query；审批操作在审批页进行）
+- `/documents`：按知识库拉取文档列表；表格展示部门 / 可见级 / status / approval / lifecycle（有树时部门列显示名，否则 uuid；可见级默认中文标签；可按部门/可见级**本地**筛，不加 GET query；审批操作在审批页进行）
 - 点行改 `ownerDeptId` / `visibilityLevel`：有 `dept.manage` 用部门下拉，否则 uuid 粘贴；`doc.editor` 裁保存
 - `DocumentListItem` 类型包含 embedReady / esReady 字段，但 **UI 尚未渲染"双就绪"列**
 
@@ -64,7 +64,7 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 - `/departments`：组织树列表、新建根 / 子部门、启用停用、删除（要求无子部门且无成员）、用户归属管理（查询归属 + **主部门 / 负责人**标记，需要 `user.manage` 权限）
 - 需要 `dept.manage` 权限；无权限时显示 403 状态；数据路径仅 `departments/api.ts` 一处
 - 文档页可点行改 `ownerDeptId` / `visibilityLevel`（有 `dept.manage` 下拉，否则 uuid；`doc.editor` 裁保存；**无**强制开关 UI）
-- 部门页可配跨部门授权（部门下拉 + 用户 uuid + 级别 + 可选过期；**检索是否消费看 api `DEPT_ACL_ENFORCE`**）；用户归属部门亦下拉（禁用不可新挂）；**没有** DEPT_ACL 开关运营页
+- 部门页可配跨部门授权（部门下拉 + 有 `user.manage` 时用户下拉否则 uuid + 级别 + 可选过期；**检索是否消费看 api `DEPT_ACL_ENFORCE` / KB `deptAclEnforce`**）；用户归属部门亦下拉（禁用不可新挂）；**没有** DEPT_ACL 开关运营页
 
 ### 审批中心
 - `/approvals`：待审批 / 已通过 两个分栏
