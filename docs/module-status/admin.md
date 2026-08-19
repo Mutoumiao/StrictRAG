@@ -7,13 +7,13 @@
 | 成熟度 | **可演示**（S2c 运营薄壳：文档 / 审批 / 成员 / 分片 / 设置 / 模型 + 用户 / 角色 / 部门 + **数据面板** + **反馈队列**） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT + admin **dev-login**（经 api）· 知识库 = 手工填写 uuid · 菜单 = `clipMenuForShell` 裁剪（catalog 为 SSOT）· API 默认 `http://127.0.0.1:4000` |
 | 关联模块 | API 依赖：`api` 的文档 / 审批 / 成员 / 分片 / 设置 / 模型 / 用户角色 / 部门 / dashboard / **feedback-queue**；菜单与权限码：`admin-catalog`；类型：`contracts`；样式：`ui` |
-| 最近更新 | 2026-08-18（P3b-COL 列表部门列 · P3b-PICK 部门下拉 · P3b-CLSUI 可标 dataClass；**无**强制开关 UI / **≠** 解禁） |
+| 最近更新 | 2026-08-19（P3b-INHUI 可勾选 inherit · P3b-GRPICK/ASGNPICK 部门下拉 · P3b-COLF 列表本地筛；**无**强制开关 UI / **≠** 解禁） |
 | Spec | `.trellis/spec/admin/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · 审批 / 成员相关 API |
 
 ## 一句话状态
 
-Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 + 分片只读 + 知识库设置 + 模型网关最小集 + 用户 / 角色 / 部门最小集 + 数据面板薄壳 + 反馈队列薄壳** 均已接通；知识库靠手填 id，外壳 **`clipMenuForShell`** 只显示已落地路由（**11** 条 ops href），**不是**完整运营台（无 APM 时序 / 部门强制隔离 UI）。Vitest / RTL 覆盖外壳 / Guard / 审批 / dashboard 403 + **P0 R5/R6**；**无** feedback 工作区测、**无** E2E。
+Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 + 分片只读 + 知识库设置 + 模型网关最小集 + 用户 / 角色 / 部门最小集 + 数据面板薄壳 + 反馈队列薄壳** 均已接通；知识库靠手填 id，外壳 **`clipMenuForShell`** 只显示已落地路由（**11** 条 ops href），**不是**完整运营台（无 APM 时序 / **无**部门强制隔离 UI）。Vitest / RTL 覆盖外壳 / Guard / 审批 / dashboard 403 + **P0 R5/R6** + settings / documents / departments 工作区测；**无** feedback 工作区测、**无** E2E。
 
 ---
 
@@ -34,7 +34,7 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 - 需要 `dashboard.view`；无码菜单隐藏、直链 **403 态**；**不是** APM / Grafana
 
 ### 文档
-- `/documents`：按知识库拉取文档列表；表格展示部门 / 可见级 / status / approval / lifecycle（部门列为只读 uuid；审批操作在审批页进行）
+- `/documents`：按知识库拉取文档列表；表格展示部门 / 可见级 / status / approval / lifecycle（部门列为只读 uuid；可按部门/可见级**本地**筛，不加 GET query；审批操作在审批页进行）
 - 点行改 `ownerDeptId` / `visibilityLevel`：有 `dept.manage` 用部门下拉，否则 uuid 粘贴；`doc.editor` 裁保存
 - `DocumentListItem` 类型包含 embedReady / esReady 字段，但 **UI 尚未渲染"双就绪"列**
 
@@ -44,9 +44,9 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 - **禁止**在页面挂载时批量预拉所有分片全文
 
 ### 知识库设置（B2）
-- `/kb/settings`：基本信息、**语料分级 `dataClass`**、问答档位、**质量只读展示**、**rewrite 锁定开关**（无开启控件）
+- `/kb/settings`：基本信息、**语料分级 `dataClass`**、**部门继承勾选**、问答档位、**质量只读展示**、**rewrite 锁定开关**（无开启控件）
 - 需要 `kb.config.write` 权限；无权限时显示 403 状态；数据路径仅 `kb/settings/api.ts` 一处
-- `dataClass=sensitive` **≠** 已解禁（complete 闸仍 fail-closed）；**没有** `deptInheritDown` 勾选
+- `dataClass=sensitive` **≠** 已解禁（complete 闸仍 fail-closed）；`deptInheritDown` 可勾选，**未改不得写回** GET 缺省 true（避免盖掉运行时「未写跟 env」）；勾选 **≠** 打开 `DEPT_ACL_ENFORCE`
 - **没有** τ 滑块、**没有**供应商 Key 配置、**没有** docTypes / 分片策略弹窗 / 知识库模型绑定分区
 
 ### 模型网关（B3 最小集）
@@ -64,7 +64,7 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 - `/departments`：组织树列表、新建根 / 子部门、启用停用、删除（要求无子部门且无成员）、用户归属管理（查询归属 + **主部门 / 负责人**标记，需要 `user.manage` 权限）
 - 需要 `dept.manage` 权限；无权限时显示 403 状态；数据路径仅 `departments/api.ts` 一处
 - 文档页可点行改 `ownerDeptId` / `visibilityLevel`（有 `dept.manage` 下拉，否则 uuid；`doc.editor` 裁保存；**无**强制开关 UI）
-- 部门页可配跨部门授权（uuid 粘贴 + 级别 + 可选过期；**检索是否消费看 api `DEPT_ACL_ENFORCE`**）；**没有** DEPT_ACL 开关运营页
+- 部门页可配跨部门授权（部门下拉 + 用户 uuid + 级别 + 可选过期；**检索是否消费看 api `DEPT_ACL_ENFORCE`**）；用户归属部门亦下拉（禁用不可新挂）；**没有** DEPT_ACL 开关运营页
 
 ### 审批中心
 - `/approvals`：待审批 / 已通过 两个分栏
@@ -88,7 +88,7 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 - 类型 `@strict-rag/contracts`；菜单 / 权限码 `@strict-rag/admin-catalog`
 - 样式：Tailwind v4 + ui 主题；构建 `next build --webpack`
 - **单元 / 组件测试**：外壳 / Guard / 审批 / dashboard + **P0 R5/R6** + `lib/kb-context.test.ts`（admin KB key 不与 web 混写）+ `auth/client-session.test.ts`（admin session 与 web 隔离）
-  - **没有** members / chunks / settings / models / users / roles / **feedback** 工作区测；documents / departments 工作区测已有；**没有** E2E；**没有** http 全路径 refresh 集成测
+  - **没有** members / chunks / models / users / roles / **feedback** 工作区测；documents / departments / settings 工作区测已有；**没有** E2E；**没有** http 全路径 refresh 集成测
 
 ---
 

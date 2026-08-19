@@ -81,7 +81,7 @@
 - 数据表：`departments` / `user_departments`；migration `0005_b5_departments`；测试用内存仓库
 - 文档 `ownerDeptId` / `visibilityLevel` **已落库可回读**（`PATCH /documents/:docId` · complete body 可选同写 · `doc.editor` 始终验码；migration `0007`）
 - `GET/POST/DELETE /admin/dept-cross-grants`（`dept.manage` 始终验；migration `0008`）；enforce 开时 retrieve/预览/**列表**读未过期**精确** grant（不沿子树）
-- `DEPT_ACL_ENFORCE` **默认 false**：开时 `filterDocsForDeptAcl` 为精确 ∪ 祖先 + 精确 grant（预览、列表、retrieve 同函数）；超管 `roleBypassesKbMembership` 绕过；`DEPT_INHERIT_DOWN` 默认 true（仅 `'false'` 关祖先）；KB `config_json.deptInheritDown` 可覆盖 env（未写跟 env）；列表项带 `ownerDeptId` / `visibilityLevel`；**无** ES 查询期对称 / **无** 默认开 / **无** 设置页 inherit 勾选
+- `DEPT_ACL_ENFORCE` **默认 false**：开时 `filterDocsForDeptAcl` 为精确 ∪ 祖先 + 精确 grant（预览、列表、retrieve 同函数）；超管 `roleBypassesKbMembership` 绕过；`DEPT_INHERIT_DOWN` 默认 true（仅 `'false'` 关祖先）；KB `config_json.deptInheritDown` 可覆盖 env（未写跟 env）；列表项带 `ownerDeptId` / `visibilityLevel`；设置页可勾选 inherit（未改不写回）；**无** ES 查询期对称 / **无** 默认开 / **无** 解禁
 - KB `dataClass`（`internal`|`sensitive`，缺省 internal）：`sensitive` complete 在 ACL 未就绪时 400 `RULE_VIOLATION`（**≠**解禁）
 
 ### 数据面板（B6 · 薄壳 · 只读）
@@ -138,7 +138,7 @@
 | L2 准出 / 多轮 runner | 题面草案 + **工程 CLI** + 可选 `eval_runs` persist 已落；**无**真跑准出 / 人签；图边/runner/persist ≠ 准出 |
 | L3 自动熔断 / 面板 | **打点+告警有**（六 counter + 主题投诉 + `l3_guard_alert_total` 含 `l2_stale`）；**无**超阈关默认 / 收窄窗 / Grafana |
 | CRAG / multi_hop | 未进入本阶段范围 |
-| 完整 ACL / 部门强制隔离 | 开关有、默认关；开时精确 ∪ 祖先 + 精确 grant；超管可绕过；列表同滤且带列；可关继承（env + KB 覆盖）；**无** ES / **无** 默认开 |
+| 完整 ACL / 部门强制隔离 | 开关有、默认关；开时精确 ∪ 祖先 + 精确 grant；超管可绕过；列表同滤且带列；可关继承（env + KB 覆盖 + 设置页勾选，未改不写回）；**无** ES / **无** 默认开 |
 | 生产 IdP | 仍是临时双 JWT；**B4-W** 已读 `user_roles` hydrate（≠ Better Auth / 密码登录） |
 
 ### 其他包的 UI / 产品面挂账（非本包义务）
