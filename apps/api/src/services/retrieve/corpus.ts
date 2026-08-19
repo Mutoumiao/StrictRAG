@@ -8,6 +8,11 @@ import { and, eq, inArray } from 'drizzle-orm';
 
 import { getDb } from '../db.js';
 import {
+  parseDeptInheritDownFromConfig,
+  resolveDeptInheritDown,
+  kbSettingsRepo,
+} from '../kb-settings.js';
+import {
   filterDocsForDeptAcl,
   isDeptAclEnforced,
   loadDeptAssignments,
@@ -59,12 +64,13 @@ export const loadCorpusFromDb: CorpusLoader = async ({
   const enforce = isDeptAclEnforced();
   const tenantId = dual[0]?.tenantId;
   const skipDeptIo = !enforce || bypassDeptAcl === true;
-  const [assignments, depts, grants] = skipDeptIo
-    ? [[], [], []]
+  const [assignments, depts, grants, kb] = skipDeptIo
+    ? [[], [], [], null]
     : await Promise.all([
         loadDeptAssignments(tenantId, userId),
         loadDeptNodes(tenantId),
         loadDeptGrants(tenantId, userId),
+        kbSettingsRepo.get(kbId),
       ]);
   const allowed = filterDocsForDeptAcl(dual, {
     assignments,
@@ -72,6 +78,9 @@ export const loadCorpusFromDb: CorpusLoader = async ({
     depts,
     grants,
     bypass: bypassDeptAcl,
+    inheritDown: skipDeptIo
+      ? undefined
+      : resolveDeptInheritDown(parseDeptInheritDownFromConfig(kb?.configJson ?? null)),
   });
 
   if (allowed.length === 0) return [];
@@ -132,12 +141,13 @@ export async function hasRetrievableDocs(
   const enforce = isDeptAclEnforced();
   const tenantId = dual[0]?.tenantId;
   const skipDeptIo = !enforce || bypassDeptAcl === true;
-  const [assignments, depts, grants] = skipDeptIo
-    ? [[], [], []]
+  const [assignments, depts, grants, kb] = skipDeptIo
+    ? [[], [], [], null]
     : await Promise.all([
         loadDeptAssignments(tenantId, userId),
         loadDeptNodes(tenantId),
         loadDeptGrants(tenantId, userId),
+        kbSettingsRepo.get(kbId),
       ]);
   return (
     filterDocsForDeptAcl(dual, {
@@ -146,6 +156,9 @@ export async function hasRetrievableDocs(
       depts,
       grants,
       bypass: bypassDeptAcl,
+      inheritDown: skipDeptIo
+        ? undefined
+        : resolveDeptInheritDown(parseDeptInheritDownFromConfig(kb?.configJson ?? null)),
     }).length > 0
   );
 }

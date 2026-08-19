@@ -9,6 +9,7 @@ import { createMemoryChunksRepo, type ChunkRow } from '../services/chunks.js';
 import { createChunkRoutes } from './chunks.js';
 
 const DOC = '01900000-0000-7000-8000-0000000000d1';
+const KB = '01900000-0000-7000-8000-0000000000aa';
 const TENANT = '01900000-0000-7000-8000-000000000001';
 const DEPT_A = '01900000-0000-7000-8000-0000000000a1';
 const DEPT_B = '01900000-0000-7000-8000-0000000000b1';
@@ -16,6 +17,10 @@ const DEPT_B = '01900000-0000-7000-8000-0000000000b1';
 const deptAcl = {
   enforce: false,
   assignments: [] as { deptId: string; isLeader: boolean }[],
+  depts: [] as { id: string; path: string }[],
+  grants: [] as { deptId: string; maxVisibilityLevel: number; expiresAt?: string | null }[],
+  kbConfig: {} as Record<string, unknown>,
+  ownerDeptId: DEPT_B as string | null,
 };
 
 vi.mock('../services/retrieve/dept-acl.js', async (importOriginal) => {
@@ -24,10 +29,20 @@ vi.mock('../services/retrieve/dept-acl.js', async (importOriginal) => {
     ...actual,
     isDeptAclEnforced: () => deptAcl.enforce,
     loadDeptAssignments: async () => deptAcl.assignments,
-    loadDeptNodes: async () => [],
-    loadDeptGrants: async () => [],
+    loadDeptNodes: async () => deptAcl.depts,
+    loadDeptGrants: async () => deptAcl.grants,
   };
 });
+
+vi.mock('../services/documents.js', () => ({
+  documentRepo: {
+    getKb: async () => ({
+      id: KB,
+      tenantId: TENANT,
+      configJson: deptAcl.kbConfig,
+    }),
+  },
+}));
 
 async function token(roles: string[] = ['kb_admin']) {
   const pair = await issueTokenPair({
@@ -49,7 +64,8 @@ function buildApp() {
         status: 'ready',
         lifecycle: 'active',
         tenantId: TENANT,
-        ownerDeptId: DEPT_B,
+        kbId: KB,
+        ownerDeptId: deptAcl.ownerDeptId,
         visibilityLevel: 20,
       },
     ],
@@ -76,6 +92,10 @@ describe('GET /documents/:docId/chunks 部门过滤（P3b-DEPT）', () => {
   afterEach(() => {
     deptAcl.enforce = false;
     deptAcl.assignments = [];
+    deptAcl.depts = [];
+    deptAcl.grants = [];
+    deptAcl.kbConfig = {};
+    deptAcl.ownerDeptId = DEPT_B;
   });
 
   it('关强制 → 200', async () => {
@@ -96,6 +116,27 @@ describe('GET /documents/:docId/chunks 部门过滤（P3b-DEPT）', () => {
     expect(res.status).toBe(403);
     const body = (await res.json()) as { error: { code: string } };
     expect(body.error.code).toBe('FORBIDDEN');
+  });
+
+  it('enforce + 祖先 + KB false → 子孙 403，精确仍 200', async () => {
+    deptAcl.enforce = true;
+    deptAcl.assignments = [{ deptId: DEPT_A, isLeader: false }];
+    deptAcl.depts = [
+      { id: DEPT_A, path: `/${DEPT_A}/` },
+      { id: DEPT_B, path: `/${DEPT_A}/${DEPT_B}/` },
+    ];
+    deptAcl.kbConfig = { deptInheritDown: false };
+    deptAcl.ownerDeptId = DEPT_B;
+    const denied = await buildApp().request(`/api/v1/documents/${DOC}/chunks`, {
+      headers: { authorization: `Bearer ${await token()}` },
+    });
+    expect(denied.status).toBe(403);
+
+    deptAcl.ownerDeptId = DEPT_A;
+    const allowed = await buildApp().request(`/api/v1/documents/${DOC}/chunks`, {
+      headers: { authorization: `Bearer ${await token()}` },
+    });
+    expect(allowed.status).toBe(200);
   });
 
   it('开 + super_admin 跨部门 → 200', async () => {

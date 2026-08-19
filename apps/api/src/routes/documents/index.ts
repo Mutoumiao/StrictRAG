@@ -33,6 +33,8 @@ import { documentRepo } from '../../services/documents.js';
 import {
   isSensitiveCompleteBlocked,
   parseDataClassFromConfig,
+  parseDeptInheritDownFromConfig,
+  resolveDeptInheritDown,
 } from '../../services/kb-settings.js';
 import {
   filterDocsForDeptAcl,
@@ -79,16 +81,20 @@ documentRoutes.get(
       return ok(c, rows.map(toListItem));
     }
     const tenantId = rows[0]?.tenantId;
-    const [assignments, depts, grants] = await Promise.all([
+    const [assignments, depts, grants, kb] = await Promise.all([
       loadDeptAssignments(tenantId, auth?.userId),
       loadDeptNodes(tenantId),
       loadDeptGrants(tenantId, auth?.userId),
+      documentRepo.getKb(kbId),
     ]);
     const visible = filterDocsForDeptAcl(rows, {
       assignments,
       enforce: true,
       depts,
       grants,
+      inheritDown: resolveDeptInheritDown(
+        parseDeptInheritDownFromConfig(kb?.configJson ?? null),
+      ),
     });
     return ok(c, visible.map(toListItem));
   },
@@ -492,12 +498,27 @@ documentRoutes.get('/documents/:docId', requirePermissionWhenEnforced('doc.view'
         'dept acl bypass',
       );
     } else {
-      const [assignments, depts, grants] = await Promise.all([
+      const [assignments, depts, grants, kb] = await Promise.all([
         loadDeptAssignments(doc.tenantId, auth?.userId),
         loadDeptNodes(doc.tenantId),
         loadDeptGrants(doc.tenantId, auth?.userId),
+        documentRepo.getKb(doc.kbId),
       ]);
-      if (!isDocVisibleForDeptAcl(doc, assignments, true, depts, grants)) {
+      const inheritDown = resolveDeptInheritDown(
+        parseDeptInheritDownFromConfig(kb?.configJson ?? null),
+      );
+      if (
+        !isDocVisibleForDeptAcl(
+          doc,
+          assignments,
+          true,
+          depts,
+          grants,
+          undefined,
+          undefined,
+          inheritDown,
+        )
+      ) {
         return fail(c, BizCode.FORBIDDEN, 'department acl denied', 403);
       }
     }

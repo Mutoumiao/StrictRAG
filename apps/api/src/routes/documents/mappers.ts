@@ -43,6 +43,8 @@ export function toListItem(r: DocMapSource): DocumentListItem {
     errorCode: r.errorCode ?? null,
     embedReady: r.embedReady === 1,
     esReady: r.esReady === 1,
+    ownerDeptId: r.ownerDeptId ?? null,
+    visibilityLevel: (r.visibilityLevel ?? 20) as VisibilityLevel,
   };
 }
 
@@ -57,7 +59,5 @@ export function toDetail(r: DocMapSource): DocumentDetail {
     docType: r.docType ?? null,
     createdAt: r.createdAt ?? null,
     updatedAt: r.updatedAt ?? null,
-    ownerDeptId: r.ownerDeptId ?? null,
-    visibilityLevel: (r.visibilityLevel ?? 20) as VisibilityLevel,
   };
 }

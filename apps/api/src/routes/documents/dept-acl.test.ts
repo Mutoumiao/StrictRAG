@@ -8,10 +8,15 @@ import { requestIdMiddleware } from '../../middleware/request-id.js';
 
 const DOC = '01900000-0000-7000-8000-0000000000d1';
 const LIB = '01900000-0000-7000-8000-0000000000d2';
+const CHILD = '01900000-0000-7000-8000-0000000000d3';
 const KB = '01900000-0000-7000-8000-0000000000aa';
 const TENANT = '01900000-0000-7000-8000-000000000001';
 const DEPT_A = '01900000-0000-7000-8000-0000000000a1';
 const DEPT_B = '01900000-0000-7000-8000-0000000000b1';
+const TREE = [
+  { id: DEPT_A, path: `/${DEPT_A}/` },
+  { id: DEPT_B, path: `/${DEPT_A}/${DEPT_B}/` },
+];
 
 function listRow(id: string, ownerDeptId: string | null) {
   return {
@@ -36,6 +41,10 @@ const deptAcl = {
   enforce: false,
   assignments: [] as { deptId: string; isLeader: boolean }[],
   ownerDeptId: DEPT_B as string | null,
+  depts: [] as { id: string; path: string }[],
+  grants: [] as { deptId: string; maxVisibilityLevel: number; expiresAt?: string | null }[],
+  kbConfig: {} as Record<string, unknown>,
+  extraList: [] as ReturnType<typeof listRow>[],
 };
 
 vi.mock('../../services/documents.js', () => ({
@@ -62,7 +71,13 @@ vi.mock('../../services/documents.js', () => ({
     listDocsByKb: async () => [
       listRow(LIB, null),
       listRow(DOC, deptAcl.ownerDeptId),
+      ...deptAcl.extraList,
     ],
+    getKb: async () => ({
+      id: KB,
+      tenantId: TENANT,
+      configJson: deptAcl.kbConfig,
+    }),
   },
 }));
 
@@ -72,8 +87,8 @@ vi.mock('../../services/retrieve/dept-acl.js', async (importOriginal) => {
     ...actual,
     isDeptAclEnforced: () => deptAcl.enforce,
     loadDeptAssignments: async () => deptAcl.assignments,
-    loadDeptNodes: async () => [],
-    loadDeptGrants: async () => [],
+    loadDeptNodes: async () => deptAcl.depts,
+    loadDeptGrants: async () => deptAcl.grants,
   };
 });
 
@@ -102,6 +117,10 @@ describe('GET /documents/:docId 部门过滤（P3b-DEPT）', () => {
     deptAcl.enforce = false;
     deptAcl.assignments = [];
     deptAcl.ownerDeptId = DEPT_B;
+    deptAcl.depts = [];
+    deptAcl.grants = [];
+    deptAcl.kbConfig = {};
+    deptAcl.extraList = [];
   });
 
   it('关强制 → 跨部门仍 200', async () => {
@@ -185,6 +204,10 @@ describe('GET /knowledge-bases/:kbId/documents 列表同滤（P3b-LIST）', () =
     deptAcl.enforce = false;
     deptAcl.assignments = [];
     deptAcl.ownerDeptId = DEPT_B;
+    deptAcl.depts = [];
+    deptAcl.grants = [];
+    deptAcl.kbConfig = {};
+    deptAcl.extraList = [];
   });
 
   it('关强制 → 他部门仍在列表', async () => {
@@ -193,9 +216,20 @@ describe('GET /knowledge-bases/:kbId/documents 列表同滤（P3b-LIST）', () =
       headers: { authorization: `Bearer ${await token()}` },
     });
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { data: Array<{ id: string; ownerDeptId?: string }> };
+    const body = (await res.json()) as {
+      data: Array<{ id: string; ownerDeptId: string | null; visibilityLevel: number }>;
+    };
     expect(body.data.map((d) => d.id)).toEqual([LIB, DOC]);
-    expect(body.data[0]).not.toHaveProperty('ownerDeptId');
+    const libRow = body.data[0];
+    const deptRow = body.data[1];
+    expect(libRow).toBeDefined();
+    expect(deptRow).toBeDefined();
+    expect(libRow).toHaveProperty('ownerDeptId');
+    expect(libRow).toHaveProperty('visibilityLevel');
+    expect(libRow?.ownerDeptId).toBeNull();
+    expect(libRow?.visibilityLevel).toBe(20);
+    expect(deptRow?.ownerDeptId).toBe(DEPT_B);
+    expect(deptRow?.visibilityLevel).toBe(20);
   });
 
   it('开 + 无归属 → 他部门省略，空部门仍在', async () => {
@@ -214,6 +248,52 @@ describe('GET /knowledge-bases/:kbId/documents 列表同滤（P3b-LIST）', () =
     deptAcl.enforce = true;
     deptAcl.ownerDeptId = DEPT_A;
     deptAcl.assignments = [{ deptId: DEPT_A, isLeader: false }];
+    const app = buildApp();
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/documents`, {
+      headers: { authorization: `Bearer ${await token()}` },
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: Array<{ id: string }> };
+    expect(body.data.map((d) => d.id)).toEqual([LIB, DOC]);
+  });
+
+  it('enforce + 祖先 + KB false → 子孙不可见、精确仍可见', async () => {
+    deptAcl.enforce = true;
+    deptAcl.ownerDeptId = DEPT_A;
+    deptAcl.assignments = [{ deptId: DEPT_A, isLeader: false }];
+    deptAcl.depts = TREE;
+    deptAcl.kbConfig = { deptInheritDown: false };
+    deptAcl.extraList = [listRow(CHILD, DEPT_B)];
+    const app = buildApp();
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/documents`, {
+      headers: { authorization: `Bearer ${await token()}` },
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: Array<{ id: string }> };
+    expect(body.data.map((d) => d.id)).toEqual([LIB, DOC]);
+    expect(body.data.map((d) => d.id)).not.toContain(CHILD);
+  });
+
+  it('关 enforce 时 KB false 不影响', async () => {
+    deptAcl.enforce = false;
+    deptAcl.kbConfig = { deptInheritDown: false };
+    deptAcl.extraList = [listRow(CHILD, DEPT_B)];
+    const app = buildApp();
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/documents`, {
+      headers: { authorization: `Bearer ${await token()}` },
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: Array<{ id: string }> };
+    expect(body.data.map((d) => d.id)).toEqual([LIB, DOC, CHILD]);
+  });
+
+  it('KB false 不关精确 grant', async () => {
+    deptAcl.enforce = true;
+    deptAcl.assignments = [];
+    deptAcl.ownerDeptId = DEPT_B;
+    deptAcl.depts = TREE;
+    deptAcl.kbConfig = { deptInheritDown: false };
+    deptAcl.grants = [{ deptId: DEPT_B, maxVisibilityLevel: 20, expiresAt: null }];
     const app = buildApp();
     const res = await app.request(`/api/v1/knowledge-bases/${KB}/documents`, {
       headers: { authorization: `Bearer ${await token()}` },

@@ -18,6 +18,11 @@ import {
   type ChunkRow,
   type ChunksRepo,
 } from '../services/chunks.js';
+import { documentRepo } from '../services/documents.js';
+import {
+  parseDeptInheritDownFromConfig,
+  resolveDeptInheritDown,
+} from '../services/kb-settings.js';
 import {
   isDeptAclEnforced,
   isDocVisibleForDeptAcl,
@@ -75,12 +80,27 @@ export function createChunkRoutes(deps: ChunkRouteDeps = {}): Hono<{ Variables: 
           'dept acl bypass',
         );
       } else {
-        const [assignments, depts, grants] = await Promise.all([
+        const [assignments, depts, grants, kb] = await Promise.all([
           loadDeptAssignments(doc.tenantId, auth?.userId),
           loadDeptNodes(doc.tenantId),
           loadDeptGrants(doc.tenantId, auth?.userId),
+          doc.kbId ? documentRepo.getKb(doc.kbId) : Promise.resolve(null),
         ]);
-        if (!isDocVisibleForDeptAcl(doc, assignments, true, depts, grants)) {
+        const inheritDown = resolveDeptInheritDown(
+          parseDeptInheritDownFromConfig(kb?.configJson ?? null),
+        );
+        if (
+          !isDocVisibleForDeptAcl(
+            doc,
+            assignments,
+            true,
+            depts,
+            grants,
+            undefined,
+            undefined,
+            inheritDown,
+          )
+        ) {
           return fail(c, BizCode.FORBIDDEN, 'department acl denied', 403);
         }
       }
@@ -126,12 +146,27 @@ export function createChunkRoutes(deps: ChunkRouteDeps = {}): Hono<{ Variables: 
           'dept acl bypass',
         );
       } else {
-        const [assignments, depts, grants] = await Promise.all([
+        const [assignments, depts, grants, kb] = await Promise.all([
           loadDeptAssignments(doc.tenantId, auth?.userId),
           loadDeptNodes(doc.tenantId),
           loadDeptGrants(doc.tenantId, auth?.userId),
+          doc.kbId ? documentRepo.getKb(doc.kbId) : Promise.resolve(null),
         ]);
-        if (!isDocVisibleForDeptAcl(doc, assignments, true, depts, grants)) {
+        const inheritDown = resolveDeptInheritDown(
+          parseDeptInheritDownFromConfig(kb?.configJson ?? null),
+        );
+        if (
+          !isDocVisibleForDeptAcl(
+            doc,
+            assignments,
+            true,
+            depts,
+            grants,
+            undefined,
+            undefined,
+            inheritDown,
+          )
+        ) {
           return fail(c, BizCode.FORBIDDEN, 'department acl denied', 403);
         }
       }

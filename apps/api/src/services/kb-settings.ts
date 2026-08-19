@@ -11,6 +11,7 @@ import { formatLocalDateTime, knowledgeBases } from '@strict-rag/db';
 import { eq } from 'drizzle-orm';
 
 import { getDb } from './db.js';
+import { isDeptInheritDown } from './retrieve/dept-acl.js';
 
 export type KbSettingsRow = {
   id: string;
@@ -74,6 +75,20 @@ export function parseDataClassFromConfig(
   config: Record<string, unknown> | null | undefined,
 ): DataClass {
   return config?.dataClass === 'sensitive' ? 'sensitive' : 'internal';
+}
+
+/** config_json.deptInheritDown；仅字面 true/false，其余/缺省 → undefined（跟 env） */
+export function parseDeptInheritDownFromConfig(
+  config: Record<string, unknown> | null | undefined,
+): boolean | undefined {
+  if (config?.deptInheritDown === true) return true;
+  if (config?.deptInheritDown === false) return false;
+  return undefined;
+}
+
+/** KB 显式值覆盖 env；未写跟 DEPT_INHERIT_DOWN（缺省 true） */
+export function resolveDeptInheritDown(kbValue: boolean | undefined): boolean {
+  return kbValue ?? isDeptInheritDown();
 }
 
 /**
@@ -144,6 +159,7 @@ export function buildKbSettingsView(input: {
     defaultMode,
     docTypes: parseDocTypesFromConfig(input.row.configJson ?? {}),
     dataClass: parseDataClassFromConfig(input.row.configJson ?? {}),
+    deptInheritDown: parseDeptInheritDownFromConfig(input.row.configJson ?? {}) ?? true,
     qualitySnapshot: input.quality,
     sessionRewrite: { enabledDefault: false, locked: true },
   };
@@ -168,6 +184,7 @@ export function mergeKbSettingsPatch(
   const prev = parseModesFromConfig(row.configJson ?? {});
   const prevDocTypes = parseDocTypesFromConfig(row.configJson ?? {});
   const prevDataClass = parseDataClassFromConfig(row.configJson ?? {});
+  const prevInherit = parseDeptInheritDownFromConfig(row.configJson ?? {});
   const nextName = body.name !== undefined ? body.name : row.name;
   const nextDesc =
     body.description !== undefined ? body.description : (row.description ?? null);
@@ -190,6 +207,9 @@ export function mergeKbSettingsPatch(
     docTypes: nextDocTypes,
     dataClass: nextDataClass,
   };
+  if (body.deptInheritDown !== undefined) {
+    nextConfig.deptInheritDown = body.deptInheritDown;
+  }
 
   const diff: Record<string, { from: unknown; to: unknown }> = {};
   if (nextName !== row.name) diff.name = { from: row.name, to: nextName };
@@ -207,6 +227,9 @@ export function mergeKbSettingsPatch(
   }
   if (nextDataClass !== prevDataClass) {
     diff.dataClass = { from: prevDataClass, to: nextDataClass };
+  }
+  if (body.deptInheritDown !== undefined && body.deptInheritDown !== prevInherit) {
+    diff.deptInheritDown = { from: prevInherit, to: body.deptInheritDown };
   }
 
   return {

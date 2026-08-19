@@ -100,6 +100,9 @@ describe('kb settings routes (ADR-054 / B2)', () => {
     expect(body.data.allowedModes).toContain('balanced');
     expect(body.data.defaultMode).toBe('balanced');
     expect(body.data.dataClass).toBe('internal');
+    expect(
+      (body.data as { deptInheritDown?: boolean }).deptInheritDown,
+    ).toBe(true);
   });
 
   it('PATCH 白名单字段 → 200 并回读一致', async () => {
@@ -160,6 +163,40 @@ describe('kb settings routes (ADR-054 / B2)', () => {
     });
     const getBody = (await get.json()) as { data: { dataClass: string } };
     expect(getBody.data.dataClass).toBe('sensitive');
+  });
+
+  it('PATCH deptInheritDown true/false → 200 并回读', async () => {
+    const { userId, accessToken } = await token(['kb_admin']);
+    const app = buildApp(new Set([userId]));
+    const off = await app.request(`/api/v1/knowledge-bases/${KB}/settings`, {
+      method: 'PATCH',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ deptInheritDown: false }),
+    });
+    expect(off.status).toBe(200);
+    const offBody = (await off.json()) as { data: { deptInheritDown: boolean } };
+    expect(offBody.data.deptInheritDown).toBe(false);
+
+    const getOff = await app.request(`/api/v1/knowledge-bases/${KB}/settings`, {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    const getOffBody = (await getOff.json()) as { data: { deptInheritDown: boolean } };
+    expect(getOffBody.data.deptInheritDown).toBe(false);
+
+    const on = await app.request(`/api/v1/knowledge-bases/${KB}/settings`, {
+      method: 'PATCH',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ deptInheritDown: true }),
+    });
+    expect(on.status).toBe(200);
+    const onBody = (await on.json()) as { data: { deptInheritDown: boolean } };
+    expect(onBody.data.deptInheritDown).toBe(true);
   });
 
   it('PATCH 非法 dataClass → 400 VALIDATION_ERROR', async () => {

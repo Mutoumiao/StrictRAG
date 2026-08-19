@@ -24,6 +24,7 @@ export type DocChunkContext = {
   status: string;
   lifecycle: string;
   tenantId?: string;
+  kbId?: string;
   ownerDeptId?: string | null;
   visibilityLevel?: number | null;
 };
@@ -55,6 +56,7 @@ export const chunksRepo: ChunksRepo = {
         status: documents.status,
         lifecycle: documents.lifecycle,
         tenantId: documents.tenantId,
+        kbId: documents.kbId,
         ownerDeptId: documents.ownerDeptId,
         visibilityLevel: documents.visibilityLevel,
       })

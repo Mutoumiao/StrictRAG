@@ -53,8 +53,9 @@ describe('documents mappers（ARCH-P1a 域内纯函数）', () => {
     const detail = toDetail(base);
     expect(detail.ownerDeptId).toBeNull();
     expect(detail.visibilityLevel).toBe(20);
-    expect(toListItem(base)).not.toHaveProperty('ownerDeptId');
-    expect(toListItem(base)).not.toHaveProperty('visibilityLevel');
+    const item = toListItem(base);
+    expect(item.ownerDeptId).toBeNull();
+    expect(item.visibilityLevel).toBe(20);
   });
 
   it('toDetail 回读已写部门字段', () => {
