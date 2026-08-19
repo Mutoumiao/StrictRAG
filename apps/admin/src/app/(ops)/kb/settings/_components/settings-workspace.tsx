@@ -1,8 +1,9 @@
 'use client';
 
 /**
- * 知识库设置薄页：基本信息 / 语料分级 / 问答档位 / 质量只读 / rewrite 锁。
+ * 知识库设置薄页：基本信息 / 语料分级 / 部门继承 / 问答档位 / 质量只读 / rewrite 锁。
  * 禁止 τ 滑块与 rewrite 开关。sensitive ≠ 解禁。
+ * 未改 inherit 勾选不得 PATCH deptInheritDown（GET 缺省 true 不可写回盖 env）。
  */
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
@@ -30,6 +31,7 @@ export function SettingsWorkspace() {
   const [allowedModes, setAllowedModes] = useState<AskMode[]>(['balanced']);
   const [defaultMode, setDefaultMode] = useState<AskMode>('balanced');
   const [dataClass, setDataClass] = useState<DataClass>('internal');
+  const [deptInheritDown, setDeptInheritDown] = useState(true);
   const [state, setState] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -42,6 +44,7 @@ export function SettingsWorkspace() {
     setAllowedModes(s.allowedModes);
     setDefaultMode(s.defaultMode);
     setDataClass(s.dataClass ?? 'internal');
+    setDeptInheritDown(s.deptInheritDown ?? true);
   }, []);
 
   const load = useCallback(async () => {
@@ -94,12 +97,14 @@ export function SettingsWorkspace() {
     if (!id || !name.trim()) return;
     setBusy(true);
     setFlash(null);
+    const loadedInherit = settings?.deptInheritDown ?? true;
     const result = await saveKbSettings(id, {
       name: name.trim(),
       description: description.trim() || null,
       allowedModes,
       defaultMode,
       dataClass,
+      ...(deptInheritDown !== loadedInherit ? { deptInheritDown } : {}),
     });
     if (result.ok) {
       applySettings(result.settings);
@@ -187,6 +192,21 @@ export function SettingsWorkspace() {
             </div>
             <p className="text-xs text-muted-foreground">
               sensitive 只加严 complete 闸，不是已解禁。
+            </p>
+          </section>
+
+          <section className="space-y-3 rounded-lg border border-border p-4">
+            <h2 className="text-sm font-semibold">部门继承</h2>
+            <label className="flex items-center gap-1.5 text-sm">
+              <input
+                type="checkbox"
+                checked={deptInheritDown}
+                onChange={(e) => setDeptInheritDown(e.target.checked)}
+              />
+              上级看下级
+            </label>
+            <p className="text-xs text-muted-foreground">
+              只在进程打开部门强制时生效（DEPT_ACL_ENFORCE=true），不是打开强制隔离。
             </p>
           </section>
 

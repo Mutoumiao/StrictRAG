@@ -1,5 +1,6 @@
 /**
- * 设置页：有 kb.config.write 可看/改 dataClass；无权限保持 403；sensitive ≠ 解禁。
+ * 设置页：有 kb.config.write 可看/改 dataClass 与 inherit 勾选；
+ * 未改勾选不得 PATCH deptInheritDown；无权限保持 403；sensitive ≠ 解禁。
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -85,6 +86,70 @@ describe('SettingsWorkspace', () => {
     expect(screen.getByText('已保存')).toBeInTheDocument();
   });
 
+  it('加载后勾选反映 GET deptInheritDown: true', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', KB_ID);
+    me.permissions = ['admin.shell', 'kb.config.write'];
+    loadKbSettings.mockResolvedValue({ ok: true, settings });
+
+    render(<SettingsWorkspace />);
+
+    expect(await screen.findByRole('checkbox', { name: '上级看下级' })).toBeChecked();
+  });
+
+  it('不碰继承勾选就保存：PATCH 不带 deptInheritDown 键', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', KB_ID);
+    me.permissions = ['admin.shell', 'kb.config.write'];
+    loadKbSettings.mockResolvedValue({ ok: true, settings });
+    saveKbSettings.mockResolvedValue({ ok: true, settings, text: '已保存' });
+
+    render(<SettingsWorkspace />);
+    const user = userEvent.setup();
+
+    await screen.findByRole('checkbox', { name: '上级看下级' });
+    await user.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(saveKbSettings).toHaveBeenCalledTimes(1);
+    });
+    const body = saveKbSettings.mock.calls[0]![1] as Record<string, unknown>;
+    expect(body).toEqual({
+      name: '制度库',
+      description: null,
+      allowedModes: ['strict', 'balanced', 'fast'],
+      defaultMode: 'balanced',
+      dataClass: 'internal',
+    });
+    expect(body).not.toHaveProperty('deptInheritDown');
+  });
+
+  it('取消「上级看下级」再保存：body 含 deptInheritDown: false', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', KB_ID);
+    me.permissions = ['admin.shell', 'kb.config.write'];
+    loadKbSettings.mockResolvedValue({ ok: true, settings });
+    saveKbSettings.mockResolvedValue({
+      ok: true,
+      settings: { ...settings, deptInheritDown: false },
+      text: '已保存',
+    });
+
+    render(<SettingsWorkspace />);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('checkbox', { name: '上级看下级' }));
+    await user.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(saveKbSettings).toHaveBeenCalledWith(KB_ID, {
+        name: '制度库',
+        description: null,
+        allowedModes: ['strict', 'balanced', 'fast'],
+        defaultMode: 'balanced',
+        dataClass: 'internal',
+        deptInheritDown: false,
+      });
+    });
+  });
+
   it('页上可见 sensitive 不是已解禁的说明', async () => {
     localStorage.setItem('strict-rag:admin:last-kb-id', KB_ID);
     me.permissions = ['admin.shell', 'kb.config.write'];
@@ -96,6 +161,17 @@ describe('SettingsWorkspace', () => {
     expect(screen.getByText(/解禁/)).toBeInTheDocument();
   });
 
+  it('页上可见继承勾选不是打开强制隔离的说明', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', KB_ID);
+    me.permissions = ['admin.shell', 'kb.config.write'];
+    loadKbSettings.mockResolvedValue({ ok: true, settings });
+
+    render(<SettingsWorkspace />);
+
+    expect(await screen.findByText(/不是打开强制/)).toBeInTheDocument();
+    expect(screen.getByText(/DEPT_ACL_ENFORCE=true/)).toBeInTheDocument();
+  });
+
   it('无 kb.config.write：保持 403 态，不展示设置面', async () => {
     localStorage.setItem('strict-rag:admin:last-kb-id', KB_ID);
     me.permissions = ['admin.shell'];
@@ -104,6 +180,7 @@ describe('SettingsWorkspace', () => {
 
     expect(screen.getByText('无 kb.config.write 权限（403）')).toBeInTheDocument();
     expect(screen.queryByLabelText('语料分级')).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: '上级看下级' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '保存' })).not.toBeInTheDocument();
     expect(loadKbSettings).not.toHaveBeenCalled();
   });
