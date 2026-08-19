@@ -1,5 +1,5 @@
 /**
- * 部门页：有 dept.manage 才露跨部门授权；删除走 removeGrant。
+ * 部门页：有 dept.manage 才露跨部门授权；有 user.manage 才露归属写入口。
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -47,6 +47,32 @@ import { DepartmentsWorkspace } from './departments-workspace';
 const GRANT_ID = '018f0000-0000-7000-8000-0000000000g1';
 const USER_ID = '018f0000-0000-7000-8000-0000000000u1';
 const DEPT_ID = '018f0000-0000-7000-8000-0000000000d1';
+const DISABLED_DEPT_ID = '018f0000-0000-7000-8000-0000000000d2';
+
+const activeDept = {
+  id: DEPT_ID,
+  parentId: null,
+  name: '人事部',
+  sort: 0,
+  status: 'active' as const,
+};
+
+const disabledDept = {
+  id: DISABLED_DEPT_ID,
+  parentId: null,
+  name: '已禁用部',
+  sort: 1,
+  status: 'disabled' as const,
+};
+
+const workspaceWithDepts = {
+  ok: true as const,
+  tree: [
+    { ...activeDept, children: [] },
+    { ...disabledDept, children: [] },
+  ],
+  flat: [activeDept, disabledDept],
+};
 
 const grantRow = {
   id: GRANT_ID,
@@ -57,6 +83,22 @@ const grantRow = {
   reason: '临时',
   grantedAt: '2026-08-17 00:00:00',
 };
+
+function grantDeptSelect() {
+  return screen.getByLabelText('授权部门') as HTMLSelectElement;
+}
+
+function grantDeptOptionTexts() {
+  return [...grantDeptSelect().options].map((o) => o.textContent);
+}
+
+function assignDeptSelect() {
+  return screen.getByLabelText('设为所属部门（单条主归属，覆盖）') as HTMLSelectElement;
+}
+
+function assignDeptOptionTexts() {
+  return [...assignDeptSelect().options].map((o) => o.textContent);
+}
 
 describe('DepartmentsWorkspace', () => {
   beforeEach(() => {
@@ -81,11 +123,33 @@ describe('DepartmentsWorkspace', () => {
 
     expect(await screen.findByRole('heading', { name: '跨部门授权' })).toBeInTheDocument();
     expect(screen.getByLabelText('授权用户')).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: '授权用户' })).toBeInTheDocument();
     expect(screen.getByLabelText('授权部门')).toBeInTheDocument();
+    expect(grantDeptSelect().tagName).toBe('SELECT');
+    expect(screen.getByRole('combobox', { name: '授权部门' })).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: '授权部门' })).not.toBeInTheDocument();
     expect(screen.getByLabelText('可见级')).toBeInTheDocument();
     expect(screen.getByLabelText('过期时间')).toBeInTheDocument();
     expect(screen.getByLabelText('原因')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '新建授权' })).toBeInTheDocument();
+  });
+
+  it('授权部门下拉只有 active 部门', async () => {
+    me.permissions = ['dept.manage'];
+    loadDeptWorkspace.mockResolvedValue(workspaceWithDepts);
+    loadGrants.mockResolvedValue({
+      ok: true,
+      grants: [{ ...grantRow, deptId: DISABLED_DEPT_ID }],
+    });
+
+    render(<DepartmentsWorkspace />);
+
+    await waitFor(() => {
+      expect(grantDeptOptionTexts()).toContain('人事部');
+    });
+    expect(grantDeptOptionTexts()).not.toContain('已禁用部');
+    expect(grantDeptOptionTexts()).toContain('选择部门');
+    expect(await screen.findByText(`deptId ${DISABLED_DEPT_ID}`)).toBeInTheDocument();
   });
 
   it('无 dept.manage：仍是现有 403 文案，看不到新建/删除', () => {
@@ -102,14 +166,17 @@ describe('DepartmentsWorkspace', () => {
 
   it('提交新建会调 createGrant', async () => {
     me.permissions = ['dept.manage'];
-    loadDeptWorkspace.mockResolvedValue({ ok: true, tree: [], flat: [] });
+    loadDeptWorkspace.mockResolvedValue(workspaceWithDepts);
     loadGrants.mockResolvedValue({ ok: true, grants: [] });
     createGrant.mockResolvedValue({ ok: true, grant: grantRow });
 
     render(<DepartmentsWorkspace />);
     const user = userEvent.setup();
     await user.type(await screen.findByLabelText('授权用户'), USER_ID);
-    await user.type(screen.getByLabelText('授权部门'), DEPT_ID);
+    await waitFor(() => {
+      expect(grantDeptOptionTexts()).toContain('人事部');
+    });
+    await user.selectOptions(grantDeptSelect(), DEPT_ID);
     await user.click(screen.getByRole('button', { name: '新建授权' }));
 
     await waitFor(() => {
@@ -121,14 +188,17 @@ describe('DepartmentsWorkspace', () => {
 
   it('创建失败展示 API 文案', async () => {
     me.permissions = ['dept.manage'];
-    loadDeptWorkspace.mockResolvedValue({ ok: true, tree: [], flat: [] });
+    loadDeptWorkspace.mockResolvedValue(workspaceWithDepts);
     loadGrants.mockResolvedValue({ ok: true, grants: [] });
     createGrant.mockResolvedValue({ ok: false, message: 'VALIDATION_ERROR: expected uuid' });
 
     render(<DepartmentsWorkspace />);
     const user = userEvent.setup();
     await user.type(await screen.findByLabelText('授权用户'), USER_ID);
-    await user.type(screen.getByLabelText('授权部门'), DEPT_ID);
+    await waitFor(() => {
+      expect(grantDeptOptionTexts()).toContain('人事部');
+    });
+    await user.selectOptions(grantDeptSelect(), DEPT_ID);
     await user.click(screen.getByRole('button', { name: '新建授权' }));
 
     expect(await screen.findByText(/VALIDATION_ERROR: expected uuid/)).toBeInTheDocument();
@@ -147,5 +217,77 @@ describe('DepartmentsWorkspace', () => {
     await waitFor(() => {
       expect(removeGrant).toHaveBeenCalledWith(GRANT_ID);
     });
+  });
+
+  it('有 user.manage：归属部门是 select，用户 ID 仍是 textbox', async () => {
+    me.permissions = ['dept.manage', 'user.manage'];
+    loadDeptWorkspace.mockResolvedValue(workspaceWithDepts);
+    loadGrants.mockResolvedValue({ ok: true, grants: [] });
+
+    render(<DepartmentsWorkspace />);
+
+    expect(await screen.findByRole('heading', { name: '用户归属（需 user.manage）' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: '用户 ID' })).toBeInTheDocument();
+    expect(assignDeptSelect().tagName).toBe('SELECT');
+    expect(
+      screen.getByRole('combobox', { name: '设为所属部门（单条主归属，覆盖）' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('textbox', { name: '设为所属部门（单条主归属，覆盖）' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '保存归属' })).toBeInTheDocument();
+  });
+
+  it('归属部门下拉只有 active 部门', async () => {
+    me.permissions = ['dept.manage', 'user.manage'];
+    loadDeptWorkspace.mockResolvedValue(workspaceWithDepts);
+    loadGrants.mockResolvedValue({ ok: true, grants: [] });
+
+    render(<DepartmentsWorkspace />);
+
+    await waitFor(() => {
+      expect(assignDeptOptionTexts()).toContain('人事部');
+    });
+    expect(assignDeptOptionTexts()).not.toContain('已禁用部');
+    expect(assignDeptOptionTexts()).toContain('选择部门');
+  });
+
+  it('选部门并保存会调 saveUserDepts', async () => {
+    me.permissions = ['dept.manage', 'user.manage'];
+    loadDeptWorkspace.mockResolvedValue(workspaceWithDepts);
+    loadGrants.mockResolvedValue({ ok: true, grants: [] });
+    saveUserDepts.mockResolvedValue({ ok: true, view: { assignments: [] } });
+    loadUserDepts.mockResolvedValue({ ok: true, view: { assignments: [] } });
+
+    render(<DepartmentsWorkspace />);
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText('用户 ID'), USER_ID);
+    await waitFor(() => {
+      expect(assignDeptOptionTexts()).toContain('人事部');
+    });
+    await user.selectOptions(assignDeptSelect(), DEPT_ID);
+    await user.click(screen.getByRole('button', { name: '保存归属' }));
+
+    await waitFor(() => {
+      expect(saveUserDepts).toHaveBeenCalledWith(
+        USER_ID,
+        expect.objectContaining({
+          assignments: [expect.objectContaining({ deptId: DEPT_ID })],
+        }),
+      );
+    });
+  });
+
+  it('无 user.manage：不露保存归属', async () => {
+    me.permissions = ['dept.manage'];
+    loadDeptWorkspace.mockResolvedValue(workspaceWithDepts);
+    loadGrants.mockResolvedValue({ ok: true, grants: [] });
+
+    render(<DepartmentsWorkspace />);
+
+    expect(await screen.findByRole('heading', { name: '跨部门授权' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: '用户归属（需 user.manage）' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '保存归属' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('用户 ID')).not.toBeInTheDocument();
   });
 });

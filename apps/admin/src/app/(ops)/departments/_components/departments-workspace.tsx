@@ -475,13 +475,21 @@ export function DepartmentsWorkspace() {
           </div>
           <div className="space-y-1">
             <Label htmlFor="grant-dept">授权部门</Label>
-            <Input
+            <select
               id="grant-dept"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
               value={grantDeptId}
               onChange={(e) => setGrantDeptId(e.target.value)}
-              placeholder="uuid"
-              required
-            />
+            >
+              <option value="">选择部门</option>
+              {flat
+                .filter((d) => d.status === 'active')
+                .map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+            </select>
           </div>
           <div className="space-y-1">
             <Label htmlFor="grant-level">可见级</Label>
