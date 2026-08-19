@@ -61,6 +61,17 @@ describe('PatchKbSettingsBodySchema', () => {
     expect(PatchKbSettingsBodySchema.safeParse({ dataClass: 'public' }).success).toBe(false);
     expect(PatchKbSettingsBodySchema.safeParse({ dataClass: 'secret' }).success).toBe(false);
   });
+
+  it('accepts deptInheritDown true/false', () => {
+    expect(PatchKbSettingsBodySchema.safeParse({ deptInheritDown: true }).success).toBe(true);
+    expect(PatchKbSettingsBodySchema.safeParse({ deptInheritDown: false }).success).toBe(true);
+  });
+
+  it('rejects invalid deptInheritDown', () => {
+    expect(PatchKbSettingsBodySchema.safeParse({ deptInheritDown: 'false' }).success).toBe(false);
+    expect(PatchKbSettingsBodySchema.safeParse({ deptInheritDown: 1 }).success).toBe(false);
+    expect(PatchKbSettingsBodySchema.safeParse({ deptInheritDown: null }).success).toBe(false);
+  });
 });
 
 describe('KbSettingsSchema', () => {
@@ -97,5 +108,18 @@ describe('KbSettingsSchema', () => {
     });
     expect(r.success).toBe(true);
     if (r.success) expect(r.data.dataClass).toBe('internal');
+  });
+
+  it('defaults deptInheritDown to true when omitted (old GET row)', () => {
+    const r = KbSettingsSchema.safeParse({
+      kbId: '01900000-0000-7000-8000-000000000099',
+      name: 'KB',
+      allowedModes: ['balanced'] as const,
+      defaultMode: 'balanced' as const,
+      qualitySnapshot: { tauClaim: 0.5 },
+      sessionRewrite: { enabledDefault: false, locked: true },
+    });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.deptInheritDown).toBe(true);
   });
 });

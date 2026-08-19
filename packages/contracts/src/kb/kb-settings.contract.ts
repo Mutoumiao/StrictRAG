@@ -38,6 +38,8 @@ export const KbSettingsSchema = z.object({
   docTypes: z.array(z.string().min(1).max(64)).max(32).default([]),
   /** 缺省 internal，旧 GET 无此字段仍 parse */
   dataClass: DataClassSchema.default('internal'),
+  /** 缺省 / 旧行 = true（ADR 默认上级看下级）；运行时未写跟 env */
+  deptInheritDown: z.boolean().default(true),
   qualitySnapshot: QualitySnapshotSchema,
   sessionRewrite: SessionRewriteLockSchema,
 });
@@ -62,6 +64,7 @@ export const PatchKbSettingsBodySchema = z
     /** 写入允许的 doc_type 列表；[] 表示清除限制 */
     docTypes: z.array(z.string().min(1).max(64)).max(32).optional(),
     dataClass: DataClassSchema.optional(),
+    deptInheritDown: z.boolean().optional(),
   })
   .strict()
   .refine((v) => Object.keys(v).length > 0, { message: '至少提供一个可写字段' });
