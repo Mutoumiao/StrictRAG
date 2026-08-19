@@ -13,6 +13,7 @@ const DEPT = '01900000-0000-7000-8000-0000000000de';
 
 const completeState = {
   dataClass: 'internal' as string | undefined,
+  deptAclEnforce: undefined as boolean | undefined,
   ownerDeptId: null as string | null,
   markCalls: [] as Array<{ id: string; size: number }>,
 };
@@ -38,10 +39,14 @@ vi.mock('../../services/documents.js', () => ({
         ? {
             id: KB,
             tenantId: TENANT,
-            configJson:
-              completeState.dataClass === undefined
+            configJson: {
+              ...(completeState.dataClass === undefined
                 ? {}
-                : { dataClass: completeState.dataClass },
+                : { dataClass: completeState.dataClass }),
+              ...(completeState.deptAclEnforce === undefined
+                ? {}
+                : { deptAclEnforce: completeState.deptAclEnforce }),
+            },
           }
         : null,
     markCompletePending: async (id: string, size: number) => {
@@ -99,6 +104,7 @@ async function postComplete(payload: Record<string, unknown> = {}) {
 describe('P3b-SENS complete 敏感闸', () => {
   afterEach(() => {
     completeState.dataClass = 'internal';
+    completeState.deptAclEnforce = undefined;
     completeState.ownerDeptId = null;
     completeState.markCalls = [];
     vi.unstubAllEnvs();
@@ -160,6 +166,28 @@ describe('P3b-SENS complete 敏感闸', () => {
     const body = (await res.json()) as { error: { code: string } };
     expect(body.error.code).toBe('RULE_VIOLATION');
     expect(completeState.ownerDeptId).toBeNull();
+    expect(completeState.markCalls).toHaveLength(0);
+  });
+
+  it('sensitive + env false + KB true + owner → 放行本闸', async () => {
+    completeState.dataClass = 'sensitive';
+    completeState.deptAclEnforce = true;
+    completeState.ownerDeptId = DEPT;
+    vi.stubEnv('DEPT_ACL_ENFORCE', 'false');
+    const res = await postComplete();
+    expect(res.status).toBe(200);
+    expect(completeState.markCalls).toEqual([{ id: DOC, size: 12 }]);
+  });
+
+  it('sensitive + env false + KB true + 无 owner → 仍挡', async () => {
+    completeState.dataClass = 'sensitive';
+    completeState.deptAclEnforce = true;
+    completeState.ownerDeptId = null;
+    vi.stubEnv('DEPT_ACL_ENFORCE', 'false');
+    const res = await postComplete();
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: { code: string } };
+    expect(body.error.code).toBe('RULE_VIOLATION');
     expect(completeState.markCalls).toHaveLength(0);
   });
 

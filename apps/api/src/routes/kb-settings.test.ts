@@ -103,6 +103,9 @@ describe('kb settings routes (ADR-054 / B2)', () => {
     expect(
       (body.data as { deptInheritDown?: boolean }).deptInheritDown,
     ).toBe(true);
+    expect(
+      (body.data as { deptAclEnforce?: boolean }).deptAclEnforce,
+    ).toBe(false);
   });
 
   it('PATCH 白名单字段 → 200 并回读一致', async () => {
@@ -197,6 +200,40 @@ describe('kb settings routes (ADR-054 / B2)', () => {
     expect(on.status).toBe(200);
     const onBody = (await on.json()) as { data: { deptInheritDown: boolean } };
     expect(onBody.data.deptInheritDown).toBe(true);
+  });
+
+  it('PATCH deptAclEnforce true/false → 200 并回读', async () => {
+    const { userId, accessToken } = await token(['kb_admin']);
+    const app = buildApp(new Set([userId]));
+    const on = await app.request(`/api/v1/knowledge-bases/${KB}/settings`, {
+      method: 'PATCH',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ deptAclEnforce: true }),
+    });
+    expect(on.status).toBe(200);
+    const onBody = (await on.json()) as { data: { deptAclEnforce: boolean } };
+    expect(onBody.data.deptAclEnforce).toBe(true);
+
+    const getOn = await app.request(`/api/v1/knowledge-bases/${KB}/settings`, {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    const getOnBody = (await getOn.json()) as { data: { deptAclEnforce: boolean } };
+    expect(getOnBody.data.deptAclEnforce).toBe(true);
+
+    const off = await app.request(`/api/v1/knowledge-bases/${KB}/settings`, {
+      method: 'PATCH',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ deptAclEnforce: false }),
+    });
+    expect(off.status).toBe(200);
+    const offBody = (await off.json()) as { data: { deptAclEnforce: boolean } };
+    expect(offBody.data.deptAclEnforce).toBe(false);
   });
 
   it('PATCH 非法 dataClass → 400 VALIDATION_ERROR', async () => {

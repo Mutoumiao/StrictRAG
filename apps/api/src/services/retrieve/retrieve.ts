@@ -8,8 +8,12 @@ import {
 import { env } from '../../env.js';
 import { logger } from '../../logger.js';
 import { recordRerank } from '../../obs/metrics.js';
+import {
+  parseDeptAclEnforceFromConfig,
+  resolveDeptAclEnforce,
+  kbSettingsRepo,
+} from '../kb-settings.js';
 import { loadCorpusFromDb } from './corpus.js';
-import { isDeptAclEnforced } from './dept-acl.js';
 import { EsSparseError, esConfigFromEnv, searchSparseEs } from './es-sparse.js';
 import { rrfFuse } from './rrf.js';
 import { cosine, rankByScore, sparseOverlapScore } from './scoring.js';
@@ -73,11 +77,17 @@ export async function runRetrieve(
 
   // super_admin 绕过部门滤（P3b-SA）；双闸仍在 corpus
   const bypassDeptAcl = input.membership === 'super_admin';
-  if (bypassDeptAcl && isDeptAclEnforced()) {
-    logger.info(
-      { event: 'dept_acl_bypass', userId: input.userId, kbId: input.kbId },
-      'dept acl bypass',
+  if (bypassDeptAcl) {
+    const kb = await kbSettingsRepo.get(input.kbId);
+    const enforce = resolveDeptAclEnforce(
+      parseDeptAclEnforceFromConfig(kb?.configJson ?? null),
     );
+    if (enforce) {
+      logger.info(
+        { event: 'dept_acl_bypass', userId: input.userId, kbId: input.kbId },
+        'dept acl bypass',
+      );
+    }
   }
   const corpus = await deps.loadCorpus({
     kbId: input.kbId,

@@ -175,6 +175,19 @@ describe('GET /documents/:docId 部门过滤（P3b-DEPT）', () => {
     expect(res.status).toBe(200);
   });
 
+  it('env false + KB deptAclEnforce true + 跨部门 → 403', async () => {
+    deptAcl.enforce = false;
+    deptAcl.kbConfig = { deptAclEnforce: true };
+    deptAcl.assignments = [{ deptId: DEPT_A, isLeader: false }];
+    const app = buildApp();
+    const res = await app.request(`/api/v1/documents/${DOC}`, {
+      headers: { authorization: `Bearer ${await token()}` },
+    });
+    expect(res.status).toBe(403);
+    const body = (await res.json()) as { error: { code: string } };
+    expect(body.error.code).toBe('FORBIDDEN');
+  });
+
   it('开 + kb_admin 跨部门 → 仍 403', async () => {
     deptAcl.enforce = true;
     deptAcl.assignments = [];
@@ -294,6 +307,32 @@ describe('GET /knowledge-bases/:kbId/documents 列表同滤（P3b-LIST）', () =
     deptAcl.depts = TREE;
     deptAcl.kbConfig = { deptInheritDown: false };
     deptAcl.grants = [{ deptId: DEPT_B, maxVisibilityLevel: 20, expiresAt: null }];
+    const app = buildApp();
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/documents`, {
+      headers: { authorization: `Bearer ${await token()}` },
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: Array<{ id: string }> };
+    expect(body.data.map((d) => d.id)).toEqual([LIB, DOC]);
+  });
+
+  it('env false + KB deptAclEnforce true → 列表过滤生效', async () => {
+    deptAcl.enforce = false;
+    deptAcl.kbConfig = { deptAclEnforce: true };
+    deptAcl.assignments = [];
+    const app = buildApp();
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/documents`, {
+      headers: { authorization: `Bearer ${await token()}` },
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: Array<{ id: string }> };
+    expect(body.data.map((d) => d.id)).toEqual([LIB]);
+  });
+
+  it('env true + KB deptAclEnforce false → 不滤', async () => {
+    deptAcl.enforce = true;
+    deptAcl.kbConfig = { deptAclEnforce: false };
+    deptAcl.assignments = [];
     const app = buildApp();
     const res = await app.request(`/api/v1/knowledge-bases/${KB}/documents`, {
       headers: { authorization: `Bearer ${await token()}` },

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  parseDeptAclEnforceFromConfig,
   parseDeptInheritDownFromConfig,
+  resolveDeptAclEnforce,
   resolveDeptInheritDown,
 } from '../kb-settings.js';
 import { filterDocsForRetrieve } from './corpus.js';
@@ -78,6 +80,51 @@ describe('loadCorpus 同形：KB deptInheritDown 覆盖 env', () => {
     } finally {
       if (prev === undefined) delete process.env.DEPT_INHERIT_DOWN;
       else process.env.DEPT_INHERIT_DOWN = prev;
+    }
+  });
+});
+
+describe('loadCorpus 同形：KB deptAclEnforce 覆盖 env', () => {
+  const DEPT_A = '01900000-0000-7000-8000-0000000000a1';
+  const DEPT_B = '01900000-0000-7000-8000-0000000000b1';
+  const docs = [
+    { id: 'a', status: 'ready', lifecycle: 'active', ownerDeptId: DEPT_A, visibilityLevel: 20 },
+    { id: 'b', status: 'ready', lifecycle: 'active', ownerDeptId: DEPT_B, visibilityLevel: 20 },
+  ];
+
+  it('KB true 盖 env false → 滤；KB false 盖 env true → 不滤；未写跟 env', () => {
+    const prev = process.env.DEPT_ACL_ENFORCE;
+    try {
+      process.env.DEPT_ACL_ENFORCE = 'false';
+      const enforceOn = resolveDeptAclEnforce(
+        parseDeptAclEnforceFromConfig({ deptAclEnforce: true }),
+      );
+      expect(enforceOn).toBe(true);
+      const dual = filterDocsForRetrieve(docs);
+      const filtered = filterDocsForDeptAcl(dual, {
+        assignments: [{ deptId: DEPT_A, isLeader: false }],
+        enforce: enforceOn,
+      }).map((d) => d.id);
+      expect(filtered).toEqual(['a']);
+
+      process.env.DEPT_ACL_ENFORCE = 'true';
+      const enforceOff = resolveDeptAclEnforce(
+        parseDeptAclEnforceFromConfig({ deptAclEnforce: false }),
+      );
+      expect(enforceOff).toBe(false);
+      const unfiltered = filterDocsForDeptAcl(dual, {
+        assignments: [{ deptId: DEPT_A, isLeader: false }],
+        enforce: enforceOff,
+      }).map((d) => d.id);
+      expect(unfiltered).toEqual(['a', 'b']);
+
+      process.env.DEPT_ACL_ENFORCE = 'true';
+      expect(resolveDeptAclEnforce(parseDeptAclEnforceFromConfig({}))).toBe(true);
+      process.env.DEPT_ACL_ENFORCE = 'false';
+      expect(resolveDeptAclEnforce(parseDeptAclEnforceFromConfig({}))).toBe(false);
+    } finally {
+      if (prev === undefined) delete process.env.DEPT_ACL_ENFORCE;
+      else process.env.DEPT_ACL_ENFORCE = prev;
     }
   });
 });

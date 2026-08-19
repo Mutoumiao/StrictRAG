@@ -11,7 +11,7 @@ import { formatLocalDateTime, knowledgeBases } from '@strict-rag/db';
 import { eq } from 'drizzle-orm';
 
 import { getDb } from './db.js';
-import { isDeptInheritDown } from './retrieve/dept-acl.js';
+import { isDeptAclEnforced, isDeptInheritDown } from './retrieve/dept-acl.js';
 
 export type KbSettingsRow = {
   id: string;
@@ -91,20 +91,33 @@ export function resolveDeptInheritDown(kbValue: boolean | undefined): boolean {
   return kbValue ?? isDeptInheritDown();
 }
 
+/** config_json.deptAclEnforce；仅字面 true/false，其余/缺省 → undefined（跟 env） */
+export function parseDeptAclEnforceFromConfig(
+  config: Record<string, unknown> | null | undefined,
+): boolean | undefined {
+  if (config?.deptAclEnforce === true) return true;
+  if (config?.deptAclEnforce === false) return false;
+  return undefined;
+}
+
+/** KB 显式值覆盖 env；未写跟 DEPT_ACL_ENFORCE（缺省 false） */
+export function resolveDeptAclEnforce(kbValue: boolean | undefined): boolean {
+  return kbValue ?? isDeptAclEnforced();
+}
+
 /**
  * P3b-SENS：sensitive 且 ACL 未就绪则挡 complete。
- * 未就绪 = DEPT_ACL_ENFORCE !== 'true' 或 ownerDeptId 空。读 process.env 字符串。
+ * 未就绪 = enforce 关或 ownerDeptId 空。吃解析后的 boolean。
  */
 export function isSensitiveCompleteBlocked(params: {
   dataClass: DataClass;
   ownerDeptId: string | null | undefined;
-  deptAclEnforce: string | undefined;
+  deptAclEnforce: boolean;
 }): boolean {
   if (params.dataClass !== 'sensitive') return false;
-  const enforceOn = params.deptAclEnforce === 'true';
   const hasOwner =
     typeof params.ownerDeptId === 'string' && params.ownerDeptId.trim().length > 0;
-  return !enforceOn || !hasOwner;
+  return !params.deptAclEnforce || !hasOwner;
 }
 
 /**
@@ -160,6 +173,7 @@ export function buildKbSettingsView(input: {
     docTypes: parseDocTypesFromConfig(input.row.configJson ?? {}),
     dataClass: parseDataClassFromConfig(input.row.configJson ?? {}),
     deptInheritDown: parseDeptInheritDownFromConfig(input.row.configJson ?? {}) ?? true,
+    deptAclEnforce: parseDeptAclEnforceFromConfig(input.row.configJson ?? {}) ?? false,
     qualitySnapshot: input.quality,
     sessionRewrite: { enabledDefault: false, locked: true },
   };
@@ -185,6 +199,7 @@ export function mergeKbSettingsPatch(
   const prevDocTypes = parseDocTypesFromConfig(row.configJson ?? {});
   const prevDataClass = parseDataClassFromConfig(row.configJson ?? {});
   const prevInherit = parseDeptInheritDownFromConfig(row.configJson ?? {});
+  const prevEnforce = parseDeptAclEnforceFromConfig(row.configJson ?? {});
   const nextName = body.name !== undefined ? body.name : row.name;
   const nextDesc =
     body.description !== undefined ? body.description : (row.description ?? null);
@@ -210,6 +225,9 @@ export function mergeKbSettingsPatch(
   if (body.deptInheritDown !== undefined) {
     nextConfig.deptInheritDown = body.deptInheritDown;
   }
+  if (body.deptAclEnforce !== undefined) {
+    nextConfig.deptAclEnforce = body.deptAclEnforce;
+  }
 
   const diff: Record<string, { from: unknown; to: unknown }> = {};
   if (nextName !== row.name) diff.name = { from: row.name, to: nextName };
@@ -230,6 +248,9 @@ export function mergeKbSettingsPatch(
   }
   if (body.deptInheritDown !== undefined && body.deptInheritDown !== prevInherit) {
     diff.deptInheritDown = { from: prevInherit, to: body.deptInheritDown };
+  }
+  if (body.deptAclEnforce !== undefined && body.deptAclEnforce !== prevEnforce) {
+    diff.deptAclEnforce = { from: prevEnforce, to: body.deptAclEnforce };
   }
 
   return {

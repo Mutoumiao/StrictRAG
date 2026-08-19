@@ -33,12 +33,13 @@ import { documentRepo } from '../../services/documents.js';
 import {
   isSensitiveCompleteBlocked,
   parseDataClassFromConfig,
+  parseDeptAclEnforceFromConfig,
   parseDeptInheritDownFromConfig,
+  resolveDeptAclEnforce,
   resolveDeptInheritDown,
 } from '../../services/kb-settings.js';
 import {
   filterDocsForDeptAcl,
-  isDeptAclEnforced,
   isDocVisibleForDeptAcl,
   loadDeptAssignments,
   loadDeptGrants,
@@ -68,7 +69,11 @@ documentRoutes.get(
   async (c) => {
     const kbId = c.req.param('kbId');
     const rows = await documentRepo.listDocsByKb(kbId);
-    if (!isDeptAclEnforced()) {
+    const kb = await documentRepo.getKb(kbId);
+    const enforce = resolveDeptAclEnforce(
+      parseDeptAclEnforceFromConfig(kb?.configJson ?? null),
+    );
+    if (!enforce) {
       return ok(c, rows.map(toListItem));
     }
     const auth = c.get('auth');
@@ -81,11 +86,10 @@ documentRoutes.get(
       return ok(c, rows.map(toListItem));
     }
     const tenantId = rows[0]?.tenantId;
-    const [assignments, depts, grants, kb] = await Promise.all([
+    const [assignments, depts, grants] = await Promise.all([
       loadDeptAssignments(tenantId, auth?.userId),
       loadDeptNodes(tenantId),
       loadDeptGrants(tenantId, auth?.userId),
-      documentRepo.getKb(kbId),
     ]);
     const visible = filterDocsForDeptAcl(rows, {
       assignments,
@@ -229,11 +233,14 @@ documentRoutes.post(
     // P3b-SENS：策略闸之后、markComplete 之前。敏感闸有、解禁无。
     const kb = await documentRepo.getKb(kbId);
     const dataClass = parseDataClassFromConfig(kb?.configJson ?? null);
+    const enforce = resolveDeptAclEnforce(
+      parseDeptAclEnforceFromConfig(kb?.configJson ?? null),
+    );
     if (
       isSensitiveCompleteBlocked({
         dataClass,
         ownerDeptId,
-        deptAclEnforce: process.env.DEPT_ACL_ENFORCE,
+        deptAclEnforce: enforce,
       })
     ) {
       return fail(
@@ -489,7 +496,11 @@ documentRoutes.get('/documents/:docId', requirePermissionWhenEnforced('doc.view'
   if (!doc) {
     return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
   }
-  if (isDeptAclEnforced()) {
+  const kb = await documentRepo.getKb(doc.kbId);
+  const enforce = resolveDeptAclEnforce(
+    parseDeptAclEnforceFromConfig(kb?.configJson ?? null),
+  );
+  if (enforce) {
     const auth = c.get('auth');
     const bypass = roleBypassesKbMembership(auth?.roles ?? []);
     if (bypass) {
@@ -498,11 +509,10 @@ documentRoutes.get('/documents/:docId', requirePermissionWhenEnforced('doc.view'
         'dept acl bypass',
       );
     } else {
-      const [assignments, depts, grants, kb] = await Promise.all([
+      const [assignments, depts, grants] = await Promise.all([
         loadDeptAssignments(doc.tenantId, auth?.userId),
         loadDeptNodes(doc.tenantId),
         loadDeptGrants(doc.tenantId, auth?.userId),
-        documentRepo.getKb(doc.kbId),
       ]);
       const inheritDown = resolveDeptInheritDown(
         parseDeptInheritDownFromConfig(kb?.configJson ?? null),

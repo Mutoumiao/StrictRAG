@@ -20,11 +20,12 @@ import {
 } from '../services/chunks.js';
 import { documentRepo } from '../services/documents.js';
 import {
+  parseDeptAclEnforceFromConfig,
   parseDeptInheritDownFromConfig,
+  resolveDeptAclEnforce,
   resolveDeptInheritDown,
 } from '../services/kb-settings.js';
 import {
-  isDeptAclEnforced,
   isDocVisibleForDeptAcl,
   loadDeptAssignments,
   loadDeptGrants,
@@ -71,7 +72,11 @@ export function createChunkRoutes(deps: ChunkRouteDeps = {}): Hono<{ Variables: 
     if (!doc) {
       return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
     }
-    if (isDeptAclEnforced()) {
+    const kb = doc.kbId ? await documentRepo.getKb(doc.kbId) : null;
+    const enforce = resolveDeptAclEnforce(
+      parseDeptAclEnforceFromConfig(kb?.configJson ?? null),
+    );
+    if (enforce) {
       const auth = c.get('auth');
       const bypass = roleBypassesKbMembership(auth?.roles ?? []);
       if (bypass) {
@@ -80,11 +85,10 @@ export function createChunkRoutes(deps: ChunkRouteDeps = {}): Hono<{ Variables: 
           'dept acl bypass',
         );
       } else {
-        const [assignments, depts, grants, kb] = await Promise.all([
+        const [assignments, depts, grants] = await Promise.all([
           loadDeptAssignments(doc.tenantId, auth?.userId),
           loadDeptNodes(doc.tenantId),
           loadDeptGrants(doc.tenantId, auth?.userId),
-          doc.kbId ? documentRepo.getKb(doc.kbId) : Promise.resolve(null),
         ]);
         const inheritDown = resolveDeptInheritDown(
           parseDeptInheritDownFromConfig(kb?.configJson ?? null),
@@ -137,7 +141,11 @@ export function createChunkRoutes(deps: ChunkRouteDeps = {}): Hono<{ Variables: 
     if (!doc) {
       return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
     }
-    if (isDeptAclEnforced()) {
+    const kb = doc.kbId ? await documentRepo.getKb(doc.kbId) : null;
+    const enforce = resolveDeptAclEnforce(
+      parseDeptAclEnforceFromConfig(kb?.configJson ?? null),
+    );
+    if (enforce) {
       const auth = c.get('auth');
       const bypass = roleBypassesKbMembership(auth?.roles ?? []);
       if (bypass) {
@@ -146,11 +154,10 @@ export function createChunkRoutes(deps: ChunkRouteDeps = {}): Hono<{ Variables: 
           'dept acl bypass',
         );
       } else {
-        const [assignments, depts, grants, kb] = await Promise.all([
+        const [assignments, depts, grants] = await Promise.all([
           loadDeptAssignments(doc.tenantId, auth?.userId),
           loadDeptNodes(doc.tenantId),
           loadDeptGrants(doc.tenantId, auth?.userId),
-          doc.kbId ? documentRepo.getKb(doc.kbId) : Promise.resolve(null),
         ]);
         const inheritDown = resolveDeptInheritDown(
           parseDeptInheritDownFromConfig(kb?.configJson ?? null),

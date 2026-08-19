@@ -1,11 +1,29 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
+import { logger } from '../../logger.js';
 import { GatewayError } from '../gateway/index.js';
 import { mockEmbedVector } from '../gateway/mock-client.js';
 import { rrfFuse } from './rrf.js';
 import { promotePreferredDocChunks, runRetrieve } from './retrieve.js';
 import { cosine, sparseOverlapScore } from './scoring.js';
 import type { CorpusChunk, RetrieveDeps } from './types.js';
+
+const retrieveKb = { configJson: {} as Record<string, unknown> };
+
+vi.mock('../kb-settings.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../kb-settings.js')>();
+  return {
+    ...actual,
+    kbSettingsRepo: {
+      get: async () => ({
+        id: 'kb1',
+        name: 'KB',
+        description: null,
+        configJson: retrieveKb.configJson,
+      }),
+    },
+  };
+});
 
 const dims = 8;
 
@@ -138,6 +156,34 @@ describe('runRetrieve dual gate via corpus', () => {
       deps([chunk('c1', 'leave policy')]),
     );
     expect(r.ok).toBe(true);
+  });
+
+  it('env false + KB true：super_admin 打 dept_acl_bypass', async () => {
+    retrieveKb.configJson = { deptAclEnforce: true };
+    const prev = process.env.DEPT_ACL_ENFORCE;
+    process.env.DEPT_ACL_ENFORCE = 'false';
+    const info = vi.spyOn(logger, 'info');
+    try {
+      const r = await runRetrieve(
+        {
+          kbId: 'kb1',
+          question: 'leave policy',
+          membership: 'super_admin',
+          userId: 'u-sa',
+        },
+        deps([chunk('c1', 'leave policy 15 days')]),
+      );
+      expect(r.ok).toBe(true);
+      expect(info).toHaveBeenCalledWith(
+        expect.objectContaining({ event: 'dept_acl_bypass', kbId: 'kb1' }),
+        'dept acl bypass',
+      );
+    } finally {
+      info.mockRestore();
+      retrieveKb.configJson = {};
+      if (prev === undefined) delete process.env.DEPT_ACL_ENFORCE;
+      else process.env.DEPT_ACL_ENFORCE = prev;
+    }
   });
 
   it('forwards bypassDeptAcl when membership is super_admin', async () => {

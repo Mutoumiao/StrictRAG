@@ -6,10 +6,12 @@ import {
   isSensitiveCompleteBlocked,
   mergeKbSettingsPatch,
   parseDataClassFromConfig,
+  parseDeptAclEnforceFromConfig,
   parseDeptInheritDownFromConfig,
   parseDocTypesFromConfig,
   parseModesFromConfig,
   resolveAskMode,
+  resolveDeptAclEnforce,
   resolveDeptInheritDown,
 } from './kb-settings.js';
 import { filterDocsForDeptAcl } from './retrieve/dept-acl.js';
@@ -74,21 +76,14 @@ describe('P3b-SENS dataClass / complete 闸', () => {
       isSensitiveCompleteBlocked({
         dataClass: 'internal',
         ownerDeptId: null,
-        deptAclEnforce: undefined,
+        deptAclEnforce: false,
       }),
     ).toBe(false);
     expect(
       isSensitiveCompleteBlocked({
         dataClass: 'sensitive',
         ownerDeptId: '01900000-0000-7000-8000-0000000000de',
-        deptAclEnforce: undefined,
-      }),
-    ).toBe(true);
-    expect(
-      isSensitiveCompleteBlocked({
-        dataClass: 'sensitive',
-        ownerDeptId: '01900000-0000-7000-8000-0000000000de',
-        deptAclEnforce: 'false',
+        deptAclEnforce: false,
       }),
     ).toBe(true);
   });
@@ -98,21 +93,21 @@ describe('P3b-SENS dataClass / complete 闸', () => {
       isSensitiveCompleteBlocked({
         dataClass: 'sensitive',
         ownerDeptId: null,
-        deptAclEnforce: 'true',
+        deptAclEnforce: true,
       }),
     ).toBe(true);
     expect(
       isSensitiveCompleteBlocked({
         dataClass: 'sensitive',
         ownerDeptId: '',
-        deptAclEnforce: 'true',
+        deptAclEnforce: true,
       }),
     ).toBe(true);
     expect(
       isSensitiveCompleteBlocked({
         dataClass: 'sensitive',
         ownerDeptId: '01900000-0000-7000-8000-0000000000de',
-        deptAclEnforce: 'true',
+        deptAclEnforce: true,
       }),
     ).toBe(false);
   });
@@ -239,6 +234,101 @@ describe('P3b-KBINH deptInheritDown parse / resolve', () => {
     } finally {
       if (prev === undefined) delete process.env.DEPT_INHERIT_DOWN;
       else process.env.DEPT_INHERIT_DOWN = prev;
+    }
+  });
+});
+
+describe('P3b-KBENF deptAclEnforce parse / resolve', () => {
+  it('parse 仅字面 true/false，其余/缺省 → undefined', () => {
+    expect(parseDeptAclEnforceFromConfig({ deptAclEnforce: true })).toBe(true);
+    expect(parseDeptAclEnforceFromConfig({ deptAclEnforce: false })).toBe(false);
+    expect(parseDeptAclEnforceFromConfig({})).toBeUndefined();
+    expect(parseDeptAclEnforceFromConfig(null)).toBeUndefined();
+    expect(parseDeptAclEnforceFromConfig({ deptAclEnforce: 'true' })).toBeUndefined();
+    expect(parseDeptAclEnforceFromConfig({ deptAclEnforce: 1 })).toBeUndefined();
+  });
+
+  it('KB true 盖过 env false；KB false 盖过 env true；未写跟 env', () => {
+    const prev = process.env.DEPT_ACL_ENFORCE;
+    try {
+      process.env.DEPT_ACL_ENFORCE = 'false';
+      expect(resolveDeptAclEnforce(true)).toBe(true);
+      expect(resolveDeptAclEnforce(undefined)).toBe(false);
+      process.env.DEPT_ACL_ENFORCE = 'true';
+      expect(resolveDeptAclEnforce(false)).toBe(false);
+      expect(resolveDeptAclEnforce(undefined)).toBe(true);
+    } finally {
+      if (prev === undefined) delete process.env.DEPT_ACL_ENFORCE;
+      else process.env.DEPT_ACL_ENFORCE = prev;
+    }
+  });
+
+  it('GET 未写 → 回读 false（与运行时未写跟 env 分钉）', () => {
+    const quality = { tauClaim: 0.5 };
+    expect(
+      buildKbSettingsView({
+        row: { id: '01900000-0000-7000-8000-000000000099', name: 'KB', description: null, configJson: {} },
+        quality,
+      }).deptAclEnforce,
+    ).toBe(false);
+    expect(
+      buildKbSettingsView({
+        row: {
+          id: '01900000-0000-7000-8000-000000000099',
+          name: 'KB',
+          description: null,
+          configJson: { deptAclEnforce: true },
+        },
+        quality,
+      }).deptAclEnforce,
+    ).toBe(true);
+  });
+
+  it('PATCH 只在带键时写入；不带键保留未写', () => {
+    const row = {
+      id: '01900000-0000-7000-8000-000000000099',
+      name: 'KB',
+      description: null,
+      configJson: {},
+    };
+    const nameOnly = mergeKbSettingsPatch(row, { name: 'KB2' });
+    expect(nameOnly.ok).toBe(true);
+    if (nameOnly.ok) {
+      expect(nameOnly.configJson).not.toHaveProperty('deptAclEnforce');
+    }
+    const on = mergeKbSettingsPatch(row, { deptAclEnforce: true });
+    expect(on.ok).toBe(true);
+    if (on.ok) {
+      expect(on.configJson.deptAclEnforce).toBe(true);
+      expect(on.diff.deptAclEnforce).toEqual({ from: undefined, to: true });
+    }
+    const off = mergeKbSettingsPatch(row, { deptAclEnforce: false });
+    expect(off.ok).toBe(true);
+    if (off.ok) {
+      expect(off.configJson.deptAclEnforce).toBe(false);
+      expect(off.diff.deptAclEnforce).toEqual({ from: undefined, to: false });
+    }
+  });
+
+  it('运行时未写跟 env：env true → 滤；GET 仍展示 false', () => {
+    const prev = process.env.DEPT_ACL_ENFORCE;
+    process.env.DEPT_ACL_ENFORCE = 'true';
+    try {
+      expect(resolveDeptAclEnforce(parseDeptAclEnforceFromConfig({}))).toBe(true);
+      expect(
+        buildKbSettingsView({
+          row: {
+            id: '01900000-0000-7000-8000-000000000099',
+            name: 'KB',
+            description: null,
+            configJson: {},
+          },
+          quality: { tauClaim: 0.5 },
+        }).deptAclEnforce,
+      ).toBe(false);
+    } finally {
+      if (prev === undefined) delete process.env.DEPT_ACL_ENFORCE;
+      else process.env.DEPT_ACL_ENFORCE = prev;
     }
   });
 });

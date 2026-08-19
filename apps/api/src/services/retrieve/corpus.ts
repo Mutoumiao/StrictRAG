@@ -8,13 +8,14 @@ import { and, eq, inArray } from 'drizzle-orm';
 
 import { getDb } from '../db.js';
 import {
+  parseDeptAclEnforceFromConfig,
   parseDeptInheritDownFromConfig,
+  resolveDeptAclEnforce,
   resolveDeptInheritDown,
   kbSettingsRepo,
 } from '../kb-settings.js';
 import {
   filterDocsForDeptAcl,
-  isDeptAclEnforced,
   loadDeptAssignments,
   loadDeptGrants,
   loadDeptNodes,
@@ -61,16 +62,18 @@ export const loadCorpusFromDb: CorpusLoader = async ({
   const docs = await db.select().from(documents).where(eq(documents.kbId, kbId));
 
   const dual = filterDocsForRetrieve(docs, scope);
-  const enforce = isDeptAclEnforced();
   const tenantId = dual[0]?.tenantId;
+  const kb = await kbSettingsRepo.get(kbId);
+  const enforce = resolveDeptAclEnforce(
+    parseDeptAclEnforceFromConfig(kb?.configJson ?? null),
+  );
   const skipDeptIo = !enforce || bypassDeptAcl === true;
-  const [assignments, depts, grants, kb] = skipDeptIo
-    ? [[], [], [], null]
+  const [assignments, depts, grants] = skipDeptIo
+    ? [[], [], []]
     : await Promise.all([
         loadDeptAssignments(tenantId, userId),
         loadDeptNodes(tenantId),
         loadDeptGrants(tenantId, userId),
-        kbSettingsRepo.get(kbId),
       ]);
   const allowed = filterDocsForDeptAcl(dual, {
     assignments,
@@ -138,16 +141,18 @@ export async function hasRetrievableDocs(
   const db = getDb();
   const docs = await db.select().from(documents).where(eq(documents.kbId, kbId));
   const dual = filterDocsForRetrieve(docs, scope);
-  const enforce = isDeptAclEnforced();
   const tenantId = dual[0]?.tenantId;
+  const kb = await kbSettingsRepo.get(kbId);
+  const enforce = resolveDeptAclEnforce(
+    parseDeptAclEnforceFromConfig(kb?.configJson ?? null),
+  );
   const skipDeptIo = !enforce || bypassDeptAcl === true;
-  const [assignments, depts, grants, kb] = skipDeptIo
-    ? [[], [], [], null]
+  const [assignments, depts, grants] = skipDeptIo
+    ? [[], [], []]
     : await Promise.all([
         loadDeptAssignments(tenantId, userId),
         loadDeptNodes(tenantId),
         loadDeptGrants(tenantId, userId),
-        kbSettingsRepo.get(kbId),
       ]);
   return (
     filterDocsForDeptAcl(dual, {
