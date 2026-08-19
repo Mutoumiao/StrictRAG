@@ -1,6 +1,7 @@
 /**
- * 设置页：有 kb.config.write 可看/改 dataClass 与 inherit 勾选；
- * 未改勾选不得 PATCH deptInheritDown；无权限保持 403；sensitive ≠ 解禁。
+ * 设置页：有 kb.config.write 可看/改 dataClass、强制勾选与 inherit 勾选；
+ * 未改勾选不得 PATCH deptAclEnforce / deptInheritDown；无权限保持 403；
+ * 强制勾选 ≠ 仓库默认开 / 解禁；sensitive ≠ 解禁。
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -42,6 +43,7 @@ const settings = {
   docTypes: [],
   dataClass: 'internal' as const,
   deptInheritDown: true,
+  deptAclEnforce: false,
   qualitySnapshot: { tauClaim: 0.7 },
   sessionRewrite: { enabledDefault: false as const, locked: true as const },
 };
@@ -120,6 +122,7 @@ describe('SettingsWorkspace', () => {
       dataClass: 'internal',
     });
     expect(body).not.toHaveProperty('deptInheritDown');
+    expect(body).not.toHaveProperty('deptAclEnforce');
   });
 
   it('取消「上级看下级」再保存：body 含 deptInheritDown: false', async () => {
@@ -158,7 +161,7 @@ describe('SettingsWorkspace', () => {
     render(<SettingsWorkspace />);
 
     expect(await screen.findByText(/不是已解禁/)).toBeInTheDocument();
-    expect(screen.getByText(/解禁/)).toBeInTheDocument();
+    expect(screen.getAllByText(/解禁/).length).toBeGreaterThan(0);
   });
 
   it('页上可见继承勾选不是打开强制隔离的说明', async () => {
@@ -169,7 +172,7 @@ describe('SettingsWorkspace', () => {
     render(<SettingsWorkspace />);
 
     expect(await screen.findByText(/不是打开强制/)).toBeInTheDocument();
-    expect(screen.getByText(/DEPT_ACL_ENFORCE=true/)).toBeInTheDocument();
+    expect(screen.getByText(/本库或进程/)).toBeInTheDocument();
   });
 
   it('无 kb.config.write：保持 403 态，不展示设置面', async () => {
@@ -181,7 +184,86 @@ describe('SettingsWorkspace', () => {
     expect(screen.getByText('无 kb.config.write 权限（403）')).toBeInTheDocument();
     expect(screen.queryByLabelText('语料分级')).not.toBeInTheDocument();
     expect(screen.queryByRole('checkbox', { name: '上级看下级' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: '本库打开部门强制' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '保存' })).not.toBeInTheDocument();
     expect(loadKbSettings).not.toHaveBeenCalled();
+  });
+
+  it('加载 GET deptAclEnforce: false →「本库打开部门强制」未勾', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', KB_ID);
+    me.permissions = ['admin.shell', 'kb.config.write'];
+    loadKbSettings.mockResolvedValue({ ok: true, settings });
+
+    render(<SettingsWorkspace />);
+
+    expect(await screen.findByRole('checkbox', { name: '本库打开部门强制' })).not.toBeChecked();
+  });
+
+  it('不碰强制勾选就保存：PATCH 不带 deptAclEnforce 键', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', KB_ID);
+    me.permissions = ['admin.shell', 'kb.config.write'];
+    loadKbSettings.mockResolvedValue({ ok: true, settings });
+    saveKbSettings.mockResolvedValue({ ok: true, settings, text: '已保存' });
+
+    render(<SettingsWorkspace />);
+    const user = userEvent.setup();
+
+    await screen.findByRole('checkbox', { name: '本库打开部门强制' });
+    await user.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(saveKbSettings).toHaveBeenCalledTimes(1);
+    });
+    const body = saveKbSettings.mock.calls[0]![1] as Record<string, unknown>;
+    expect(body).toEqual({
+      name: '制度库',
+      description: null,
+      allowedModes: ['strict', 'balanced', 'fast'],
+      defaultMode: 'balanced',
+      dataClass: 'internal',
+    });
+    expect(body).not.toHaveProperty('deptAclEnforce');
+    expect(body).not.toHaveProperty('deptInheritDown');
+  });
+
+  it('勾选「本库打开部门强制」再保存：body 含 deptAclEnforce: true', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', KB_ID);
+    me.permissions = ['admin.shell', 'kb.config.write'];
+    loadKbSettings.mockResolvedValue({ ok: true, settings });
+    saveKbSettings.mockResolvedValue({
+      ok: true,
+      settings: { ...settings, deptAclEnforce: true },
+      text: '已保存',
+    });
+
+    render(<SettingsWorkspace />);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('checkbox', { name: '本库打开部门强制' }));
+    await user.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(saveKbSettings).toHaveBeenCalledWith(KB_ID, {
+        name: '制度库',
+        description: null,
+        allowedModes: ['strict', 'balanced', 'fast'],
+        defaultMode: 'balanced',
+        dataClass: 'internal',
+        deptAclEnforce: true,
+      });
+    });
+  });
+
+  it('页上可见强制勾选不是仓库默认开的说明', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', KB_ID);
+    me.permissions = ['admin.shell', 'kb.config.write'];
+    loadKbSettings.mockResolvedValue({ ok: true, settings });
+
+    render(<SettingsWorkspace />);
+
+    expect(await screen.findByText(/不是仓库默认开/)).toBeInTheDocument();
+    expect(screen.getByText(/覆盖进程 env/)).toBeInTheDocument();
+    expect(screen.getByText(/不是解禁/)).toBeInTheDocument();
+    expect(screen.getByText(/不是\s*ES/)).toBeInTheDocument();
   });
 });

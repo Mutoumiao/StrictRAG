@@ -1,9 +1,10 @@
 'use client';
 
 /**
- * 知识库设置薄页：基本信息 / 语料分级 / 部门继承 / 问答档位 / 质量只读 / rewrite 锁。
- * 禁止 τ 滑块与 rewrite 开关。sensitive ≠ 解禁。
+ * 知识库设置薄页：基本信息 / 语料分级 / 部门强制 / 部门继承 / 问答档位 / 质量只读 / rewrite 锁。
+ * 禁止 τ 滑块与 rewrite 开关。sensitive ≠ 解禁。强制勾选 ≠ 仓库默认开 / 解禁 / ES。
  * 未改 inherit 勾选不得 PATCH deptInheritDown（GET 缺省 true 不可写回盖 env）。
+ * 未改强制勾选不得 PATCH deptAclEnforce（GET 缺省 false 不可写回钉成显式关）。
  */
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
@@ -32,6 +33,7 @@ export function SettingsWorkspace() {
   const [defaultMode, setDefaultMode] = useState<AskMode>('balanced');
   const [dataClass, setDataClass] = useState<DataClass>('internal');
   const [deptInheritDown, setDeptInheritDown] = useState(true);
+  const [deptAclEnforce, setDeptAclEnforce] = useState(false);
   const [state, setState] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -45,6 +47,7 @@ export function SettingsWorkspace() {
     setDefaultMode(s.defaultMode);
     setDataClass(s.dataClass ?? 'internal');
     setDeptInheritDown(s.deptInheritDown ?? true);
+    setDeptAclEnforce(s.deptAclEnforce ?? false);
   }, []);
 
   const load = useCallback(async () => {
@@ -98,6 +101,7 @@ export function SettingsWorkspace() {
     setBusy(true);
     setFlash(null);
     const loadedInherit = settings?.deptInheritDown ?? true;
+    const loadedEnforce = settings?.deptAclEnforce ?? false;
     const result = await saveKbSettings(id, {
       name: name.trim(),
       description: description.trim() || null,
@@ -105,6 +109,7 @@ export function SettingsWorkspace() {
       defaultMode,
       dataClass,
       ...(deptInheritDown !== loadedInherit ? { deptInheritDown } : {}),
+      ...(deptAclEnforce !== loadedEnforce ? { deptAclEnforce } : {}),
     });
     if (result.ok) {
       applySettings(result.settings);
@@ -196,6 +201,22 @@ export function SettingsWorkspace() {
           </section>
 
           <section className="space-y-3 rounded-lg border border-border p-4">
+            <h2 className="text-sm font-semibold">部门强制</h2>
+            <label className="flex items-center gap-1.5 text-sm">
+              <input
+                type="checkbox"
+                checked={deptAclEnforce}
+                onChange={(e) => setDeptAclEnforce(e.target.checked)}
+              />
+              本库打开部门强制
+            </label>
+            <p className="text-xs text-muted-foreground">
+              勾选后本库打开强制，走部门可见性过滤（覆盖进程 env）。不是仓库默认开，不是解禁，不是
+              ES 已对称。
+            </p>
+          </section>
+
+          <section className="space-y-3 rounded-lg border border-border p-4">
             <h2 className="text-sm font-semibold">部门继承</h2>
             <label className="flex items-center gap-1.5 text-sm">
               <input
@@ -206,7 +227,7 @@ export function SettingsWorkspace() {
               上级看下级
             </label>
             <p className="text-xs text-muted-foreground">
-              只在进程打开部门强制时生效（DEPT_ACL_ENFORCE=true），不是打开强制隔离。
+              只在本库或进程打开部门强制时生效，不是打开强制隔离。
             </p>
           </section>
 
