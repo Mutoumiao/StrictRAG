@@ -3,10 +3,16 @@
 /**
  * 文档薄列表：status / approval / lifecycle。
  * 点行展开详情；可改 ownerDeptId / visibilityLevel（有 doc.editor 才显示保存）。
+ * 有 dept.manage 时归属用部门列表下拉；无该码仍 uuid 粘贴。不宣称强制隔离已上。
  */
 
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
-import type { DocumentDetail, DocumentListItem, VisibilityLevel } from '@strict-rag/contracts';
+import type {
+  Department,
+  DocumentDetail,
+  DocumentListItem,
+  VisibilityLevel,
+} from '@strict-rag/contracts';
 import { Button } from '@strict-rag/ui/components/ui/button';
 import { Input } from '@strict-rag/ui/components/ui/input';
 import { Label } from '@strict-rag/ui/components/ui/label';
@@ -23,7 +29,12 @@ import { useAdminAuth } from '@/components/auth-guard';
 import { readStoredKbId } from '@/lib/kb-context';
 
 import { loadDocumentList } from '../list.services';
-import { loadDocumentDetail, saveDocumentMeta } from '../meta.services';
+import {
+  loadDepartmentOptions,
+  loadDocumentDetail,
+  saveDocumentMeta,
+  type LoadDepartmentOptionsResult,
+} from '../meta.services';
 
 const VISIBILITY_LEVELS: VisibilityLevel[] = [10, 20, 30, 40];
 
@@ -36,6 +47,7 @@ export function DocumentsWorkspace() {
   const { me } = useAdminAuth();
   const canView = me.permissions.includes('doc.view');
   const canEdit = me.permissions.includes('doc.editor');
+  const canManageDept = me.permissions.includes('dept.manage');
   const [rows, setRows] = useState<DocumentListItem[]>([]);
   const [state, setState] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +62,27 @@ export function DocumentsWorkspace() {
   const [busy, setBusy] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saveOk, setSaveOk] = useState(false);
+  const [deptOptions, setDeptOptions] = useState<Department[] | null>(null);
+  const [deptOptionsError, setDeptOptionsError] = useState<string | null>(null);
   const openIdRef = useRef<string | null>(null);
+  const deptOptionsCache = useRef<Department[] | null>(null);
+  const deptOptionsInflight = useRef<Promise<LoadDepartmentOptionsResult> | null>(null);
+
+  async function ensureDeptOptions() {
+    if (deptOptionsCache.current) return;
+    if (!deptOptionsInflight.current) {
+      deptOptionsInflight.current = loadDepartmentOptions();
+    }
+    const opts = await deptOptionsInflight.current;
+    if (opts.ok) {
+      deptOptionsCache.current = opts.departments;
+      setDeptOptions(opts.departments);
+      setDeptOptionsError(null);
+      return;
+    }
+    deptOptionsInflight.current = null;
+    setDeptOptionsError(opts.message);
+  }
 
   const load = useCallback(async () => {
     const id = readStoredKbId().trim();
@@ -103,7 +135,10 @@ export function DocumentsWorkspace() {
     setSaveMessage(null);
     setBusy(false);
     setDetailState('loading');
-    const result = await loadDocumentDetail(docId);
+    const [result] = await Promise.all([
+      loadDocumentDetail(docId),
+      canManageDept ? ensureDeptOptions() : Promise.resolve(),
+    ]);
     if (openIdRef.current !== docId) return;
     if (!result.ok) {
       setDetailState('error');
@@ -166,6 +201,8 @@ export function DocumentsWorkspace() {
           <TableHeader>
             <TableRow className="border-b-border">
               <TableHead>标题</TableHead>
+              <TableHead>部门</TableHead>
+              <TableHead>可见级</TableHead>
               <TableHead>status</TableHead>
               <TableHead>approval</TableHead>
               <TableHead>lifecycle</TableHead>
@@ -190,13 +227,22 @@ export function DocumentsWorkspace() {
                     <div>{r.title}</div>
                     <div className="text-[11px] text-muted-foreground">{r.id}</div>
                   </TableCell>
+                  <TableCell>
+                    <span
+                      className="inline-block max-w-[7rem] truncate align-bottom"
+                      title={r.ownerDeptId ?? undefined}
+                    >
+                      {r.ownerDeptId ?? '—'}
+                    </span>
+                  </TableCell>
+                  <TableCell>{r.visibilityLevel}</TableCell>
                   <TableCell>{r.status}</TableCell>
                   <TableCell>{r.approvalStatus}</TableCell>
                   <TableCell>{r.lifecycle}</TableCell>
                 </TableRow>
                 {openId === r.id ? (
                   <TableRow>
-                    <TableCell colSpan={4}>
+                    <TableCell colSpan={6}>
                       {detailState === 'loading' ? (
                         <p className="text-sm text-muted-foreground">加载详情…</p>
                       ) : null}
@@ -211,13 +257,36 @@ export function DocumentsWorkspace() {
                           <div className="grid max-w-md gap-3">
                             <div className="space-y-1.5">
                               <Label htmlFor="doc-owner-dept">归属部门</Label>
-                              <Input
-                                id="doc-owner-dept"
-                                value={ownerDeptId}
-                                onChange={(e) => setOwnerDeptId(e.target.value)}
-                                placeholder="空=库级"
-                                disabled={!canEdit}
-                              />
+                              {canManageDept && deptOptions ? (
+                                <select
+                                  id="doc-owner-dept"
+                                  className="flex h-9 w-full rounded-md border border-input bg-card px-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                                  value={ownerDeptId}
+                                  onChange={(e) => setOwnerDeptId(e.target.value)}
+                                  disabled={!canEdit}
+                                >
+                                  <option value="">库级</option>
+                                  {deptOptions.map((d) => (
+                                    <option key={d.id} value={d.id}>
+                                      {d.name}
+                                    </option>
+                                  ))}
+                                  {ownerDeptId && !deptOptions.some((d) => d.id === ownerDeptId) ? (
+                                    <option value={ownerDeptId}>{ownerDeptId}</option>
+                                  ) : null}
+                                </select>
+                              ) : (
+                                <Input
+                                  id="doc-owner-dept"
+                                  value={ownerDeptId}
+                                  onChange={(e) => setOwnerDeptId(e.target.value)}
+                                  placeholder="空=库级"
+                                  disabled={!canEdit}
+                                />
+                              )}
+                              {canManageDept && deptOptionsError ? (
+                                <p className="text-sm text-destructive">{deptOptionsError}</p>
+                              ) : null}
                             </div>
                             <div className="space-y-1.5">
                               <Label htmlFor="doc-visibility">可见级</Label>

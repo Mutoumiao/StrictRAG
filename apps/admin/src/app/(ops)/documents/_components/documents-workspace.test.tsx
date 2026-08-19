@@ -1,5 +1,6 @@
 /**
  * 文档页：点行展开详情；无 doc.editor 不露保存；保存走 saveDocumentMeta。
+ * 有 dept.manage 才下拉选部门；无该码仍 uuid 粘贴，不整页 403。
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -15,6 +16,7 @@ const me = {
 const loadDocumentList = vi.fn();
 const loadDocumentDetail = vi.fn();
 const saveDocumentMeta = vi.fn();
+const loadDepartmentOptions = vi.fn();
 
 vi.mock('@/components/auth-guard', () => ({
   useAdminAuth: () => ({
@@ -31,6 +33,7 @@ vi.mock('../list.services', () => ({
 vi.mock('../meta.services', () => ({
   loadDocumentDetail: (...args: unknown[]) => loadDocumentDetail(...args),
   saveDocumentMeta: (...args: unknown[]) => saveDocumentMeta(...args),
+  loadDepartmentOptions: (...args: unknown[]) => loadDepartmentOptions(...args),
 }));
 
 import { DocumentsWorkspace } from './documents-workspace';
@@ -49,6 +52,8 @@ const listDoc = {
   errorCode: null,
   embedReady: true,
   esReady: true,
+  ownerDeptId: null as string | null,
+  visibilityLevel: 20 as const,
 };
 
 const detailDoc = {
@@ -59,13 +64,39 @@ const detailDoc = {
   visibilityLevel: 20 as const,
 };
 
+const deptOption = {
+  id: DEPT_ID,
+  parentId: null,
+  name: '人事部',
+  code: 'hr',
+  sort: 0,
+  status: 'active' as const,
+};
+
 describe('DocumentsWorkspace', () => {
   beforeEach(() => {
     me.permissions = [];
     loadDocumentList.mockReset();
     loadDocumentDetail.mockReset();
     saveDocumentMeta.mockReset();
+    loadDepartmentOptions.mockReset();
     localStorage.clear();
+  });
+
+  it('列表能看到部门与可见级', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', 'kb-1');
+    me.permissions = ['admin.shell', 'doc.view'];
+    loadDocumentList.mockResolvedValue({
+      ok: true,
+      rows: [{ ...listDoc, ownerDeptId: DEPT_ID, visibilityLevel: 30 }],
+    });
+
+    render(<DocumentsWorkspace />);
+
+    expect(await screen.findByRole('columnheader', { name: '部门' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: '可见级' })).toBeInTheDocument();
+    expect(screen.getByText(DEPT_ID)).toBeInTheDocument();
+    expect(screen.getByText('30')).toBeInTheDocument();
   });
 
   it('有 doc.editor：点行后能看到两字段 + 保存按钮', async () => {
@@ -149,5 +180,95 @@ describe('DocumentsWorkspace', () => {
 
     expect(await screen.findByText('VALIDATION_ERROR: ownerDeptId must be uuid')).toBeInTheDocument();
     expect(screen.queryByText('已保存')).not.toBeInTheDocument();
+  });
+
+  it('无 dept.manage：归属部门仍是文本框，不请求部门接口，不整页 403', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', 'kb-1');
+    me.permissions = ['admin.shell', 'doc.view', 'doc.editor'];
+    loadDocumentList.mockResolvedValue({ ok: true, rows: [listDoc] });
+    loadDocumentDetail.mockResolvedValue({ ok: true, detail: detailDoc });
+
+    render(<DocumentsWorkspace />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByText('请假制度'));
+
+    const field = await screen.findByLabelText('归属部门');
+    expect(field.tagName).toBe('INPUT');
+    expect(screen.getByRole('textbox', { name: '归属部门' })).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: '归属部门' })).not.toBeInTheDocument();
+    expect(loadDepartmentOptions).not.toHaveBeenCalled();
+    expect(screen.queryByText(/403/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/无 dept.manage/)).not.toBeInTheDocument();
+  });
+
+  it('有 dept.manage + doc.editor：下拉含库级，选部门后保存带 uuid', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', 'kb-1');
+    me.permissions = ['admin.shell', 'doc.view', 'doc.editor', 'dept.manage'];
+    loadDocumentList.mockResolvedValue({ ok: true, rows: [listDoc] });
+    loadDocumentDetail.mockResolvedValue({ ok: true, detail: detailDoc });
+    loadDepartmentOptions.mockResolvedValue({ ok: true, departments: [deptOption] });
+    saveDocumentMeta.mockResolvedValue({
+      ok: true,
+      detail: { ...detailDoc, ownerDeptId: DEPT_ID, visibilityLevel: 20 },
+    });
+
+    render(<DocumentsWorkspace />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByText('请假制度'));
+
+    const field = await screen.findByLabelText('归属部门');
+    expect(field.tagName).toBe('SELECT');
+    expect(screen.getByRole('combobox', { name: '归属部门' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: '库级' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: '人事部' })).toBeInTheDocument();
+    expect(loadDepartmentOptions).toHaveBeenCalledTimes(1);
+
+    await user.selectOptions(field, DEPT_ID);
+    await user.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(saveDocumentMeta).toHaveBeenCalledWith(DOC_ID, {
+        ownerDeptId: DEPT_ID,
+        visibilityLevel: 20,
+      });
+    });
+    expect(screen.getByText('已保存')).toBeInTheDocument();
+  });
+
+  it('有 dept.manage 无 doc.editor：下拉只读、无保存', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', 'kb-1');
+    me.permissions = ['admin.shell', 'doc.view', 'dept.manage'];
+    loadDocumentList.mockResolvedValue({ ok: true, rows: [listDoc] });
+    loadDocumentDetail.mockResolvedValue({ ok: true, detail: detailDoc });
+    loadDepartmentOptions.mockResolvedValue({ ok: true, departments: [deptOption] });
+
+    render(<DocumentsWorkspace />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByText('请假制度'));
+
+    const field = await screen.findByLabelText('归属部门');
+    expect(field.tagName).toBe('SELECT');
+    expect(field).toBeDisabled();
+    expect(screen.getByLabelText('可见级')).toBeDisabled();
+    expect(screen.queryByRole('button', { name: '保存' })).not.toBeInTheDocument();
+  });
+
+  it('部门列表失败：展示错误，不假装已保存', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', 'kb-1');
+    me.permissions = ['admin.shell', 'doc.view', 'doc.editor', 'dept.manage'];
+    loadDocumentList.mockResolvedValue({ ok: true, rows: [listDoc] });
+    loadDocumentDetail.mockResolvedValue({ ok: true, detail: detailDoc });
+    loadDepartmentOptions.mockResolvedValue({
+      ok: false,
+      message: 'FORBIDDEN: 需要 dept.manage',
+    });
+
+    render(<DocumentsWorkspace />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByText('请假制度'));
+
+    expect(await screen.findByText('FORBIDDEN: 需要 dept.manage')).toBeInTheDocument();
+    expect(screen.queryByText('已保存')).not.toBeInTheDocument();
+    expect((await screen.findByLabelText('归属部门')).tagName).toBe('INPUT');
   });
 });

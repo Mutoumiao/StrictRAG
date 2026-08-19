@@ -1,14 +1,15 @@
 'use client';
 
 /**
- * 文档部门元数据用例：加载详情 + 保存。
+ * 文档部门元数据用例：加载详情 + 保存 + 归属下拉选项。
  * 无 path；不做权限决策（UI 裁剪 + API 硬验）。
  */
 
-import type { DocumentDetail, PatchDocumentMetaBody } from '@strict-rag/contracts';
+import type { Department, DocumentDetail, PatchDocumentMetaBody } from '@strict-rag/contracts';
 
 import { mapBizError } from '@/lib/map-biz-error';
 
+import { listDepartments } from '../departments/api';
 import { getDocument, patchDocumentMeta } from './api';
 
 export type LoadDocumentDetailResult =
@@ -17,6 +18,10 @@ export type LoadDocumentDetailResult =
 
 export type SaveDocumentMetaResult =
   | { ok: true; detail: DocumentDetail }
+  | { ok: false; message: string };
+
+export type LoadDepartmentOptionsResult =
+  | { ok: true; departments: Department[] }
   | { ok: false; message: string };
 
 export async function loadDocumentDetail(docId: string): Promise<LoadDocumentDetailResult> {
@@ -35,6 +40,16 @@ export async function saveDocumentMeta(
   try {
     const detail = await patchDocumentMeta(docId, body);
     return { ok: true, detail };
+  } catch (err) {
+    return { ok: false, message: mapBizError(err) };
+  }
+}
+
+/** 文档归属下拉选项。复用部门模块 api；无 path。调用方须自裁 dept.manage。 */
+export async function loadDepartmentOptions(): Promise<LoadDepartmentOptionsResult> {
+  try {
+    const departments = await listDepartments();
+    return { ok: true, departments };
   } catch (err) {
     return { ok: false, message: mapBizError(err) };
   }
