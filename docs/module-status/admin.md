@@ -7,13 +7,13 @@
 | 成熟度 | **可演示**（S2c 运营薄壳：文档 / 审批 / 成员 / 分片 / 设置 / 模型 + 用户 / 角色 / 部门 + **数据面板** + **反馈队列**） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT + admin **dev-login**（经 api）· 知识库 = 手工填写 uuid · 菜单 = `clipMenuForShell` 裁剪（catalog 为 SSOT）· API 默认 `http://127.0.0.1:4000` |
 | 关联模块 | API 依赖：`api` 的文档 / 审批 / 成员 / 分片 / 设置 / 模型 / 用户角色 / 部门 / dashboard / **feedback-queue**；菜单与权限码：`admin-catalog`；类型：`contracts`；样式：`ui` |
-| 最近更新 | 2026-08-19（P3b-USRPICK grant 用户下拉 · P3b-COLN 列表部门名 · P3b-VLAB 可见级文案；**无**强制开关 UI / **≠** 解禁） |
+| 最近更新 | 2026-08-20（P3b-ENFUI 设置页强制勾选未改不写回 · P3b-GRDN 授权行部门名 · P3b-GRLAB 授权可见级文案 · P3b-ASGNUSR 归属用户下拉；进程默认仍关 / **≠** 解禁 / **≠** ES） |
 | Spec | `.trellis/spec/admin/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · 审批 / 成员相关 API |
 
 ## 一句话状态
 
-Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 + 分片只读 + 知识库设置 + 模型网关最小集 + 用户 / 角色 / 部门最小集 + 数据面板薄壳 + 反馈队列薄壳** 均已接通；知识库靠手填 id，外壳 **`clipMenuForShell`** 只显示已落地路由（**11** 条 ops href），**不是**完整运营台（无 APM 时序 / **无**部门强制隔离 UI）。Vitest / RTL 覆盖外壳 / Guard / 审批 / dashboard 403 + **P0 R5/R6** + settings / documents / departments 工作区测；**无** feedback 工作区测、**无** E2E。
+Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 + 分片只读 + 知识库设置 + 模型网关最小集 + 用户 / 角色 / 部门最小集 + 数据面板薄壳 + 反馈队列薄壳** 均已接通；知识库靠手填 id，外壳 **`clipMenuForShell`** 只显示已落地路由（**11** 条 ops href），**不是**完整运营台（无 APM 时序 / **≠** 全文隔离 / **≠** ES）。Vitest / RTL 覆盖外壳 / Guard / 审批 / dashboard 403 + **P0 R5/R6** + settings / documents / departments 工作区测；**无** feedback 工作区测、**无** E2E。
 
 ---
 
@@ -44,9 +44,9 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 - **禁止**在页面挂载时批量预拉所有分片全文
 
 ### 知识库设置（B2）
-- `/kb/settings`：基本信息、**语料分级 `dataClass`**、**部门继承勾选**、问答档位、**质量只读展示**、**rewrite 锁定开关**（无开启控件）
+- `/kb/settings`：基本信息、**语料分级 `dataClass`**、**部门强制勾选**、**部门继承勾选**、问答档位、**质量只读展示**、**rewrite 锁定开关**（无开启控件）
 - 需要 `kb.config.write` 权限；无权限时显示 403 状态；数据路径仅 `kb/settings/api.ts` 一处
-- `dataClass=sensitive` **≠** 已解禁（complete 闸仍 fail-closed）；`deptInheritDown` 可勾选，**未改不得写回** GET 缺省 true（避免盖掉运行时「未写跟 env」）；勾选 **≠** 打开 `DEPT_ACL_ENFORCE`
+- `dataClass=sensitive` **≠** 已解禁（complete 闸仍 fail-closed）；`deptInheritDown` 可勾选，**未改不得写回** GET 缺省 true；`deptAclEnforce` 可勾选，**未改不得写回** GET 缺省 false（避免钉成显式关）；勾选本库强制 **≠** 仓库默认开 / **≠** ES 已对称
 - **没有** τ 滑块、**没有**供应商 Key 配置、**没有** docTypes / 分片策略弹窗 / 知识库模型绑定分区
 
 ### 模型网关（B3 最小集）
@@ -58,13 +58,13 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 - `/users`：用户列表、新建（email / displayName / 角色）、启用禁用、修改角色；需要 `user.manage` 权限；数据路径仅 `users/api.ts` 一处
 - `/roles`：角色列表、新建自定义角色、勾选权限码并保存；需要 `role.perm.manage` 权限；数据路径仅 `roles/api.ts` 一处
 - **没有**密码相关 UI；登录仍走 dev-login；**B4-W** 运行时角色以 api DB hydrate 为准（本包只 CRUD）
-- 用户部门归属的编辑入口在 **`/departments`** 页（通过粘贴 userId 操作）
+- 用户部门归属的编辑入口在 **`/departments`** 页（有 `user.manage` 时用户下拉，加载失败回退 uuid）
 
 ### 部门（B5 最小集）
 - `/departments`：组织树列表、新建根 / 子部门、启用停用、删除（要求无子部门且无成员）、用户归属管理（查询归属 + **主部门 / 负责人**标记，需要 `user.manage` 权限）
 - 需要 `dept.manage` 权限；无权限时显示 403 状态；数据路径仅 `departments/api.ts` 一处
-- 文档页可点行改 `ownerDeptId` / `visibilityLevel`（有 `dept.manage` 下拉，否则 uuid；`doc.editor` 裁保存；**无**强制开关 UI）
-- 部门页可配跨部门授权（部门下拉 + 有 `user.manage` 时用户下拉否则 uuid + 级别 + 可选过期；**检索是否消费看 api `DEPT_ACL_ENFORCE` / KB `deptAclEnforce`**）；用户归属部门亦下拉（禁用不可新挂）；**没有** DEPT_ACL 开关运营页
+- 文档页可点行改 `ownerDeptId` / `visibilityLevel`（有 `dept.manage` 下拉，否则 uuid；`doc.editor` 裁保存）
+- 部门页可配跨部门授权（部门下拉 + 有 `user.manage` 时用户下拉否则 uuid + 级别中文标签 + 可选过期；列表行有树时显示部门名；**检索是否消费看 api `DEPT_ACL_ENFORCE` / KB `deptAclEnforce`**）；用户归属可选部门+用户（禁用不可新挂 / 禁用用户不进新建下拉）；设置页可勾选本库强制（未改不写回；进程默认仍关）
 
 ### 审批中心
 - `/approvals`：待审批 / 已通过 两个分栏

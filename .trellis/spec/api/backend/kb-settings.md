@@ -67,7 +67,7 @@ export function createKbSettingsRoutes(deps?: {
 | `docTypes?` | `string[]` · max 32 · 唯一；空 = 不限制；ask `scope.docTypes` 须为其子集 |
 | `dataClass?` | `internal` \| `sensitive`；缺省 / 旧行 = `internal` |
 | `deptInheritDown?` | 布尔；GET 未写 / 旧行 default **true**；运行时未写跟 env；admin 设置页可勾选，**未改不得带该键**（禁止把 GET 缺省 true 写回盖 env） |
-| `deptAclEnforce?` | 布尔；GET 未写 / 旧行 default **false**；运行时未写跟 env；**本窗无**设置页勾选 |
+| `deptAclEnforce?` | 布尔；GET 未写 / 旧行 default **false**；运行时未写跟 env；admin 设置页可勾选，**未改不得带该键**（禁止把 GET 缺省 false 写回钉成显式关） |
 
 **禁止** body 键：`tauClaim` · `crag*` · `allowDegradedGenerate` · `sessionRewrite*` · `retrieveK` · `route` · 密钥等 → Zod 失败 → 400。  
 **仍不放开** τ / rewrite 写键。`dataClass=sensitive` **≠** 敏感已解禁。
@@ -83,7 +83,7 @@ export function createKbSettingsRoutes(deps?: {
 
 **持久化**：`name`/`description` → 列；modes / `docTypes` / `dataClass` / `deptInheritDown` / `deptAclEnforce` → `knowledge_bases.config_json`。无 migration。  
 运行时：`parseDeptInheritDownFromConfig` 仅认字面 true/false；未写 → `isDeptInheritDown()`。GET 回读未写仍展示 true。admin 设置页可勾选；**未改不得带该键**。  
-`parseDeptAclEnforceFromConfig` 仅认字面 true/false；未写 → `isDeptAclEnforced()`。GET 未写回读 false（与运行时未写跟 env 不同）。
+`parseDeptAclEnforceFromConfig` 仅认字面 true/false；未写 → `isDeptAclEnforced()`。GET 未写回读 false（与运行时未写跟 env 不同）。admin 设置页可勾选；**未改不得带该键**。
 
 ### 4. Validation & Error Matrix
 
