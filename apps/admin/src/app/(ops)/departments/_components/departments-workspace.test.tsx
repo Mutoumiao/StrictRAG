@@ -1,5 +1,6 @@
 /**
  * 部门页：有 dept.manage 才露跨部门授权；有 user.manage 才露归属写入口。
+ * 双码时授权用户下拉；仅 dept.manage 仍 uuid 粘贴。
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -19,6 +20,7 @@ const removeDept = vi.fn();
 const loadUserDepts = vi.fn();
 const saveUserDepts = vi.fn();
 const loadGrants = vi.fn();
+const loadGrantUsers = vi.fn();
 const createGrant = vi.fn();
 const removeGrant = vi.fn();
 
@@ -38,6 +40,7 @@ vi.mock('../services', () => ({
   loadUserDepts: (...args: unknown[]) => loadUserDepts(...args),
   saveUserDepts: (...args: unknown[]) => saveUserDepts(...args),
   loadGrants: (...args: unknown[]) => loadGrants(...args),
+  loadGrantUsers: (...args: unknown[]) => loadGrantUsers(...args),
   createGrant: (...args: unknown[]) => createGrant(...args),
   removeGrant: (...args: unknown[]) => removeGrant(...args),
 }));
@@ -46,6 +49,7 @@ import { DepartmentsWorkspace } from './departments-workspace';
 
 const GRANT_ID = '018f0000-0000-7000-8000-0000000000g1';
 const USER_ID = '018f0000-0000-7000-8000-0000000000u1';
+const DISABLED_USER_ID = '018f0000-0000-7000-8000-0000000000u2';
 const DEPT_ID = '018f0000-0000-7000-8000-0000000000d1';
 const DISABLED_DEPT_ID = '018f0000-0000-7000-8000-0000000000d2';
 
@@ -84,6 +88,34 @@ const grantRow = {
   grantedAt: '2026-08-17 00:00:00',
 };
 
+const activeUser = {
+  id: USER_ID,
+  email: 'zhang@example.com',
+  displayName: '张三',
+  status: 'active' as const,
+  isPlatformOperator: true,
+  roleIds: [] as string[],
+  roleCodes: [] as string[],
+};
+
+const disabledUser = {
+  id: DISABLED_USER_ID,
+  email: 'disabled@example.com',
+  displayName: '已禁用用户',
+  status: 'disabled' as const,
+  isPlatformOperator: true,
+  roleIds: [] as string[],
+  roleCodes: [] as string[],
+};
+
+function grantUserSelect() {
+  return screen.getByLabelText('授权用户') as HTMLSelectElement;
+}
+
+function grantUserOptionTexts() {
+  return [...grantUserSelect().options].map((o) => o.textContent);
+}
+
 function grantDeptSelect() {
   return screen.getByLabelText('授权部门') as HTMLSelectElement;
 }
@@ -110,8 +142,10 @@ describe('DepartmentsWorkspace', () => {
     loadUserDepts.mockReset();
     saveUserDepts.mockReset();
     loadGrants.mockReset();
+    loadGrantUsers.mockReset();
     createGrant.mockReset();
     removeGrant.mockReset();
+    loadGrantUsers.mockResolvedValue({ ok: true, users: [] });
   });
 
   it('有 dept.manage：能看到授权块 + 新建控件', async () => {
@@ -276,6 +310,66 @@ describe('DepartmentsWorkspace', () => {
         }),
       );
     });
+  });
+
+  it('有 dept.manage 且 user.manage：授权用户是下拉，禁用用户不在选项，提交带 uuid', async () => {
+    me.permissions = ['dept.manage', 'user.manage'];
+    loadDeptWorkspace.mockResolvedValue(workspaceWithDepts);
+    loadGrants.mockResolvedValue({ ok: true, grants: [] });
+    loadGrantUsers.mockResolvedValue({ ok: true, users: [activeUser, disabledUser] });
+    createGrant.mockResolvedValue({ ok: true, grant: grantRow });
+
+    render(<DepartmentsWorkspace />);
+    const user = userEvent.setup();
+
+    const field = await screen.findByLabelText('授权用户');
+    expect(field.tagName).toBe('SELECT');
+    expect(screen.getByRole('combobox', { name: '授权用户' })).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: '授权用户' })).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(grantUserOptionTexts()).toContain('张三');
+    });
+    expect(grantUserOptionTexts()).not.toContain('已禁用用户');
+    expect(grantUserOptionTexts()).not.toContain('disabled@example.com');
+    expect(grantUserOptionTexts()).toContain('选择用户');
+
+    await user.selectOptions(grantUserSelect(), USER_ID);
+    await waitFor(() => {
+      expect(grantDeptOptionTexts()).toContain('人事部');
+    });
+    await user.selectOptions(grantDeptSelect(), DEPT_ID);
+    await user.click(screen.getByRole('button', { name: '新建授权' }));
+
+    await waitFor(() => {
+      expect(createGrant).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: USER_ID, deptId: DEPT_ID, maxVisibilityLevel: 20 }),
+      );
+    });
+  });
+
+  it('仅 dept.manage：授权用户仍是文本框，不请求用户列表', async () => {
+    me.permissions = ['dept.manage'];
+    loadDeptWorkspace.mockResolvedValue(workspaceWithDepts);
+    loadGrants.mockResolvedValue({ ok: true, grants: [] });
+
+    render(<DepartmentsWorkspace />);
+
+    expect(await screen.findByRole('textbox', { name: '授权用户' })).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: '授权用户' })).not.toBeInTheDocument();
+    expect(loadGrantUsers).not.toHaveBeenCalled();
+  });
+
+  it('有用户列表时授权行显示名而非只 uuid', async () => {
+    me.permissions = ['dept.manage', 'user.manage'];
+    loadDeptWorkspace.mockResolvedValue(workspaceWithDepts);
+    loadGrants.mockResolvedValue({ ok: true, grants: [grantRow] });
+    loadGrantUsers.mockResolvedValue({ ok: true, users: [activeUser, disabledUser] });
+
+    render(<DepartmentsWorkspace />);
+
+    expect(await screen.findByText('userId 张三')).toBeInTheDocument();
+    expect(screen.queryByText(`userId ${USER_ID}`)).not.toBeInTheDocument();
   });
 
   it('无 user.manage：不露保存归属', async () => {

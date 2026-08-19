@@ -10,6 +10,7 @@ import type {
   Department,
   DepartmentTreeNode,
   DeptCrossGrant,
+  PlatformUser,
   VisibilityLevel,
 } from '@strict-rag/contracts';
 import { Button } from '@strict-rag/ui/components/ui/button';
@@ -22,6 +23,7 @@ import {
   createDept,
   createGrant,
   loadDeptWorkspace,
+  loadGrantUsers,
   loadGrants,
   loadUserDepts,
   removeDept,
@@ -31,6 +33,15 @@ import {
 } from '../services';
 
 const VISIBILITY_LEVELS: VisibilityLevel[] = [10, 20, 30, 40];
+
+function grantUserLabel(user: PlatformUser): string {
+  return user.displayName || user.email;
+}
+
+function resolveGrantUserLabel(users: PlatformUser[], userId: string): string {
+  const user = users.find((u) => u.id === userId);
+  return user ? grantUserLabel(user) : userId;
+}
 
 function flattenTree(
   nodes: DepartmentTreeNode[],
@@ -70,6 +81,8 @@ export function DepartmentsWorkspace() {
   const [grants, setGrants] = useState<DeptCrossGrant[]>([]);
   const [grantLoadError, setGrantLoadError] = useState(false);
   const grantGen = useRef(0);
+  const [grantUsers, setGrantUsers] = useState<PlatformUser[]>([]);
+  const [grantUsersError, setGrantUsersError] = useState<string | null>(null);
   const [grantUserId, setGrantUserId] = useState('');
   const [grantDeptId, setGrantDeptId] = useState('');
   const [grantLevel, setGrantLevel] = useState<VisibilityLevel>(20);
@@ -109,6 +122,18 @@ export function DepartmentsWorkspace() {
     setGrants(r.grants);
   }, [canManage]);
 
+  const loadGrantUserOptions = useCallback(async () => {
+    if (!canManage || !canUser) return;
+    const r = await loadGrantUsers();
+    if (!r.ok) {
+      setGrantUsers([]);
+      setGrantUsersError(r.message);
+      return;
+    }
+    setGrantUsersError(null);
+    setGrantUsers(r.users);
+  }, [canManage, canUser]);
+
   useEffect(() => {
     void load();
   }, [load]);
@@ -116,6 +141,10 @@ export function DepartmentsWorkspace() {
   useEffect(() => {
     void loadGrantList();
   }, [loadGrantList]);
+
+  useEffect(() => {
+    void loadGrantUserOptions();
+  }, [loadGrantUserOptions]);
 
   async function onCreate(e: FormEvent) {
     e.preventDefault();
@@ -465,13 +494,34 @@ export function DepartmentsWorkspace() {
         <form className="grid gap-3 sm:grid-cols-2" onSubmit={(e) => void onCreateGrant(e)}>
           <div className="space-y-1">
             <Label htmlFor="grant-user">授权用户</Label>
-            <Input
-              id="grant-user"
-              value={grantUserId}
-              onChange={(e) => setGrantUserId(e.target.value)}
-              placeholder="uuid"
-              required
-            />
+            {canUser ? (
+              <select
+                id="grant-user"
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                value={grantUserId}
+                onChange={(e) => setGrantUserId(e.target.value)}
+              >
+                <option value="">选择用户</option>
+                {grantUsers
+                  .filter((u) => u.status === 'active')
+                  .map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {grantUserLabel(u)}
+                    </option>
+                  ))}
+              </select>
+            ) : (
+              <Input
+                id="grant-user"
+                value={grantUserId}
+                onChange={(e) => setGrantUserId(e.target.value)}
+                placeholder="uuid"
+                required
+              />
+            )}
+            {grantUsersError ? (
+              <p className="text-sm text-destructive">{grantUsersError}</p>
+            ) : null}
           </div>
           <div className="space-y-1">
             <Label htmlFor="grant-dept">授权部门</Label>
@@ -541,7 +591,7 @@ export function DepartmentsWorkspace() {
                 className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm"
               >
                 <div className="min-w-0 break-all text-xs">
-                  <div>userId {g.userId}</div>
+                  <div>userId {resolveGrantUserLabel(grantUsers, g.userId)}</div>
                   <div>deptId {g.deptId}</div>
                   <div>level {g.maxVisibilityLevel}</div>
                   <div>expiresAt {g.expiresAt ?? '—'}</div>

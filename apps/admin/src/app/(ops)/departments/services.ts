@@ -11,12 +11,14 @@ import type {
   DepartmentTreeNode,
   DeptCrossGrant,
   PatchDepartmentBody,
+  PlatformUser,
   PutUserDepartmentsBody,
   UserDepartmentsView,
 } from '@strict-rag/contracts';
 
 import { mapBizError } from '@/lib/map-biz-error';
 
+import { listPlatformUsers } from '../users/api';
 import {
   createDepartment,
   createDeptCrossGrant,
@@ -94,6 +96,18 @@ export async function saveUserDepts(
   try {
     const view = await putUserDepartments(userId, body);
     return { ok: true, view };
+  } catch (err) {
+    return { ok: false, message: mapBizError(err) };
+  }
+}
+
+/** 授权用户下拉。复用 users/api；无 path。调用方须自裁 user.manage。 */
+export async function loadGrantUsers(): Promise<
+  { ok: true; users: PlatformUser[] } | { ok: false; message: string }
+> {
+  try {
+    const users = await listPlatformUsers();
+    return { ok: true, users };
   } catch (err) {
     return { ok: false, message: mapBizError(err) };
   }
