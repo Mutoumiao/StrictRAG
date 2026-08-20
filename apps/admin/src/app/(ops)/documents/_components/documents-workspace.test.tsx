@@ -2,6 +2,7 @@
  * 文档页：点行展开详情；无 doc.editor 不露保存；保存走 saveDocumentMeta。
  * 有 dept.manage 才下拉选部门；无该码仍 uuid 粘贴，不整页 403。
  * 列表按已加载行本地筛部门/可见级；不改 GET query。
+ * 向量/稀疏列扫 embedReady/esReady；稀疏就绪 ≠ 生产 ES。
  */
 
 import { within } from '@testing-library/react';
@@ -42,7 +43,7 @@ vi.mock('../meta.services', () => ({
   loadDepartmentOptions: (...args: unknown[]) => loadDepartmentOptions(...args),
 }));
 
-import { deptLabel, visibilityLabel } from '../list.services';
+import { deptLabel, readyColLabel, visibilityLabel } from '../list.services';
 import { DocumentsWorkspace } from './documents-workspace';
 
 const DOC_ID = '018f0000-0000-7000-8000-0000000000d1';
@@ -98,6 +99,31 @@ describe('DocumentsWorkspace', () => {
     saveDocumentMeta.mockReset();
     loadDepartmentOptions.mockReset();
     localStorage.clear();
+  });
+
+  it('列表展示向量/稀疏列；稀疏就绪 ≠ 生产 ES；list 仍只带 kbId', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', 'kb-1');
+    me.permissions = ['admin.shell', 'doc.view'];
+    loadDocumentList.mockResolvedValue({
+      ok: true,
+      rows: [{ ...listDoc, embedReady: true, esReady: false }],
+    });
+
+    render(<DocumentsWorkspace />);
+
+    expect(await screen.findByRole('columnheader', { name: '向量' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: '稀疏' })).toBeInTheDocument();
+    expect(screen.getByText(/≠\s*生产 ES/)).toBeInTheDocument();
+
+    const headers = screen.getAllByRole('columnheader').map((h) => h.textContent);
+    const vectorIdx = headers.indexOf('向量');
+    const sparseIdx = headers.indexOf('稀疏');
+    const row = (await screen.findByText('请假制度')).closest('tr');
+    expect(row).not.toBeNull();
+    const cells = within(row!).getAllByRole('cell');
+    expect(cells[vectorIdx]).toHaveTextContent('就绪');
+    expect(cells[sparseIdx]).toHaveTextContent('未就绪');
+    assertListCalledWithKbOnly();
   });
 
   it('列表能看到部门与可见级', async () => {
@@ -180,6 +206,7 @@ describe('DocumentsWorkspace', () => {
     expect(within(detailVisibility()).getByRole('option', { name: '30 负责人' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument();
     expect(loadDocumentDetail).toHaveBeenCalledWith(DOC_ID);
+    expect(screen.getByText(/空归属=库级/).closest('td')).toHaveAttribute('colspan', '8');
   });
 
   it('无 doc.editor：能看详情、无保存按钮', async () => {
@@ -451,6 +478,13 @@ describe('deptLabel', () => {
     expect(deptLabel(DEPT_ID, null)).toBe(DEPT_ID);
     expect(deptLabel(DEPT_ID, [])).toBe(DEPT_ID);
     expect(deptLabel('unknown-id', options)).toBe('unknown-id');
+  });
+});
+
+describe('readyColLabel', () => {
+  it('true 就绪；false 未就绪', () => {
+    expect(readyColLabel(true)).toBe('就绪');
+    expect(readyColLabel(false)).toBe('未就绪');
   });
 });
 

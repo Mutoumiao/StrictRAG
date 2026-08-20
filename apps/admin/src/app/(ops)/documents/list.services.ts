@@ -46,6 +46,11 @@ export function visibilityLabel(level: number): string {
   return VISIBILITY_LABELS[level as VisibilityLevel] ?? String(level);
 }
 
+/** 列表向量/稀疏列：true 就绪；false 未就绪。不写 URL。≠ 生产 ES。 */
+export function readyColLabel(ready: boolean): string {
+  return ready ? '就绪' : '未就绪';
+}
+
 /** 当前已加载行本地筛。不写 URL；不是 LIST ACL。 */
 export function filterDocumentRows(
   rows: DocumentListItem[],

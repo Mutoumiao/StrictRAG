@@ -1,10 +1,11 @@
 'use client';
 
 /**
- * 文档薄列表：status / approval / lifecycle。
+ * 文档薄列表：status / approval / lifecycle / 向量 / 稀疏。
  * 点行展开详情；可改 ownerDeptId / visibilityLevel（有 doc.editor 才显示保存）。
  * 有 dept.manage 时归属用部门列表下拉；无该码仍 uuid 粘贴。不宣称强制隔离已上。
  * 表头上方按已加载行本地筛部门/可见级；不改 GET query。
+ * 稀疏就绪是适配层/mock 标志，≠ 生产 ES。
  */
 
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
@@ -29,7 +30,13 @@ import {
 import { useAdminAuth } from '@/components/auth-guard';
 import { readStoredKbId } from '@/lib/kb-context';
 
-import { deptLabel, filterDocumentRows, loadDocumentList, visibilityLabel } from '../list.services';
+import {
+  deptLabel,
+  filterDocumentRows,
+  loadDocumentList,
+  readyColLabel,
+  visibilityLabel,
+} from '../list.services';
 import {
   loadDepartmentOptions,
   loadDocumentDetail,
@@ -191,6 +198,9 @@ export function DocumentsWorkspace() {
           刷新
         </Button>
       </div>
+      <p className="mb-4 text-xs text-muted-foreground">
+        稀疏就绪是适配层/mock 标志，≠ 生产 ES。
+      </p>
 
       {!kbId ? (
         <p className="text-sm text-muted-foreground">请在顶栏填写知识库 UUID 后刷新。</p>
@@ -271,6 +281,8 @@ export function DocumentsWorkspace() {
               <TableHead>status</TableHead>
               <TableHead>approval</TableHead>
               <TableHead>lifecycle</TableHead>
+              <TableHead>向量</TableHead>
+              <TableHead>稀疏</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -307,10 +319,12 @@ export function DocumentsWorkspace() {
                   <TableCell>{r.status}</TableCell>
                   <TableCell>{r.approvalStatus}</TableCell>
                   <TableCell>{r.lifecycle}</TableCell>
+                  <TableCell>{readyColLabel(r.embedReady)}</TableCell>
+                  <TableCell>{readyColLabel(r.esReady)}</TableCell>
                 </TableRow>
                 {openId === r.id ? (
                   <TableRow>
-                    <TableCell colSpan={6}>
+                    <TableCell colSpan={8}>
                       {detailState === 'loading' ? (
                         <p className="text-sm text-muted-foreground">加载详情…</p>
                       ) : null}
