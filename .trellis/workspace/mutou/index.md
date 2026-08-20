@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 13
-- **Last Active**: 2026-08-17
+- **Total Sessions**: 14
+- **Last Active**: 2026-08-20
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~451 | Active |
+| `journal-1.md` | ~488 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 14 | 2026-08-20 | P3b-GRSUB/GREXP/DOC-RDYCOL 实施并归档 | `636265c`, `e289fe6`, `79dda39`, `995ae9e` | `main` |
 | 13 | 2026-08-17 | P3b-DOCUI/GRANT/SENS/DEPT 落地并归档 | `0dae9a3` | `main` |
 | 12 | 2026-08-16 | 归档 P2.5-SIG/L3F/L2S 与 P3b-META | `b9d5740`, `e61fa09`, `e13cc3a`, `80b31e7`, `5df66e4` | `main` |
 | 11 | 2026-08-16 | P2.5-L3A 护栏告警最小 | `eed231b` | `main` |

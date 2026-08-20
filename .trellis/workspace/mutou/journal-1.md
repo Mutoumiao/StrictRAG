@@ -449,3 +449,40 @@ P2.5-EXT：显式库外文档回溯抑制 document 加码（不查末轮 docId�
 ### Next Steps
 
 - None - task complete
+
+
+## Session 14: P3b-GRSUB/GREXP/DOC-RDYCOL 实施并归档
+
+**Date**: 2026-08-20
+**Task**: P3b-GRSUB/GREXP/DOC-RDYCOL 实施并归档
+**Package**: admin
+**Branch**: `main`
+
+### Summary
+
+从 08-06 抽出 P3b-GRSUB（grant 沿子树）、P3b-GREXP（授权过期展示）、DOC-RDYCOL（列表双就绪列）。before-dev 后并行 ponytail 实施；check/review 无未修 bug；本地 commit+archive。08-06 仍活。DEPT_ACL_ENFORCE/AUTH_ENFORCE 默认仍关。未 push。≠强制已上/≠生产 ES/≠解禁。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `636265c` | (see git log) |
+| `e289fe6` | (see git log) |
+| `79dda39` | (see git log) |
+| `995ae9e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
