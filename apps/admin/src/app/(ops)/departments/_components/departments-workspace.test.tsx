@@ -49,7 +49,7 @@ vi.mock('../services', async (importOriginal) => {
   };
 });
 
-import { grantVisibilityLabel } from '../services';
+import { grantExpiresLabel, grantVisibilityLabel } from '../services';
 import { DepartmentsWorkspace } from './departments-workspace';
 
 const GRANT_ID = '018f0000-0000-7000-8000-0000000000g1';
@@ -272,6 +272,36 @@ describe('DepartmentsWorkspace', () => {
     expect(await screen.findByText('level 20 部门成员')).toBeInTheDocument();
   });
 
+  it('空过期授权行显示过期 长期', async () => {
+    me.permissions = ['dept.manage'];
+    loadDeptWorkspace.mockResolvedValue(workspaceWithDepts);
+    loadGrants.mockResolvedValue({ ok: true, grants: [grantRow] });
+
+    render(<DepartmentsWorkspace />);
+
+    expect(await screen.findByText('过期 长期')).toBeInTheDocument();
+    expect(screen.queryByText('expiresAt —')).not.toBeInTheDocument();
+    expect(screen.queryByText(/expiresAt/)).not.toBeInTheDocument();
+    const expiresInput = screen.getByLabelText('过期时间');
+    expect(expiresInput).toHaveAttribute('type', 'text');
+    expect(expiresInput).toHaveAttribute('placeholder', 'yyyy-MM-dd HH:mm:ss');
+  });
+
+  it('有过期串时授权行显示过期原串', async () => {
+    const expiresAt = '2026-12-31 23:59:59';
+    me.permissions = ['dept.manage'];
+    loadDeptWorkspace.mockResolvedValue(workspaceWithDepts);
+    loadGrants.mockResolvedValue({
+      ok: true,
+      grants: [{ ...grantRow, expiresAt }],
+    });
+
+    render(<DepartmentsWorkspace />);
+
+    expect(await screen.findByText(`过期 ${expiresAt}`)).toBeInTheDocument();
+    expect(screen.queryByText(/expiresAt/)).not.toBeInTheDocument();
+  });
+
   it('提交新建会调 createGrant', async () => {
     me.permissions = ['dept.manage'];
     loadDeptWorkspace.mockResolvedValue(workspaceWithDepts);
@@ -289,9 +319,15 @@ describe('DepartmentsWorkspace', () => {
 
     await waitFor(() => {
       expect(createGrant).toHaveBeenCalledWith(
-        expect.objectContaining({ userId: USER_ID, deptId: DEPT_ID, maxVisibilityLevel: 20 }),
+        expect.objectContaining({
+          userId: USER_ID,
+          deptId: DEPT_ID,
+          maxVisibilityLevel: 20,
+          expiresAt: null,
+        }),
       );
     });
+    expect(createGrant).not.toHaveBeenCalledWith(expect.objectContaining({ expiresAt: '长期' }));
   });
 
   it('创建失败展示 API 文案', async () => {
@@ -508,5 +544,17 @@ describe('grantVisibilityLabel', () => {
   it('未知数字回退原值', () => {
     expect(grantVisibilityLabel(15)).toBe('15');
     expect(grantVisibilityLabel(41)).toBe('41');
+  });
+});
+
+describe('grantExpiresLabel', () => {
+  it('空/null 显示长期', () => {
+    expect(grantExpiresLabel(null)).toBe('长期');
+    expect(grantExpiresLabel(undefined)).toBe('长期');
+    expect(grantExpiresLabel('')).toBe('长期');
+  });
+
+  it('有串原样返回', () => {
+    expect(grantExpiresLabel('2026-12-31 23:59:59')).toBe('2026-12-31 23:59:59');
   });
 });

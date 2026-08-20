@@ -23,6 +23,7 @@ import {
   createDept,
   createGrant,
   grantDeptLabel,
+  grantExpiresLabel,
   grantVisibilityLabel,
   loadDeptWorkspace,
   loadGrantUsers,
@@ -614,7 +615,7 @@ export function DepartmentsWorkspace() {
                   <div>userId {resolveGrantUserLabel(grantUsers, g.userId)}</div>
                   <div title={g.deptId}>deptId {grantDeptLabel(g.deptId, flat)}</div>
                   <div>level {grantVisibilityLabel(g.maxVisibilityLevel)}</div>
-                  <div>expiresAt {g.expiresAt ?? '—'}</div>
+                  <div>过期 {grantExpiresLabel(g.expiresAt)}</div>
                   <div>reason {g.reason ?? '—'}</div>
                 </div>
                 <Button

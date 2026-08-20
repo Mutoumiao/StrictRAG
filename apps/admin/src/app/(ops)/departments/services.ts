@@ -165,3 +165,9 @@ const GRANT_VISIBILITY_LABELS: Record<VisibilityLevel, string> = {
 export function grantVisibilityLabel(level: number): string {
   return GRANT_VISIBILITY_LABELS[level as VisibilityLevel] ?? String(level);
 }
+
+/** 列表展示：空/null/'' → 长期；有串原样。禁止当 POST 值。 */
+export function grantExpiresLabel(expiresAt: string | null | undefined): string {
+  if (expiresAt == null || expiresAt === '') return '长期';
+  return expiresAt;
+}
