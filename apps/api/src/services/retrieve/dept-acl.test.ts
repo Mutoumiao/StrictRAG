@@ -363,7 +363,7 @@ describe('dept acl grants', () => {
     ).toBe(false);
   });
 
-  it('grant 在 A、文档在 A 的子部门 → 不可见（即使传入 depts 树）', () => {
+  it('grant 在 A、文档在 A 的子部门 → 可见（级别够且有树）', () => {
     expect(
       isDocVisibleForDeptAcl(
         { ownerDeptId: DEPT_B, visibilityLevel: 20 },
@@ -372,7 +372,109 @@ describe('dept acl grants', () => {
         tree,
         [{ deptId: DEPT_A, maxVisibilityLevel: 40, expiresAt: null }],
       ),
+    ).toBe(true);
+  });
+
+  it('无树：grant 在 A、文档在 B → 只精确，不可见', () => {
+    expect(
+      isDocVisibleForDeptAcl(
+        { ownerDeptId: DEPT_B, visibilityLevel: 20 },
+        [],
+        true,
+        undefined,
+        [{ deptId: DEPT_A, maxVisibilityLevel: 40, expiresAt: null }],
+      ),
     ).toBe(false);
+  });
+
+  it('grant 在子孙、文档在祖先 → 不可见', () => {
+    expect(
+      isDocVisibleForDeptAcl(
+        { ownerDeptId: DEPT_A, visibilityLevel: 20 },
+        [],
+        true,
+        tree,
+        [{ deptId: DEPT_B, maxVisibilityLevel: 40, expiresAt: null }],
+      ),
+    ).toBe(false);
+  });
+
+  it('grant 在兄弟部门 → 不可见', () => {
+    expect(
+      isDocVisibleForDeptAcl(
+        { ownerDeptId: DEPT_C, visibilityLevel: 20 },
+        [],
+        true,
+        tree,
+        [{ deptId: DEPT_B, maxVisibilityLevel: 40, expiresAt: null }],
+      ),
+    ).toBe(false);
+  });
+
+  it('缺节点：owner 不在树 → grant 祖先不命中', () => {
+    const noOwner = tree.filter((d) => d.id !== DEPT_B);
+    expect(
+      isDocVisibleForDeptAcl(
+        { ownerDeptId: DEPT_B, visibilityLevel: 20 },
+        [],
+        true,
+        noOwner,
+        [{ deptId: DEPT_A, maxVisibilityLevel: 40, expiresAt: null }],
+      ),
+    ).toBe(false);
+  });
+
+  it('缺节点：grant 部门不在树 → 不猜子树', () => {
+    const noGrantDept = tree.filter((d) => d.id !== DEPT_A);
+    expect(
+      isDocVisibleForDeptAcl(
+        { ownerDeptId: DEPT_B, visibilityLevel: 20 },
+        [],
+        true,
+        noGrantDept,
+        [{ deptId: DEPT_A, maxVisibilityLevel: 40, expiresAt: null }],
+      ),
+    ).toBe(false);
+  });
+
+  it('过期祖先 grant → 子孙不可见', () => {
+    expect(
+      isDocVisibleForDeptAcl(
+        { ownerDeptId: DEPT_B, visibilityLevel: 20 },
+        [],
+        true,
+        tree,
+        [{ deptId: DEPT_A, maxVisibilityLevel: 40, expiresAt: '2000-01-01 00:00:00' }],
+        '2026-08-17 12:00:00',
+      ),
+    ).toBe(false);
+  });
+
+  it('inheritDown false + grant 在祖先 → 仍可见', () => {
+    expect(
+      isDocVisibleForDeptAcl(
+        { ownerDeptId: DEPT_B, visibilityLevel: 20 },
+        [],
+        true,
+        tree,
+        [{ deptId: DEPT_A, maxVisibilityLevel: 20, expiresAt: null }],
+        undefined,
+        undefined,
+        false,
+      ),
+    ).toBe(true);
+  });
+
+  it('filterDocs：inheritDown false + grant 祖先仍可见子孙', () => {
+    const ids = filterDocsForDeptAcl(docs, {
+      assignments: [],
+      enforce: true,
+      depts: tree,
+      grants: [{ deptId: DEPT_A, maxVisibilityLevel: 20, expiresAt: null }],
+      inheritDown: false,
+    }).map((d) => d.id);
+    expect(ids).toEqual(['lib', 'a20', 'b20']);
+    expect(ids).not.toContain('a30');
   });
 
   it('grant 不作用于空部门文档', () => {

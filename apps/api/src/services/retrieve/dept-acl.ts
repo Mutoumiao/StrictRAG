@@ -68,23 +68,30 @@ function effectiveLevel(
   return max;
 }
 
-/** grant 只精确匹配 owner 部门，不沿子树。空部门不吃 grant。 */
+/** grant：精确 ∪（有树且双方节点齐全时）grant 部门是 owner 的严格祖先。空部门不吃 grant。不读 inheritDown。 */
 function grantEffectiveLevel(
   grants: readonly DeptAclGrant[] | undefined,
   ownerDeptId: string | null,
   now: string,
+  depts?: readonly DeptAclNode[],
 ): number | null {
   if (ownerDeptId == null || !grants?.length) return null;
+  const byId = new Map((depts ?? []).map((d) => [d.id, d]));
+  const owner = byId.get(ownerDeptId);
   let max: number | null = null;
   for (const g of grants) {
-    if (g.deptId !== ownerDeptId) continue;
+    const exact = g.deptId === ownerDeptId;
+    const grantNode = byId.get(g.deptId);
+    const ancestor =
+      owner != null && grantNode != null && isAncestorPath(grantNode.path, owner.path);
+    if (!exact && !ancestor) continue;
     if (!isGrantActive(g.expiresAt, now)) continue;
     max = max == null ? g.maxVisibilityLevel : Math.max(max, g.maxVisibilityLevel);
   }
   return max;
 }
 
-/** 精确 ∪ 祖先（inheritDown=false 不算祖先）；grant 仅精确 owner 部门。enforce=false 一律可见。bypass=超管绕过。 */
+/** 精确 ∪ 祖先（inheritDown=false 不算归属祖先）；grant 精确 ∪ 祖先部门子树（不读 inheritDown）。enforce=false 一律可见。bypass=超管绕过。 */
 export function isDocVisibleForDeptAcl(
   doc: DeptAclDoc,
   assignments: readonly DeptAssignment[],
@@ -109,6 +116,7 @@ export function isDocVisibleForDeptAcl(
     grants,
     ownerDeptId,
     now ?? formatLocalDateTime(),
+    depts,
   );
   const eff =
     assignEff == null

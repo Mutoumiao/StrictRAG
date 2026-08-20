@@ -2,7 +2,7 @@
 
 > 路径：`apps/api` · 目标端口 **4000**  
 > 现状：**P0/P1 入库** + **S2 最小 ask** + **B1–B6** + **08-11 接线**（B2-W mode/docTypes · B3-W/B4-W · B12 策略注册表 · B13 feedback UI 闭环 API · QUAL-1/3 · OPS-1 live 切片 · B10 工程 seed）。  
-> 默认：`RETRIEVE_ES_MODE=mock` · `AUTH_ENFORCE=false` · `SESSION_REWRITE_ENABLED=false`（dogfood 可开；**禁止**默认改 true）· Gateway 缺 URL→mock；**B3-W/B2-W** `getGatewayForTenant(tenant, kbId)` = env+platform+KB 覆盖（失败回退 env）· **B4-W** JWT 身份 + 每请求 DB hydrate（≤5s 缓存 · 超时回退 claims）· 文档部门字段 **已落**（GET/PATCH/complete）· `DEPT_ACL_ENFORCE` **默认 false**（开时精确 ∪ 祖先 + 精确 grant；超管可绕过；列表同滤且列表项带部门列；`DEPT_INHERIT_DOWN` 默认 true；KB `deptInheritDown` 可覆盖 env；设置页可勾选且未改不写回；KB `deptAclEnforce` 可覆盖 env，未写跟 env，GET 未写回读 false；设置页可勾选且未改不写回；无 ES 查询期） · L1 真跑数字已落（live+规模）**≠** 业务签字 PASS。
+> 默认：`RETRIEVE_ES_MODE=mock` · `AUTH_ENFORCE=false` · `SESSION_REWRITE_ENABLED=false`（dogfood 可开；**禁止**默认改 true）· Gateway 缺 URL→mock；**B3-W/B2-W** `getGatewayForTenant(tenant, kbId)` = env+platform+KB 覆盖（失败回退 env）· **B4-W** JWT 身份 + 每请求 DB hydrate（≤5s 缓存 · 超时回退 claims）· 文档部门字段 **已落**（GET/PATCH/complete）· `DEPT_ACL_ENFORCE` **默认 false**（开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树（无树/缺节点只精确；grant 子树不读 inheritDown）；超管可绕过；列表同滤且列表项带部门列；`DEPT_INHERIT_DOWN` 默认 true；KB `deptInheritDown` 可覆盖 env；设置页可勾选且未改不写回；KB `deptAclEnforce` 可覆盖 env，未写跟 env，GET 未写回读 false；设置页可勾选且未改不写回；无 ES 查询期） · L1 真跑数字已落（live+规模）**≠** 业务签字 PASS。
 
 ---
 
@@ -54,7 +54,7 @@
 | [kb-settings](./kb-settings.md) | **B2/B2-W** GET/PATCH · mode/docTypes 写生效 · ask 入口闸 · rewrite 锁 |
 | [model-gateway](./model-gateway.md) | **B3/B3-W** 供应商/绑定 · runtime resolve · **QUAL-3** rerank 双节点 |
 | [platform-users-roles](./platform-users-roles.md) | **B4 用户/角色** · `user.manage` / `role.perm.manage` · 最后超管 · codes ⊆ catalog |
-| [departments](./departments.md) | **B5 部门壳** · grant 可存可配 · 过滤默认关（开时精确 ∪ 祖先 + 精确 grant；超管可绕过；列表同滤；可关继承） · **≠** 全文隔离 |
+| [departments](./departments.md) | **B5 部门壳** · grant 可存可配 · 过滤默认关（开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤；可关继承；grant 子树不读 inheritDown） · **≠** 全文隔离 |
 | [dashboard](./dashboard.md) | **B6 数据面板薄壳** · `dashboard.view` · 只读 summary ≤5 · **≠** APM |
 | [l1-eval](./l1-eval.md) | **B10** L1 工程 seed + eval_runs · OPS-1 `retrieve_mode` · **≠** 业务签字真跑 |
 | [l2-eval](./l2-eval.md) | **P2.5-L2/L2R/L2P** 多轮题面 + 工程 runner + 可选 persist · **≠** 准出 / **≠** 默认开 rewrite |

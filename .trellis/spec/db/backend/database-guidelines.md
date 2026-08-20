@@ -133,8 +133,8 @@ Runtime 放行 HOW → [api auth-authorization](../../api/backend/auth-authoriza
 | `departments` 树 | **已有**（B5） | 部分 UI/API | — |
 | `user_departments` | **已有** | 部分 | — |
 | `documents.owner_dept_id` / `visibility_level` | **已有列**（`0007_p3b_doc_dept_meta`；空 dept=库级 · level 默认 20） | 可存 | api 过滤默认关 |
-| `dept_cross_grants` | **已有表**（`0008_p3b_dept_cross_grants`；`(user_id, dept_id)` 唯一） | 可存 | enforce 开时 api 读未过期精确 grant |
-| retrieve 部门谓词 | api `filterDocsForDeptAcl`（默认关；精确 ∪ 祖先 + 精确 grant） | — | **禁止**假装 ADR-057 全文已强制（无 ES / 无默认开） |
+| `dept_cross_grants` | **已有表**（`0008_p3b_dept_cross_grants`；`(user_id, dept_id)` 唯一） | 可存 | enforce 开时 api 读未过期 grant（精确 ∪ 祖先部门子树） |
+| retrieve 部门谓词 | api `filterDocsForDeptAcl`（默认关；精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树） | — | **禁止**假装 ADR-057 全文已强制（无 ES / 无默认开） |
 
 **HOW**：部门表可演进，但 **不得** 在 db HOW 写「检索已按 ADR-057 全强制」直至 enforce 开关与测齐备。
 
