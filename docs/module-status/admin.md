@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（S2c 运营薄壳：文档 / 审批 / 成员 / 分片 / 设置 / 模型 + 用户 / 角色 / 部门 + **数据面板** + **反馈队列**） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT + admin **dev-login**（经 api）· 知识库 = 手工填写 uuid · 菜单 = `clipMenuForShell` 裁剪（catalog 为 SSOT）· API 默认 `http://127.0.0.1:4000` |
 | 关联模块 | API 依赖：`api` 的文档 / 审批 / 成员 / 分片 / 设置 / 模型 / 用户角色 / 部门 / dashboard / **feedback-queue**；菜单与权限码：`admin-catalog`；类型：`contracts`；样式：`ui` |
-| 最近更新 | 2026-08-20（P3b-ENFUI 设置页强制勾选未改不写回 · P3b-GRDN 授权行部门名 · P3b-GRLAB 授权可见级文案 · P3b-ASGNUSR 归属用户下拉；进程默认仍关 / **≠** 解禁 / **≠** ES） |
+| 最近更新 | 2026-08-20（P3b-GREXP 授权行过期「长期」/原串 · DOC-RDYCOL 列表向量/稀疏列；进程默认仍关 / **≠** 解禁 / **≠** 生产 ES） |
 | Spec | `.trellis/spec/admin/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · 审批 / 成员相关 API |
 
@@ -34,9 +34,9 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 - 需要 `dashboard.view`；无码菜单隐藏、直链 **403 态**；**不是** APM / Grafana
 
 ### 文档
-- `/documents`：按知识库拉取文档列表；表格展示部门 / 可见级 / status / approval / lifecycle（有树时部门列显示名，否则 uuid；可见级默认中文标签；可按部门/可见级**本地**筛，不加 GET query；审批操作在审批页进行）
+- `/documents`：按知识库拉取文档列表；表格展示部门 / 可见级 / status / approval / lifecycle / **向量 / 稀疏就绪**（有树时部门列显示名，否则 uuid；可见级默认中文标签；可按部门/可见级**本地**筛，不加 GET query；审批操作在审批页进行；稀疏就绪 **≠** 生产 ES）
 - 点行改 `ownerDeptId` / `visibilityLevel`：有 `dept.manage` 用部门下拉，否则 uuid 粘贴；`doc.editor` 裁保存
-- `DocumentListItem` 类型包含 embedReady / esReady 字段，但 **UI 尚未渲染"双就绪"列**
+- `DocumentListItem` 的 `embedReady` / `esReady` **已渲染**为向量/稀疏列（适配层标志，**≠** 生产 ES）
 
 ### 分片只读（B1）
 - `/chunks`：选择文档 → 查看 preview 列表（**limit=50 游标分页 + 底部「加载更多」**）→ **点击后**才拉取该分片的完整正文；无 `chunk.view` 权限时显示 403 状态
@@ -64,7 +64,7 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 - `/departments`：组织树列表、新建根 / 子部门、启用停用、删除（要求无子部门且无成员）、用户归属管理（查询归属 + **主部门 / 负责人**标记，需要 `user.manage` 权限）
 - 需要 `dept.manage` 权限；无权限时显示 403 状态；数据路径仅 `departments/api.ts` 一处
 - 文档页可点行改 `ownerDeptId` / `visibilityLevel`（有 `dept.manage` 下拉，否则 uuid；`doc.editor` 裁保存）
-- 部门页可配跨部门授权（部门下拉 + 有 `user.manage` 时用户下拉否则 uuid + 级别中文标签 + 可选过期；列表行有树时显示部门名；**检索是否消费看 api `DEPT_ACL_ENFORCE` / KB `deptAclEnforce`**）；用户归属可选部门+用户（禁用不可新挂 / 禁用用户不进新建下拉）；设置页可勾选本库强制（未改不写回；进程默认仍关）
+- 部门页可配跨部门授权（部门下拉 + 有 `user.manage` 时用户下拉否则 uuid + 级别中文标签 + 可选过期；列表行有树时显示部门名、过期空显示「长期」；**检索是否消费看 api `DEPT_ACL_ENFORCE` / KB `deptAclEnforce`**）；用户归属可选部门+用户（禁用不可新挂 / 禁用用户不进新建下拉）；设置页可勾选本库强制（未改不写回；进程默认仍关）
 
 ### 审批中心
 - `/approvals`：待审批 / 已通过 两个分栏
