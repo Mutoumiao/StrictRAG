@@ -67,11 +67,11 @@ curl -sS http://127.0.0.1:4000/ready
 | 端点 | 语义 |
 |------|------|
 | `GET /health` | 进程存活（不依赖外部） |
-| `GET /ready` | PG + Redis 硬依赖；ES/Gateway 未配置则 `skipped` |
+| `GET /ready` | PG + Redis 硬依赖；ES/S3/Mongo/Gateway 未配置则 `skipped` |
 
 ### Compose 扩展 profile
 
-见 [`docker/README.md`](./docker/README.md)（`es` / `mongo` / `rustfs`）。
+见 [`docker/README.md`](./docker/README.md)（默认起 PG/Redis/ES/Mongo/S3；可运行开关见 [`docs/ops/operable-stack.md`](./docs/ops/operable-stack.md)）。
 
 ### 模型 Gateway
 
@@ -108,7 +108,7 @@ pnpm demo:ingest          # 同 KB ≥10 fixtures → ready → active
 
 Mock 开关（`.env`）：`INGEST_SCAN_MODE` · `INGEST_ES_MODE=fail`（验证不得 ready）· `STORAGE_MODE=local` · `RETRIEVE_ES_MODE=mock`（P2 检索 sparse 替身；`http` 真 ES → backlog）。
 
-> **边界（勿过度宣称）**：P1 的「ES」是 worker **进程内 mock** 对账，**不是** 生产 Elasticsearch+IK 集群。`/ready` 中 `elasticsearch=skipped` 属正常。P2 retrieve 默认 `RETRIEVE_ES_MODE=mock`（PG chunk 文本 + 向量 + Gateway rerank），**禁止**宣称生产 ES 已上。真 ES/RustFS 按 compose profile / B8 后续接入。
+> **边界（勿过度宣称）**：CI/Zod **默认仍 mock**。compose 默认可起 ES/Mongo/S3；打开 `INGEST_ES_MODE=http` / `STORAGE_MODE=s3` 才真打这些服务（见 operable-stack）。**禁止**宣称 IK 生产集群 / 真杀毒已上。
 
 ---
 

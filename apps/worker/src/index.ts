@@ -127,6 +127,7 @@ async function main() {
       scanMode: env.INGEST_SCAN_MODE,
       esMode: env.INGEST_ES_MODE,
       embedMode: env.INGEST_EMBED_MODE,
+      storageMode: env.STORAGE_MODE,
     },
     'worker running',
   );

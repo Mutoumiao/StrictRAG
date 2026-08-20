@@ -5,7 +5,7 @@
 | 路径 | `apps/worker` |
 | 端口 | 无 HTTP 端口 |
 | 成熟度 | **可联调**（P1 入库状态机；**仅** development/test + mock 栈可起；**staging/production 当前无合法扫描配置**） |
-| 默认依赖模式 | `APP_ENV=development` · 启动探针 `WORKER_PROBE_ON_START=true` · 扫描 = `mock_clean` · 向量 = `mock`（dims=8，枚举 `mock\|fail`）· ES 索引 = `mock`（枚举仅 `mock\|fail`，**无 live/http**）· 对象存储 = 本地目录 `STORAGE_LOCAL_DIR`（默认 `.data/objects`，相对路径锚定 monorepo 根）· `S3_BUCKET=strict-rag` · `INGEST_MIN_EXTRACTED_CHARS=40` |
+| 默认依赖模式 | `APP_ENV=development` · 启动探针 `WORKER_PROBE_ON_START=true` · 扫描 = `mock_clean` · 向量 = `mock`（dims=8，枚举 `mock\|fail`）· ES 索引 = `mock`（枚举 `mock\|fail\|http`，**默认 mock**；`http` 须 `ELASTICSEARCH_URL`）· 对象存储 = 默认本地目录；`STORAGE_MODE=s3` 走 MinIO/S3 · `S3_BUCKET=strict-rag` · Mongo URL 空则 `mongoDocId=local:` · `INGEST_MIN_EXTRACTED_CHARS=40` |
 | 关联模块 | 由 `api` 入队触发；写库走 `@strict-rag/db`；队列名 / job payload / 可执行策略集来自 `@strict-rag/contracts`；运行需要 Redis + PostgreSQL |
 | 最近更新 | 2026-08-13（反向审计补漏：启动探针 / 任意阶段审批重检 / 不可重试码全量 / 锁 TTL / env 默认值） |
 | Spec | `.trellis/spec/worker/backend/` |
@@ -38,10 +38,10 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 ### 入库流水线（`ingest/pipeline.ts`）
 - 阶段：`scan → parse → chunk → embed → es_index`（`IngestJobData.stage`）
 - **scan**：`mock_infected` 删本地对象 + `MALWARE`；`mock_clean` / `off` 放行；审批重检（ADR-048）在**任意阶段**入口先做，未通过 → `NOT_APPROVED`（非仅 scan）
-- **parse**：本地 UTF-8 读对象；过短 → `needs_ocr` + `NO_TEXT_LAYER`；`mongoDocId=local:{docId}`（**假 Mongo 标记**，非真 Mongo）
+- **parse**：读对象（local 或 `STORAGE_MODE=s3`）；过短 → `needs_ocr` + `NO_TEXT_LAYER`；有 `MONGODB_URL` 写 `document_bodies`，否则 `mongoDocId=local:{docId}`
 - **chunk**：**仅** `structure_paragraph`（contracts `IMPLEMENTED_*`）；未实现 → `UNSUPPORTED_CHUNK_STRATEGY`（**不**静默回落）；写 chunks + `chunk_manifests`；`indexVersion = doc.indexVersion+1` 并重置 `embedReady=0` / `esReady=0`
 - **embed**：mock 伪向量 dims=8 · `model=mock-embed`；缺 embedding 行才补写（幂等 skip）
-- **es_index**：进程内 `mockEsStore`（`es-store.ts`）；要求 `embedReady`；双就绪 → `status=ready` **且 `lifecycle='draft'`**（**不是** `active`；默认检索闸 `ready∧active` 仍拦，须运营升 lifecycle）
+- **es_index**：默认 `mockEsStore`；`INGEST_ES_MODE=http` 时 `ensureSparseIndex` + bulk + 按 doc 对账（映射对齐 api `es-sparse`）；要求 `embedReady`；双就绪 → `status=ready` **且 `lifecycle='draft'`**（**不是** `active`；默认检索闸 `ready∧active` 仍拦，须运营升 lifecycle）
 - 对象路径：`{STORAGE_LOCAL_DIR}/{S3_BUCKET}/{objectKey}`
 
 ### 幂等 / 重试（X-04 最小）
@@ -64,8 +64,8 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 |----|------|
 | 真实杀毒 / 生产扫描 | mock only；`on` 拒启动；QUAL-2 安全债 |
 | 真实 embedding | 默认 `INGEST_EMBED_MODE=mock`；dims=8 与生产模型无关 |
-| 真实 ES + IK 索引 | 枚举仅 `mock\|fail`；**无** live/http（比 api `RETRIEVE_ES_MODE=http` 更假） |
-| 真 RustFS / Mongo 正文 | 本地目录 + `mongoDocId=local:` |
+| 真实 ES + IK 索引 | 默认可 `INGEST_ES_MODE=http` bulk（标准分词）；**无** IK 插件 / 多租户 Router |
+| 真 RustFS / Mongo 正文 | `STORAGE_MODE=s3` + `MONGODB_URL` 可写；默认仍本地 + `local:` |
 | OCR / 复杂版式 | 仅标 `needs_ocr`，不续跑 OCR 引擎 |
 | HTTP API | **禁止**业务 HTTP |
 | `ingest_jobs` 完整运维账本 | **最小 stage 写已有**；无查询面 / 无 api 入队 `queued` |
@@ -81,7 +81,7 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 | **prod-like 无法合法启动** | staging/production 既禁 mock 又禁未接的 `on` | 进生产前必须走 QUAL-2 放行路径 |
 | mock 扫描 + mock 向量 + mock ES | 入库「可演示 ≠ 生产可信」 | 与 api 检索 mock 同源问题族 |
 | **幂等+账本+锁最小已接 · 运维查询仍欠** | stage 行可写；同 doc SET NX 互斥；无运维查询面 / 非 Redlock | HOW `ingest-idempotency.md` · `job-ledger.ts` · `doc-lock.ts` · task `08-12-ingest-doc-lock-min` |
-| 入库 ES 无 live 枚举 | 切真索引须改 env / 代码专项验收 | 勿与 api `RETRIEVE_ES_MODE=http` 混谈 |
+| 入库 ES 默仍 mock | 可运行栈须显式 `INGEST_ES_MODE=http` | 与 api `RETRIEVE_ES_MODE=http` 共用索引名；≠ IK |
 | 分块策略极简 | 检索质量上限低 | 扩策略：先 worker 实现 + 扩 contracts `IMPLEMENTED_*` |
 | `GATEWAY_*` 死配置 | 易误读「已接网关 embed」 | pipeline 未用 |
 | 失败重试 / 死信 | 仅 BullMQ attempts + 日志；无业务 DLQ 面板 | 对照 PRD 异步章节 |

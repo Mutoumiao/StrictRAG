@@ -1,7 +1,7 @@
 # @strict-rag/worker · BullMQ 异步消费者
 
 > 路径：`apps/worker` · **无 HTTP 端口**  
-> 现状：probe + ingest 状态机（scan→parse→chunk→embed→es）；默认 `INGEST_SCAN_MODE=mock_clean`；**QUAL-2 真杀毒 = 安全债**（DEC-SCAN，非本进程「已完成」）。
+> 现状：probe + ingest 状态机（scan→parse→chunk→embed→es）；默认 `INGEST_SCAN_MODE=mock_clean` · `INGEST_ES_MODE=mock`；可显式 `http`/S3/Mongo（OPS-STACK）；**QUAL-2 真杀毒 = 安全债**（DEC-SCAN，非本进程「已完成」）。
 
 ---
 

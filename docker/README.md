@@ -2,7 +2,7 @@
 
 本地基础设施 compose。业务进程 `api` / `worker` **不在** compose 内启动。
 
-## 默认（Phase 0）
+## 默认可运行栈
 
 ```bash
 docker compose -f docker/docker-compose.yml up -d
@@ -12,28 +12,12 @@ docker compose -f docker/docker-compose.yml up -d
 |------|------|------|
 | PostgreSQL 16 + pgvector | 5432 | 用户/库/密：`strict_rag` |
 | Redis 7 | 6379 | BullMQ |
+| Elasticsearch 8.15.3 | 9200 | BM25；**未装 IK** |
+| Mongo 7 | 27017 | parse 正文 |
+| rustfs（MinIO 占位） | 9000 / 9001 | S3 兼容；首次 api put 建桶 `strict-rag` |
 
-## 扩展 profile
-
-```bash
-# ES（P1 前 green；IK 镜像需按运维手册替换）
-docker compose -f docker/docker-compose.yml --profile es up -d
-
-# Mongo 正文
-docker compose -f docker/docker-compose.yml --profile mongo up -d
-
-# S3 兼容（本地 MinIO 占位；生产 RustFS）
-docker compose -f docker/docker-compose.yml --profile rustfs up -d
-
-# 一次拉齐扩展依赖
-docker compose -f docker/docker-compose.yml --profile es --profile mongo --profile rustfs up -d
-```
-
-| Profile | 端口 | 备注 |
-|---------|------|------|
-| `es` | 9200 | 官方 ES 镜像占位；**IK 需替换** |
-| `mongo` | 27017 | P1 body |
-| `rustfs` | 9000 / 9001 | MinIO 兼容 dogfood |
+打开 worker/api 的 http/s3 开关见 [`docs/ops/operable-stack.md`](../docs/ops/operable-stack.md)。  
+CI / Zod **默认仍 mock + local**，避免无容器时单测失败。
 
 ## 连接串示例
 

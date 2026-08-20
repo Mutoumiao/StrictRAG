@@ -8,9 +8,7 @@ import {
   chunks,
   documents,
 } from '@strict-rag/db';
-import { and, eq } from 'drizzle-orm';
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
+import { and, eq, inArray } from 'drizzle-orm';
 import { uuidv7 } from 'uuidv7';
 
 import { getDb } from '../db.js';
@@ -24,8 +22,18 @@ import {
   resolveIndexVersion,
   withStageAndVersion,
 } from './idempotency.js';
+import {
+  bulkIndexSparse,
+  ensureSparseIndex,
+  esHttpConfigFromEnv,
+  listIndexedChunkIds,
+  reconcileIndexed,
+  sparseTextForChunk,
+} from './es-http.js';
 import { mockEsStore } from './es-store.js';
 import { recordStageEnd, recordStageStart } from './job-ledger.js';
+import { localMongoDocId, upsertDocumentBody } from './mongo-body.js';
+import { deleteObject, readObjectText, storeConfigFromEnv } from './object-store.js';
 
 /** 阶段结果：errorCode 供 worker 接 BullMQ retry / Unrecoverable */
 export type IngestStageResult = {
@@ -56,13 +64,7 @@ function resolveLedgerIndexVersion(
 }
 
 async function loadObjectText(objectKey: string | null): Promise<string> {
-  if (!objectKey) return '';
-  const full = path.join(env.STORAGE_LOCAL_DIR, env.S3_BUCKET, objectKey);
-  try {
-    return await readFile(full, 'utf8');
-  } catch {
-    return '';
-  }
+  return readObjectText(storeConfigFromEnv(env), objectKey);
 }
 
 async function setDoc(
@@ -205,12 +207,7 @@ async function runIngestStageCore(
       if (env.INGEST_SCAN_MODE === 'mock_infected') {
         // infected：删对象 + failed
         if (doc.objectKey) {
-          try {
-            const { unlink } = await import('node:fs/promises');
-            await unlink(path.join(env.STORAGE_LOCAL_DIR, env.S3_BUCKET, doc.objectKey));
-          } catch {
-            /* ignore */
-          }
+          await deleteObject(storeConfigFromEnv(env), doc.objectKey);
         }
         await setDoc(data.docId, {
           status: 'failed',
@@ -243,10 +240,16 @@ async function runIngestStageCore(
         log.warn('needs_ocr — no text layer');
         return failStage('NO_TEXT_LAYER');
       }
+      const mongoDocId = await upsertDocumentBody({
+        url: env.MONGODB_URL,
+        docId: data.docId,
+        kbId: doc.kbId,
+        text,
+      });
       await setDoc(data.docId, {
         parsedText: text,
         extractMethod: 'text',
-        mongoDocId: `local:${data.docId}`,
+        mongoDocId: env.MONGODB_URL.trim() ? mongoDocId : localMongoDocId(data.docId),
       });
       log.info({ chars: text.length }, 'parse done');
       return { next: enqueueNext(data, 'chunk') };
@@ -516,9 +519,57 @@ async function runIngestStageCore(
         return failStage('NO_MANIFEST');
       }
 
-      // 按 doc 维度索引/对账；bulkIndex 为 set 合并 → 同 version 重跑幂等
-      mockEsStore.bulkIndex(doc.id, indexVersion, manifest.chunkIds);
-      const report = mockEsStore.reconcile(doc.id, indexVersion, manifest.chunkIds);
+      let report: { ok: boolean; missing: string[]; orphan: string[] };
+
+      if (env.INGEST_ES_MODE === 'http') {
+        const cfg = esHttpConfigFromEnv(env);
+        if (!cfg) {
+          await setDoc(data.docId, {
+            status: 'failed',
+            errorCode: 'ES_INDEX_FAILED',
+            errorMessage: 'INGEST_ES_MODE=http requires ELASTICSEARCH_URL',
+            esReady: 0,
+          });
+          return failStage('ES_INDEX_FAILED');
+        }
+        try {
+          const chunkRows = await db
+            .select({
+              id: chunks.id,
+              bodyText: chunks.bodyText,
+              contextPrefix: chunks.contextPrefix,
+            })
+            .from(chunks)
+            .where(inArray(chunks.id, manifest.chunkIds));
+          await ensureSparseIndex(cfg);
+          await bulkIndexSparse(
+            cfg,
+            chunkRows.map((row) => ({
+              chunkId: row.id,
+              kbId: doc.kbId,
+              docId: doc.id,
+              sparseText: sparseTextForChunk(row.contextPrefix, row.bodyText),
+            })),
+          );
+          const indexed = await listIndexedChunkIds(cfg, doc.id);
+          report = reconcileIndexed(indexed, manifest.chunkIds);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          await setDoc(data.docId, {
+            status: 'failed',
+            errorCode: 'ES_INDEX_FAILED',
+            errorMessage: msg.slice(0, 500),
+            esReady: 0,
+          });
+          log.warn({ err }, 'es http index failed');
+          return failStage('ES_INDEX_FAILED');
+        }
+      } else {
+        // 按 doc 维度索引/对账；bulkIndex 为 set 合并 → 同 version 重跑幂等
+        mockEsStore.bulkIndex(doc.id, indexVersion, manifest.chunkIds);
+        report = mockEsStore.reconcile(doc.id, indexVersion, manifest.chunkIds);
+      }
+
       if (!report.ok) {
         await setDoc(data.docId, {
           status: 'failed',

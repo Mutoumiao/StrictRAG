@@ -74,6 +74,8 @@ const EnvSchema = z
     S3_ACCESS_KEY: z.string().optional().default(''),
     S3_SECRET_KEY: z.string().optional().default(''),
     S3_BUCKET: z.string().default('strict-rag'),
+    /** 空=/ready skipped；有值才 ping Mongo */
+    MONGODB_URL: z.string().optional().default(''),
     /**
      * 身份 JWT。
      * 接入 Better Auth 后可弃用签发，仍可暂时兼容校验。
@@ -169,6 +171,20 @@ const EnvSchema = z
         path: ['TAU_CLAIM'],
         message:
           'tauClaim 双源冲突：TAU_CLAIM 与 TAU_CLAIM_LEGACY 不一致。仅允许 TAU_CLAIM 为唯一配置源。',
+      });
+    }
+    if (data.STORAGE_MODE === 's3' && !data.S3_ENDPOINT.trim()) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['STORAGE_MODE'],
+        message: 'STORAGE_MODE=s3 requires S3_ENDPOINT',
+      });
+    }
+    if (data.RETRIEVE_ES_MODE === 'http' && !data.ELASTICSEARCH_URL.trim()) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['RETRIEVE_ES_MODE'],
+        message: 'RETRIEVE_ES_MODE=http requires ELASTICSEARCH_URL',
       });
     }
     if (data.APP_ENV === 'production') {

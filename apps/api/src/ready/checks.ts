@@ -1,5 +1,7 @@
+import { HeadBucketCommand, S3Client } from '@aws-sdk/client-s3';
 import { createDb } from '@strict-rag/db';
 import { Redis } from 'ioredis';
+import { MongoClient } from 'mongodb';
 
 import { env } from '../env.js';
 import { logger } from '../logger.js';
@@ -54,6 +56,43 @@ async function checkElasticsearch(): Promise<CheckStatus> {
   }
 }
 
+async function checkS3(): Promise<CheckStatus> {
+  if (env.STORAGE_MODE !== 's3' || !env.S3_ENDPOINT.trim()) return 'skipped';
+  const client = new S3Client({
+    region: 'us-east-1',
+    endpoint: env.S3_ENDPOINT,
+    forcePathStyle: true,
+    credentials: {
+      accessKeyId: env.S3_ACCESS_KEY || 'strict_rag',
+      secretAccessKey: env.S3_SECRET_KEY || 'strict_rag_secret',
+    },
+  });
+  try {
+    await client.send(new HeadBucketCommand({ Bucket: env.S3_BUCKET }));
+    return 'up';
+  } catch (err) {
+    logger.warn({ err }, 'ready: s3 down');
+    return 'down';
+  } finally {
+    client.destroy();
+  }
+}
+
+async function checkMongo(): Promise<CheckStatus> {
+  if (!env.MONGODB_URL.trim()) return 'skipped';
+  const client = new MongoClient(env.MONGODB_URL, { serverSelectionTimeoutMS: 3000 });
+  try {
+    await client.connect();
+    await client.db().command({ ping: 1 });
+    return 'up';
+  } catch (err) {
+    logger.warn({ err }, 'ready: mongo down');
+    return 'down';
+  } finally {
+    await client.close().catch(() => undefined);
+  }
+}
+
 /**
  * Gateway 探针：未配置 base URL 则 skipped；配置后尝试 GET /v1/models 或根路径。
  */
@@ -79,14 +118,16 @@ export async function checkGateway(): Promise<CheckStatus> {
 }
 
 export async function runReadyChecks(): Promise<{ ready: boolean; checks: ReadyChecks }> {
-  const [postgres, redis, elasticsearch, gateway] = await Promise.all([
+  const [postgres, redis, elasticsearch, gateway, s3, mongo] = await Promise.all([
     checkPostgres(),
     checkRedis(),
     checkElasticsearch(),
     checkGateway(),
+    checkS3(),
+    checkMongo(),
   ]);
 
-  const checks: ReadyChecks = { postgres, redis, elasticsearch, gateway };
+  const checks: ReadyChecks = { postgres, redis, elasticsearch, gateway, s3, mongo };
 
   // 硬依赖：PG + Redis 必须 up；skipped 不计入失败；down 则 not ready
   const hardDown = postgres === 'down' || redis === 'down';

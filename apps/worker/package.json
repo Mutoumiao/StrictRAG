@@ -12,9 +12,11 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "catalog:",
     "@strict-rag/contracts": "workspace:*",
     "@strict-rag/db": "workspace:*",
     "bullmq": "catalog:",
+    "mongodb": "catalog:",
     "dotenv": "catalog:",
     "drizzle-orm": "catalog:",
     "ioredis": "catalog:",

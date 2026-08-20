@@ -67,7 +67,7 @@
 
 | 能力域 | 端到端成熟度 | 主包 | 协作包 | 详见 |
 |--------|--------------|------|--------|------|
-| **入库闭环** | **可演示**（scan/embed/ES 默认 mock；本地对象存储；分片策略**仅** `structure_paragraph`；dual-ready 后 `lifecycle` 仍为 **draft**；staging/prod worker 当前没有合法扫描配置） | `worker` | `api` · `db` · `contracts` | [worker](./worker.md) · [api · 入库](./api.md) |
+| **入库闭环** | **可演示**（scan/embed/ES **默认 mock**；可显式 `http`+S3+Mongo 打 Docker 中间件；分片策略**仅** `structure_paragraph`；dual-ready 后 `lifecycle` 仍为 **draft**；staging/prod worker 当前没有合法扫描配置） | `worker` | `api` · `db` · `contracts` | [worker](./worker.md) · [api · 入库](./api.md) |
 | **问答 ask / 流式输出** | **可演示**（单轮信任环；AI SDK UI Message Stream；检索默认 mock ES；`http` 模式为 sparse 切片，可签字归因，**≠** 生产 ES+IK） | `api` | `web` · `contracts` · `db` | [api · 问答](./api.md) · [web](./web.md) |
 | **会话外壳** | **可演示**（列表 / 历史回放；**rewrite 图边已落、默认关**；**显式回溯加深部分**；**文档回溯检索加码部分**；**库外文档回溯抑制部分**；**四态派生部分**；**≠** 准出 / **≠** 对外连续追问） | `api` | `web` · `db` · `contracts` | [api](./api.md) · [web](./web.md) |
 | **鉴权 / 访问控制（ACL）** | **可联调**（临时双 JWT；KB 成员 + 权限码；B5 部门骨架；文档部门字段可改（含 complete / 列表列 / 下拉 / 本地筛 / 部门名 / 可见级文案）；grant 表可存可配（部门+用户下拉；行内部门名+可见级文案）；归属可选用户；`DEPT_ACL_ENFORCE` **默认关**，开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤；可关继承（env + KB 覆盖 + 设置页勾选，未改不写回）；KB `deptAclEnforce` 可覆盖 env（未写跟 env；GET 未写回读 false；设置页可勾选，未改不写回）；设置页可标 `dataClass`（**≠**解禁）；`AUTH_ENFORCE` 默认关；**≠** 全文隔离 / **≠** ES 查询期） | `api` | `admin-catalog` · `admin` · `web` · `contracts` · `db` | [api · 鉴权](./api.md) · [admin-catalog](./admin-catalog.md) |

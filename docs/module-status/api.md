@@ -5,7 +5,7 @@
 | 路径 | `apps/api` |
 | 端口 | 4000 |
 | 成熟度 | **可演示**（已包含：P0/P1 入库 + S2 最小问答 + B1–B6 最小运营 API + B10 L1 工程 seed + B12 策略闸 + B13 反馈 API；演示依赖 mock ES / 通常走 mock Gateway；L1 **≠** 业务签字门禁） |
-| 默认依赖模式 | 检索：`RETRIEVE_ES_MODE=mock`（默认 mock ES）；鉴权：临时双 JWT，`AUTH_ENFORCE` **默认 `false`**；rewrite：`SESSION_REWRITE_ENABLED` **默认 false**（图边已落；dogfood 可开；**≠** 准出）；对象存储：`local`（`STORAGE_LOCAL_DIR=.data/objects`）；Gateway：`GATEWAY_MODE=''`（空按 `GATEWAY_BASE_URL` 推断，缺 URL 走 mock）；上传上限 `INGEST_MAX_FILE_BYTES=52_428_800`（50 MiB）/ 天花板 `INGEST_MAX_FILE_BYTES_CEILING=209_715_200`（200 MiB）；`LANGFUSE_ENABLED=false`；`OBS_MEMORY_TRACE=true`。**B3-W/B2-W**：ask 读取 platform 绑定 + **KB scope 绑定覆盖（只读 list，无 PUT KB 绑定 HTTP）**；**B4-W**：每请求从 DB `user_roles` hydrate；`DEPT_ACL_ENFORCE` **默认 `false`**（开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤且列表项带部门字段；`DEPT_INHERIT_DOWN` 默认 true；KB `deptInheritDown` 可覆盖 env；KB `deptAclEnforce` 可覆盖 env，未写跟 env，GET 未写回读 false；设置页可勾选，未改不写回；**无** ES 查询期）；`ASK_RATE_LIMIT_RPM=0`；L1 CLI 需显式指定 `L1_KB_ID`（可选 `L1_PERSIST_EVAL`） |
+| 默认依赖模式 | 检索：`RETRIEVE_ES_MODE=mock`（默认 mock ES；`http` 须 `ELASTICSEARCH_URL`）；鉴权：临时双 JWT，`AUTH_ENFORCE` **默认 `false`**；rewrite：`SESSION_REWRITE_ENABLED` **默认 false**（图边已落；dogfood 可开；**≠** 准出）；对象存储：默认 `local`（`STORAGE_MODE=s3` 走 MinIO/S3）；Gateway：`GATEWAY_MODE=''`（空按 `GATEWAY_BASE_URL` 推断，缺 URL 走 mock）；上传上限 `INGEST_MAX_FILE_BYTES=52_428_800`（50 MiB）/ 天花板 `INGEST_MAX_FILE_BYTES_CEILING=209_715_200`（200 MiB）；`LANGFUSE_ENABLED=false`；`OBS_MEMORY_TRACE=true`。**B3-W/B2-W**：ask 读取 platform 绑定 + **KB scope 绑定覆盖（只读 list，无 PUT KB 绑定 HTTP）**；**B4-W**：每请求从 DB `user_roles` hydrate；`DEPT_ACL_ENFORCE` **默认 `false`**（开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤且列表项带部门字段；`DEPT_INHERIT_DOWN` 默认 true；KB `deptInheritDown` 可覆盖 env；KB `deptAclEnforce` 可覆盖 env，未写跟 env，GET 未写回读 false；设置页可勾选，未改不写回；**无** ES 查询期）；`ASK_RATE_LIMIT_RPM=0`；L1 CLI 需显式指定 `L1_KB_ID`（可选 `L1_PERSIST_EVAL`） |
 | 关联模块 | 入库演示还需要 `worker` + PostgreSQL + Redis；契约 `@strict-rag/contracts`（含 `IMPLEMENTED_CHUNK_STRATEGIES` / `IngestJobData`）；schema `@strict-rag/db`（含 `eval_runs`）；L1 gold / RACI 在仓根 `fixtures/l1/`；L2 题面草案在 `fixtures/l2/` |
 | 最近更新 | 2026-08-20（P3b-GRSUB 开时 grant 可沿子树；进程默认仍关；**≠** 强制已上 / **≠** ES 查询期 / **≠** 解禁） |
 | Spec | `.trellis/spec/api/backend/`（含 [dashboard](../../.trellis/spec/api/backend/dashboard.md) · [l1-eval](../../.trellis/spec/api/backend/l1-eval.md) · [l2-eval](../../.trellis/spec/api/backend/l2-eval.md) · [l3-metrics](../../.trellis/spec/api/backend/l3-metrics.md)） |
@@ -20,7 +20,7 @@
 ## 已具备能力
 
 ### 基础设施
-- 健康检查 `/health`、就绪检查 `/ready`（含依赖项检查）、`/metrics` 指标骨架
+- 健康检查 `/health`、就绪检查 `/ready`（PG/Redis 硬依赖；ES/S3/Mongo/Gateway 未配置 `skipped`）、`/metrics` 指标骨架
 - request-id 中间件、Pino 日志、环境变量校验
 - **ARCH-P0 运行时硬化**：`onError` / `notFound` 统一返回标准错误信封；PostgreSQL 约束冲突做兜底映射；`secureHeaders` 安全头 + 可关闭的 `timeout` 超时中间件（ask 路由除外）+ JSON `bodyLimit` 请求体限制（上传路由除外）；`createDb` 按 api 端配置超时；收到 SIGINT/SIGTERM 时优雅关闭 DB 连接与队列
 - **ARCH-P1b-2 管理写操作日志**：`middleware/admin-write-audit.ts` 在 auth 之后，对成员 / 审批 / lifecycle / `/admin/*` 写 / KB settings PATCH 打 `event:admin_write` 日志（Pino；**不**落审计表；排除 GET / ask / auth）

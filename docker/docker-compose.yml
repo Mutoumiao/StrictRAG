@@ -1,13 +1,11 @@
 # StrictRAG 本地依赖
 # 规格：prds/02-engineering · prds/10-delivery · Sprint0 检查单
 #
-# 默认（Phase 0 最低）：
+# 默认可运行栈（PG + Redis + ES + Mongo + S3 兼容）：
 #   docker compose -f docker/docker-compose.yml up -d
 #
-# 扩展 profile：
-#   docker compose -f docker/docker-compose.yml --profile es --profile mongo --profile rustfs up -d
-#
-# 业务进程 api/worker 不在 compose 内启动（本地 pnpm dev）。
+# 业务进程 api/worker 仍用本地 pnpm dev（不在 compose 内）。
+# 打开 http/s3 见 docs/ops/operable-stack.md；CI 默认仍 mock。
 
 services:
   postgres:
@@ -36,16 +34,13 @@ services:
       timeout: 3s
       retries: 10
 
-  # Elasticsearch 8 + IK（P1 入库前必须 green；镜像需运维选型带 IK 的发行版）
-  # 使用：--profile es
+  # Elasticsearch 8（可运行 BM25；IK 生产镜像另换，本窗不装插件）
   elasticsearch:
-    profiles: ["es"]
     image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
-      # TODO(P1): 替换为含 IK 分词的镜像或挂载 plugin；见 prds/03-data/03-elasticsearch-bm25.md
     ports:
       - "9200:9200"
     volumes:
@@ -56,20 +51,23 @@ services:
       timeout: 5s
       retries: 20
 
-  # MongoDB：P1 正文 body 存储
+  # MongoDB：parse 正文权威（worker 有 URL 才写）
   mongo:
-    profiles: ["mongo"]
     image: mongo:7
     ports:
       - "27017:27017"
     volumes:
       - strict_rag_mongo:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
-  # RustFS / MinIO 兼容 S3：P1 上传预签名
-  # ADR-012；生产用 RustFS，本地可用 minio 兼容端点 dogfood
+  # S3 兼容（ADR-012：生产 RustFS；本地 MinIO dogfood，服务名仍 rustfs）
+  # 桶由 api STORAGE_MODE=s3 首次 put/ensureReady 创建，不另跑 mc
   rustfs:
-    profiles: ["rustfs"]
-    image: minio/minio:latest
+    image: minio/minio:RELEASE.2025-01-20T14-49-07Z
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: strict_rag
@@ -79,11 +77,6 @@ services:
       - "9001:9001"
     volumes:
       - strict_rag_rustfs:/data
-
-  # Langfuse：可选，P2 质量链路前建议起
-  # langfuse:
-  #   profiles: ["langfuse"]
-  #   image: langfuse/langfuse:latest
 
 volumes:
   strict_rag_pg:

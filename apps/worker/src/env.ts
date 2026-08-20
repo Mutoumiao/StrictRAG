@@ -36,12 +36,23 @@ const EnvSchema = z
      * on = 真引擎（QUAL-2 未清前启动失败，禁同 clean）
      */
     INGEST_SCAN_MODE: z.enum(INGEST_SCAN_MODES).default('mock_clean'),
-    /** mock | fail — mock ES 失败路径验证 ADR-038 */
-    INGEST_ES_MODE: z.enum(['mock', 'fail']).default('mock'),
+    /**
+     * mock | fail | http — http=真 ES bulk（可运行栈）；默认 mock 保 CI。
+     * http 须 ELASTICSEARCH_URL。
+     */
+    INGEST_ES_MODE: z.enum(['mock', 'fail', 'http']).default('mock'),
+    ELASTICSEARCH_URL: z.string().optional().default(''),
+    ELASTIC_INDEX: z.string().optional().default('strict_rag_dev'),
     INGEST_EMBED_MODE: z.enum(['mock', 'fail']).default('mock'),
     INGEST_MIN_EXTRACTED_CHARS: z.coerce.number().int().positive().default(40),
+    STORAGE_MODE: z.enum(['local', 's3']).default('local'),
     STORAGE_LOCAL_DIR: z.string().default('.data/objects'),
+    S3_ENDPOINT: z.string().optional().default(''),
+    S3_ACCESS_KEY: z.string().optional().default(''),
+    S3_SECRET_KEY: z.string().optional().default(''),
     S3_BUCKET: z.string().default('strict-rag'),
+    /** 空=parse 仍写 mongoDocId=local:；有值才写真 Mongo */
+    MONGODB_URL: z.string().optional().default(''),
   })
   .superRefine((data, ctx) => {
     if (data.TAU_CLAIM_LEGACY !== undefined && data.TAU_CLAIM_LEGACY !== data.TAU_CLAIM) {
@@ -61,9 +72,40 @@ const EnvSchema = z
         message: scanPolicy,
       });
     }
+
+    for (const issue of stackEnvIssues(data)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: [issue.path],
+        message: issue.message,
+      });
+    }
   });
 
 export type WorkerEnv = z.infer<typeof EnvSchema>;
+
+/** 可运行栈开关校验（单测可直接调） */
+export function stackEnvIssues(data: {
+  INGEST_ES_MODE: string;
+  ELASTICSEARCH_URL?: string;
+  STORAGE_MODE?: string;
+  S3_ENDPOINT?: string;
+}): Array<{ path: 'INGEST_ES_MODE' | 'STORAGE_MODE'; message: string }> {
+  const issues: Array<{ path: 'INGEST_ES_MODE' | 'STORAGE_MODE'; message: string }> = [];
+  if (data.INGEST_ES_MODE === 'http' && !(data.ELASTICSEARCH_URL ?? '').trim()) {
+    issues.push({
+      path: 'INGEST_ES_MODE',
+      message: 'INGEST_ES_MODE=http requires ELASTICSEARCH_URL',
+    });
+  }
+  if (data.STORAGE_MODE === 's3' && !(data.S3_ENDPOINT ?? '').trim()) {
+    issues.push({
+      path: 'STORAGE_MODE',
+      message: 'STORAGE_MODE=s3 requires S3_ENDPOINT',
+    });
+  }
+  return issues;
+}
 
 function resolveLocalStorageDir(dir: string): string {
   // 相对路径统一锚定 monorepo 根，避免 api/worker 不同 cwd 读写分裂
