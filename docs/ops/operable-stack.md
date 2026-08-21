@@ -44,6 +44,16 @@ Mongo 冒烟（须 `MONGODB_URL`）：
 MONGODB_URL=mongodb://127.0.0.1:27017/strict_rag pnpm --filter @strict-rag/worker smoke:mongo
 ```
 
+端到端烟测（txt→ask 有引用，闸仍 ready∧active；扫描/ES 可 mock）：
+
+```bash
+pnpm smoke:half
+```
+
+清单：[half-smoke.md](./half-smoke.md)。引用判定单测：`node --test scripts/smoke-ask.test.mjs`。
+
+试点打开 `AUTH_ENFORCE`（**不**改仓库默认）：[auth-enforce-pilot.md](./auth-enforce-pilot.md)。
+
 `GET http://127.0.0.1:4000/ready` 期望：
 
 - `postgres` / `redis` = `up`（硬依赖）

@@ -3,6 +3,9 @@
 | 脚本 | 用途 |
 |------|------|
 | `up-stack.mjs` | HALF-UP：compose 中间件 + api + worker（`pnpm up:apps`） |
+| `smoke-half.mjs` | HALF-SMOKE：单篇 txt→active→ask 有引用（`pnpm smoke:half`） |
+| `smoke-ask.mjs` | HALF-SMOKE：ask 信封 citations 判定（与 `smoke-ask.test.mjs` 共用） |
+| `seed-demo.mjs` | HALF-SEED：1 KB + 成员 + 1 篇 active 文档（`pnpm seed:demo`） |
 | `demo-ingest.mjs` | Phase 1 同 KB ≥10 篇入库闭环回归（`pnpm demo:ingest`） |
 | `demo-ingest.md` | 演示说明与 curl 排障 |
 | `module-status/extract.mjs` | 代码事实提取器（env 默认值 / 导出符号 / 路由端点 / 表 / 测试文件），draft 与 check 共用 |
