@@ -13,6 +13,7 @@
     "lint": "turbo run lint",
     "check-types": "turbo run check-types",
     "test": "turbo run test",
+    "up:apps": "node scripts/up-stack.mjs",
     "demo:ingest": "node scripts/demo-ingest.mjs",
     "test:e2e-ingest": "node scripts/demo-ingest.mjs",
     "check:module-status": "node scripts/module-status/check.mjs",

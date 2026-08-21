@@ -1,6 +1,6 @@
 # Docker 依赖
 
-本地基础设施 compose。业务进程 `api` / `worker` **不在** compose 内启动。
+本地基础设施 compose。业务进程 `api` / `worker` **不在** compose 内定义；用 `pnpm up:apps` 一键起中间件 + api + worker。
 
 ## 默认可运行栈
 

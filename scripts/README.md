@@ -2,6 +2,7 @@
 
 | 脚本 | 用途 |
 |------|------|
+| `up-stack.mjs` | HALF-UP：compose 中间件 + api + worker（`pnpm up:apps`） |
 | `demo-ingest.mjs` | Phase 1 同 KB ≥10 篇入库闭环回归（`pnpm demo:ingest`） |
 | `demo-ingest.md` | 演示说明与 curl 排障 |
 | `module-status/extract.mjs` | 代码事实提取器（env 默认值 / 导出符号 / 路由端点 / 表 / 测试文件），draft 与 check 共用 |

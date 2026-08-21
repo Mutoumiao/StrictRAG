@@ -32,9 +32,16 @@ cat .env.operable.example >> .env
 ## 3. 业务进程
 
 ```bash
-pnpm --filter @strict-rag/db exec drizzle-kit migrate   # 按仓库既有迁移命令
-pnpm --filter @strict-rag/api dev
-pnpm --filter @strict-rag/worker dev
+pnpm db:migrate
+pnpm up:apps
+```
+
+`pnpm up:apps` = compose 中间件（若未起）+ api + worker，不必手拼四进程。仅中间件：`node scripts/up-stack.mjs --compose-only`。
+
+Mongo 冒烟（须 `MONGODB_URL`）：
+
+```bash
+MONGODB_URL=mongodb://127.0.0.1:27017/strict_rag pnpm --filter @strict-rag/worker smoke:mongo
 ```
 
 `GET http://127.0.0.1:4000/ready` 期望：
