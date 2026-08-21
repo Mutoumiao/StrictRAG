@@ -1,15 +1,24 @@
 # StrictRAG 本地依赖
 # 规格：prds/02-engineering · prds/10-delivery · Sprint0 检查单
 #
+# 项目命名空间固定为 strict-rag（不随 docker/ 目录名推断），
+# 容器 / 网络 / 数据卷均带此前缀，避免与其它 compose 栈撞名。
+#
 # 默认可运行栈（PG + Redis + ES + Mongo + S3 兼容）：
 #   docker compose -f docker/docker-compose.yml up -d
+#
+# 若本机仍有旧项目名 docker 的容器（docker-postgres-1 等），先按旧名停栈：
+#   docker compose -p docker -f docker/docker-compose.yml down
 #
 # 业务进程 api/worker 仍用本地 pnpm dev（不在 compose 内）。
 # 打开 http/s3 见 docs/ops/operable-stack.md；CI 默认仍 mock。
 
+name: strict-rag
+
 services:
   postgres:
     image: pgvector/pgvector:pg16
+    container_name: strict-rag-postgres
     environment:
       POSTGRES_USER: strict_rag
       POSTGRES_PASSWORD: strict_rag
@@ -17,7 +26,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - strict_rag_pg:/var/lib/postgresql/data
+      - pg_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U strict_rag -d strict_rag"]
       interval: 5s
@@ -26,6 +35,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    container_name: strict-rag-redis
     ports:
       - "6379:6379"
     healthcheck:
@@ -37,6 +47,7 @@ services:
   # Elasticsearch 8（可运行 BM25；IK 生产镜像另换，本窗不装插件）
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    container_name: strict-rag-elasticsearch
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
@@ -44,7 +55,7 @@ services:
     ports:
       - "9200:9200"
     volumes:
-      - strict_rag_es:/usr/share/elasticsearch/data
+      - es_data:/usr/share/elasticsearch/data
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
       interval: 10s
@@ -54,32 +65,52 @@ services:
   # MongoDB：parse 正文权威（worker 有 URL 才写）
   mongo:
     image: mongo:7
+    container_name: strict-rag-mongo
     ports:
       - "27017:27017"
     volumes:
-      - strict_rag_mongo:/data/db
+      - mongo_data:/data/db
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
       interval: 10s
       timeout: 5s
       retries: 10
 
-  # S3 兼容（ADR-012：生产 RustFS；本地 MinIO dogfood，服务名仍 rustfs）
-  # 桶由 api STORAGE_MODE=s3 首次 put/ensureReady 创建，不另跑 mc
+  # S3 兼容对象存储（ADR-012：唯一选型 RustFS；本地与生产同一镜像族）
+  # 桶由 api STORAGE_MODE=s3 首次 put/ensureReady 创建，不另跑初始化容器
+  # 旧 MinIO 数据卷格式不兼容：须删 strict-rag-rustfs-data 后重建
   rustfs:
-    image: minio/minio:RELEASE.2025-01-20T14-49-07Z
-    command: server /data --console-address ":9001"
+    image: rustfs/rustfs:1.0.0-rc.2
+    container_name: strict-rag-rustfs
+    command: ["/data"]
     environment:
-      MINIO_ROOT_USER: strict_rag
-      MINIO_ROOT_PASSWORD: strict_rag_secret
+      RUSTFS_ACCESS_KEY: strict_rag
+      RUSTFS_SECRET_KEY: strict_rag_secret
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_ADDRESS: ":9000"
+      RUSTFS_CONSOLE_ADDRESS: ":9001"
     ports:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - strict_rag_rustfs:/data
+      - rustfs_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:9000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+networks:
+  default:
+    name: strict-rag
 
 volumes:
-  strict_rag_pg:
-  strict_rag_es:
-  strict_rag_mongo:
-  strict_rag_rustfs:
+  pg_data:
+    name: strict-rag-pg-data
+  es_data:
+    name: strict-rag-es-data
+  mongo_data:
+    name: strict-rag-mongo-data
+  rustfs_data:
+    name: strict-rag-rustfs-data

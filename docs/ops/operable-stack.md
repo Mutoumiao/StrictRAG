@@ -15,7 +15,7 @@ docker compose -f docker/docker-compose.yml up -d
 | redis | 6379 | 队列 |
 | elasticsearch | 9200 | BM25 sparse（标准分词，未装 IK） |
 | mongo | 27017 | parse 正文 |
-| rustfs（MinIO 占位） | 9000 / 9001 | 对象存储；首次 `STORAGE_MODE=s3` put 会建桶 `strict-rag` |
+| rustfs | 9000 / 9001 | 对象存储（官方 RustFS）；首次 `STORAGE_MODE=s3` put 会建桶 `strict-rag` |
 
 ## 2. 打开可运行开关
 
@@ -61,7 +61,7 @@ pnpm smoke:half
 
 ## 4. 链路
 
-1. admin/api 上传 → api 代理 PUT 写入 MinIO  
+1. admin/api 上传 → api 代理 PUT 写入 RustFS  
 2. worker parse 读 S3 → 正文 upsert Mongo → `mongoDocId` = 真 docId  
 3. worker es_index bulk 到 ES（字段与检索 `es-sparse` 对齐）  
 4. 运营把文档 `lifecycle` 升到 `active`（双就绪后仍是 **draft**，检索闸 `ready∧active`）  

@@ -67,7 +67,7 @@ const EnvSchema = z
     /** 上传默认上限 50 MiB；硬天花板 200 MiB（ADR-039） */
     INGEST_MAX_FILE_BYTES: z.coerce.number().int().positive().default(52_428_800),
     INGEST_MAX_FILE_BYTES_CEILING: z.coerce.number().int().positive().default(209_715_200),
-    /** local mock 对象存储目录（P1 无 RustFS 时） */
+    /** local=磁盘目录 mock；s3=compose RustFS（S3 兼容，须 S3_ENDPOINT） */
     STORAGE_MODE: z.enum(['local', 's3']).default('local'),
     STORAGE_LOCAL_DIR: z.string().default('.data/objects'),
     S3_ENDPOINT: z.string().optional().default(''),

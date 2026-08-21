@@ -74,7 +74,7 @@ api.enqueue({ docId, stage: 'scan', indexVersion? })
 | **PG `documents`** | api（上传/审批/元数据）· **worker**（状态机字段） | api 检索闸 / 列表 | Drizzle `@strict-rag/db` | **真 PG**（联调依赖） |
 | **PG `chunks` / `chunk_manifests` / `chunk_embeddings`** | **worker** 入库 | api retrieve / chunks 只读 | 同上 | **真 PG** |
 | **PG `ingest_jobs`** | **worker** `job-ledger` | 运维（尚无 HTTP） | stage 边界最小写 | PG 真表；查询面仍欠 |
-| **本地对象 / S3 位** | api 上传写文件 | worker `loadObjectBytes` | `STORAGE_LOCAL_DIR` + `S3_BUCKET` 路径拼接 | **本地目录**；非真 RustFS |
+| **对象存储** | api 上传写文件 | worker `loadObjectBytes` | 默认 `STORAGE_LOCAL_DIR`；`STORAGE_MODE=s3` 走 S3 SDK → compose `rustfs` | 默认 **本地目录**；operable 为 **真 RustFS**（ADR-012） |
 | **Mongo 正文** | （目标 parse） | （目标） | 仅写 `mongoDocId=local:{docId}` 标记 | **无**真 Mongo 客户端 |
 | **ES 稀疏索引** | **worker** `es_index` | api `RETRIEVE_ES_MODE=http`（可选） | worker：`mockEsStore`；api 侧另有 ES 客户端切片 | worker **仅 mock\|fail** |
 | **Redis 队列 + doc 锁** | api 入队 · worker 持锁 | worker BullMQ / `doc-lock` | `sr-ingest` · `sr:ingest:doc-lock:{docId}` | **真 Redis**；锁=最小 SET NX |

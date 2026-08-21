@@ -79,7 +79,7 @@
 | **工程工具链** | **生产向**（全仓 eslint/tsconfig 基线；无业务完成度故事） | `eslint-config` · `typescript-config` | 全仓 · `ui` | [eslint-config](./eslint-config.md) · [typescript-config](./typescript-config.md) · [ui](./ui.md) |
 
 **半产品可运行缺口（已登记、未实现）**：总 backlog **§1.2 P-HALF**（知识库下拉 / admin 上传 / 上架 active / 一键拉起 / PDF 文本层 / 烟测等）。**未做 ≠ 已具备**。  
-**矩阵未覆盖、且明确尚未交付的能力**（不要从「可演示」的行向外推断）：生产级 ES + IK、真实 RustFS / Mongo、**rewrite 默认开 / 对外连续追问 / L2 准出**、CRAG / multi_hop、**部门级检索强制默认开 / ES 查询期对称 / 敏感解禁**、权限三表终态、入库 `ingest_jobs` 完整运维查询面（stage 最小写 + 同 doc SET NX 锁最小已有；非 Redlock）、admin 设置全量 UI（docTypes/策略/KB 绑定写）、按历史 indexVersion 浏览分片等 → 详见 [08-06 backlog](../../.trellis/tasks/08-06-project-backlog/status.md) 与交付控制台 §0。  
+**矩阵未覆盖、且明确尚未交付的能力**（不要从「可演示」的行向外推断）：生产级 ES + IK、生产 RustFS at-rest/HA / 生产 Mongo、**rewrite 默认开 / 对外连续追问 / L2 准出**、CRAG / multi_hop、**部门级检索强制默认开 / ES 查询期对称 / 敏感解禁**、权限三表终态、入库 `ingest_jobs` 完整运维查询面（stage 最小写 + 同 doc SET NX 锁最小已有；非 Redlock）、admin 设置全量 UI（docTypes/策略/KB 绑定写）、按历史 indexVersion 浏览分片等 → 详见 [08-06 backlog](../../.trellis/tasks/08-06-project-backlog/status.md) 与交付控制台 §0。  
 **安全债（不挡当前主线 · 生产前必清）**：**QUAL-2 真杀毒**（现阶段 mock；DEC-SCAN 已裁决）→ [worker · 技术债](./worker.md)。  
 （**已交付勿再列未做**：B2-W mode/docTypes 闸、B4-W hydrate、B12 策略闸、B13 feedback UI、08-12 SPEC-HOW 挂账 archive。）
 
