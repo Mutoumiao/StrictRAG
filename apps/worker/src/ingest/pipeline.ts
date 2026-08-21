@@ -31,7 +31,9 @@ import {
   sparseTextForChunk,
 } from './es-http.js';
 import { mockEsStore } from './es-store.js';
+import { embedTextsHttp, mockEmbedVector } from './embed-http.js';
 import { decodeUtf8Text, hasUtf8TextLayer } from './extract-text.js';
+import { extractPdfTextLayer, isPdfObject } from './pdf-text.js';
 import { recordStageEnd, recordStageStart } from './job-ledger.js';
 import { localMongoDocId, upsertDocumentBody } from './mongo-body.js';
 import { deleteObject, readObjectBytes, storeConfigFromEnv } from './object-store.js';
@@ -229,8 +231,27 @@ async function runIngestStageCore(
 
     case 'parse': {
       await setDoc(data.docId, { status: 'parsing' });
-      // 非 txt/md 先拒，避免把 PDF 等二进制读成 UTF-8
-      if (!hasUtf8TextLayer(doc.contentType, doc.objectKey)) {
+      const buf = await loadObjectBytes(doc.objectKey);
+      let text = '';
+      let extractMethod: 'text' | 'pdf_text' | 'none' = 'text';
+      if (hasUtf8TextLayer(doc.contentType, doc.objectKey)) {
+        text = decodeUtf8Text(buf).trim();
+      } else if (isPdfObject(doc.contentType, doc.objectKey)) {
+        const pdfText = extractPdfTextLayer(buf);
+        if (!pdfText) {
+          await setDoc(data.docId, {
+            status: 'needs_ocr',
+            errorCode: 'NO_TEXT_LAYER',
+            errorMessage: 'pdf has no text layer',
+            parsedText: null,
+            extractMethod: 'none',
+          });
+          log.warn('needs_ocr — pdf no text layer');
+          return failStage('NO_TEXT_LAYER');
+        }
+        text = pdfText.trim();
+        extractMethod = 'pdf_text';
+      } else {
         await setDoc(data.docId, {
           status: 'needs_ocr',
           errorCode: 'NO_TEXT_LAYER',
@@ -238,10 +259,9 @@ async function runIngestStageCore(
           parsedText: null,
           extractMethod: 'none',
         });
-        log.warn('needs_ocr — not txt/md');
+        log.warn('needs_ocr — not txt/md/pdf');
         return failStage('NO_TEXT_LAYER');
       }
-      const text = decodeUtf8Text(await loadObjectBytes(doc.objectKey)).trim();
       if (text.length < env.INGEST_MIN_EXTRACTED_CHARS) {
         await setDoc(data.docId, {
           status: 'needs_ocr',
@@ -261,7 +281,7 @@ async function runIngestStageCore(
       });
       await setDoc(data.docId, {
         parsedText: text,
-        extractMethod: 'text',
+        extractMethod,
         mongoDocId: env.MONGODB_URL.trim() ? mongoDocId : localMongoDocId(data.docId),
       });
       log.info({ chars: text.length }, 'parse done');
@@ -448,8 +468,38 @@ async function runIngestStageCore(
       );
 
       const dims = 8;
-      for (const chunkId of toEmbed) {
-        const vector = Array.from({ length: dims }, (_, i) => ((chunkId.charCodeAt(i % chunkId.length) ?? 1) % 97) / 97);
+      let vectors: number[][] = [];
+      let modelName = 'mock-embed';
+      if (env.INGEST_EMBED_MODE === 'http') {
+        const rows = await db
+          .select({ id: chunks.id, bodyText: chunks.bodyText })
+          .from(chunks)
+          .where(inArray(chunks.id, toEmbed));
+        const byId = new Map(rows.map((r) => [r.id, r.bodyText ?? '']));
+        const texts = toEmbed.map((id) => byId.get(id) ?? '');
+        try {
+          vectors = await embedTextsHttp({
+            baseUrl: `${env.GATEWAY_BASE_URL.replace(/\/$/, '')}/v1`,
+            apiKey: env.GATEWAY_API_KEY,
+            model: env.GATEWAY_EMBED_MODEL,
+            texts,
+          });
+          modelName = env.GATEWAY_EMBED_MODEL;
+        } catch (err) {
+          await setDoc(data.docId, {
+            status: 'failed',
+            errorCode: 'EMBED_FAILED',
+            errorMessage: err instanceof Error ? err.message : 'embed http failed',
+            embedReady: 0,
+          });
+          return failStage('EMBED_FAILED');
+        }
+      } else {
+        vectors = toEmbed.map((id) => mockEmbedVector(id, dims));
+      }
+      for (let i = 0; i < toEmbed.length; i++) {
+        const chunkId = toEmbed[i]!;
+        const vector = vectors[i] ?? mockEmbedVector(chunkId, dims);
         await db.insert(chunkEmbeddings).values({
           id: uuidv7(),
           tenantId: doc.tenantId,
@@ -457,8 +507,8 @@ async function runIngestStageCore(
           docId: doc.id,
           chunkId,
           indexVersion,
-          model: 'mock-embed',
-          dims,
+          model: modelName,
+          dims: vector.length || dims,
           embedding: vector,
         });
       }
