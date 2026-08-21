@@ -9,7 +9,8 @@
     "check-types": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
     "start": "tsx src/index.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "smoke:mongo": "tsx src/scripts/smoke-mongo.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "catalog:",

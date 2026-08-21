@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { localMongoDocId, upsertDocumentBody } from './mongo-body.js';
+import {
+  findDocumentBody,
+  localMongoDocId,
+  pingMongo,
+  upsertDocumentBody,
+} from './mongo-body.js';
 
 describe('mongo-body', () => {
   it('local id prefix', () => {
@@ -15,5 +20,13 @@ describe('mongo-body', () => {
       text: 'hello',
     });
     expect(id).toBe('local:d1');
+  });
+
+  it('findDocumentBody empty url returns null without connecting', async () => {
+    await expect(findDocumentBody({ url: '  ', docId: 'd1' })).resolves.toBeNull();
+  });
+
+  it('pingMongo empty url returns false without connecting', async () => {
+    await expect(pingMongo('  ')).resolves.toBe(false);
   });
 });

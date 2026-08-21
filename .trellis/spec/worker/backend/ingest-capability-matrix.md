@@ -11,7 +11,7 @@
 | 逻辑 stage | 状态 | 源码锚点 | 行为摘要 | 明确未做 |
 |------------|:----:|----------|----------|----------|
 | **scan** | **stub** | `pipeline` `case 'scan'` · `scan-mode-policy` | mock_clean / mock_infected / off；`on` 拒 | 真 ClamAV（QUAL-2） |
-| **parse** | **stub** | `loadObjectText` + 字数闸 | 本地目录读 UTF-8 文本；不足 → `needs_ocr` | OCR · 复杂版式 · 真 Mongo body |
+| **parse** | **stub** | `loadObjectText` + 字数闸 | 本地目录读 UTF-8 文本；不足 → `needs_ocr`；有 `MONGODB_URL` 写 `document_bodies`（`upsertDocumentBody`） | OCR · 复杂版式 |
 | **chunk** | **done\*** | `splitByChunkStrategy` · manifests | 仅 `structure_paragraph`；幂等 resume（X-04-impl） | 多策略切分器；结构感知进阶 |
 | **embed** | **stub** | `INGEST_EMBED_MODE` mock\|fail | 伪向量 dims=8；同 version skip 已有行 | 真 embedding 网关 |
 | **es_index** | **stub** | `mockEsStore` · `INGEST_ES_MODE` | 进程内 Map 对账；无 live 枚举 | 真 ES+IK bulk（B8） |

@@ -38,7 +38,7 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 ### 入库流水线（`ingest/pipeline.ts`）
 - 阶段：`scan → parse → chunk → embed → es_index`（`IngestJobData.stage`）
 - **scan**：`mock_infected` 删本地对象 + `MALWARE`；`mock_clean` / `off` 放行；审批重检（ADR-048）在**任意阶段**入口先做，未通过 → `NOT_APPROVED`（非仅 scan）
-- **parse**：读对象（local 或 `STORAGE_MODE=s3`）；过短 → `needs_ocr` + `NO_TEXT_LAYER`；有 `MONGODB_URL` 写 `document_bodies`，否则 `mongoDocId=local:{docId}`
+- **parse**：读对象（local 或 `STORAGE_MODE=s3`）；过短 → `needs_ocr` + `NO_TEXT_LAYER`；有 `MONGODB_URL` 写 `document_bodies`（`upsertDocumentBody` / `findDocumentBody` / `pingMongo`），否则 `mongoDocId=local:{docId}`；冒烟 `pnpm --filter @strict-rag/worker smoke:mongo`
 - **chunk**：**仅** `structure_paragraph`（contracts `IMPLEMENTED_*`）；未实现 → `UNSUPPORTED_CHUNK_STRATEGY`（**不**静默回落）；写 chunks + `chunk_manifests`；`indexVersion = doc.indexVersion+1` 并重置 `embedReady=0` / `esReady=0`
 - **embed**：mock 伪向量 dims=8 · `model=mock-embed`；缺 embedding 行才补写（幂等 skip）
 - **es_index**：默认 `mockEsStore`；`INGEST_ES_MODE=http` 时 `ensureSparseIndex` + bulk + 按 doc 对账（映射对齐 api `es-sparse`）；要求 `embedReady`；双就绪 → `status=ready` **且 `lifecycle='draft'`**（**不是** `active`；默认检索闸 `ready∧active` 仍拦，须运营升 lifecycle）
