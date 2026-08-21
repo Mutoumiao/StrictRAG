@@ -19,24 +19,15 @@ docker compose -f docker/docker-compose.yml up -d
 
 ## 2. 打开可运行开关
 
-复制 `.env.example` 后，在 `.env` **显式**设置（不要依赖 Zod 默认）：
+复制 `.env.example` 为 `.env` 后，再把 **`.env.operable.example`** 整份追加进 `.env`（覆盖 mock 默认）。  
+不要改 `apps/*/src/env.ts` 的 Zod 默认；CI 仍走 mock。
 
 ```bash
-INGEST_ES_MODE=http
-RETRIEVE_ES_MODE=http
-ELASTICSEARCH_URL=http://127.0.0.1:9200
-ELASTIC_INDEX=strict_rag_dev
-STORAGE_MODE=s3
-S3_ENDPOINT=http://127.0.0.1:9000
-S3_ACCESS_KEY=strict_rag
-S3_SECRET_KEY=strict_rag_secret
-S3_BUCKET=strict-rag
-MONGODB_URL=mongodb://127.0.0.1:27017/strict_rag
+cp .env.example .env
+cat .env.operable.example >> .env
 ```
 
-扫描仍用 `INGEST_SCAN_MODE=mock_clean`（development only）。**禁止** `on`。
-
-向量默认仍 `INGEST_EMBED_MODE=mock`（dims=8）。要真向量另配 Gateway。
+追加后同一文件内后出现的键覆盖先前 mock 默认。样例含 http ES、S3、Mongo URL。扫描仍 `INGEST_SCAN_MODE=mock_clean`（development only）。**禁止** `on`。向量默认仍 `INGEST_EMBED_MODE=mock`（dims=8）；要真向量另配 Gateway。`AUTH_ENFORCE` 仍 false。
 
 ## 3. 业务进程
 
