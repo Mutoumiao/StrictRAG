@@ -35,11 +35,14 @@ async function api(method, urlPath, { body, headers, rawBody } = {}) {
   return { status: res.status, json };
 }
 
+/** 与 apps/api/src/routes/auth.ts admin/dev-login 成功码对齐（ok(..., 201)） */
+export const ADMIN_DEV_LOGIN_OK_STATUS = 201;
+
 export function inviteOk(status, json) {
   return status === 200 || status === 201 || json?.error?.code === 'CONFLICT';
 }
 
-function assertOk(step, res, expectStatus) {
+export function assertOk(step, res, expectStatus) {
   if (res.status !== expectStatus) {
     throw new Error(`${step}: HTTP ${res.status} ${JSON.stringify(res.json)}`);
   }
@@ -52,7 +55,7 @@ async function main() {
   const login = await api('POST', '/api/v1/auth/admin/dev-login', {
     body: { email: 'half-seed@local.dev', roleTemplate: 'super_admin', tenantId: TENANT },
   });
-  assertOk('dev-login', login, 200);
+  assertOk('dev-login', login, ADMIN_DEV_LOGIN_OK_STATUS);
   const token = login.json.data.accessToken;
   const userId = login.json.data.session.userId;
   const auth = { authorization: `Bearer ${token}` };
