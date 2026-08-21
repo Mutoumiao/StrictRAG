@@ -10,7 +10,10 @@ import type {
   CompleteUploadResponse,
   DocumentDetail,
   DocumentListItem,
+  IngestJobListItem,
   PatchDocumentMetaBody,
+  PatchLifecycleBody,
+  PatchLifecycleResponse,
   PutObjectResponse,
   UploadUrlBody,
   UploadUrlResponse,
@@ -53,6 +56,17 @@ export async function putUploadedObject(uploadUrl: string, blob: Blob, contentTy
     throw new ApiHttpError(payload.error?.code ?? 'INTERNAL', payload.error?.message ?? 'put failed', false);
   }
   return payload.data;
+}
+
+export async function patchDocumentLifecycle(docId: string, body: PatchLifecycleBody) {
+  return http.patch<PatchLifecycleResponse, PatchLifecycleBody>(
+    `/api/v1/documents/${docId}/lifecycle`,
+    body,
+  );
+}
+
+export async function listIngestJobs(docId: string) {
+  return http.get<IngestJobListItem[]>(`/api/v1/documents/${docId}/ingest-jobs`);
 }
 
 export async function completeUpload(kbId: string, docId: string, body: CompleteUploadBody) {

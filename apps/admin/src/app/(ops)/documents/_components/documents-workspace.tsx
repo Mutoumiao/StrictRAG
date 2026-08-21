@@ -13,6 +13,7 @@ import type {
   Department,
   DocumentDetail,
   DocumentListItem,
+  IngestJobListItem,
   VisibilityLevel,
 } from '@strict-rag/contracts';
 import { Button } from '@strict-rag/ui/components/ui/button';
@@ -43,6 +44,8 @@ import {
   saveDocumentMeta,
   type LoadDepartmentOptionsResult,
 } from '../meta.services';
+import { loadIngestJobs } from '../jobs.services';
+import { canPublish, canRevertDraft, setDocumentLifecycle } from '../lifecycle.services';
 import { uploadAdminDocument } from '../upload.services';
 
 const VISIBILITY_LEVELS: VisibilityLevel[] = [10, 20, 30, 40];
@@ -57,6 +60,7 @@ export function DocumentsWorkspace() {
   const canView = me.permissions.includes('doc.view');
   const canEdit = me.permissions.includes('doc.editor');
   const canUpload = me.permissions.includes('doc.upload');
+  const canLifecycle = me.permissions.includes('doc.lifecycle');
   const canManageDept = me.permissions.includes('dept.manage');
   const [rows, setRows] = useState<DocumentListItem[]>([]);
   const [state, setState] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle');
@@ -80,6 +84,8 @@ export function DocumentsWorkspace() {
   const [deptOptionsError, setDeptOptionsError] = useState<string | null>(null);
   const [uploadBusy, setUploadBusy] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [jobs, setJobs] = useState<IngestJobListItem[]>([]);
+  const [jobsNote, setJobsNote] = useState<string | null>(null);
   const openIdRef = useRef<string | null>(null);
   const deptOptionsCache = useRef<Department[] | null>(null);
   const deptOptionsInflight = useRef<Promise<LoadDepartmentOptionsResult> | null>(null);
@@ -166,6 +172,15 @@ export function DocumentsWorkspace() {
     setOwnerDeptId(result.detail.ownerDeptId ?? '');
     setVisibilityLevel(result.detail.visibilityLevel ?? 20);
     setDetailState('ready');
+    const jobsResult = await loadIngestJobs(docId);
+    if (openIdRef.current !== docId) return;
+    if (jobsResult.ok) {
+      setJobs(jobsResult.jobs);
+      setJobsNote(jobsResult.jobs.length === 0 ? '无入库阶段记录' : null);
+    } else {
+      setJobs([]);
+      setJobsNote(jobsResult.message);
+    }
   }
 
   async function onPickFile(file: File | undefined) {
@@ -181,6 +196,28 @@ export function DocumentsWorkspace() {
       setUploadMessage(result.message);
     }
     setUploadBusy(false);
+  }
+
+  async function onLifecycle(lifecycle: 'active' | 'draft') {
+    if (!openId) return;
+    const docId = openId;
+    setBusy(true);
+    setSaveMessage(null);
+    const result = await setDocumentLifecycle(docId, lifecycle);
+    if (openIdRef.current !== docId) {
+      setBusy(false);
+      return;
+    }
+    if (result.ok) {
+      setDetail((d) => (d ? { ...d, lifecycle: result.lifecycle } : d));
+      setRows((rs) => rs.map((r) => (r.id === docId ? { ...r, lifecycle: result.lifecycle } : r)));
+      setSaveMessage(lifecycle === 'active' ? '已上架' : '已撤回 draft');
+      setSaveOk(true);
+    } else {
+      setSaveMessage(result.message);
+      setSaveOk(false);
+    }
+    setBusy(false);
   }
 
   async function onSave() {
@@ -423,6 +460,46 @@ export function DocumentsWorkspace() {
                                 ))}
                               </select>
                             </div>
+                          </div>
+                          {canLifecycle ? (
+                            <div className="flex flex-wrap gap-2">
+                              {canPublish(detail.status, detail.lifecycle) ? (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  disabled={busy}
+                                  onClick={() => void onLifecycle('active')}
+                                >
+                                  上架 active
+                                </Button>
+                              ) : null}
+                              {canRevertDraft(detail.lifecycle) ? (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={busy}
+                                  onClick={() => void onLifecycle('draft')}
+                                >
+                                  撤回 draft
+                                </Button>
+                              ) : null}
+                            </div>
+                          ) : null}
+                          <p className="text-xs text-muted-foreground">检索闸仍 ready∧active，不自动升。</p>
+                          <div className="text-xs">
+                            <p className="font-semibold">入库阶段</p>
+                            {jobsNote ? <p className="text-muted-foreground">{jobsNote}</p> : null}
+                            {jobs.length > 0 ? (
+                              <ul className="m-0 list-disc ps-4">
+                                {jobs.map((j) => (
+                                  <li key={j.id}>
+                                    {j.jobName} · {j.status}
+                                    {j.errorMessage ? ` · ${j.errorMessage}` : ''}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : null}
                           </div>
                           {canEdit ? (
                             <Button type="button" size="sm" disabled={busy} onClick={() => void onSave()}>

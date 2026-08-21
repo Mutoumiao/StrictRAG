@@ -48,6 +48,18 @@ vi.mock('../upload.services', () => ({
   uploadAdminDocument: (...args: unknown[]) => uploadAdminDocument(...args),
 }));
 
+vi.mock('../jobs.services', () => ({
+  loadIngestJobs: async () => ({ ok: true, jobs: [] }),
+}));
+
+vi.mock('../lifecycle.services', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../lifecycle.services')>();
+  return {
+    ...actual,
+    setDocumentLifecycle: vi.fn(async () => ({ ok: true, lifecycle: 'active' })),
+  };
+});
+
 import { deptLabel, readyColLabel, visibilityLabel } from '../list.services';
 import { DocumentsWorkspace } from './documents-workspace';
 
