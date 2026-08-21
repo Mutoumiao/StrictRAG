@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * 最小运营壳：catalog 菜单裁剪 + KB 手填 + 退出。
+ * 最小运营壳：catalog 菜单裁剪 + KB 下拉（可见库，仍可粘贴 uuid）+ 退出。
  * 按钮可见 ≠ 授权；API 仍验码。
  */
 
@@ -16,15 +16,20 @@ import { cn } from '@strict-rag/ui/lib/utils';
 
 import { logoutLocal } from '@/auth/services';
 import { useAdminAuth } from '@/components/auth-guard';
+import { listKnowledgeBases } from '@/lib/kb-api';
 import { readStoredKbId, writeStoredKbId } from '@/lib/kb-context';
 
 export function AdminShell({ children }: { children: ReactNode }) {
   const { me } = useAdminAuth();
   const pathname = usePathname();
   const [kbId, setKbId] = useState('');
+  const [kbOptions, setKbOptions] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     setKbId(readStoredKbId());
+    void listKnowledgeBases()
+      .then((rows) => setKbOptions(rows.map((r) => ({ id: r.id, name: r.name }))))
+      .catch(() => setKbOptions([]));
   }, []);
 
   // ponytail: 码裁剪 ∩ 已实现 href 全在 catalog；壳不再维护第二份白名单
@@ -64,6 +69,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           <Label className="flex items-center gap-1.5 text-xs font-normal text-muted-foreground">
             KB
             <Input
+              list="admin-kb-list"
               value={kbId}
               onChange={(e) => {
                 const v = e.target.value.trim();
@@ -73,6 +79,13 @@ export function AdminShell({ children }: { children: ReactNode }) {
               placeholder="knowledge-base uuid"
               className="h-8 w-[280px] max-w-[40vw] text-xs"
             />
+            <datalist id="admin-kb-list">
+              {kbOptions.map((k) => (
+                <option key={k.id} value={k.id}>
+                  {k.name}
+                </option>
+              ))}
+            </datalist>
           </Label>
           <span className="text-xs text-muted-foreground">{me.email ?? me.userId}</span>
           <Button

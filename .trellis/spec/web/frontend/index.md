@@ -1,7 +1,7 @@
 # @strict-rag/web · 用户端前端
 
 > 路径：`apps/web` · 目标端口 **3005**  
-> 现状：**S2 最小 ask UI**（登录 · 会话壳 · AI SDK 流 / 同步 · 三态）+ **B13** 答案旁反馈提交（`createAskFeedback`）；**无**完整多轮 rewrite。
+> 现状：**S2 最小 ask UI**（登录 · 会话壳 · KB 下拉可见库、可粘贴 uuid · AI SDK 流 / 同步 · 三态）+ **B13** 答案旁反馈提交（`createAskFeedback`）；**无**完整多轮 rewrite。
 
 ---
 

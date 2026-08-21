@@ -24,6 +24,7 @@ import { useRouter } from 'next/navigation';
 
 import { parseScopeDocTypesInput } from '@/api/ask';
 import { createAskFeedback } from '@/api/feedback';
+import { listKnowledgeBases } from '@/api/knowledge-bases';
 import { logoutLocal } from '@/auth/services';
 import { useWebAuth } from '@/components/auth-guard';
 import { useKnowledgeAsk } from '@/hooks/use-knowledge-ask';
@@ -40,6 +41,7 @@ export function AskPanel() {
   const { me } = useWebAuth();
   const router = useRouter();
   const [kbId, setKbId] = useState('');
+  const [kbOptions, setKbOptions] = useState<{ id: string; name: string }[]>([]);
   const [question, setQuestion] = useState('');
   /** B11：可选文档类型（逗号分隔）；空=不收窄 */
   const [docTypesInput, setDocTypesInput] = useState('');
@@ -65,6 +67,9 @@ export function AskPanel() {
 
   useEffect(() => {
     setKbId(window.localStorage.getItem(KB_STORAGE) ?? '');
+    void listKnowledgeBases()
+      .then((rows) => setKbOptions(rows.map((r) => ({ id: r.id, name: r.name }))))
+      .catch(() => setKbOptions([]));
   }, []);
 
   const refreshSessions = useCallback(async (id: string) => {
@@ -265,11 +270,23 @@ export function AskPanel() {
                 <Label htmlFor="ask-kb">知识库 ID</Label>
                 <Input
                   id="ask-kb"
+                  list="web-kb-list"
                   value={kbId}
-                  onChange={(ev) => setKbId(ev.target.value)}
+                  onChange={(ev) => {
+                    const v = ev.target.value;
+                    setKbId(v);
+                    window.localStorage.setItem(KB_STORAGE, v.trim());
+                  }}
                   placeholder="uuid"
                   required
                 />
+                <datalist id="web-kb-list">
+                  {kbOptions.map((k) => (
+                    <option key={k.id} value={k.id}>
+                      {k.name}
+                    </option>
+                  ))}
+                </datalist>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="ask-doc-types">文档类型（可选）</Label>

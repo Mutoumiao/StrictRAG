@@ -4,6 +4,8 @@ import {
   CreateKbBodySchema,
   type CreateKbResponse,
   type CompleteUploadResponse,
+  type KnowledgeBaseListItem,
+  type IngestJobListItem,
   type DocumentApprovalActionResponse,
   type DocumentScanEnqueueResponse,
   type PatchLifecycleResponse,
@@ -30,6 +32,9 @@ import {
   resolveDocumentChunkStrategy,
 } from '../../services/chunk-strategies.js';
 import { documentRepo } from '../../services/documents.js';
+import { ingestJobsRepo } from '../../services/ingest-jobs.js';
+import { selectVisibleKbs, toKbListItem } from '../../services/kb-list.js';
+import { DEV_DEFAULT_TENANT } from '../../services/members.js';
 import {
   isSensitiveCompleteBlocked,
   parseDataClassFromConfig,
@@ -50,6 +55,20 @@ import { effectiveMaxUploadBytes, getStorage } from '../../services/storage.js';
 import { toDetail, toListItem } from './mappers.js';
 
 export const documentRoutes = new Hono<{ Variables: ApiVariables }>();
+
+/** GET /api/v1/knowledge-bases — 身份可见库；enforce 关时列默认租户全量（可粘贴 uuid） */
+documentRoutes.get('/knowledge-bases', requirePermissionWhenEnforced('kb.list'), async (c) => {
+  const auth = c.get('auth');
+  const tenantId = auth?.tenantId ?? DEV_DEFAULT_TENANT;
+  const all = await documentRepo.listKbsByTenant(tenantId);
+  const bypass = !auth || roleBypassesKbMembership(auth.roles ?? []);
+  const memberKbIds = bypass
+    ? new Set<string>()
+    : new Set(await documentRepo.listMemberKbIds(auth.userId));
+  const visible = selectVisibleKbs({ all, memberKbIds, bypass });
+  const data: KnowledgeBaseListItem[] = visible.map(toKbListItem);
+  return ok(c, data);
+});
 
 /** POST /api/v1/knowledge-bases — AUTH_ENFORCE 时需 kb.create */
 documentRoutes.post('/knowledge-bases', requirePermissionWhenEnforced('kb.create'), async (c) => {
@@ -535,3 +554,18 @@ documentRoutes.get('/documents/:docId', requirePermissionWhenEnforced('doc.view'
   }
   return ok(c, toDetail(doc));
 });
+
+/** GET /api/v1/documents/:docId/ingest-jobs — 只读账本，不写 */
+documentRoutes.get(
+  '/documents/:docId/ingest-jobs',
+  requirePermissionWhenEnforced('doc.view'),
+  async (c) => {
+    const docId = c.req.param('docId');
+    const doc = await documentRepo.getDoc(docId);
+    if (!doc) {
+      return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
+    }
+    const data: IngestJobListItem[] = await ingestJobsRepo.listByDocId(docId);
+    return ok(c, data);
+  },
+);

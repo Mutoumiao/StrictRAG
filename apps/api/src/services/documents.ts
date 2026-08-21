@@ -1,4 +1,4 @@
-import { documents, formatLocalDateTime, knowledgeBases } from '@strict-rag/db';
+import { documents, formatLocalDateTime, kbMembers, knowledgeBases } from '@strict-rag/db';
 import { eq } from 'drizzle-orm';
 import { uuidv7 } from 'uuidv7';
 
@@ -15,6 +15,26 @@ export const documentRepo = {
       description: input.description,
     });
     return { id, ...input };
+  },
+
+  async listKbsByTenant(tenantId: string) {
+    return getDb()
+      .select({
+        id: knowledgeBases.id,
+        tenantId: knowledgeBases.tenantId,
+        name: knowledgeBases.name,
+        description: knowledgeBases.description,
+      })
+      .from(knowledgeBases)
+      .where(eq(knowledgeBases.tenantId, tenantId));
+  },
+
+  async listMemberKbIds(userId: string): Promise<string[]> {
+    const rows = await getDb()
+      .select({ kbId: kbMembers.kbId })
+      .from(kbMembers)
+      .where(eq(kbMembers.userId, userId));
+    return rows.map((r) => r.kbId);
   },
 
   async getKb(kbId: string) {

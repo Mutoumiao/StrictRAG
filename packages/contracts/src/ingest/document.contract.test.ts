@@ -4,6 +4,7 @@ import {
   CompleteUploadBodySchema,
   DocumentDetailSchema,
   DocumentListItemSchema,
+  KnowledgeBaseListItemSchema,
   PatchDocumentMetaBodySchema,
   VisibilityLevelSchema,
 } from './document.contract.js';
@@ -22,6 +23,29 @@ const DETAIL_BASE = {
   tenantId: '01900000-0000-7000-8000-000000000001',
   kbId: '01900000-0000-7000-8000-0000000000aa',
 };
+
+describe('KnowledgeBaseListItemSchema', () => {
+  it('accepts uuid list item with nullable description', () => {
+    expect(
+      KnowledgeBaseListItemSchema.safeParse({
+        id: '01900000-0000-7000-8000-0000000000aa',
+        tenantId: '01900000-0000-7000-8000-000000000001',
+        name: '演示库',
+        description: null,
+      }).success,
+    ).toBe(true);
+  });
+
+  it('rejects non-uuid id', () => {
+    expect(
+      KnowledgeBaseListItemSchema.safeParse({
+        id: 'kb-1',
+        tenantId: '01900000-0000-7000-8000-000000000001',
+        name: 'x',
+      }).success,
+    ).toBe(false);
+  });
+});
 
 describe('VisibilityLevelSchema', () => {
   it.each([10, 20, 30, 40] as const)('accepts %s', (level) => {

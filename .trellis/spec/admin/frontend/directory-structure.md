@@ -11,6 +11,7 @@ apps/admin/
     lib/
       http.ts                 # 传输层（Bearer / refresh / 重试）
       kb-context.ts           # 当前 KB 选择（localStorage）
+      kb-api.ts               # GET /knowledge-bases（壳下拉；失败仍可粘贴 uuid）
       map-biz-error.ts        # services 共用错误映射（无 path）
     auth/
       client-session.ts       # token 本地存储

@@ -19,6 +19,7 @@ apps/web/
       ask.ts                  # DefaultChatTransport（AI SDK，不自解析 SSE）
       sessions.ts
       feedback.ts
+      knowledge-bases.ts      # GET 身份可见库（ask 下拉；失败仍可粘贴 uuid）
     services/
       sessions.services.ts    # 会话列表/新建/历史回放编排（无 path）
     hooks/

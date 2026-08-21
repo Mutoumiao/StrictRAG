@@ -4,7 +4,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { render, screen, userEvent } from '@/test/test-utils';
+import { render, screen, userEvent, waitFor } from '@/test/test-utils';
 
 const me = {
   userId: 'u-admin',
@@ -45,12 +45,21 @@ vi.mock('@/auth/services', () => ({
   logoutLocal: vi.fn(),
 }));
 
+const listKnowledgeBases = vi.fn(async () => [
+  { id: 'kb-listed', tenantId: 't', name: '演示库' },
+]);
+vi.mock('@/lib/kb-api', () => ({
+  listKnowledgeBases: () => listKnowledgeBases(),
+}));
+
 import { AdminShell } from '@/components/admin-shell';
 
 describe('AdminShell', () => {
   beforeEach(() => {
     me.permissions = [];
     localStorage.clear();
+    listKnowledgeBases.mockReset();
+    listKnowledgeBases.mockResolvedValue([{ id: 'kb-listed', tenantId: 't', name: '演示库' }]);
   });
 
   it('按码裁剪菜单；无码无审批/数据面板；有 dashboard.view 出现「数据面板」', () => {
@@ -103,5 +112,35 @@ describe('AdminShell', () => {
     );
     await user.type(screen.getByPlaceholderText(/knowledge-base uuid/i), 'kb-abc');
     expect(localStorage.getItem('strict-rag:admin:last-kb-id')).toBe('kb-abc');
+  });
+
+  it('知识库 datalist 有可见库，仍可粘贴 uuid', async () => {
+    me.permissions = ['admin.shell', 'doc.view'];
+    render(
+      <AdminShell>
+        <div>child</div>
+      </AdminShell>,
+    );
+    await waitFor(() => {
+      expect(document.querySelector('#admin-kb-list option')?.getAttribute('value')).toBe(
+        'kb-listed',
+      );
+    });
+    expect(screen.getByPlaceholderText(/knowledge-base uuid/i)).toBeInTheDocument();
+  });
+
+  it('列表失败仍可粘贴 uuid', async () => {
+    listKnowledgeBases.mockRejectedValue(new Error('forbidden'));
+    me.permissions = ['admin.shell', 'doc.view'];
+    const user = userEvent.setup();
+    render(
+      <AdminShell>
+        <div>child</div>
+      </AdminShell>,
+    );
+    await waitFor(() => expect(listKnowledgeBases).toHaveBeenCalled());
+    expect(document.getElementById('admin-kb-list')?.querySelectorAll('option')).toHaveLength(0);
+    await user.type(screen.getByPlaceholderText(/knowledge-base uuid/i), 'kb-paste');
+    expect(localStorage.getItem('strict-rag:admin:last-kb-id')).toBe('kb-paste');
   });
 });

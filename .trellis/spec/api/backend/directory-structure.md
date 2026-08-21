@@ -45,7 +45,7 @@ apps/api/src/
     admin-write-audit.ts   # ARCH-P1b-2 管理写路径 Pino 操作日志（不落表）
   # secureHeaders / notFound 直接在 app.ts 内联
   services/
-    documents.ts · chunks.ts · chunk-strategies.ts  # B12 注册表
+    documents.ts · kb-list.ts · chunks.ts · chunk-strategies.ts  # B12 注册表
     members.ts · sessions.ts · feedback.ts · kb-settings.ts · model-gateway.ts
     platform-users-roles.ts · departments.ts · dashboard.ts
     db.ts · storage.ts · queue.ts

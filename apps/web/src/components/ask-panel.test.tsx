@@ -64,6 +64,11 @@ vi.mock('@/auth/services', () => ({
   logoutLocal: vi.fn(),
 }));
 
+const listKnowledgeBases = vi.fn(async () => [] as { id: string; tenantId: string; name: string }[]);
+vi.mock('@/api/knowledge-bases', () => ({
+  listKnowledgeBases: () => listKnowledgeBases(),
+}));
+
 import { AskPanel } from '@/components/ask-panel';
 
 describe('AskPanel', () => {
@@ -74,6 +79,8 @@ describe('AskPanel', () => {
     askMock.mockClear();
     resetMock.mockClear();
     localStorage.clear();
+    listKnowledgeBases.mockReset();
+    listKnowledgeBases.mockResolvedValue([]);
   });
 
   it('提交清空输入；error 重试用 lastQuestion', async () => {
@@ -106,5 +113,30 @@ describe('AskPanel', () => {
     expect(alert).toHaveTextContent(/不是系统崩溃/);
     expect(alert.className).toMatch(/abstain/);
     expect(screen.queryByText(/系统错误/)).not.toBeInTheDocument();
+  });
+
+  it('知识库 datalist 有可见库，选择后写入 last-kb-id', async () => {
+    const user = userEvent.setup();
+    listKnowledgeBases.mockResolvedValue([
+      { id: 'kb-listed', tenantId: 't', name: '演示库' },
+    ]);
+    render(<AskPanel />);
+    await waitFor(() => {
+      expect(document.querySelector('#web-kb-list option')?.getAttribute('value')).toBe(
+        'kb-listed',
+      );
+    });
+    await user.type(screen.getByLabelText('知识库 ID'), 'kb-paste');
+    expect(localStorage.getItem('strict-rag:web:last-kb-id')).toBe('kb-paste');
+  });
+
+  it('列表失败仍可粘贴 uuid', async () => {
+    const user = userEvent.setup();
+    listKnowledgeBases.mockRejectedValue(new Error('forbidden'));
+    render(<AskPanel />);
+    await waitFor(() => expect(listKnowledgeBases).toHaveBeenCalled());
+    expect(document.getElementById('web-kb-list')?.querySelectorAll('option')).toHaveLength(0);
+    await user.type(screen.getByLabelText('知识库 ID'), 'kb-uuid');
+    expect(localStorage.getItem('strict-rag:web:last-kb-id')).toBe('kb-uuid');
   });
 });

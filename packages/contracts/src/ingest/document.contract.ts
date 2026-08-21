@@ -32,6 +32,15 @@ export const CreateKbResponseSchema = z.object({
 });
 export type CreateKbResponse = z.infer<typeof CreateKbResponseSchema>;
 
+/** GET /knowledge-bases 列表项（身份可见库） */
+export const KnowledgeBaseListItemSchema = z.object({
+  id: z.string().uuid(),
+  tenantId: z.string().uuid(),
+  name: z.string(),
+  description: z.string().nullable().optional(),
+});
+export type KnowledgeBaseListItem = z.infer<typeof KnowledgeBaseListItemSchema>;
+
 export const UploadUrlBodySchema = z.object({
   title: z.string().min(1).max(500),
   contentType: z.string().min(1).max(200),

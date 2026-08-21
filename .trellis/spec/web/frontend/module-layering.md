@@ -19,6 +19,7 @@ apps/web/src/
     ask.ts                # transport 装配（无业务 path 外泄到 UI）
     sessions.ts
     feedback.ts
+    knowledge-bases.ts    # GET 身份可见库
   hooks/
     use-knowledge-ask.ts  # React 绑定 + 流式状态机（深）
   components/             # 壳 + 页面级 UI（体量小时可暂不 _features）
