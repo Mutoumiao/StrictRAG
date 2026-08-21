@@ -1,7 +1,9 @@
 import {
   BizCode,
   PatchKbSettingsBodySchema,
+  PutPlatformBindingsBodySchema,
   type KbSettings,
+  type PlatformBindings,
   type QualitySnapshot,
 } from '@strict-rag/contracts';
 import { Hono } from 'hono';
@@ -20,6 +22,12 @@ import {
   mergeKbSettingsPatch,
   type KbSettingsRepo,
 } from '../services/kb-settings.js';
+import {
+  bindingsToMap,
+  modelGatewayRepo,
+  resolveTenantId,
+  validatePlatformBindings,
+} from '../services/model-gateway.js';
 
 export type KbSettingsRouteDeps = {
   repo?: KbSettingsRepo;
@@ -106,6 +114,45 @@ export function createKbSettingsRoutes(
 
     const data: KbSettings = buildKbSettingsView({ row: updated, quality: qualityOf() });
     return ok(c, data);
+  });
+
+  routes.get('/knowledge-bases/:kbId/model-bindings', write, async (c) => {
+    const kbId = c.req.param('kbId');
+    const row = await repo.get(kbId);
+    if (!row) {
+      return fail(c, BizCode.NOT_FOUND, 'knowledge base not found', 404);
+    }
+    const tenantId = resolveTenantId(c.get('auth')?.tenantId);
+    const rows = await modelGatewayRepo.listKbBindings(tenantId, kbId);
+    const data: { bindings: PlatformBindings } = { bindings: bindingsToMap(rows) };
+    return ok(c, data);
+  });
+
+  routes.put('/knowledge-bases/:kbId/model-bindings', write, async (c) => {
+    const kbId = c.req.param('kbId');
+    const raw = await c.req.json().catch(() => ({}));
+    const parsed = PutPlatformBindingsBodySchema.safeParse(raw);
+    if (!parsed.success) {
+      return fail(c, BizCode.VALIDATION_ERROR, 'invalid body', 400, parsed.error.flatten());
+    }
+    const row = await repo.get(kbId);
+    if (!row) {
+      return fail(c, BizCode.NOT_FOUND, 'knowledge base not found', 404);
+    }
+    const auth = c.get('auth');
+    const tenantId = resolveTenantId(auth?.tenantId);
+    const providers = await modelGatewayRepo.listProviders(tenantId);
+    const check = validatePlatformBindings(providers, parsed.data.bindings);
+    if (!check.ok) {
+      return fail(c, BizCode.VALIDATION_ERROR, check.message, 400);
+    }
+    const bindRows = Object.entries(parsed.data.bindings).map(([purpose, b]) => ({
+      purpose,
+      primaryRef: b.primary,
+      fallbackRefs: b.fallbacks ?? [],
+    }));
+    const saved = await modelGatewayRepo.replaceKbBindings(tenantId, kbId, bindRows, auth?.userId);
+    return ok(c, { bindings: bindingsToMap(saved) });
   });
 
   return routes;

@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { AskMode, DataClass, KbSettings } from '@strict-rag/contracts';
+import { IMPLEMENTED_CHUNK_STRATEGIES } from '@strict-rag/contracts';
 import { Button } from '@strict-rag/ui/components/ui/button';
 import { Input } from '@strict-rag/ui/components/ui/input';
 import { Label } from '@strict-rag/ui/components/ui/label';
@@ -16,7 +17,13 @@ import { Label } from '@strict-rag/ui/components/ui/label';
 import { useAdminAuth } from '@/components/auth-guard';
 import { readStoredKbId } from '@/lib/kb-context';
 
-import { loadKbSettings, saveKbSettings } from '../services';
+import {
+  loadKbBindings,
+  loadKbSettings,
+  parseDocTypesInput,
+  saveKbBindings,
+  saveKbSettings,
+} from '../services';
 
 const ALL_MODES: AskMode[] = ['strict', 'balanced', 'fast'];
 const DATA_CLASSES: DataClass[] = ['internal', 'sensitive'];
@@ -34,6 +41,9 @@ export function SettingsWorkspace() {
   const [dataClass, setDataClass] = useState<DataClass>('internal');
   const [deptInheritDown, setDeptInheritDown] = useState(true);
   const [deptAclEnforce, setDeptAclEnforce] = useState(false);
+  const [docTypesInput, setDocTypesInput] = useState('');
+  const [embedRef, setEmbedRef] = useState('');
+  const [loadedEmbedRef, setLoadedEmbedRef] = useState('');
   const [state, setState] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -48,6 +58,7 @@ export function SettingsWorkspace() {
     setDataClass(s.dataClass ?? 'internal');
     setDeptInheritDown(s.deptInheritDown ?? true);
     setDeptAclEnforce(s.deptAclEnforce ?? false);
+    setDocTypesInput((s.docTypes ?? []).join(', '));
   }, []);
 
   const load = useCallback(async () => {
@@ -73,6 +84,12 @@ export function SettingsWorkspace() {
       return;
     }
     applySettings(result.settings);
+    const binds = await loadKbBindings(id);
+    if (binds.ok) {
+      const primary = binds.bindings.embed?.primary ?? '';
+      setEmbedRef(primary);
+      setLoadedEmbedRef(primary);
+    }
     setState('ready');
   }, [canWrite, applySettings]);
 
@@ -102,15 +119,28 @@ export function SettingsWorkspace() {
     setFlash(null);
     const loadedInherit = settings?.deptInheritDown ?? true;
     const loadedEnforce = settings?.deptAclEnforce ?? false;
+    const loadedTypes = (settings?.docTypes ?? []).join(', ');
     const result = await saveKbSettings(id, {
       name: name.trim(),
       description: description.trim() || null,
       allowedModes,
       defaultMode,
       dataClass,
+      ...(docTypesInput !== loadedTypes ? { docTypes: parseDocTypesInput(docTypesInput) } : {}),
       ...(deptInheritDown !== loadedInherit ? { deptInheritDown } : {}),
       ...(deptAclEnforce !== loadedEnforce ? { deptAclEnforce } : {}),
     });
+    if (result.ok && embedRef.trim() !== loadedEmbedRef) {
+      const bindRes = embedRef.trim()
+        ? await saveKbBindings(id, { bindings: { embed: { primary: embedRef.trim() } } })
+        : await saveKbBindings(id, { bindings: {} });
+      if (!bindRes.ok) {
+        setFlash(bindRes.message);
+        setBusy(false);
+        return;
+      }
+      setLoadedEmbedRef(embedRef.trim());
+    }
     if (result.ok) {
       applySettings(result.settings);
       setFlash(result.text);
@@ -260,6 +290,37 @@ export function SettingsWorkspace() {
                 ))}
               </select>
             </div>
+          </section>
+
+          <section className="space-y-3 rounded-lg border border-border p-4">
+            <h2 className="text-sm font-semibold">文档类型</h2>
+            <Input
+              id="kb-doc-types"
+              value={docTypesInput}
+              onChange={(e) => setDocTypesInput(e.target.value)}
+              placeholder="hr, legal；空=不限制"
+            />
+            <p className="text-xs text-muted-foreground">写入 KB 允许的 docTypes；空数组清除限制。</p>
+          </section>
+
+          <section className="space-y-3 rounded-lg border border-border p-4">
+            <h2 className="text-sm font-semibold">分片策略</h2>
+            <p className="text-sm font-mono">{IMPLEMENTED_CHUNK_STRATEGIES.join(', ')}</p>
+            <p className="text-xs text-muted-foreground">
+              可写策略仅上述已实现码。complete/reindex 才落文档策略；禁止因本页自动切换旧文档。
+            </p>
+          </section>
+
+          <section className="space-y-3 rounded-lg border border-border p-4">
+            <h2 className="text-sm font-semibold">KB 模型绑定</h2>
+            <Label htmlFor="kb-embed-ref">embed primary（providerId#model）</Label>
+            <Input
+              id="kb-embed-ref"
+              value={embedRef}
+              onChange={(e) => setEmbedRef(e.target.value)}
+              placeholder="未改不提交"
+            />
+            <p className="text-xs text-muted-foreground">密钥不在本页。空=清除本库 embed 覆盖。</p>
           </section>
 
           <section className="space-y-2 rounded-lg border border-border bg-muted/30 p-4">

@@ -91,6 +91,12 @@ export type ModelGatewayRepo = {
     rows: Array<{ purpose: string; primaryRef: string; fallbackRefs: string[] }>,
     updatedBy?: string,
   ): Promise<BindingRow[]>;
+  replaceKbBindings(
+    tenantId: string,
+    kbId: string,
+    rows: Array<{ purpose: string; primaryRef: string; fallbackRefs: string[] }>,
+    updatedBy?: string,
+  ): Promise<BindingRow[]>;
 };
 function toModels(items: ModelItem[]): ModelProviderModelRow[] {
   return items.map((m) => ({
@@ -351,6 +357,23 @@ export function createMemoryModelGatewayRepo(
       void now;
       return created.map((b) => ({ ...b, fallbackRefs: [...b.fallbackRefs] }));
     },
+    async replaceKbBindings(tenantId, kbId, rows, updatedBy) {
+      bindings = bindings.filter(
+        (b) => !(b.tenantId === tenantId && b.scope === 'kb' && b.scopeId === kbId),
+      );
+      const created: BindingRow[] = rows.map((r) => ({
+        id: uuidv7(),
+        tenantId,
+        scope: 'kb',
+        scopeId: kbId,
+        purpose: r.purpose,
+        primaryRef: r.primaryRef,
+        fallbackRefs: r.fallbackRefs,
+      }));
+      for (const c of created) bindings.push(c);
+      void updatedBy;
+      return created.map((b) => ({ ...b, fallbackRefs: [...b.fallbackRefs] }));
+    },
   };
 }
 
@@ -504,6 +527,32 @@ export const modelGatewayRepo: ModelGatewayRepo = {
     }));
     await db.insert(modelBindings).values(values);
     return this.listPlatformBindings(tenantId);
+  },
+  async replaceKbBindings(tenantId, kbId, rows, updatedBy) {
+    const db = getDb();
+    await db
+      .delete(modelBindings)
+      .where(
+        and(
+          eq(modelBindings.tenantId, tenantId),
+          eq(modelBindings.scope, 'kb'),
+          eq(modelBindings.scopeId, kbId),
+        ),
+      );
+    if (rows.length === 0) return [];
+    const values = rows.map((r) => ({
+      id: uuidv7(),
+      tenantId,
+      scope: 'kb' as const,
+      scopeId: kbId,
+      purpose: r.purpose,
+      primaryRef: r.primaryRef,
+      fallbackRefs: r.fallbackRefs,
+      createdBy: updatedBy,
+      updatedBy,
+    }));
+    await db.insert(modelBindings).values(values);
+    return this.listKbBindings(tenantId, kbId);
   },
 };
 

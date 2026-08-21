@@ -4,11 +4,11 @@
  * 知识库设置用例：加载 / 保存（无 path；不做权限决策）。
  */
 
-import type { KbSettings, PatchKbSettingsBody } from '@strict-rag/contracts';
+import type { KbSettings, PatchKbSettingsBody, PlatformBindings, PutPlatformBindingsBody } from '@strict-rag/contracts';
 
 import { mapBizError } from '@/lib/map-biz-error';
 
-import { getKbSettings, patchKbSettings } from './api';
+import { getKbModelBindings, getKbSettings, patchKbSettings, putKbModelBindings } from './api';
 
 export type LoadSettingsResult =
   | { ok: true; settings: KbSettings }
@@ -38,3 +38,30 @@ export async function saveKbSettings(
     return { ok: false, message: mapBizError(err) };
   }
 }
+
+export function parseDocTypesInput(raw: string): string[] {
+  return raw
+    .split(/[,，\s]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+export async function loadKbBindings(kbId: string) {
+  try {
+    const data = await getKbModelBindings(kbId);
+    return { ok: true as const, bindings: data.bindings };
+  } catch (err) {
+    return { ok: false as const, message: mapBizError(err) };
+  }
+}
+
+export async function saveKbBindings(kbId: string, body: PutPlatformBindingsBody) {
+  try {
+    const data = await putKbModelBindings(kbId, body);
+    return { ok: true as const, bindings: data.bindings };
+  } catch (err) {
+    return { ok: false as const, message: mapBizError(err) };
+  }
+}
+
+export type { PlatformBindings };

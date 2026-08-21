@@ -25,10 +25,19 @@ vi.mock('@/components/auth-guard', () => ({
   }),
 }));
 
-vi.mock('../services', () => ({
-  loadKbSettings: (...args: unknown[]) => loadKbSettings(...args),
-  saveKbSettings: (...args: unknown[]) => saveKbSettings(...args),
-}));
+const loadKbBindings = vi.fn();
+const saveKbBindings = vi.fn();
+
+vi.mock('../services', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../services')>();
+  return {
+    ...actual,
+    loadKbSettings: (...args: unknown[]) => loadKbSettings(...args),
+    saveKbSettings: (...args: unknown[]) => saveKbSettings(...args),
+    loadKbBindings: (...args: unknown[]) => loadKbBindings(...args),
+    saveKbBindings: (...args: unknown[]) => saveKbBindings(...args),
+  };
+});
 
 import { SettingsWorkspace } from './settings-workspace';
 
@@ -53,6 +62,9 @@ describe('SettingsWorkspace', () => {
     me.permissions = [];
     loadKbSettings.mockReset();
     saveKbSettings.mockReset();
+    loadKbBindings.mockReset();
+    saveKbBindings.mockReset();
+    loadKbBindings.mockResolvedValue({ ok: true, bindings: {} });
     localStorage.clear();
   });
 
