@@ -43,6 +43,7 @@ import {
   saveDocumentMeta,
   type LoadDepartmentOptionsResult,
 } from '../meta.services';
+import { uploadAdminDocument } from '../upload.services';
 
 const VISIBILITY_LEVELS: VisibilityLevel[] = [10, 20, 30, 40];
 
@@ -55,6 +56,7 @@ export function DocumentsWorkspace() {
   const { me } = useAdminAuth();
   const canView = me.permissions.includes('doc.view');
   const canEdit = me.permissions.includes('doc.editor');
+  const canUpload = me.permissions.includes('doc.upload');
   const canManageDept = me.permissions.includes('dept.manage');
   const [rows, setRows] = useState<DocumentListItem[]>([]);
   const [state, setState] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle');
@@ -76,6 +78,8 @@ export function DocumentsWorkspace() {
   const [saveOk, setSaveOk] = useState(false);
   const [deptOptions, setDeptOptions] = useState<Department[] | null>(null);
   const [deptOptionsError, setDeptOptionsError] = useState<string | null>(null);
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const openIdRef = useRef<string | null>(null);
   const deptOptionsCache = useRef<Department[] | null>(null);
   const deptOptionsInflight = useRef<Promise<LoadDepartmentOptionsResult> | null>(null);
@@ -164,6 +168,21 @@ export function DocumentsWorkspace() {
     setDetailState('ready');
   }
 
+  async function onPickFile(file: File | undefined) {
+    const id = readStoredKbId().trim();
+    if (!file || !id || !canUpload) return;
+    setUploadBusy(true);
+    setUploadMessage(null);
+    const result = await uploadAdminDocument(id, file);
+    if (result.ok) {
+      setUploadMessage('已上传，待审批');
+      await load();
+    } else {
+      setUploadMessage(result.message);
+    }
+    setUploadBusy(false);
+  }
+
   async function onSave() {
     if (!openId) return;
     const docId = openId;
@@ -194,10 +213,28 @@ export function DocumentsWorkspace() {
     <div>
       <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="m-0 text-lg font-semibold">文档</h1>
-        <Button type="button" variant="outline" size="sm" onClick={() => void load()}>
-          刷新
-        </Button>
+        <div className="flex items-center gap-2">
+          {canUpload ? (
+            <label className="text-sm">
+              <span className="sr-only">上传文档</span>
+              <input
+                type="file"
+                className="text-xs"
+                disabled={uploadBusy || !kbId}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = '';
+                  void onPickFile(f);
+                }}
+              />
+            </label>
+          ) : null}
+          <Button type="button" variant="outline" size="sm" onClick={() => void load()}>
+            刷新
+          </Button>
+        </div>
       </div>
+      {uploadMessage ? <p className="mb-2 text-sm text-muted-foreground">{uploadMessage}</p> : null}
       <p className="mb-4 text-xs text-muted-foreground">
         稀疏就绪是适配层/mock 标志，≠ 生产 ES。
       </p>

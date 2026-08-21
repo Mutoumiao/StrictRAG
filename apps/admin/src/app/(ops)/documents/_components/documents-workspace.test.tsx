@@ -43,6 +43,11 @@ vi.mock('../meta.services', () => ({
   loadDepartmentOptions: (...args: unknown[]) => loadDepartmentOptions(...args),
 }));
 
+const uploadAdminDocument = vi.fn();
+vi.mock('../upload.services', () => ({
+  uploadAdminDocument: (...args: unknown[]) => uploadAdminDocument(...args),
+}));
+
 import { deptLabel, readyColLabel, visibilityLabel } from '../list.services';
 import { DocumentsWorkspace } from './documents-workspace';
 
@@ -98,6 +103,7 @@ describe('DocumentsWorkspace', () => {
     loadDocumentDetail.mockReset();
     saveDocumentMeta.mockReset();
     loadDepartmentOptions.mockReset();
+    uploadAdminDocument.mockReset();
     localStorage.clear();
   });
 
@@ -485,6 +491,18 @@ describe('readyColLabel', () => {
   it('true 就绪；false 未就绪', () => {
     expect(readyColLabel(true)).toBe('就绪');
     expect(readyColLabel(false)).toBe('未就绪');
+  });
+
+  it('有 doc.upload 才显示文件选择', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', 'kb-1');
+    me.permissions = ['admin.shell', 'doc.view'];
+    loadDocumentList.mockResolvedValue({ ok: true, rows: [listDoc] });
+    const { rerender } = render(<DocumentsWorkspace />);
+    await screen.findByText('请假制度');
+    expect(document.querySelector('input[type="file"]')).toBeNull();
+    me.permissions = ['admin.shell', 'doc.view', 'doc.upload'];
+    rerender(<DocumentsWorkspace />);
+    expect(document.querySelector('input[type="file"]')).not.toBeNull();
   });
 });
 
