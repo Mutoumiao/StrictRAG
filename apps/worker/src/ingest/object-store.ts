@@ -46,13 +46,16 @@ async function bodyToBuffer(body: unknown): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
-export async function readObjectText(cfg: ObjectStoreConfig, objectKey: string | null): Promise<string> {
-  if (!objectKey) return '';
+export async function readObjectBytes(
+  cfg: ObjectStoreConfig,
+  objectKey: string | null,
+): Promise<Buffer> {
+  if (!objectKey) return Buffer.alloc(0);
   if (cfg.mode !== 's3') {
     try {
-      return await readFile(localPath(cfg, objectKey), 'utf8');
+      return await readFile(localPath(cfg, objectKey));
     } catch {
-      return '';
+      return Buffer.alloc(0);
     }
   }
   const client = s3Client(cfg);
@@ -60,13 +63,17 @@ export async function readObjectText(cfg: ObjectStoreConfig, objectKey: string |
     const out = await client.send(
       new GetObjectCommand({ Bucket: cfg.bucket, Key: objectKey }),
     );
-    const buf = await bodyToBuffer(out.Body);
-    return buf.toString('utf8');
+    return await bodyToBuffer(out.Body);
   } catch {
-    return '';
+    return Buffer.alloc(0);
   } finally {
     client.destroy();
   }
+}
+
+export async function readObjectText(cfg: ObjectStoreConfig, objectKey: string | null): Promise<string> {
+  const buf = await readObjectBytes(cfg, objectKey);
+  return buf.toString('utf8');
 }
 
 export async function deleteObject(cfg: ObjectStoreConfig, objectKey: string | null): Promise<void> {

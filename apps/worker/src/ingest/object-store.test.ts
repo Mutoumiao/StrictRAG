@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { readObjectText, storeConfigFromEnv } from './object-store.js';
+import { readObjectBytes, readObjectText, storeConfigFromEnv } from './object-store.js';
 
 describe('object-store local', () => {
   it('reads utf8 object', async () => {
@@ -23,6 +23,25 @@ describe('object-store local', () => {
       key,
     );
     expect(text).toBe('对象正文');
+  });
+
+  it('reads raw bytes without utf8 reinterpret', async () => {
+    const dir = path.join(os.tmpdir(), `sr-obj-bin-${Date.now()}`);
+    await mkdir(dir, { recursive: true });
+    const key = 'kb/x/docs/y/z.bin';
+    const full = path.join(dir, 'strict-rag', key);
+    await mkdir(path.dirname(full), { recursive: true });
+    const bytes = Buffer.from([0x00, 0xff, 0xfe, 0x80, 0x25, 0x50, 0x44, 0x46]);
+    await writeFile(full, bytes);
+    const buf = await readObjectBytes(
+      {
+        mode: 'local',
+        localDir: dir,
+        bucket: 'strict-rag',
+      },
+      key,
+    );
+    expect(buf.equals(bytes)).toBe(true);
   });
 
   it('missing key returns empty', async () => {

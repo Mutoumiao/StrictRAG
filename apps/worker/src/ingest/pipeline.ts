@@ -31,9 +31,10 @@ import {
   sparseTextForChunk,
 } from './es-http.js';
 import { mockEsStore } from './es-store.js';
+import { decodeUtf8Text, hasUtf8TextLayer } from './extract-text.js';
 import { recordStageEnd, recordStageStart } from './job-ledger.js';
 import { localMongoDocId, upsertDocumentBody } from './mongo-body.js';
-import { deleteObject, readObjectText, storeConfigFromEnv } from './object-store.js';
+import { deleteObject, readObjectBytes, storeConfigFromEnv } from './object-store.js';
 
 /** 阶段结果：errorCode 供 worker 接 BullMQ retry / Unrecoverable */
 export type IngestStageResult = {
@@ -63,8 +64,8 @@ function resolveLedgerIndexVersion(
   return result.next?.indexVersion ?? data.indexVersion ?? doc.indexVersion ?? null;
 }
 
-async function loadObjectText(objectKey: string | null): Promise<string> {
-  return readObjectText(storeConfigFromEnv(env), objectKey);
+async function loadObjectBytes(objectKey: string | null): Promise<Buffer> {
+  return readObjectBytes(storeConfigFromEnv(env), objectKey);
 }
 
 async function setDoc(
@@ -228,7 +229,19 @@ async function runIngestStageCore(
 
     case 'parse': {
       await setDoc(data.docId, { status: 'parsing' });
-      const text = (await loadObjectText(doc.objectKey)).trim();
+      // 非 txt/md 先拒，避免把 PDF 等二进制读成 UTF-8
+      if (!hasUtf8TextLayer(doc.contentType, doc.objectKey)) {
+        await setDoc(data.docId, {
+          status: 'needs_ocr',
+          errorCode: 'NO_TEXT_LAYER',
+          errorMessage: `no utf8 text layer for ${doc.contentType ?? doc.objectKey ?? 'object'}`,
+          parsedText: null,
+          extractMethod: 'none',
+        });
+        log.warn('needs_ocr — not txt/md');
+        return failStage('NO_TEXT_LAYER');
+      }
+      const text = decodeUtf8Text(await loadObjectBytes(doc.objectKey)).trim();
       if (text.length < env.INGEST_MIN_EXTRACTED_CHARS) {
         await setDoc(data.docId, {
           status: 'needs_ocr',

@@ -11,7 +11,7 @@
 | 逻辑 stage | 状态 | 源码锚点 | 行为摘要 | 明确未做 |
 |------------|:----:|----------|----------|----------|
 | **scan** | **stub** | `pipeline` `case 'scan'` · `scan-mode-policy` | mock_clean / mock_infected / off；`on` 拒 | 真 ClamAV（QUAL-2） |
-| **parse** | **stub** | `loadObjectText` + 字数闸 | 本地目录读 UTF-8 文本；不足 → `needs_ocr`；有 `MONGODB_URL` 写 `document_bodies`（`upsertDocumentBody`） | OCR · 复杂版式 |
+| **parse** | **stub** | `extract-text` + `loadObjectBytes` + 字数闸 | 仅 UTF-8 **txt/md** 当文本层；其它无文本层 / 过短 → `needs_ocr` + `NO_TEXT_LAYER`；有 `MONGODB_URL` 写 `document_bodies`（`upsertDocumentBody`） | OCR · PDF 文本层（HALF-PDF）· 复杂版式 |
 | **chunk** | **done\*** | `splitByChunkStrategy` · manifests | 仅 `structure_paragraph`；幂等 resume（X-04-impl） | 多策略切分器；结构感知进阶 |
 | **embed** | **stub** | `INGEST_EMBED_MODE` mock\|fail | 伪向量 dims=8；同 version skip 已有行 | 真 embedding 网关 |
 | **es_index** | **stub** | `mockEsStore` · `INGEST_ES_MODE` | 进程内 Map 对账；无 live 枚举 | 真 ES+IK bulk（B8） |
@@ -74,7 +74,7 @@ api.enqueue({ docId, stage: 'scan', indexVersion? })
 | **PG `documents`** | api（上传/审批/元数据）· **worker**（状态机字段） | api 检索闸 / 列表 | Drizzle `@strict-rag/db` | **真 PG**（联调依赖） |
 | **PG `chunks` / `chunk_manifests` / `chunk_embeddings`** | **worker** 入库 | api retrieve / chunks 只读 | 同上 | **真 PG** |
 | **PG `ingest_jobs`** | **worker** `job-ledger` | 运维（尚无 HTTP） | stage 边界最小写 | PG 真表；查询面仍欠 |
-| **本地对象 / S3 位** | api 上传写文件 | worker `loadObjectText` | `STORAGE_LOCAL_DIR` + `S3_BUCKET` 路径拼接 | **本地目录**；非真 RustFS |
+| **本地对象 / S3 位** | api 上传写文件 | worker `loadObjectBytes` | `STORAGE_LOCAL_DIR` + `S3_BUCKET` 路径拼接 | **本地目录**；非真 RustFS |
 | **Mongo 正文** | （目标 parse） | （目标） | 仅写 `mongoDocId=local:{docId}` 标记 | **无**真 Mongo 客户端 |
 | **ES 稀疏索引** | **worker** `es_index` | api `RETRIEVE_ES_MODE=http`（可选） | worker：`mockEsStore`；api 侧另有 ES 客户端切片 | worker **仅 mock\|fail** |
 | **Redis 队列 + doc 锁** | api 入队 · worker 持锁 | worker BullMQ / `doc-lock` | `sr-ingest` · `sr:ingest:doc-lock:{docId}` | **真 Redis**；锁=最小 SET NX |
