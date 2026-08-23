@@ -47,8 +47,8 @@ pnpm --filter @strict-rag/contracts test -- -t 'R[0-9]+:'
 | `scripts/seed-demo.test.mjs` | demo 种子脚本契约 |
 
 这些文件护的是仓库根 `scripts/*.mjs` 本身，不进入某个 app 的 `tests/<能力>/`。  
-包内 `src/scripts/*.test.ts`（如 L1 CLI）是能力测，迁徙时进对应包的 `eval/` 等目录。
+包内脚本测（如 L1 CLI）是能力测，现行落在对应包的 `tests/eval/` 等目录。
 
-## 现状（过渡）
+## 现状
 
-现行路径是 `<包>/tests/<能力>/`。大量历史测例仍在 `src/**/*.test.*`，以各包 index 的 **待处理** 表为准。新测例禁止再写入 `src/` 旁。禁止在修 bug 的同一变更里拆混居待处理文件。各包 `pnpm test` 先跑全量存货闸（漏行即红）；apps 额外跑夹具。审阅冻结见 `.trellis/spec/guides/testing.md` §12。
+现行路径是 `<包>/tests/<能力>/`。Vitest 只收集 `tests/**`。文件头目标/简介必须简体中文。新测例禁止写入 `src/` 旁。各包 `pnpm test` 先跑全量存货闸（漏行即红）；apps 额外跑夹具。HOW 与迁徙口径见 `.trellis/spec/guides/testing.md`。
