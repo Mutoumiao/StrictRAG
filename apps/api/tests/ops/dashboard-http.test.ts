@@ -1,12 +1,19 @@
+/**
+ * 目标：面板 summary HTTP 按 B6 返回聚合。
+ * 需求：B6
+ * 被测：createDashboardRoutes
+ * 简介：面板 summary HTTP。
+ */
+
 import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 
-import { attachAuthMiddleware, type AuthVariables } from '../auth/middleware.js';
-import { issueTokenPair } from '../auth/identity/token-service.js';
-import { requestIdMiddleware } from '../middleware/request-id.js';
-import { createMemoryDashboardRepo } from '../services/dashboard.js';
-import { createDashboardRoutes } from './dashboard.js';
+import { attachAuthMiddleware, type AuthVariables } from '../../src/auth/middleware.js';
+import { issueTokenPair } from '../../src/auth/identity/token-service.js';
+import { requestIdMiddleware } from '../../src/middleware/request-id.js';
+import { createMemoryDashboardRepo } from '../../src/services/dashboard.js';
+import { createDashboardRoutes } from '../../src/routes/dashboard.js';
 
 async function token(roles: string[], userId = uuidv7()) {
   const pair = await issueTokenPair({

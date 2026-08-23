@@ -20,6 +20,7 @@
 | `obs/` | 指标、限流、写审计 | ARCH-P2-4 · ARCH-P1b-2 |
 | `env/` | env、health/ready、OpenAPI | P0 骨架 |
 | `docs-guard/` | 交付文档护栏 | 控制台 §0.5 |
+| `ops/` | 数据面板 HTTP | B6 |
 
 ## 测例
 
@@ -100,33 +101,10 @@
 | `obs/metrics.test.ts` | ask/llm/rerank 指标必须可按标签聚合。 | ARCH-P2-4 | `recordAskResult / recordLlmCall / recordRerank / metricGet` | 按标签聚合 ask / llm / rerank 计数。 | 现行 |
 | `obs/rate-limit.test.ts` | 超限必须返回 429 RATE_LIMITED。 | ARCH-P2-4 | `checkFixedWindowRateLimit / POST ask 429` | 超限返回 429 RATE_LIMITED；ask 路由走同一闸。 | 现行 |
 | `obs/tracer.test.ts` | memory tracer 记录主链 span，executeAsk 接线不得丢 span。 | ARCH-P2-4 | `createMemoryTracer / executeAsk` | 内存 tracer 记下主链 span；executeAsk 接线不得丢 span。 | 现行 |
+| `ops/dashboard-http.test.ts` | 面板 summary HTTP 按 B6 返回聚合。 | B6 | `createDashboardRoutes` | 面板 summary HTTP。 | 现行 |
 | `sessions/http.test.ts` | 会话壳 HTTP 在 rewrite 默认关闭下可用。 | rewrite 默认关 | `createSessionRoutes` | 会话壳 HTTP。 | 现行 |
 | `sessions/session-window.test.ts` | 近窗裁剪后历史不得当作 citation。 | 历史≠evidence | `clipSessionWindow / resolveBackReference` | 不把历史当 citation。 | 现行 |
 
 ## 待处理
 
-### ask
-
-| 文件 | 目标 | 需求锚点 | 简介 | 状态 |
-|------|------|----------|------|------|
-
-### ingest
-
-| 文件 | 目标 | 需求锚点 | 简介 | 状态 |
-|------|------|----------|------|------|
-
-### auth / acl
-
-| 文件 | 目标 | 需求锚点 | 简介 | 状态 |
-|------|------|----------|------|------|
-
-### kb / sessions / feedback / gateway
-
-| 文件 | 目标 | 需求锚点 | 简介 | 状态 |
-|------|------|----------|------|------|
-
-### eval / obs / env
-
-| 文件 | 目标 | 需求锚点 | 简介 | 状态 |
-|------|------|----------|------|------|
-| `../src/routes/dashboard.test.ts` | 面板 summary HTTP | B6 | | 待处理 |
+（无。`src/` 下已无 `*.test.ts(x)`。）
