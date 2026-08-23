@@ -1,3 +1,10 @@
+/**
+ * 目标：分片只读查询返回 preview/body 契约。
+ * 需求：ADR-052 · B1
+ * 被测：buildPreview / buildBody
+ * 简介：分片只读查询。
+ */
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -7,7 +14,7 @@ import {
   CHUNK_PREVIEW_MAX,
   truncateUtf8ByBytes,
   type ChunkRow,
-} from './chunks.js';
+} from '../../src/services/chunks.js';
 
 function row(partial: Partial<ChunkRow> & Pick<ChunkRow, 'id'>): ChunkRow {
   return {

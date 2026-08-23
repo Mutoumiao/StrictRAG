@@ -1,10 +1,17 @@
+/**
+ * 目标：文档元数据 PATCH 正确处理部门两字段。
+ * 需求：P3b-META
+ * 被测：documents meta PATCH
+ * 简介：部门两字段。
+ */
+
 import { Hono } from 'hono';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 
-import { issueTokenPair } from '../../auth/identity/token-service.js';
-import { attachAuthMiddleware, type AuthVariables } from '../../auth/middleware.js';
-import { requestIdMiddleware } from '../../middleware/request-id.js';
+import { issueTokenPair } from '../../src/auth/identity/token-service.js';
+import { attachAuthMiddleware, type AuthVariables } from '../../src/auth/middleware.js';
+import { requestIdMiddleware } from '../../src/middleware/request-id.js';
 
 const DOC = '01900000-0000-7000-8000-0000000000d1';
 const KB = '01900000-0000-7000-8000-0000000000aa';
@@ -44,7 +51,7 @@ function mockRow() {
   };
 }
 
-vi.mock('../../services/documents.js', () => ({
+vi.mock('../../src/services/documents.js', () => ({
   documentRepo: {
     getDoc: async (id: string) => (id === DOC && docState.exists ? mockRow() : null),
     patchMeta: async (
@@ -58,7 +65,7 @@ vi.mock('../../services/documents.js', () => ({
   },
 }));
 
-const { documentRoutes } = await import('./index.js');
+const { documentRoutes } = await import('../../src/routes/documents/index.js');
 
 async function token(roles: string[] = ['kb_admin']) {
   const pair = await issueTokenPair({

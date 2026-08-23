@@ -1,10 +1,17 @@
+/**
+ * 目标：reindex 必须显式策略；未实现返回 400。
+ * 需求：B12
+ * 被测：documents reindex
+ * 简介：未实现 400。
+ */
+
 import { Hono } from 'hono';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 
-import { issueTokenPair } from '../../auth/identity/token-service.js';
-import { attachAuthMiddleware, type AuthVariables } from '../../auth/middleware.js';
-import { requestIdMiddleware } from '../../middleware/request-id.js';
+import { issueTokenPair } from '../../src/auth/identity/token-service.js';
+import { attachAuthMiddleware, type AuthVariables } from '../../src/auth/middleware.js';
+import { requestIdMiddleware } from '../../src/middleware/request-id.js';
 
 const DOC = '01900000-0000-7000-8000-0000000000d1';
 const KB = '01900000-0000-7000-8000-0000000000aa';
@@ -15,7 +22,7 @@ const docState = {
   setCalls: [] as string[],
 };
 
-vi.mock('../../services/documents.js', () => ({
+vi.mock('../../src/services/documents.js', () => ({
   documentRepo: {
     getDoc: async (id: string) =>
       id === DOC
@@ -45,11 +52,11 @@ vi.mock('../../services/documents.js', () => ({
   },
 }));
 
-vi.mock('../../services/queue.js', () => ({
+vi.mock('../../src/services/queue.js', () => ({
   enqueueIngest: async () => 'job-reindex-1',
 }));
 
-vi.mock('../../services/storage.js', () => ({
+vi.mock('../../src/services/storage.js', () => ({
   getStorage: () => ({
     headObject: async () => ({ byteSize: 12, contentType: 'text/plain' }),
   }),
@@ -57,7 +64,7 @@ vi.mock('../../services/storage.js', () => ({
 }));
 
 // 从域目录 shipped 入口 import（ARCH-P1a）
-const { documentRoutes } = await import('./index.js');
+const { documentRoutes } = await import('../../src/routes/documents/index.js');
 
 async function token(roles: string[] = ['kb_admin']) {
   const pair = await issueTokenPair({

@@ -1,6 +1,13 @@
+/**
+ * 目标：文档写入校验拒绝非法字段。
+ * 需求：入库 HTTP
+ * 被测：documents validation
+ * 简介：文档写入校验。
+ */
+
 import { describe, expect, it } from 'vitest';
 
-import { createApp } from '../../app.js';
+import { createApp } from '../../src/app.js';
 
 describe('document routes validation (no DB hit on bad body)', () => {
   it('POST /knowledge-bases rejects empty body', async () => {

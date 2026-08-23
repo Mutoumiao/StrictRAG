@@ -1,10 +1,17 @@
+/**
+ * 目标：敏感文档 complete 必须过审批/密级闸。
+ * 需求：审批/密级
+ * 被测：documents sensitive complete
+ * 简介：敏感 complete。
+ */
+
 import { Hono } from 'hono';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 
-import { issueTokenPair } from '../../auth/identity/token-service.js';
-import { attachAuthMiddleware, type AuthVariables } from '../../auth/middleware.js';
-import { requestIdMiddleware } from '../../middleware/request-id.js';
+import { issueTokenPair } from '../../src/auth/identity/token-service.js';
+import { attachAuthMiddleware, type AuthVariables } from '../../src/auth/middleware.js';
+import { requestIdMiddleware } from '../../src/middleware/request-id.js';
 
 const DOC = '01900000-0000-7000-8000-0000000000d1';
 const KB = '01900000-0000-7000-8000-0000000000aa';
@@ -18,7 +25,7 @@ const completeState = {
   markCalls: [] as Array<{ id: string; size: number }>,
 };
 
-vi.mock('../../services/documents.js', () => ({
+vi.mock('../../src/services/documents.js', () => ({
   documentRepo: {
     getDoc: async (id: string) =>
       id === DOC
@@ -61,14 +68,14 @@ vi.mock('../../services/documents.js', () => ({
   },
 }));
 
-vi.mock('../../services/storage.js', () => ({
+vi.mock('../../src/services/storage.js', () => ({
   getStorage: () => ({
     headObject: async () => ({ byteSize: 12, contentType: 'text/plain' }),
   }),
   effectiveMaxUploadBytes: () => 10_000_000,
 }));
 
-const { documentRoutes } = await import('./index.js');
+const { documentRoutes } = await import('../../src/routes/documents/index.js');
 
 async function token(roles: string[] = ['super_admin']) {
   const pair = await issueTokenPair({

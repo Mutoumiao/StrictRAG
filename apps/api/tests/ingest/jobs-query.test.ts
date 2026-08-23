@@ -1,6 +1,13 @@
+/**
+ * 目标：入库任务列表项映射保持查询契约。
+ * 需求：prds/06-async
+ * 被测：toIngestJobListItem
+ * 简介：入队在 api，消费在 worker。
+ */
+
 import { describe, expect, it } from 'vitest';
 
-import { toIngestJobListItem } from './ingest-jobs.js';
+import { toIngestJobListItem } from '../../src/services/ingest-jobs.js';
 
 describe('toIngestJobListItem', () => {
   it('maps ledger row without rewriting status', () => {

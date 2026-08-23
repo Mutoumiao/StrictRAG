@@ -1,6 +1,13 @@
+/**
+ * 目标：审批未过不得 complete / 入扫描。
+ * 需求：审批未过不得 complete
+ * 被测：canEnqueueScan / canBecomeActive / scanDeniedCode
+ * 简介：审批扫描闸。
+ */
+
 import { describe, expect, it } from 'vitest';
 
-import { canBecomeActive, canEnqueueScan, scanDeniedCode } from './approval-scan.js';
+import { canBecomeActive, canEnqueueScan, scanDeniedCode } from '../../src/gates/approval-scan.js';
 
 describe('approval scan gate (ADR-048, shared with scan route)', () => {
   it('blocks pending / none / rejected', () => {

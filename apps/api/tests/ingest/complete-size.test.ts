@@ -1,6 +1,13 @@
+/**
+ * 目标：complete 体积超限必须拒绝。
+ * 需求：上传/complete 限
+ * 被测：checkUploadByteSize
+ * 简介：complete 体积闸。
+ */
+
 import { describe, expect, it } from 'vitest';
 
-import { checkUploadByteSize } from './upload-size.js';
+import { checkUploadByteSize } from '../../src/gates/upload-size.js';
 
 describe('checkUploadByteSize (ADR-039, shared with complete route)', () => {
   const max = 52_428_800; // 50 MiB

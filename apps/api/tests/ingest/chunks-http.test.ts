@@ -1,16 +1,23 @@
+/**
+ * 目标：chunks HTTP 只读路由按成员与文档闸返回。
+ * 需求：B1
+ * 被测：createChunkRoutes
+ * 简介：chunks HTTP。
+ */
+
 import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 
-import { attachAuthMiddleware, type AuthVariables } from '../auth/middleware.js';
-import { issueTokenPair } from '../auth/identity/token-service.js';
-import { requestIdMiddleware } from '../middleware/request-id.js';
+import { attachAuthMiddleware, type AuthVariables } from '../../src/auth/middleware.js';
+import { issueTokenPair } from '../../src/auth/identity/token-service.js';
+import { requestIdMiddleware } from '../../src/middleware/request-id.js';
 import {
   CHUNK_BODY_MAX_BYTES,
   createMemoryChunksRepo,
   type ChunkRow,
-} from '../services/chunks.js';
-import { createChunkRoutes } from './chunks.js';
+} from '../../src/services/chunks.js';
+import { createChunkRoutes } from '../../src/routes/chunks.js';
 
 const DOC = '01900000-0000-7000-8000-0000000000d1';
 const TENANT = '01900000-0000-7000-8000-000000000001';

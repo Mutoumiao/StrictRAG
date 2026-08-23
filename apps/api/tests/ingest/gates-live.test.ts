@@ -1,8 +1,15 @@
+/**
+ * 目标：live 闸组合在真实 handler 下拒绝未审批 complete。
+ * 需求：complete 闸
+ * 被测：createApp document gates
+ * 简介：无 Docker / not ready 时 skip。
+ */
+
 import { describe, expect, it } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 
-import { createApp } from '../../app.js';
-import { effectiveMaxUploadBytes, getStorage } from '../../services/storage.js';
+import { createApp } from '../../src/app.js';
+import { effectiveMaxUploadBytes, getStorage } from '../../src/services/storage.js';
 
 type ApiJson<T = unknown> = {
   ok: boolean;

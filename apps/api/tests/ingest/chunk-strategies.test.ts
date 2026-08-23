@@ -1,3 +1,10 @@
+/**
+ * 目标：已实现分片策略可写；未实现必须 400，禁止静默 default。
+ * 需求：B12 · X-03
+ * 被测：chunk-strategies
+ * 简介：禁静默 default。
+ */
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -11,7 +18,7 @@ import {
   resolveDocumentChunkStrategy,
   resolveRequiredChunkStrategy,
   shouldRetainExistingStrategy,
-} from './chunk-strategies.js';
+} from '../../src/services/chunk-strategies.js';
 
 describe('B12 chunk strategies · 实现真 SSOT（X-03）', () => {
   it('catalog 含 roadmap 码；writable 仅 structure_paragraph', () => {

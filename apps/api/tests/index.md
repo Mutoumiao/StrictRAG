@@ -9,6 +9,7 @@
 | 目录 | 能力 | 需求锚点 |
 |------|------|----------|
 | `ask/` | 单轮信任路径、mode/docTypes、检索装载 | `prds/04-pipelines` · `prds/08-quality` · P0 R7–R9 |
+| `ingest/` | 入库 HTTP、体积/审批闸、分片策略、文档元数据 | `prds/04-pipelines/01-offline-ingest.md` · B12 |
 
 ## 测例
 
@@ -33,6 +34,18 @@
 | `ask/route-rules.test.ts` | 闲聊走 chitchat，知识/政策问句走 single，禁止政策句被当成闲聊。 | prds/04-pipelines/02-online-ask-langgraph.md | `ruleRoute` | 问候为 chitchat；带知识/政策词的问句必须 single。 | 现行 |
 | `ask/scoring-rrf.test.ts` | 混合检索的余弦相似与 RRF 融合按预期排序。 | prds/04-pipelines | `cosine / rrfFuse` | 打分与倒数秩融合的纯函数。 | 现行 |
 | `ask/verify-required.test.ts` | 合法 draft 必须完整 verify；拆句失败或网关错不得 answered。 | P0 R9 · prds/08-quality | `runAskGraph（verify / claim_split）` | happy 必经 generate+claim_split+judge；拆句失败或网关错不得 answered。 | 现行 |
+| `ingest/approval-scan.test.ts` | 审批未过不得 complete / 入扫描。 | 审批未过不得 complete | `canEnqueueScan / canBecomeActive / scanDeniedCode` | 审批扫描闸。 | 现行 |
+| `ingest/chunk-strategies.test.ts` | 已实现分片策略可写；未实现必须 400，禁止静默 default。 | B12 · X-03 | `chunk-strategies` | 禁静默 default。 | 现行 |
+| `ingest/chunks-http.test.ts` | chunks HTTP 只读路由按成员与文档闸返回。 | B1 | `createChunkRoutes` | chunks HTTP。 | 现行 |
+| `ingest/chunks-query.test.ts` | 分片只读查询返回 preview/body 契约。 | ADR-052 · B1 | `buildPreview / buildBody` | 分片只读查询。 | 现行 |
+| `ingest/complete-size.test.ts` | complete 体积超限必须拒绝。 | 上传/complete 限 | `checkUploadByteSize` | complete 体积闸。 | 现行 |
+| `ingest/document-mappers.test.ts` | 文档列表/详情 DTO 映射稳定。 | 基建: 文档 DTO 映射 | `document mappers` | 纯函数。 | 现行 |
+| `ingest/document-meta.test.ts` | 文档元数据 PATCH 正确处理部门两字段。 | P3b-META | `documents meta PATCH` | 部门两字段。 | 现行 |
+| `ingest/document-validation.test.ts` | 文档写入校验拒绝非法字段。 | 入库 HTTP | `documents validation` | 文档写入校验。 | 现行 |
+| `ingest/gates-live.test.ts` | live 闸组合在真实 handler 下拒绝未审批 complete。 | complete 闸 | `createApp document gates` | 无 Docker / not ready 时 skip。 | 现行 |
+| `ingest/jobs-query.test.ts` | 入库任务列表项映射保持查询契约。 | prds/06-async | `toIngestJobListItem` | 入队在 api，消费在 worker。 | 现行 |
+| `ingest/reindex-strategy.test.ts` | reindex 必须显式策略；未实现返回 400。 | B12 | `documents reindex` | 未实现 400。 | 现行 |
+| `ingest/sensitive-complete.test.ts` | 敏感文档 complete 必须过审批/密级闸。 | 审批/密级 | `documents sensitive complete` | 敏感 complete。 | 现行 |
 
 ## 待处理
 
@@ -47,18 +60,6 @@
 
 | 文件 | 目标 | 需求锚点 | 简介 | 状态 |
 |------|------|----------|------|------|
-| `../src/gates/complete-size.test.ts` | complete 体积闸 | 上传/complete 限 | | 待处理 |
-| `../src/gates/approval-scan.test.ts` | 审批扫描闸 | 审批未过不得 complete | | 待处理 |
-| `../src/services/chunk-strategies.test.ts` | 已实现策略可写；未实现 400 | B12 · X-03 | 禁静默 default | 待处理 |
-| `../src/services/chunks.test.ts` | 分片只读查询 | ADR-052 · B1 | | 待处理 |
-| `../src/services/ingest-jobs.test.ts` | 任务查询 | `prds/06-async` | 入队在 api，消费在 worker | 待处理 |
-| `../src/routes/chunks.test.ts` | chunks HTTP | B1 | | 待处理 |
-| `../src/routes/documents/validation.test.ts` | 文档写入校验 | 入库 HTTP | | 待处理 |
-| `../src/routes/documents/mappers.test.ts` | 列表/详情 DTO 映射 | | 纯函数 | 待处理 |
-| `../src/routes/documents/reindex.test.ts` | reindex 须显式策略 | B12 | 未实现 400 | 待处理 |
-| `../src/routes/documents/gates.live.test.ts` | live 闸组合 | complete 闸 | | 待处理 |
-| `../src/routes/documents/sensitive-complete.test.ts` | 敏感 complete | 审批/密级 | | 待处理 |
-| `../src/routes/documents/meta.test.ts` | 文档元数据 PATCH | P3b-META | 部门两字段 | 待处理 |
 
 ### auth / acl
 

@@ -1,6 +1,13 @@
+/**
+ * 目标：文档列表/详情 DTO 映射稳定。
+ * 需求：基建: 文档 DTO 映射
+ * 被测：document mappers
+ * 简介：纯函数。
+ */
+
 import { describe, expect, it } from 'vitest';
 
-import { toDetail, toListItem, type DocMapSource } from './mappers.js';
+import { toDetail, toListItem, type DocMapSource } from '../../src/routes/documents/mappers.js';
 
 const base: DocMapSource = {
   id: '01900000-0000-7000-8000-0000000000d1',
