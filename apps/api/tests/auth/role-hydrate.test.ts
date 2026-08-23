@@ -1,21 +1,28 @@
+/**
+ * 目标：每请求角色 hydrate 超时必须回退，缓存不超过 5s。
+ * 需求：B4-W
+ * 被测：role-hydrate middleware
+ * 简介：≤5s 缓存。
+ */
+
 import { Hono } from 'hono';
 import { afterEach, describe, expect, it } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 
-import { ok } from '../lib/response.js';
-import { requestIdMiddleware, type ApiVariables } from '../middleware/request-id.js';
-import { DEV_DEFAULT_TENANT } from '../services/members.js';
+import { ok } from '../../src/lib/response.js';
+import { requestIdMiddleware, type ApiVariables } from '../../src/middleware/request-id.js';
+import { DEV_DEFAULT_TENANT } from '../../src/services/members.js';
 import {
   createMemoryPlatformUsersRolesRepo,
   SUPER_ADMIN_ROLE_CODE,
-} from '../services/platform-users-roles.js';
-import { issueTokenPair } from './identity/token-service.js';
+} from '../../src/services/platform-users-roles.js';
+import { issueTokenPair } from '../../src/auth/identity/token-service.js';
 import {
   attachAuthMiddleware,
   requireKbMember,
   requirePermission,
   requirePermissionWhenEnforced,
-} from './middleware.js';
+} from '../../src/auth/middleware.js';
 import {
   createDbRoleAuthzLoader,
   ensureUserRoleCodes,
@@ -24,7 +31,7 @@ import {
   ROLE_CACHE_TTL_MS,
   ROLE_LOAD_TIMEOUT_MS,
   setRoleAuthzLoader,
-} from './role-hydrate.js';
+} from '../../src/auth/role-hydrate.js';
 
 const TENANT = DEV_DEFAULT_TENANT;
 

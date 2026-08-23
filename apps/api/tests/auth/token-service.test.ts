@@ -1,12 +1,19 @@
+/**
+ * 目标：access jti 与 refresh 轮转在同一秒内可区分。
+ * 需求：prds/09-security
+ * 被测：issueTokenPair / rotateRefresh
+ * 简介：同秒可区分。
+ */
+
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { clearRefreshStore } from './refresh-store.js';
+import { clearRefreshStore } from '../../src/auth/identity/refresh-store.js';
 import {
   AuthIdentityError,
   issueTokenPair,
   refreshTokenPair,
   verifyBearerAccess,
-} from './token-service.js';
+} from '../../src/auth/identity/token-service.js';
 
 describe('token-service dual token', () => {
   afterEach(() => {

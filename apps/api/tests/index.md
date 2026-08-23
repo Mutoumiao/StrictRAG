@@ -10,6 +10,7 @@
 |------|------|----------|
 | `ask/` | 单轮信任路径、mode/docTypes、检索装载 | `prds/04-pipelines` · `prds/08-quality` · P0 R7–R9 |
 | `ingest/` | 入库 HTTP、体积/审批闸、分片策略、文档元数据 | `prds/04-pipelines/01-offline-ingest.md` · B12 |
+| `auth/` | JWT、AUTH_ENFORCE、hydrate | `prds/09-security` · QUAL-1 |
 
 ## 测例
 
@@ -34,6 +35,9 @@
 | `ask/route-rules.test.ts` | 闲聊走 chitchat，知识/政策问句走 single，禁止政策句被当成闲聊。 | prds/04-pipelines/02-online-ask-langgraph.md | `ruleRoute` | 问候为 chitchat；带知识/政策词的问句必须 single。 | 现行 |
 | `ask/scoring-rrf.test.ts` | 混合检索的余弦相似与 RRF 融合按预期排序。 | prds/04-pipelines | `cosine / rrfFuse` | 打分与倒数秩融合的纯函数。 | 现行 |
 | `ask/verify-required.test.ts` | 合法 draft 必须完整 verify；拆句失败或网关错不得 answered。 | P0 R9 · prds/08-quality | `runAskGraph（verify / claim_split）` | happy 必经 generate+claim_split+judge；拆句失败或网关错不得 answered。 | 现行 |
+| `auth/enforce-401.test.ts` | AUTH_ENFORCE 开启且无 Bearer 时必须 401。 | QUAL-1 | `requirePermissionWhenEnforced` | enforce 开且无 Bearer → 401。 | 现行 |
+| `auth/role-hydrate.test.ts` | 每请求角色 hydrate 超时必须回退，缓存不超过 5s。 | B4-W | `role-hydrate middleware` | ≤5s 缓存。 | 现行 |
+| `auth/token-service.test.ts` | access jti 与 refresh 轮转在同一秒内可区分。 | prds/09-security | `issueTokenPair / rotateRefresh` | 同秒可区分。 | 现行 |
 | `ingest/approval-scan.test.ts` | 审批未过不得 complete / 入扫描。 | 审批未过不得 complete | `canEnqueueScan / canBecomeActive / scanDeniedCode` | 审批扫描闸。 | 现行 |
 | `ingest/chunk-strategies.test.ts` | 已实现分片策略可写；未实现必须 400，禁止静默 default。 | B12 · X-03 | `chunk-strategies` | 禁静默 default。 | 现行 |
 | `ingest/chunks-http.test.ts` | chunks HTTP 只读路由按成员与文档闸返回。 | B1 | `createChunkRoutes` | chunks HTTP。 | 现行 |
@@ -65,10 +69,7 @@
 
 | 文件 | 目标 | 需求锚点 | 简介 | 状态 |
 |------|------|----------|------|------|
-| `../src/auth/auth-enforce.redline.test.ts` | enforce 开且无 Bearer → 401 | QUAL-1 | | 待处理 |
 | `../src/auth/auth-enforce-pilot.doc.test.ts` | 试点文档与开关一致 | `docs/ops/auth-enforce-pilot.md` | 文档护栏 | 待处理 |
-| `../src/auth/identity/token-service.test.ts` | access jti / refresh 轮转 | `prds/09-security` | 同秒可区分 | 待处理 |
-| `../src/auth/role-hydrate.test.ts` | 每请求角色 hydrate 与超时回退 | B4-W | ≤5s 缓存 | 待处理 |
 | `../src/auth/kb-scope.test.ts` | KB 成员查找请求内缓存 | ARCH-P1b-1 | | 待处理 |
 | `../src/auth/middleware.kb-member.test.ts` | 无成员 403 | 以码为准 | | 待处理 |
 | `../src/auth/permissions/resolve.test.ts` | 有效码 = 模板 ∪ grants − denies | ADR-051 | | 待处理 |

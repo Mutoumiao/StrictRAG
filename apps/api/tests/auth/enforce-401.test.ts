@@ -1,13 +1,20 @@
+/**
+ * 目标：AUTH_ENFORCE 开启且无 Bearer 时必须 401。
+ * 需求：QUAL-1
+ * 被测：requirePermissionWhenEnforced
+ * 简介：enforce 开且无 Bearer → 401。
+ */
+
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Hono } from 'hono';
 
-import { ok } from '../lib/response.js';
-import { requestIdMiddleware, type ApiVariables } from '../middleware/request-id.js';
+import { ok } from '../../src/lib/response.js';
+import { requestIdMiddleware, type ApiVariables } from '../../src/middleware/request-id.js';
 import {
   attachAuthMiddleware,
   isAuthEnforceEnabled,
   requirePermissionWhenEnforced,
-} from './middleware.js';
+} from '../../src/auth/middleware.js';
 
 afterEach(() => {
   vi.unstubAllEnvs();
