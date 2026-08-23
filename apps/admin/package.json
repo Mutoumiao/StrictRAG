@@ -9,7 +9,7 @@
     "check-types": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
     "start": "next start --port 3006",
-    "test": "vitest run",
+    "test": "node ../../scripts/check-test-inventory.mjs && node --test ../../scripts/check-test-inventory.fixture.mjs && vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {

@@ -61,7 +61,12 @@
     },
     "test": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        ".env*",
+        "$TURBO_ROOT$/scripts/check-test-inventory.mjs",
+        "$TURBO_ROOT$/scripts/check-test-inventory.fixture.mjs"
+      ],
       "outputs": ["coverage/**"],
       "env": [
         "APP_ENV",

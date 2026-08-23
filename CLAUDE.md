@@ -131,13 +131,13 @@ pnpm build | dev          # turbo
 
 ## Testing
 
-- **命令**：`pnpm test`（turbo → vitest）
+- **命令**：`pnpm test`（turbo → 存货闸 → vitest；apps 额外跑夹具）
 - **HOW**：`.trellis/spec/guides/testing.md`（目标来自 PRD；按能力落主包 `tests/`）
-- **导航**：`docs/testing/README.md` → 各包 `tests/index.md`
+- **导航**：`docs/testing/README.md` → 各包 `tests/index.md`（存货不是覆盖；漏行即红）
 - **P0 必绿**：`docs/testing/p0-redlines.md`
 - **验收剧本**（非单测替代）：`prds/10-delivery/03-acceptance-scenarios.md`
-- **新测例**：`<包>/tests/<能力>/<意图>.test.ts(x)`，写文件头并登记 index；**禁止**再按源码一对一镜像
-- 历史 `src/**/*.test.*` 为遗留，以各包 index 遗留表为准；**禁止**修 bug 时顺手拆混居文件，迁徙须单独变更
+- **新测例**：只进 `<包>/tests/<能力>/<意图>.test.ts(x)`，写文件头并登记 index；**禁止**再按源码一对一镜像，**禁止**在 `src/` 旁新建
+- 历史 `src/**/*.test.*` 为 **待处理**，以各包 index 待处理表为准；**只修已有 it**；**禁止**修 bug 时顺手拆混居文件，迁徙须单独变更
 
 ## Conventions
 

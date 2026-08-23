@@ -99,7 +99,7 @@
 
 ### 2.4 每个 `tests/` 必有 `index.md`
 
-`index.md` 是该包测试的 **存货表**，不是覆盖矩阵。现行 `tests/` 文件不在现行表 = 测例未完成（存货谓词）。增删改测例与改 index **同一变更**。  
+`index.md` 是该包测试的 **存货表**，不是覆盖矩阵。`src/` 与 `tests/` 下每个 `*.test.ts(x)` 都必须有反引号行，漏行即红（全量存货谓词）。增删改测例与改 index **同一变更**。  
 index **不能**用来宣称「入库 / ask / 鉴权测全了」；那是 P0 红线与验收剧本的职责。
 
 ---
@@ -149,7 +149,7 @@ index **不能**用来宣称「入库 / ask / 鉴权测全了」；那是 P0 红
       <intent>.test.ts
       <intent>.test.tsx        # 仅组件测
     _support/                  # 可选：本包测试 helper（非测例）
-  vitest.config.ts             # include：tests/** 与遗留 src/**
+  vitest.config.ts             # include：tests/** 与待处理 src/**
 ```
 
 ### 4.1 能力目录名
@@ -222,7 +222,8 @@ index **不能**用来宣称「入库 / ask / 鉴权测全了」；那是 P0 红
 ```markdown
 # @strict-rag/<pkg> · 测试导航
 
-> HOW：`.trellis/spec/guides/testing.md`
+> HOW：`.trellis/spec/guides/testing.md`  
+> **存货不是覆盖。** 本表只登记本包 `src/` 与 `tests/` 下的 `*.test.ts(x)`；漏行即红。
 
 ## 能力
 
@@ -236,21 +237,22 @@ index **不能**用来宣称「入库 / ask / 鉴权测全了」；那是 P0 红
 |------|------|----------|------|------|------|
 | `ask/min-veto.test.ts` | min 否决不 answered | P0 R8 · prds/08-quality | `runAskGraph` | 低分 claim 整答拒答 | 现行 |
 
-## 遗留（待迁）
+## 待处理
 
 | 文件 | 目标 | 需求锚点 | 简介 | 状态 |
 |------|------|----------|------|------|
-| `../src/graph/graph.test.ts` | 多意图混居（路由/预算/R8/R9） | P0 R8/R9 | 待按意图拆到 `tests/ask/`；须单独变更，禁止顺手拆 | 遗留 |
+| `../src/graph/graph.test.ts` | 多意图混居（路由/预算/R8/R9） | P0 R8/R9 | 须单独变更，禁止顺手拆 | 待处理 |
 ```
 
 规则：
 
-- **现行**：已在 `tests/<能力>/` 且一头一意；**必须有「被测」列**（改 `run.ts` 时查这一列，而不是靠源码旁文件）。
-- **遗留**：仍在 `src/**/*.test.*`。必须登记，禁止「目录里有、导航里没有」。遗留表可不填「被测」，迁徙时补。
+- **现行**：已在 `tests/<能力>/` 且一头一意；**必须有「被测」列**（改 `run.ts` 时查这一列，而不是靠源码旁文件）。表内路径相对 `index.md`（`` `ask/min-veto.test.ts` ``）；闸会把它收成 `tests/ask/min-veto.test.ts`。
+- **待处理**：仍在 `src/**/*.test.*`。必须登记，禁止「目录里有、导航里没有」。表内保持可点开的 `` `../src/...` ``；闸把 `../src/X` 收成 `src/X`。待处理表可不填「被测」，迁徙时补。
+- 状态列只有 `现行` | `待处理`。禁止写 `待迁` / `待拆`。
 - 能力表只列本包实际使用的目录。
 - 简介不超过两句；细节放文件头。
 - 改测例目标/锚点时同步改 index，不要让导航变成第二套过期文档。
-- 存货谓词只约束 `tests/` 现行文件。遗留表漏行是盘点债，在机械闸落地前 **不**单独让 `pnpm test` 红。
+- **全量存货**：`src/` 与 `tests/` 下每个 `*.test.ts(x)` 都必须有反引号行。漏行或假存货 → `pnpm test` 红。不是覆盖谓词。
 
 仓库级入口 `docs/testing/README.md` 只做包清单 + 指针，**不**复制各包表格。
 
@@ -261,6 +263,8 @@ index **不能**用来宣称「入库 / ask / 鉴权测全了」；那是 P0 红
 | 项 | 约定 |
 |----|------|
 | 运行 | `pnpm test`（turbo）；单包 `pnpm --filter @strict-rag/<pkg> test` |
+| 存货闸 | 仓库根 `scripts/check-test-inventory.mjs`；cwd = 包根。全量存货，漏行/假存货 exit 1。**不是**只拦新建 |
+| 夹具 | `scripts/check-test-inventory.fixture.mjs`；只挂 `apps/{api,web,admin,worker}`。packages 只挂闸 |
 | 收集 | `tests/**/*.test.{ts,tsx}` 为现行；过渡期同时收集 `src/**/*.test.{ts,tsx}` |
 | 环境 | api/worker/db/contracts/admin-catalog → node；web/admin → jsdom |
 | setup | 前端可留 `src/test/setup.ts`；不要把业务测例放进 `src/test/` |
@@ -277,9 +281,9 @@ Vitest `include` 现行写法：
 include: ['tests/**/*.test.{ts,tsx}', 'src/**/*.test.{ts,tsx}'];
 ```
 
-当前者已覆盖某文件、后者不再有遗留时，再删掉 `src/**` 这一段。
+当前者已覆盖某文件、后者不再有待处理文件时，再删掉 `src/**` 这一段。
 
-过渡期应加 **遗留白名单闸**（新的 `src/**/*.test.*` 直接红）。闸未落地前靠 checklist 与 review 拦住；没有闸不等于允许再在 `src/` 旁建文件。
+**全量存货闸已落地**（漏任何 `*.test.ts(x)` 都红，不是只拦新建）。Vitest 仍收集 `src/**`。不另做 src 白名单冻结。禁止再在 `src/` 旁建新测例。
 
 ---
 
@@ -300,17 +304,19 @@ include: ['tests/**/*.test.{ts,tsx}', 'src/**/*.test.{ts,tsx}'];
 
 ---
 
-## 9. 遗留同域测例
+## 9. 待处理（仍在 src/ 的同域测例）
 
 历史约定是源码旁 `*.test.ts`。自本规范生效起：
 
 - **新测例**只进 `tests/<能力>/`。禁止再为「方便对照源码」新增同域测例。
-- **遗留文件**继续被 Vitest 收集，直到迁走；必须出现在该包 `tests/index.md` 的遗留表。
-- **禁止顺手拆**：修 bug / 加 it 时不要把混居遗留文件拆进 `tests/`。迁徙必须是单独变更。
+- **待处理文件**继续被 Vitest 收集，直到迁走；必须出现在该包 `tests/index.md` 的待处理表。只修已有 `it`，不要在同一变更里拆文件。
+- **禁止顺手拆**：修 bug / 加 it 时不要把混居待处理文件拆进 `tests/`。迁徙必须是单独变更。
 - **禁止第一批拆** `apps/api/src/graph/graph.test.ts`（P0 R8/R9 证据仍在那里）。若要验证「目标 → 文件 → index → 绿」，用已经接近单意图的 P0（web R1 `use-knowledge-ask.test.ts`，或 db `retrieval-gate.test.ts`）。
 - 迁徙后同步 P0 证据路径、module-status 里写过的测试路径、包 directory-structure 示意树。
+- 状态列只有 `现行` | `待处理`。禁止出现 `待迁` / `待拆`。
+- **拆分判据**（写入、本阶段不执行）：是否拆只看意图是否互不隶属——读完文件头「目标」仍要加「以及…」才能说清则该拆。可用 describe 审计辅助，不要按 describe 个数或标点机械拆。
 
-本规范 **不**要求一次搬完现有文件，也 **不**把「改到再拆」当默认。先做到：新文件可管、旧文件能在 index 里被找到。
+本规范 **不**要求一次搬完现有文件，也 **不**把「改到再拆」当默认。先做到：新文件可管、旧文件能在 index 里被找到；漏行即红。
 
 ---
 
@@ -343,7 +349,7 @@ include: ['tests/**/*.test.{ts,tsx}', 'src/**/*.test.{ts,tsx}'];
 - [ ] 未在次包重复断言 **同一生命周期** 的业务真值？
 - [ ] 前端行为测用 role/label，不用 `querySelector` 当断言？
 - [ ] 未打实网；ask final 工厂走 `@strict-rag/contracts/testing`？
-- [ ] 未把修 bug 和拆遗留混居文件放进同一变更？
+- [ ] 未把修 bug 和拆待处理混居文件放进同一变更？
 
 ---
 
@@ -355,7 +361,7 @@ include: ['tests/**/*.test.{ts,tsx}', 'src/**/*.test.{ts,tsx}'];
 |----|------|
 | 1. 丢掉同域？ | **丢掉一对一镜像**，新测例进 `tests/<能力>/`。代价用现行表「被测」列 + import 找回，不保留「模块测必须源码旁」的双轨。 |
 | 2. 主包过严？ | **不过严**。web 不重算 min。同一不变量的不同生命周期（api corpus / db 纯函数 / worker 扫描闸）不是重复真值。全栈测走 E2E，不进 `pnpm test`。 |
-| 3. index 完成谓词？ | **只做存货谓词**（`tests/` 文件必须有行）。不是覆盖谓词。遗留漏行是盘点债。应补遗留白名单闸，闸未落地前靠 review。 |
+| 3. index 完成谓词？ | **只做存货谓词**（`src/` 与 `tests/` 的 `*.test.ts(x)` 必须有反引号行）。不是覆盖谓词。漏行即红。闸是全量存货，不是只拦新建。 |
 | 4. 能力目录冻结？ | **优先词，非闭集**。已吸收 `error-map` / `retrieve` / `docs-guard` / `system` / `async`。新词先写该包能力表。 |
 | 5. 过渡更激进？ | **否**。分批；**禁止顺手拆**；**禁止第一批拆** `graph.test.ts`。样板用已接近单意图的 P0。 |
 | 6. 脚本测不进能力树？ | **仓库根 `scripts/*.test.mjs` 不进**。包内 `src/scripts/*.test.ts` 是能力测（如 `eval/`）。文档护栏可留在包内 `docs-guard/`。 |

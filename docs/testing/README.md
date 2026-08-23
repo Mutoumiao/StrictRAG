@@ -51,4 +51,4 @@ pnpm --filter @strict-rag/contracts test -- -t 'R[0-9]+:'
 
 ## 现状（过渡）
 
-现行路径是 `<包>/tests/<能力>/`。大量历史测例仍在 `src/**/*.test.*`，以各包 index 的 **遗留** 表为准。新测例禁止再写入 `src/` 旁。禁止在修 bug 的同一变更里拆混居遗留文件。审阅冻结见 `.trellis/spec/guides/testing.md` §12。
+现行路径是 `<包>/tests/<能力>/`。大量历史测例仍在 `src/**/*.test.*`，以各包 index 的 **待处理** 表为准。新测例禁止再写入 `src/` 旁。禁止在修 bug 的同一变更里拆混居待处理文件。各包 `pnpm test` 先跑全量存货闸（漏行即红）；apps 额外跑夹具。审阅冻结见 `.trellis/spec/guides/testing.md` §12。

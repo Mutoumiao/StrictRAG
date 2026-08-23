@@ -9,7 +9,7 @@
     "check-types": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
     "start": "tsx src/index.ts",
-    "test": "vitest run"
+    "test": "node ../../scripts/check-test-inventory.mjs && node --test ../../scripts/check-test-inventory.fixture.mjs && vitest run"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "catalog:",

@@ -1,7 +1,8 @@
 # @strict-rag/contracts · 测试导航
 
 > HOW：`.trellis/spec/guides/testing.md`  
-> 本包主责：Zod 形状与错误码短名。HTTP 接线在 api/web/admin。
+> 本包主责：Zod 形状与错误码短名。HTTP 接线在 api/web/admin。  
+> **存货不是覆盖。** 本表只登记本包 `src/` 与 `tests/` 下的 `*.test.ts(x)`；漏行即红。测全了没有看 `docs/testing/p0-redlines.md` 与验收剧本。
 
 ## 能力
 
@@ -17,19 +18,19 @@
 
 （尚无 `tests/<能力>/` 现行文件。）
 
-## 遗留（待迁）
+## 待处理
 
 | 文件 | 目标 | 需求锚点 | 简介 | 状态 |
 |------|------|----------|------|------|
-| `../src/ask/ask.contract.test.ts` | options 白名单；拒 tauClaim；scope 顶层 | ADR-050 · `prds/05-api` §1.1 | 形状 SSOT | 遗留 |
-| `../src/ask/fixtures.test.ts` | answered/abstained 工厂可通过 schema | P0 R10 | `@strict-rag/contracts/testing` | 遗留 |
-| `../src/ingest/chunk-strategy.test.ts` | 策略枚举与未实现 | B12 | | 遗留 |
-| `../src/ingest/chunk.contract.test.ts` | 分片只读 DTO | ADR-052 | | 遗留 |
-| `../src/ingest/document.contract.test.ts` | 文档 DTO | 入库 HTTP | | 遗留 |
-| `../src/async/ingest-job.test.ts` | 任务 DTO | `prds/06-async` | | 遗留 |
-| `../src/kb/kb-settings.contract.test.ts` | KB 设置形状 | B2 | | 遗留 |
-| `../src/system/dashboard.contract.test.ts` | 面板 summary | B6 | | 遗留 |
-| `../src/system/departments.contract.test.ts` | 部门 DTO | B5 | | 遗留 |
-| `../src/system/dept-grants.contract.test.ts` | grant DTO | DEPT_ACL | | 遗留 |
-| `../src/system/model-gateway.contract.test.ts` | 网关绑定 DTO | B3 | | 遗留 |
-| `../src/system/platform-users-roles.contract.test.ts` | 平台用户角色 DTO | B4 | | 遗留 |
+| `../src/ask/ask.contract.test.ts` | options 白名单；拒 tauClaim；scope 顶层 | ADR-050 · `prds/05-api` §1.1 | 形状 SSOT | 待处理 |
+| `../src/ask/fixtures.test.ts` | answered/abstained 工厂可通过 schema | P0 R10 | `@strict-rag/contracts/testing` | 待处理 |
+| `../src/ingest/chunk-strategy.test.ts` | 策略枚举与未实现 | B12 | | 待处理 |
+| `../src/ingest/chunk.contract.test.ts` | 分片只读 DTO | ADR-052 | | 待处理 |
+| `../src/ingest/document.contract.test.ts` | 文档 DTO | 入库 HTTP | | 待处理 |
+| `../src/async/ingest-job.test.ts` | 任务 DTO | `prds/06-async` | | 待处理 |
+| `../src/kb/kb-settings.contract.test.ts` | KB 设置形状 | B2 | | 待处理 |
+| `../src/system/dashboard.contract.test.ts` | 面板 summary | B6 | | 待处理 |
+| `../src/system/departments.contract.test.ts` | 部门 DTO | B5 | | 待处理 |
+| `../src/system/dept-grants.contract.test.ts` | grant DTO | DEPT_ACL | | 待处理 |
+| `../src/system/model-gateway.contract.test.ts` | 网关绑定 DTO | B3 | | 待处理 |
+| `../src/system/platform-users-roles.contract.test.ts` | 平台用户角色 DTO | B4 | | 待处理 |
