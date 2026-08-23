@@ -1,10 +1,17 @@
+/**
+ * 目标：部门创建 / 补丁 / 用户部门绑定 DTO 必须严格字段且补丁非空。
+ * 需求：B5
+ * 被测：CreateDepartmentBodySchema · PatchDepartmentBodySchema · PutUserDepartmentsBodySchema
+ * 简介：部门 DTO 形状。
+ */
+
 import { describe, expect, it } from 'vitest';
 
 import {
   CreateDepartmentBodySchema,
   PatchDepartmentBodySchema,
   PutUserDepartmentsBodySchema,
-} from './departments.contract.js';
+} from '../../src/system/departments.contract.js';
 
 describe('departments.contract', () => {
   it('CreateDepartmentBody accepts name + optional parent', () => {

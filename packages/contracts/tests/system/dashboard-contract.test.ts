@@ -1,6 +1,13 @@
+/**
+ * 目标：面板 summary 必须含四项指标，拒绝未知字段。
+ * 需求：B6
+ * 被测：DashboardSummarySchema
+ * 简介：面板 summary 形状。
+ */
+
 import { describe, expect, it } from 'vitest';
 
-import { DashboardSummarySchema } from './dashboard.contract.js';
+import { DashboardSummarySchema } from '../../src/system/dashboard.contract.js';
 
 describe('dashboard.contract', () => {
   it('accepts four required metrics + optional askCount24h', () => {

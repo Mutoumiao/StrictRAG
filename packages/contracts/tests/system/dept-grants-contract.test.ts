@@ -1,9 +1,16 @@
+/**
+ * 目标：跨部门 grant DTO 只接受合法可见级、uuid 与本地时间 expiresAt。
+ * 需求：DEPT_ACL
+ * 被测：CreateDeptCrossGrantBodySchema · ListDeptCrossGrantsQuerySchema
+ * 简介：grant DTO 形状。
+ */
+
 import { describe, expect, it } from 'vitest';
 
 import {
   CreateDeptCrossGrantBodySchema,
   ListDeptCrossGrantsQuerySchema,
-} from './dept-grants.contract.js';
+} from '../../src/system/dept-grants.contract.js';
 
 const userId = '01900000-0000-7000-8000-0000000000aa';
 const deptId = '01900000-0000-7000-8000-0000000000bb';

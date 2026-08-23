@@ -1,3 +1,10 @@
+/**
+ * 目标：分片只读 DTO 列表不得含 body，详情必须含 body，查询 limit 有默认与上限。
+ * 需求：ADR-052
+ * 被测：ChunkListQuerySchema · ChunkListItemSchema · ChunkDetailSchema · ChunkListResponseSchema
+ * 简介：分片只读 DTO 形状。
+ */
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -5,7 +12,7 @@ import {
   ChunkListItemSchema,
   ChunkListQuerySchema,
   ChunkListResponseSchema,
-} from './chunk.contract.js';
+} from '../../src/ingest/chunk.contract.js';
 
 describe('ChunkListQuerySchema', () => {
   it('defaults limit 20', () => {

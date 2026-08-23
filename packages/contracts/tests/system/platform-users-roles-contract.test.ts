@@ -1,3 +1,10 @@
+/**
+ * 目标：平台用户角色 DTO 拒 password、角色码须 snake_case、补丁非空。
+ * 需求：B4
+ * 被测：CreatePlatformUserBodySchema · PatchPlatformUserBodySchema · CreatePlatformRoleBodySchema · AssignUserRolesBodySchema · PutRolePermissionsBodySchema
+ * 简介：平台用户角色 DTO。
+ */
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -6,7 +13,7 @@ import {
   CreatePlatformUserBodySchema,
   PatchPlatformUserBodySchema,
   PutRolePermissionsBodySchema,
-} from './platform-users-roles.contract.js';
+} from '../../src/system/platform-users-roles.contract.js';
 
 describe('platform users/roles contracts (B4)', () => {
   it('CreatePlatformUserBody accepts email + optional roles', () => {

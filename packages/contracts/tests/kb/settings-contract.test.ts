@@ -1,9 +1,16 @@
+/**
+ * 目标：KB 设置 PATCH 仅白名单且拒阈值字段，GET 必须锁定 rewrite 关闭。
+ * 需求：B2
+ * 被测：PatchKbSettingsBodySchema · KbSettingsSchema
+ * 简介：KB 设置形状与 sessionRewrite 锁定。
+ */
+
 import { describe, expect, it } from 'vitest';
 
 import {
   KbSettingsSchema,
   PatchKbSettingsBodySchema,
-} from './kb-settings.contract.js';
+} from '../../src/kb/kb-settings.contract.js';
 
 describe('PatchKbSettingsBodySchema', () => {
   it('accepts whitelist fields', () => {

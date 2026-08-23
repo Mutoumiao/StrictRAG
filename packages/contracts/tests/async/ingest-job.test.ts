@@ -1,10 +1,17 @@
+/**
+ * 目标：入库任务 DTO 必须覆盖全阶段，拒绝空 docId 与非法 stage。
+ * 需求：prds/06-async
+ * 被测：IngestJobDataSchema · INGEST_STAGES · INGEST_JOB_DEFAULT_ATTEMPTS
+ * 简介：入库任务载荷形状与阶段枚举的单一来源。
+ */
+
 import { describe, expect, it } from 'vitest';
 
 import {
   INGEST_JOB_DEFAULT_ATTEMPTS,
   INGEST_STAGES,
   IngestJobDataSchema,
-} from './ingest-job.js';
+} from '../../src/async/ingest-job.js';
 
 describe('IngestJobDataSchema · X-04 payload SSOT', () => {
   it('accepts scan without indexVersion', () => {

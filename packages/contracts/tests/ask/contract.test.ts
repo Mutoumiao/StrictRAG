@@ -1,7 +1,14 @@
+/**
+ * 目标：AskOptions 只接受白名单字段，拒绝 tauClaim 与嵌套 scope，scope 必须顶层。
+ * 需求：ADR-050 · prds/05-api §1.1
+ * 被测：AskOptionsSchema · AskScopeSchema · AskRequestSchema · AskReasonSchema · CreateFeedbackBodySchema · InviteMemberBodySchema
+ * 简介：Ask 请求 / options / scope 形状 SSOT。
+ */
+
 import { describe, expect, it } from 'vitest';
 
-import { AskOptionsSchema, AskRequestSchema, AskScopeSchema } from './ask.contract.js';
-import { AskReasonSchema } from './reason.js';
+import { AskOptionsSchema, AskRequestSchema, AskScopeSchema } from '../../src/ask/ask.contract.js';
+import { AskReasonSchema } from '../../src/ask/reason.js';
 
 describe('AskOptionsSchema', () => {
   it('accepts whitelist fields only', () => {
@@ -87,7 +94,7 @@ describe('AskReasonSchema', () => {
 
 describe('CreateFeedbackBodySchema / InviteMemberBodySchema', () => {
   it('feedback 至少 rating/category/comment 之一', async () => {
-    const { CreateFeedbackBodySchema } = await import('./feedback.contract.js');
+    const { CreateFeedbackBodySchema } = await import('../../src/ask/feedback.contract.js');
     expect(CreateFeedbackBodySchema.safeParse({ requestId: 'r1' }).success).toBe(false);
     expect(
       CreateFeedbackBodySchema.safeParse({ requestId: 'r1', rating: 'up' }).success,
@@ -95,7 +102,7 @@ describe('CreateFeedbackBodySchema / InviteMemberBodySchema', () => {
   });
 
   it('invite 须 userId 或 email', async () => {
-    const { InviteMemberBodySchema } = await import('./member.contract.js');
+    const { InviteMemberBodySchema } = await import('../../src/ask/member.contract.js');
     expect(InviteMemberBodySchema.safeParse({ role: 'read' }).success).toBe(false);
     expect(
       InviteMemberBodySchema.safeParse({ email: 'a@b.com', role: 'read' }).success,

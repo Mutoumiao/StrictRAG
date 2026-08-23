@@ -1,3 +1,10 @@
+/**
+ * 目标：模型网关写入口可含 apiKey、读出口只有 hasApiKey，绑定 ref 可解析。
+ * 需求：B3
+ * 被测：CreateModelProviderBodySchema · ModelProviderSchema · parseModelRef · formatModelRef · requiredModelTypeForPurpose · PutPlatformBindingsBodySchema
+ * 简介：网关绑定 DTO。
+ */
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -8,7 +15,7 @@ import {
   formatModelRef,
   parseModelRef,
   requiredModelTypeForPurpose,
-} from './model-gateway.contract.js';
+} from '../../src/system/model-gateway.contract.js';
 
 describe('model-gateway contracts (B3)', () => {
   it('Create body rejects empty models', () => {

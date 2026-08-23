@@ -1,3 +1,10 @@
+/**
+ * 目标：文档 / 知识库 DTO 与完成上传、补丁元数据必须接受合法部门可见级并拒非法值。
+ * 需求：入库 HTTP
+ * 被测：KnowledgeBaseListItemSchema · VisibilityLevelSchema · CompleteUploadBodySchema · PatchDocumentMetaBodySchema · DocumentDetailSchema · DocumentListItemSchema
+ * 简介：文档 DTO 与可见级 / 部门字段。
+ */
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -7,7 +14,7 @@ import {
   KnowledgeBaseListItemSchema,
   PatchDocumentMetaBodySchema,
   VisibilityLevelSchema,
-} from './document.contract.js';
+} from '../../src/ingest/document.contract.js';
 
 const DETAIL_BASE = {
   id: '01900000-0000-7000-8000-0000000000d1',
