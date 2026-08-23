@@ -41,7 +41,7 @@ curl -sS -X POST http://127.0.0.1:4000/api/v1/auth/web/dev-login \
 ## 4. QUAL-1 红线测
 
 ```bash
-pnpm --filter @strict-rag/api test -- src/auth/auth-enforce.redline.test.ts
+pnpm --filter @strict-rag/api test -- tests/auth/enforce-401.test.ts
 ```
 
 ## 明确不是

@@ -57,9 +57,9 @@
 
 ```bash
 # 形状 / 覆盖
-pnpm --filter @strict-rag/api test -- src/eval/l2-gold.test.ts
+pnpm --filter @strict-rag/api test -- tests/eval/l2-gold.test.ts
 # 工程 runner（注入测；CI 不跑 live LLM）
-pnpm --filter @strict-rag/api test -- src/scripts/run-l2-golden.test.ts
+pnpm --filter @strict-rag/api test -- tests/eval/l2-cli.test.ts
 # 本地批跑（需 L2_KB_ID；写出 artifacts/l2-last-run.*；≠ 准出）
 L2_KB_ID=<kb-uuid> pnpm --filter @strict-rag/api exec tsx src/scripts/run-l2-golden.ts
 # 可选落库（仍 ≠ 准出；signoffEligible 仍 false）

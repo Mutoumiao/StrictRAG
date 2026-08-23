@@ -51,7 +51,7 @@ ask 图 / 检索 / 生成 …
 | 算法 | 固定窗口（`windowMs` 默认 60_000） |
 | 键 | `askRateLimitKey(userId, kbId)` → `ask:${userId}:${kbId}` |
 | 超限响应 | `fail(…, BizCode.RATE_LIMITED, …, 429, { retryAfterSec })`；计数 `ask_rate_limited_total` |
-| 单测 | `apps/api/src/obs/obs.test.ts`（`ask route 429 RATE_LIMITED`） |
+| 单测 | `apps/api/tests/obs/rate-limit.test.ts`（`ask route 429 RATE_LIMITED`） |
 
 ```bash
 # 试点示例（仅部署会话；勿改仓库 .env 默认）
