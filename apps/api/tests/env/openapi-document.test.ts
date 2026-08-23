@@ -1,9 +1,16 @@
+/**
+ * 目标：OpenAPI 文档必须从 contracts 生成。
+ * 需求：ARCH-P2-1
+ * 被测：buildOpenApiDocument / isOpenApiDocsEnabled
+ * 简介：OpenAPI 文档自 contracts 生成。
+ */
+
 import { AskRequestSchema, HealthResponseSchema } from '@strict-rag/contracts';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
-import { buildOpenApiDocument } from './document.js';
-import { isOpenApiDocsEnabled } from './routes.js';
+import { buildOpenApiDocument } from '../../src/openapi/document.js';
+import { isOpenApiDocsEnabled } from '../../src/openapi/routes.js';
 
 describe('buildOpenApiDocument (ARCH-P2-1)', () => {
   it('emits OpenAPI 3.1 with StrictRAG title', () => {

@@ -1,11 +1,18 @@
+/**
+ * 目标：/openapi.json 与 /docs 路由按开关暴露。
+ * 需求：ARCH-P2-1
+ * 被测：createOpenApiRoutes
+ * 简介：/openapi.json · /docs。
+ */
+
 import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
 
-import { createApp } from '../app.js';
-import { env } from '../env.js';
-import { requestIdMiddleware, type ApiVariables } from '../middleware/request-id.js';
-import { buildOpenApiDocument } from './document.js';
-import { createOpenApiRoutes, isOpenApiDocsEnabled } from './routes.js';
+import { createApp } from '../../src/app.js';
+import { env } from '../../src/env.js';
+import { requestIdMiddleware, type ApiVariables } from '../../src/middleware/request-id.js';
+import { buildOpenApiDocument } from '../../src/openapi/document.js';
+import { createOpenApiRoutes, isOpenApiDocsEnabled } from '../../src/openapi/routes.js';
 
 describe('OpenAPI HTTP routes (ARCH-P2-1)', () => {
   it('serves openapi.json when docs enabled (test default)', async () => {

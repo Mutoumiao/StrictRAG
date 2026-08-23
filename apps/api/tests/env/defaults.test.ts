@@ -1,3 +1,10 @@
+/**
+ * 目标：api env 默认值保持关闭态，tauClaim 双源冲突必须拒绝。
+ * 需求：基建: api env Zod
+ * 被测：env Zod 对齐（不启动进程）
+ * 简介：rewrite / AUTH_ENFORCE 默认关。
+ */
+
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 

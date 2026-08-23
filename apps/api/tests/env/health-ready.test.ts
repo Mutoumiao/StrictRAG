@@ -1,6 +1,13 @@
+/**
+ * 目标：health 探针必须返回 ok。
+ * 需求：P0
+ * 被测：GET /health
+ * 简介：health/ready。
+ */
+
 import { describe, expect, it } from 'vitest';
 
-import { createApp } from './app.js';
+import { createApp } from '../../src/app.js';
 
 describe('GET /health', () => {
   it('returns service envelope without DB', async () => {

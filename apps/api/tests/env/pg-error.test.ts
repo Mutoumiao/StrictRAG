@@ -1,7 +1,14 @@
+/**
+ * 目标：PG 错误码必须映射到业务码。
+ * 需求：基建: PG 错误映射
+ * 被测：extractPgError / mapPgErrorToBiz
+ * 简介：PG 错误映射。
+ */
+
 import { BizCode } from '@strict-rag/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { extractPgError, mapPgErrorToBiz } from './pg-error.js';
+import { extractPgError, mapPgErrorToBiz } from '../../src/lib/pg-error.js';
 
 describe('extractPgError', () => {
   it('reads bare { code } SQLSTATE', () => {

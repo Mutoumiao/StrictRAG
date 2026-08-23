@@ -18,6 +18,7 @@
 | `gateway/` | 模型绑定 / mock / 双节点 | B3 · QUAL-3 |
 | `eval/` | L1/L2 工程 seed | B10 · **≠ 准出** |
 | `obs/` | 指标、限流、写审计 | ARCH-P2-4 · ARCH-P1b-2 |
+| `env/` | env、health/ready、OpenAPI | P0 骨架 |
 
 ## 测例
 
@@ -55,6 +56,13 @@
 | `auth/enforce-401.test.ts` | AUTH_ENFORCE 开启且无 Bearer 时必须 401。 | QUAL-1 | `requirePermissionWhenEnforced` | enforce 开且无 Bearer → 401。 | 现行 |
 | `auth/role-hydrate.test.ts` | 每请求角色 hydrate 超时必须回退，缓存不超过 5s。 | B4-W | `role-hydrate middleware` | ≤5s 缓存。 | 现行 |
 | `auth/token-service.test.ts` | access jti 与 refresh 轮转在同一秒内可区分。 | prds/09-security | `issueTokenPair / rotateRefresh` | 同秒可区分。 | 现行 |
+| `env/body-limit.test.ts` | 超限 JSON body 必须 413 PAYLOAD_TOO_LARGE。 | prds/05-api · ARCH-P0 | `createApp body-limit` | 超限 JSON body 必须 413 PAYLOAD_TOO_LARGE。 | 现行 |
+| `env/defaults.test.ts` | api env 默认值保持关闭态，tauClaim 双源冲突必须拒绝。 | 基建: api env Zod | `env Zod 对齐（不启动进程）` | rewrite / AUTH_ENFORCE 默认关。 | 现行 |
+| `env/error-envelope.test.ts` | 未知路径与未处理异常必须走统一错误信封，且不得泄漏 stack。 | prds/05-api · ARCH-P0 | `createApp onError / isAskTimeoutExcept / isBodyLimitExcept` | 未知路径与未处理异常走统一信封，且不得泄漏 stack。 | 现行 |
+| `env/health-ready.test.ts` | health 探针必须返回 ok。 | P0 | `GET /health` | health/ready。 | 现行 |
+| `env/openapi-document.test.ts` | OpenAPI 文档必须从 contracts 生成。 | ARCH-P2-1 | `buildOpenApiDocument / isOpenApiDocsEnabled` | OpenAPI 文档自 contracts 生成。 | 现行 |
+| `env/openapi-routes.test.ts` | /openapi.json 与 /docs 路由按开关暴露。 | ARCH-P2-1 | `createOpenApiRoutes` | /openapi.json · /docs。 | 现行 |
+| `env/pg-error.test.ts` | PG 错误码必须映射到业务码。 | 基建: PG 错误映射 | `extractPgError / mapPgErrorToBiz` | PG 错误映射。 | 现行 |
 | `eval/adr046-snapshot.test.ts` | 评测快照绑定硬门不得松于试点。 | ADR-046 | `evaluateAdr046Bind / bindQualitySnapshotToEval` | 评测快照绑定硬门。 | 现行 |
 | `eval/l1-cli.test.ts` | L1 CLI 注入路径可跑且 skipTrace，不打 live。 | B10 | `runL1Golden / loadGold / writeL1Report` | 注入路径可跑且跳过落库 trace，不打 live。 | 现行 |
 | `eval/l1-matrix.test.ts` | L1 2×2 纯函数累计与覆盖计算正确，且不得当作签字。 | B10 | `cellFor / accumulate / coverage / computeSignoffEligible` | ≠ 签字；error 出格。 | 现行 |
@@ -119,11 +127,5 @@
 
 | 文件 | 目标 | 需求锚点 | 简介 | 状态 |
 |------|------|----------|------|------|
-| `../src/env.test.ts` | api env Zod | | | 待处理 |
-| `../src/app.health.test.ts` | health/ready | P0 | | 待处理 |
-| `../src/app.error.test.ts` | 全局错误信封 | `prds/05-api` | | 待处理 |
-| `../src/lib/pg-error.test.ts` | PG 错误映射 | | | 待处理 |
-| `../src/openapi/document.test.ts` | OpenAPI 文档自 contracts 生成 | ARCH-P2-1 | | 待处理 |
-| `../src/openapi/routes.test.ts` | /openapi.json · /docs | ARCH-P2-1 | | 待处理 |
 | `../src/routes/dashboard.test.ts` | 面板 summary HTTP | B6 | | 待处理 |
 | `../src/delivery-s05-inventory.test.ts` | 控制台 §0.5 待盘点行不得回退 | 交付控制台 | 读 PRD 文件，非 mock | 待处理 |
