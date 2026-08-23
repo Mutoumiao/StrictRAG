@@ -1,5 +1,8 @@
 /**
- * 数据面板：无码 403 态；有码加载 summary。
+ * 目标：数据面板无码须保持 403、有码才加载 summary，失败则指标页对无权限可见。
+ * 需求：B6 UI
+ * 被测：DashboardWorkspace
+ * 简介：指标真值在 api。
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -22,11 +25,11 @@ vi.mock('@/components/auth-guard', () => ({
   }),
 }));
 
-vi.mock('../services', () => ({
+vi.mock('@/app/(ops)/dashboard/services', () => ({
   loadDashboardSummary: (...args: unknown[]) => loadDashboardSummary(...args),
 }));
 
-import { DashboardWorkspace } from './dashboard-workspace';
+import { DashboardWorkspace } from '@/app/(ops)/dashboard/_components/dashboard-workspace';
 
 describe('DashboardWorkspace', () => {
   beforeEach(() => {

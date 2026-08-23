@@ -1,8 +1,8 @@
 /**
- * 文档页：点行展开详情；无 doc.editor 不露保存；保存走 saveDocumentMeta。
- * 有 dept.manage 才下拉选部门；无该码仍 uuid 粘贴，不整页 403。
- * 列表按已加载行本地筛部门/可见级；不改 GET query。
- * 向量/稀疏列扫 embedReady/esReady；稀疏就绪 ≠ 生产 ES。
+ * 目标：文档列表薄页必须按码控制详情/保存/部门列，失败则运营交互与权限不符。
+ * 需求：文档运营 UI
+ * 被测：DocumentsWorkspace · deptLabel / readyColLabel / visibilityLabel
+ * 简介：部门列展示。
  */
 
 import { within } from '@testing-library/react';
@@ -29,39 +29,39 @@ vi.mock('@/components/auth-guard', () => ({
   }),
 }));
 
-vi.mock('../list.services', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../list.services')>();
+vi.mock('@/app/(ops)/documents/list.services', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/app/(ops)/documents/list.services')>();
   return {
     ...actual,
     loadDocumentList: (...args: unknown[]) => loadDocumentList(...args),
   };
 });
 
-vi.mock('../meta.services', () => ({
+vi.mock('@/app/(ops)/documents/meta.services', () => ({
   loadDocumentDetail: (...args: unknown[]) => loadDocumentDetail(...args),
   saveDocumentMeta: (...args: unknown[]) => saveDocumentMeta(...args),
   loadDepartmentOptions: (...args: unknown[]) => loadDepartmentOptions(...args),
 }));
 
 const uploadAdminDocument = vi.fn();
-vi.mock('../upload.services', () => ({
+vi.mock('@/app/(ops)/documents/upload.services', () => ({
   uploadAdminDocument: (...args: unknown[]) => uploadAdminDocument(...args),
 }));
 
-vi.mock('../jobs.services', () => ({
+vi.mock('@/app/(ops)/documents/jobs.services', () => ({
   loadIngestJobs: async () => ({ ok: true, jobs: [] }),
 }));
 
-vi.mock('../lifecycle.services', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../lifecycle.services')>();
+vi.mock('@/app/(ops)/documents/lifecycle.services', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/app/(ops)/documents/lifecycle.services')>();
   return {
     ...actual,
     setDocumentLifecycle: vi.fn(async () => ({ ok: true, lifecycle: 'active' })),
   };
 });
 
-import { deptLabel, readyColLabel, visibilityLabel } from '../list.services';
-import { DocumentsWorkspace } from './documents-workspace';
+import { deptLabel, readyColLabel, visibilityLabel } from '@/app/(ops)/documents/list.services';
+import { DocumentsWorkspace } from '@/app/(ops)/documents/_components/documents-workspace';
 
 const DOC_ID = '018f0000-0000-7000-8000-0000000000d1';
 const DOC_ID_2 = '018f0000-0000-7000-8000-0000000000d2';
@@ -511,10 +511,10 @@ describe('readyColLabel', () => {
     loadDocumentList.mockResolvedValue({ ok: true, rows: [listDoc] });
     const { rerender } = render(<DocumentsWorkspace />);
     await screen.findByText('请假制度');
-    expect(document.querySelector('input[type="file"]')).toBeNull();
+    expect(screen.queryByLabelText('上传文档')).not.toBeInTheDocument();
     me.permissions = ['admin.shell', 'doc.view', 'doc.upload'];
     rerender(<DocumentsWorkspace />);
-    expect(document.querySelector('input[type="file"]')).not.toBeNull();
+    expect(screen.getByLabelText('上传文档')).toBeInTheDocument();
   });
 });
 

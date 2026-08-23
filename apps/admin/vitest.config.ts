@@ -18,7 +18,7 @@ export default defineConfig({
     name: '@strict-rag/admin',
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
-    include: ['tests/**/*.test.{ts,tsx}', 'src/**/*.test.{ts,tsx}'],
+    include: ['tests/**/*.test.{ts,tsx}'],
     css: false,
   },
 });

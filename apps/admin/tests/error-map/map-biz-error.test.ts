@@ -1,3 +1,10 @@
+/**
+ * 目标：已知业务码映射后文案必须含 code，失败则运营页看不到可核对错误码。
+ * 需求：P0 R6
+ * 被测：mapBizError
+ * 简介：不透出 shouldRefresh。
+ */
+
 import { describe, expect, it } from 'vitest';
 
 import { ApiHttpError } from '@/lib/http';

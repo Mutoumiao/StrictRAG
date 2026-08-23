@@ -1,7 +1,8 @@
 /**
- * 设置页：有 kb.config.write 可看/改 dataClass、强制勾选与 inherit 勾选；
- * 未改勾选不得 PATCH deptAclEnforce / deptInheritDown；无权限保持 403；
- * 强制勾选 ≠ 仓库默认开 / 解禁；sensitive ≠ 解禁。
+ * 目标：KB 设置薄页必须按 kb.config.write 显隐，未改勾选不得 PATCH 强制/继承。
+ * 需求：B2 设置 UI
+ * 被测：SettingsWorkspace
+ * 简介：mode 真值在 api。
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -28,8 +29,8 @@ vi.mock('@/components/auth-guard', () => ({
 const loadKbBindings = vi.fn();
 const saveKbBindings = vi.fn();
 
-vi.mock('../services', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../services')>();
+vi.mock('@/app/(ops)/kb/settings/services', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/app/(ops)/kb/settings/services')>();
   return {
     ...actual,
     loadKbSettings: (...args: unknown[]) => loadKbSettings(...args),
@@ -39,7 +40,7 @@ vi.mock('../services', async (importOriginal) => {
   };
 });
 
-import { SettingsWorkspace } from './settings-workspace';
+import { SettingsWorkspace } from '@/app/(ops)/kb/settings/_components/settings-workspace';
 
 const KB_ID = '018f0000-0000-7000-8000-0000000000k1';
 

@@ -1,5 +1,8 @@
 /**
- * 审批中心：无 decide 码不露按钮；无 KB 不请求；列表分栏。
+ * 目标：审批页必须按码显隐操作入口，失败则无 decide 仍露出通过/驳回。
+ * 需求：审批闸 UI
+ * 被测：ApprovalsWorkspace
+ * 简介：不替代 api 闸测。
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -23,12 +26,12 @@ vi.mock('@/components/auth-guard', () => ({
   }),
 }));
 
-vi.mock('../services', () => ({
+vi.mock('@/app/(ops)/approvals/services', () => ({
   loadApprovalsList: (...args: unknown[]) => loadApprovalsList(...args),
   applyApprovalAction: (...args: unknown[]) => applyApprovalAction(...args),
 }));
 
-import { ApprovalsWorkspace } from './approvals-workspace';
+import { ApprovalsWorkspace } from '@/app/(ops)/approvals/_components/approvals-workspace';
 
 const pendingDoc = {
   id: '018f0000-0000-7000-8000-0000000000f1',

@@ -1,3 +1,10 @@
+/**
+ * 目标：当前 KB 选择必须读写 admin 独立 key，失败则污染 web 或选库丢失。
+ * 需求：壳 KB 上下文
+ * 被测：readStoredKbId / writeStoredKbId
+ * 简介：localStorage key。
+ */
+
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { readStoredKbId, writeStoredKbId } from '@/lib/kb-context';

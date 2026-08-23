@@ -1,5 +1,8 @@
 /**
- * AdminShell：菜单按 permissions + clipMenuForShell 裁剪；无码不展示落地路由。
+ * 目标：菜单必须按权限码裁剪，失败则无码用户仍看到落地路由。
+ * 需求：ADR-056 clip
+ * 被测：AdminShell
+ * 简介：非完整运营台。
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -122,7 +125,7 @@ describe('AdminShell', () => {
       </AdminShell>,
     );
     await waitFor(() => {
-      expect(document.querySelector('#admin-kb-list option')?.getAttribute('value')).toBe(
+      expect(screen.getByRole('option', { name: '演示库', hidden: true })).toHaveValue(
         'kb-listed',
       );
     });
@@ -139,7 +142,7 @@ describe('AdminShell', () => {
       </AdminShell>,
     );
     await waitFor(() => expect(listKnowledgeBases).toHaveBeenCalled());
-    expect(document.getElementById('admin-kb-list')?.querySelectorAll('option')).toHaveLength(0);
+    expect(screen.queryByRole('option', { hidden: true })).not.toBeInTheDocument();
     await user.type(screen.getByPlaceholderText(/knowledge-base uuid/i), 'kb-paste');
     expect(localStorage.getItem('strict-rag:admin:last-kb-id')).toBe('kb-paste');
   });

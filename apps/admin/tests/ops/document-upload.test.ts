@@ -1,16 +1,23 @@
+/**
+ * 目标：上传服务必须按 upload-url → PUT → complete 调用，失败则入口顺序错乱。
+ * 需求：上传入口
+ * 被测：uploadAdminDocument
+ * 简介：体积闸真值在 api。
+ */
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const requestUploadUrl = vi.fn();
 const putUploadedObject = vi.fn();
 const completeUpload = vi.fn();
 
-vi.mock('./api', () => ({
+vi.mock('@/app/(ops)/documents/api', () => ({
   requestUploadUrl: (...a: unknown[]) => requestUploadUrl(...a),
   putUploadedObject: (...a: unknown[]) => putUploadedObject(...a),
   completeUpload: (...a: unknown[]) => completeUpload(...a),
 }));
 
-import { uploadAdminDocument } from './upload.services';
+import { uploadAdminDocument } from '@/app/(ops)/documents/upload.services';
 
 describe('uploadAdminDocument', () => {
   beforeEach(() => {

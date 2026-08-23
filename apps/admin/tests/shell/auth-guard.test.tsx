@@ -1,5 +1,8 @@
 /**
- * AdminAuthGuard：无会话 / 无 admin.shell 必须拦到登录。
+ * 目标：无会话或无 admin.shell 必须跳转登录，失败则壳内页对无权限用户可见。
+ * 需求：admin.shell
+ * 被测：AdminAuthGuard
+ * 简介：mock 须持续 resolve。
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';

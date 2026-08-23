@@ -1,3 +1,10 @@
+/**
+ * 目标：admin session 必须与 web key 分轨，失败则两端会话互相覆盖。
+ * 需求：双端 key 分轨
+ * 被测：saveClientSession / readClientSession / clearClientSession
+ * 简介：不写 web session key。
+ */
+
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import {

@@ -1,6 +1,8 @@
 /**
- * 部门页：有 dept.manage 才露跨部门授权；有 user.manage 才露归属写入口。
- * 双码时授权用户下拉；仅 dept.manage 仍 uuid 粘贴。
+ * 目标：部门薄页必须按码显隐授权与归属入口，失败则无权限用户看到写操作。
+ * 需求：B5 UI
+ * 被测：DepartmentsWorkspace · grantVisibilityLabel / grantExpiresLabel
+ * 简介：ACL 真值在 api。
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -32,8 +34,8 @@ vi.mock('@/components/auth-guard', () => ({
   }),
 }));
 
-vi.mock('../services', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../services')>();
+vi.mock('@/app/(ops)/departments/services', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/app/(ops)/departments/services')>();
   return {
     ...actual,
     loadDeptWorkspace: (...args: unknown[]) => loadDeptWorkspace(...args),
@@ -49,8 +51,8 @@ vi.mock('../services', async (importOriginal) => {
   };
 });
 
-import { grantExpiresLabel, grantVisibilityLabel } from '../services';
-import { DepartmentsWorkspace } from './departments-workspace';
+import { grantExpiresLabel, grantVisibilityLabel } from '@/app/(ops)/departments/services';
+import { DepartmentsWorkspace } from '@/app/(ops)/departments/_components/departments-workspace';
 
 const GRANT_ID = '018f0000-0000-7000-8000-0000000000g1';
 const USER_ID = '018f0000-0000-7000-8000-0000000000u1';
