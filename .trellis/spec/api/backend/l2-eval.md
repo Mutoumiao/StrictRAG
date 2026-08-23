@@ -12,7 +12,7 @@
 
 | 轨 | 含义 | 何时算「绿」 | **禁止**宣称 |
 |----|------|--------------|--------------|
-| **工程绿** | gold 形状/覆盖 + runner 注入测 | `l2-gold.test.ts` + `run-l2-golden.test.ts` 通过；9 类齐全；≥15 条 | 「L2 准出 PASS」 |
+| **工程绿** | gold 形状/覆盖 + runner 注入测 | `tests/eval/l2-gold.test.ts` + `tests/eval/l2-cli.test.ts` 通过；9 类齐全；≥15 条 | 「L2 准出 PASS」 |
 | **准出 PASS** | 产品/质量门禁（**非本窗**） | 真跑归档 + 零容忍=0 + RACI 人签 | 把草案条数 / mock 报告写成通过 |
 
 **Wrong**：PR 全绿 → 路线图勾「L2 已过」或把仓库默认改为 `SESSION_REWRITE_ENABLED=true`。  
@@ -105,11 +105,11 @@ CLI 退出码：`0` 写出报告（含 fail/error 题）；`2` 缺 `L2_KB_ID` / 
 
 | 层 | 文件 | 断言点 |
 |----|------|--------|
-| 加载 | `eval/l2-gold.test.ts` | 非法 JSON / 错 run_type / 重复 id / no_session+same / 缺 type |
+| 加载 | `tests/eval/l2-gold.test.ts` | 非法 JSON / 错 run_type / 重复 id / no_session+same / 缺 type |
 | 覆盖 | 同上 | 真实 gold `cases.length≥15` 且 `missing=[]` |
-| runner | `scripts/run-l2-golden.test.ts` | same/new/none 分配；跨 case 不串窗；泄漏 fail；accept 命中 pass；rewrite 关 + expected true → fail；真 gold+注入 `caseCount≥15` 且 `signoffEligible===false`；execute throw → error |
+| runner | `tests/eval/l2-cli.test.ts` | same/new/none 分配；跨 case 不串窗；泄漏 fail；accept 命中 pass；rewrite 关 + expected true → fail；真 gold+注入 `caseCount≥15` 且 `signoffEligible===false`；execute throw → error |
 | persist | 同上 | mapper：`runType=session_multiturn` / `'0'` / matrix 0 / coverage null / ranAt 非 ISO-Z / `reportJson.l2Fingerprint` 与函数一致；`persistEval: false` 不碰 DB；开闸用 persist mock，不连真 PG |
-| 指纹 | `eval/l2-fingerprint.test.ts` | 同输入稳定；改 prompt 一字或改 modelId 则变 |
+| 指纹 | `tests/eval/l2-fingerprint.test.ts` | 同输入稳定；改 prompt 一字或改 modelId 则变 |
 
 ---
 

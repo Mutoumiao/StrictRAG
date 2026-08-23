@@ -59,10 +59,10 @@ since24hLocal(now?): string
 
 | 测 | 断言点 |
 |----|--------|
-| `routes/dashboard.test.ts` | 无 `dashboard.view` → 403 + `FORBIDDEN` + message 含码 |
+| `tests/ops/dashboard-http.test.ts` | 无 `dashboard.view` → 403 + `FORBIDDEN` + message 含码 |
 | 同上 | super_admin → 200；`processReady` 为 boolean；计数来自注入 repo |
 | 同上 | 无 Bearer → 401 |
-| `dashboard.contract.test.ts` | strict 拒未知字段；`processReady` 非 boolean 失败 |
+| `packages/contracts/tests/system/dashboard-contract.test.ts` | strict 拒未知字段；`processReady` 非 boolean 失败 |
 
 ### 7. Wrong vs Correct
 

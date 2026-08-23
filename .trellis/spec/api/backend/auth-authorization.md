@@ -283,10 +283,10 @@ Refresh JWT：`sub` · `sid` · `app` · `jti`（落库/内存状态，用于 ro
 
 | 测试 | 断言点 |
 |------|--------|
-| `auth/permissions/resolve.test.ts` | super_admin 全码；doc_operator 无 approval.decide；web_consumer 无 shell；union/deny；kb 成员 AND |
-| `auth/identity/token-service.test.ts` | issue+verify；refresh 轮换 access 不同；replay 抛 `AuthIdentityError`；app 错配拒绝 |
-| `auth/role-hydrate.test.ts` | B4-W DB 覆盖 JWT、缓存/invalidate、bootstrap、timeout→claims、成员 403 回归 |
-| `auth/auth-enforce.redline.test.ts` | QUAL-1（已归档）：`vi.stubEnv` enforce=true 无 Bearer → 401 UNAUTHORIZED；默认仍关；unstub 还原 |
+| `tests/acl/permission-resolve.test.ts` | super_admin 全码；doc_operator 无 approval.decide；web_consumer 无 shell；union/deny；kb 成员 AND |
+| `tests/auth/token-service.test.ts` | issue+verify；refresh 轮换 access 不同；replay 抛 `AuthIdentityError`；app 错配拒绝 |
+| `tests/auth/role-hydrate.test.ts` | B4-W DB 覆盖 JWT、缓存/invalidate、bootstrap、timeout→claims、成员 403 回归 |
+| `tests/auth/enforce-401.test.ts` | QUAL-1（已归档）：`vi.stubEnv` enforce=true 无 Bearer → 401 UNAUTHORIZED；默认仍关；unstub 还原 |
 | 路由（建议补） | dev-login 400 体；/me 无 token 401；refresh replay 401 |
 | 前端（建议补） | http 在 `UNAUTHORIZED` 时只并发一次 refresh |
 

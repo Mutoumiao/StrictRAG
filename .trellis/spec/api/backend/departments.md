@@ -64,7 +64,7 @@ DB：`departments` · `user_departments`（`packages/db` · migration `0005_b5_d
 
 ### 6. Tests Required
 
-`apps/api/src/routes/departments.test.ts`（真实 Hono + memory repo）：
+`apps/api/tests/acl/departments-http.test.ts`（真实 Hono + memory repo）：
 
 - 无码 403（dept / user 归属）
 - 树 CRUD + tree

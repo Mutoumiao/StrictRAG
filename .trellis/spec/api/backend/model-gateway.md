@@ -55,7 +55,7 @@ Purpose → 类型：`embed→embedding` · `rerank→rerank` · 其余 chat 类
 
 ## 6. Tests Required
 
-`routes/model-gateway.test.ts`：
+`tests/gateway/bindings-http.test.ts`：
 
 - 无码 403  
 - POST 201 + 密钥不回显  
@@ -109,7 +109,7 @@ return ok(c, toPublicProvider(row)); // hasApiKey only
 
 ### Tests
 
-`gateway/gateway.test.ts`：staging 单节点拒 · primary 失败 fallback 成功 · 全失败无假 answered；graph 层 `rerank_unavailable` 回归。
+`tests/gateway/resolve-mock.test.ts`：staging 单节点拒 · primary 失败 fallback 成功 · 全失败无假 answered；graph 层 `rerank_unavailable` 回归。
 
 ### Wrong vs Correct
 
@@ -120,7 +120,7 @@ return ok(c, toPublicProvider(row)); // hasApiKey only
 
 ## 实现备注
 
-- 测例注入 `createMemoryModelGatewayRepo`；runtime 单测见 `gateway/gateway.test.ts`  
+- 测例注入 `createMemoryModelGatewayRepo`；runtime 单测见 `tests/gateway/resolve-mock.test.ts`  
 - 租户：`auth.tenantId` 或 `DEV_DEFAULT_TENANT`  
 - 日志：`model_provider_*` / `model_bindings_put`，**禁止**打 Key  
 - 已做：platform 写 API · runtime platform+KB resolve（B3-W/B2-W）· QUAL-3 双节点  

@@ -72,9 +72,9 @@ export function createChunkRoutes(deps?: { chunks?: ChunksRepo })
 
 | 测 | 断言 |
 |----|------|
-| `routes/chunks.test.ts` | doc_operator 403；kb_admin list 无 body；detail body；旧 version 404；分页 cursor；limit 非法 400；>64KiB truncated（字节） |
-| `services/chunks.test.ts` | preview 截断；UTF-8 字节截断（中文） |
-| `chunk.contract.test.ts` | Query 默认 limit；list shape 无 body |
+| `tests/ingest/chunks-http.test.ts` | doc_operator 403；kb_admin list 无 body；detail body；旧 version 404；分页 cursor；limit 非法 400；>64KiB truncated（字节） |
+| `tests/ingest/chunks-query.test.ts` | preview 截断；UTF-8 字节截断（中文） |
+| `packages/contracts/tests/ingest/chunk-contract.test.ts` | Query 默认 limit；list shape 无 body |
 
 ### 7. Wrong vs Correct
 

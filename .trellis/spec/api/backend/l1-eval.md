@@ -172,8 +172,8 @@ type RunL1Options = {
 
 | 层 | 文件 | 断言点 |
 |----|------|--------|
-| 纯函数 | `eval/l1-matrix.test.ts` | A/B/C/D 映射；error→null；accumulate error 增量；coverage 分母 0→null |
-| CLI/IO | `scripts/run-l1-golden.test.ts` | loadGold 合法/非法；`resolveEvalMode` 三态；注入 execute 得矩阵；写出 json+md；error 题不污染格；live+30/30→signoffEligible；mock/截断→false |
+| 纯函数 | `tests/eval/l1-matrix.test.ts` | A/B/C/D 映射；error→null；accumulate error 增量；coverage 分母 0→null |
+| CLI/IO | `tests/eval/l1-cli.test.ts` | loadGold 合法/非法；`resolveEvalMode` 三态；注入 execute 得矩阵；写出 json+md；error 题不污染格；live+30/30→signoffEligible；mock/截断→false |
 | 集成（可选） | 同文件 mock graphDeps 路径 | `runL1Golden` + `executeDeps.graphDeps` 不撞 DB trace |
 
 **CI 边界**：单元/注入测必须绿；**不要求** 默认 PR 流水线跑真实 Gateway + ES。

@@ -320,7 +320,7 @@ route
 | graph rewrite | 关+session 不调 loader/rewrite；开+窗 retrieve=standalone；`resolved=false`/非法 JSON → `coref_unresolved` 且 retrieve 0；J2x 隔离；历史≠evidence；fast/空窗/无 session 不 rewrite |
 | web | `useChat` + `data-ask-final`；B13 FeedbackBar → `createAskFeedback`；三态 UI；无自写 SSE |
 
-证据路径：现行导航 `apps/api/tests/index.md`（过渡期大量遗留仍在 `src/**/*.test.ts`：`graph` · `ask` · `retrieve` · `sessions` · `feedback` · `obs`）。HOW：`.trellis/spec/guides/testing.md`。
+证据路径：现行导航 `apps/api/tests/index.md`（`tests/ask/` · `tests/sessions/` · `tests/feedback/` · `tests/obs/`）。HOW：`.trellis/spec/guides/testing.md`。
 
 ### 7. Wrong vs Correct
 

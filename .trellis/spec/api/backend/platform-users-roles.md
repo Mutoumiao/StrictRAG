@@ -63,7 +63,7 @@ DB：`platform_roles` · `user_roles`（`packages/db` · migration `0004_b4_plat
 
 ### 6. Tests Required
 
-`apps/api/src/routes/platform-users-roles.test.ts`（真实 Hono + memory repo）：
+`apps/api/tests/acl/platform-users-roles.test.ts`（真实 Hono + memory repo）：
 
 - 无码 403（users / roles）
 - 四系统角色 + 自定义合法/非法码

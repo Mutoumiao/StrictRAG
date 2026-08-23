@@ -15,13 +15,14 @@ apps/api/
       middleware.ts          # attachAuth · requireAuth · requirePermission · WhenEnforced · requireKbMember · requireKbScope · evaluateKbMember · isAuthEnforceEnabled
       kb-scope.ts            # ARCH-P1b-1：lookupKbMembership 请求内缓存纯函数
       role-hydrate.ts        # B4-W：DB 角色 ≤5s 缓存 · ROLE_LOAD_TIMEOUT · vitest 默认 null loader
-      auth-enforce.redline.test.ts  # QUAL-1（遗留）
+      # QUAL-1 测例在 tests/auth/enforce-401.test.ts
       identity/              # 双 JWT 过渡
         jwt.ts · refresh-store.ts · token-service.ts
       permissions/resolve.ts # 有效码求值 · super_admin 旁路成员
     graph/                   # 单轮信任路径（线性状态机）
       run.ts · state.ts · prompts.ts · parse.ts · route-rules.ts
-      budget.ts · reasons.ts · tracer.ts · graph.test.ts（遗留，待拆）
+      budget.ts · reasons.ts · tracer.ts
+      # ask 图测例在 tests/ask/（min-veto / verify-required / rewrite-* 等）
     routes/
       auth.ts                # dev-login · refresh · me · bootstrap ensureUserRoleCodes
       documents/             # ARCH-P1a 试点：按域目录（P1 入库 + B12 complete/reindex 闸 + P3b-META PATCH + complete 可写部门）
@@ -57,18 +58,14 @@ apps/api/
       retrieve/              # 混合检索 · 双闸门 · RRF · es-sparse（OPS-1 http 切片）
     eval/
       l1-matrix.ts           # L1 2×2 纯函数（A–D · coverage）；error 不计格
-      l1-matrix.test.ts
       l2-gold.ts             # L2 多轮题面加载 / 覆盖（纯函数）
-      l2-gold.test.ts
       l2-fingerprint.ts      # P2.5-L2S：rewrite prompt+model 指纹（纯函数；≠ 准出）
-      l2-fingerprint.test.ts
       adr046-snapshot.ts     # ADR-046 配置快照绑定 + 硬门单向 + 四要素 / businessPass 闸
-      adr046-snapshot.test.ts
+      # 评测测例在 tests/eval/
     scripts/
       run-l1-golden.ts       # L1 批跑 CLI：串行 executeAsk(skipTrace) → artifacts/；可选 persist eval_runs
-      run-l1-golden.test.ts  # loadGold · mock execute 注入（CI 不跑 live LLM）
       run-l2-golden.ts       # L2 批跑 CLI：进程内窗 + 末轮机械分；signoffEligible 恒 false
-      run-l2-golden.test.ts  # 分配 / 泄漏 / 注入 execute（CI 不跑 live LLM / 不写 PG）
+      # CLI 测例在 tests/eval/l1-cli.test.ts · l2-cli.test.ts
       seed-es-sparse-probe.ts # OPS-1：PG chunks → ES bulk + sample search
     obs/                     # metrics · rate-limit · memory/ask tracer
     gates/                   # 上传体积 · 审批 scan

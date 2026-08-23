@@ -84,7 +84,7 @@
 | V-neg-4 | 耗尽 maxLLMCalls 于 judge 重试前 → `budget_exhausted`，非 verified |
 | V-neg-5 | P0 R9：未完整 verify 不得 answered（`docs/testing/p0-redlines.md`） |
 
-证据：`apps/api/src/graph/graph.test.ts` · `run.ts` verify 段 · `parse.ts` empty claims throw。
+证据：`apps/api/tests/ask/min-veto.test.ts` · `tests/ask/verify-required.test.ts` · `run.ts` verify 段 · `parse.ts` empty claims throw。
 
 ---
 
@@ -126,7 +126,7 @@ Epic `08-05-phase-2-ask` 已关并归档；**≠** 路线图 Phase 2 全文。
 - [ ] 检索闸改动是否只测了 `packages/db` 纯函数？→ **生产装载路径**（api `filterDocsForRetrieve` / corpus）是否仍被覆盖？  
 - [ ] verify 路径是否只有 happy `llmCalls` 计数？→ 是否有 **负向**「未完整 verify 不得 answered」？  
 - [ ] 跨层 final 形状是否双端各写一份 JSON？→ 应用 `@strict-rag/contracts/testing`  
-- [ ] 是否误以为 R 表要求 stub `AUTH_ENFORCE`？→ **不要求**；QUAL-1 红线测已归档（`auth-enforce.redline.test.ts`），**禁止**改仓库默认 on  
+- [ ] 是否误以为 R 表要求 stub `AUTH_ENFORCE`？→ **不要求**；QUAL-1 红线测已归档（`tests/auth/enforce-401.test.ts`），**禁止**改仓库默认 on  
 - [ ] 是否把 `mapBizError` 字符串当 `shouldRefresh` 断言？→ admin 应直测 `ApiHttpError` 字段  
 - [ ] 是否改 scan / 宣称杀毒完成？→ 读 DEC-SCAN；生产前 **新建** QUAL-2 实现 task  
 - [ ] 是否改 complete/reindex 策略？→ 读 [chunk-strategies](../api/backend/chunk-strategies.md)

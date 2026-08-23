@@ -95,9 +95,9 @@ resolveDocumentChunkStrategy({ existing, requested, requireExplicit? })
 
 | 文件 | 断言点 |
 |------|--------|
-| `services/chunk-strategies.test.ts` | writable 仅 default；未实现 400；保留脏码失败 |
-| `routes/documents/reindex.test.ts` | 未带 400；同已实现 retain；未实现 400；脏→已实现 change |
-| worker `pipeline.test.ts` | `splitByChunkStrategy` 未实现 → UNSUPPORTED |
+| `tests/ingest/chunk-strategies.test.ts` | writable 仅 default；未实现 400；保留脏码失败 |
+| `tests/ingest/reindex-strategy.test.ts` | 未带 400；同已实现 retain；未实现 400；脏→已实现 change |
+| worker `tests/ingest/chunk-strategy-loud-fail.test.ts` | `splitByChunkStrategy` 未实现 → UNSUPPORTED |
 
 ### 7. Wrong vs Correct
 

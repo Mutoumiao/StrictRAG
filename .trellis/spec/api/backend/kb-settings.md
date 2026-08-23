@@ -106,8 +106,8 @@ export function createKbSettingsRoutes(deps?: {
 
 | 测 | 断言 |
 |----|------|
-| `routes/kb-settings.test.ts` | doc_operator 403；非成员 403；GET quality+锁+`dataClass=internal`；PATCH 回读；PATCH `dataClass`；非法 `dataClass` 400；τ/sessionRewrite 400；defaultMode 越界 400；未知 KB 404 |
-| `kb-settings.contract.test.ts` | strict 拒禁字段；modes 去重；sessionRewrite 形状；`dataClass` 缺省 internal |
+| `tests/kb/settings-http.test.ts` | doc_operator 403；非成员 403；GET quality+锁+`dataClass=internal`；PATCH 回读；PATCH `dataClass`；非法 `dataClass` 400；τ/sessionRewrite 400；defaultMode 越界 400；未知 KB 404 |
+| `packages/contracts/tests/kb/settings-contract.test.ts` | strict 拒禁字段；modes 去重；sessionRewrite 形状；`dataClass` 缺省 internal |
 
 ### 7. Wrong vs Correct
 
@@ -151,7 +151,7 @@ assertScopeDocTypesAllowed({ scopeDocTypes?, kbDocTypes })
 
 ### Tests
 
-`services/kb-settings-mode.test.ts` · ask 路由 mode-gate 用例。
+`tests/kb/ask-mode-doc-types.test.ts` · `tests/ask/mode-doc-types-gate.test.ts`。
 
 ---
 
