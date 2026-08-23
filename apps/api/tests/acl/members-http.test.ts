@@ -1,12 +1,19 @@
+/**
+ * 目标：成员 CRUD HTTP 按成员码授权。
+ * 需求：成员码
+ * 被测：createMemberRoutes
+ * 简介：成员 CRUD HTTP。
+ */
+
 import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 
-import { attachAuthMiddleware, type AuthVariables } from '../auth/middleware.js';
-import { issueTokenPair } from '../auth/identity/token-service.js';
-import { requestIdMiddleware } from '../middleware/request-id.js';
-import { createMemoryMembersRepo } from '../services/members.js';
-import { createMemberRoutes } from './members.js';
+import { attachAuthMiddleware, type AuthVariables } from '../../src/auth/middleware.js';
+import { issueTokenPair } from '../../src/auth/identity/token-service.js';
+import { requestIdMiddleware } from '../../src/middleware/request-id.js';
+import { createMemoryMembersRepo } from '../../src/services/members.js';
+import { createMemberRoutes } from '../../src/routes/members.js';
 
 const KB = '01900000-0000-7000-8000-0000000000aa';
 const TENANT = '01900000-0000-7000-8000-000000000001';

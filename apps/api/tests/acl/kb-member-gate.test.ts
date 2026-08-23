@@ -1,17 +1,24 @@
+/**
+ * 目标：无 KB 成员必须 403，授权以码为准。
+ * 需求：以码为准
+ * 被测：requireKbMember / requirePermission
+ * 简介：无成员 403。
+ */
+
 import { Hono } from 'hono';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 
-import { ok } from '../lib/response.js';
-import { requestIdMiddleware, type ApiVariables } from '../middleware/request-id.js';
-import { issueTokenPair } from './identity/token-service.js';
+import { ok } from '../../src/lib/response.js';
+import { requestIdMiddleware, type ApiVariables } from '../../src/middleware/request-id.js';
+import { issueTokenPair } from '../../src/auth/identity/token-service.js';
 import {
   attachAuthMiddleware,
   isAuthEnforceEnabled,
   requireKbMember,
   requireKbScope,
   requirePermission,
-} from './middleware.js';
+} from '../../src/auth/middleware.js';
 
 async function token(roles: string[], userId = uuidv7()) {
   const pair = await issueTokenPair({
@@ -144,7 +151,7 @@ describe('requireKbMember / requirePermission kb gate', () => {
 
 describe('member routes validation (no DB)', () => {
   it('POST members without auth → 401', async () => {
-    const { createApp } = await import('../app.js');
+    const { createApp } = await import('../../src/app.js');
     const app = createApp();
     const res = await app.request(
       '/api/v1/knowledge-bases/01900000-0000-7000-8000-000000000099/members',
@@ -160,7 +167,7 @@ describe('member routes validation (no DB)', () => {
   });
 
   it('GET members without auth → 401', async () => {
-    const { createApp } = await import('../app.js');
+    const { createApp } = await import('../../src/app.js');
     const app = createApp();
     const res = await app.request(
       '/api/v1/knowledge-bases/01900000-0000-7000-8000-000000000099/members',

@@ -1,3 +1,10 @@
+/**
+ * 目标：检索期按部门 ACL 过滤可见文档。
+ * 需求：DEPT_ACL
+ * 被测：filterDocsForDeptAcl
+ * 简介：默认 enforce 关。
+ */
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -7,7 +14,7 @@ import {
   loadDeptAssignments,
   loadDeptGrants,
   loadDeptNodes,
-} from './dept-acl.js';
+} from '../../src/services/retrieve/dept-acl.js';
 
 const DEPT_A = '01900000-0000-7000-8000-0000000000a1';
 const DEPT_B = '01900000-0000-7000-8000-0000000000b1';

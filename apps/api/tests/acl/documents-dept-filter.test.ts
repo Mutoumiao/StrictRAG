@@ -1,10 +1,17 @@
+/**
+ * 目标：文档列表必须套部门过滤。
+ * 需求：DEPT_ACL
+ * 被测：documents list dept filter
+ * 简介：文档列表部门过滤。
+ */
+
 import { Hono } from 'hono';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 
-import { issueTokenPair } from '../../auth/identity/token-service.js';
-import { attachAuthMiddleware, type AuthVariables } from '../../auth/middleware.js';
-import { requestIdMiddleware } from '../../middleware/request-id.js';
+import { issueTokenPair } from '../../src/auth/identity/token-service.js';
+import { attachAuthMiddleware, type AuthVariables } from '../../src/auth/middleware.js';
+import { requestIdMiddleware } from '../../src/middleware/request-id.js';
 
 const DOC = '01900000-0000-7000-8000-0000000000d1';
 const LIB = '01900000-0000-7000-8000-0000000000d2';
@@ -47,7 +54,7 @@ const deptAcl = {
   extraList: [] as ReturnType<typeof listRow>[],
 };
 
-vi.mock('../../services/documents.js', () => ({
+vi.mock('../../src/services/documents.js', () => ({
   documentRepo: {
     getDoc: async (id: string) =>
       id === DOC
@@ -81,8 +88,8 @@ vi.mock('../../services/documents.js', () => ({
   },
 }));
 
-vi.mock('../../services/retrieve/dept-acl.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../services/retrieve/dept-acl.js')>();
+vi.mock('../../src/services/retrieve/dept-acl.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/services/retrieve/dept-acl.js')>();
   return {
     ...actual,
     isDeptAclEnforced: () => deptAcl.enforce,
@@ -92,7 +99,7 @@ vi.mock('../../services/retrieve/dept-acl.js', async (importOriginal) => {
   };
 });
 
-const { documentRoutes } = await import('./index.js');
+const { documentRoutes } = await import('../../src/routes/documents/index.js');
 
 async function token(roles: string[] = ['kb_admin']) {
   const pair = await issueTokenPair({

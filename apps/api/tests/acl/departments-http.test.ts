@@ -1,16 +1,23 @@
+/**
+ * 目标：部门壳 HTTP 按契约读写。
+ * 需求：B5
+ * 被测：createDepartmentsRoutes
+ * 简介：部门壳 HTTP。
+ */
+
 import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 
-import { attachAuthMiddleware, type AuthVariables } from '../auth/middleware.js';
-import { issueTokenPair } from '../auth/identity/token-service.js';
-import { requestIdMiddleware } from '../middleware/request-id.js';
-import { DEV_DEFAULT_TENANT } from '../services/members.js';
+import { attachAuthMiddleware, type AuthVariables } from '../../src/auth/middleware.js';
+import { issueTokenPair } from '../../src/auth/identity/token-service.js';
+import { requestIdMiddleware } from '../../src/middleware/request-id.js';
+import { DEV_DEFAULT_TENANT } from '../../src/services/members.js';
 import {
   createMemoryDepartmentsRepoWithUsers,
   type MemoryDepartmentsRepo,
-} from '../services/departments.js';
-import { createDepartmentsRoutes } from './departments.js';
+} from '../../src/services/departments.js';
+import { createDepartmentsRoutes } from '../../src/routes/departments.js';
 
 const TENANT = DEV_DEFAULT_TENANT;
 

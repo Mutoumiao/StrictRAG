@@ -1,3 +1,10 @@
+/**
+ * 目标：有效权限码 = 模板 ∪ grants − denies。
+ * 需求：ADR-051
+ * 被测：resolveEffectiveCodes / canAccessKbScoped
+ * 简介：有效码求值。
+ */
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -5,7 +12,7 @@ import {
   canEnterAdminShell,
   hasPermission,
   resolveEffectiveCodes,
-} from './resolve.js';
+} from '../../src/auth/permissions/resolve.js';
 
 describe('resolveEffectiveCodes', () => {
   it('super_admin gets all codes including admin.shell', () => {

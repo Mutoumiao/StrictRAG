@@ -1,15 +1,22 @@
+/**
+ * 目标：跨部门 grant HTTP 按 DEPT_ACL 约束。
+ * 需求：DEPT_ACL
+ * 被测：createDeptGrantsRoutes
+ * 简介：跨部门 grant。
+ */
+
 import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 
-import { attachAuthMiddleware, type AuthVariables } from '../auth/middleware.js';
-import { issueTokenPair } from '../auth/identity/token-service.js';
-import { requestIdMiddleware } from '../middleware/request-id.js';
-import { createMemoryDepartmentsRepoWithUsers } from '../services/departments.js';
-import { createMemoryDeptGrantsRepo } from '../services/dept-grants.js';
-import { DEV_DEFAULT_TENANT } from '../services/members.js';
-import { createMemoryPlatformUsersRolesRepo } from '../services/platform-users-roles.js';
-import { createDeptGrantsRoutes } from './dept-grants.js';
+import { attachAuthMiddleware, type AuthVariables } from '../../src/auth/middleware.js';
+import { issueTokenPair } from '../../src/auth/identity/token-service.js';
+import { requestIdMiddleware } from '../../src/middleware/request-id.js';
+import { createMemoryDepartmentsRepoWithUsers } from '../../src/services/departments.js';
+import { createMemoryDeptGrantsRepo } from '../../src/services/dept-grants.js';
+import { DEV_DEFAULT_TENANT } from '../../src/services/members.js';
+import { createMemoryPlatformUsersRolesRepo } from '../../src/services/platform-users-roles.js';
+import { createDeptGrantsRoutes } from '../../src/routes/dept-grants.js';
 
 const TENANT = DEV_DEFAULT_TENANT;
 

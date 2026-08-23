@@ -1,12 +1,19 @@
+/**
+ * 目标：chunks 列表必须套部门过滤。
+ * 需求：DEPT_ACL
+ * 被测：GET /documents/:docId/chunks
+ * 简介：chunks 列表部门过滤。
+ */
+
 import { Hono } from 'hono';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 
-import { attachAuthMiddleware, type AuthVariables } from '../auth/middleware.js';
-import { issueTokenPair } from '../auth/identity/token-service.js';
-import { requestIdMiddleware } from '../middleware/request-id.js';
-import { createMemoryChunksRepo, type ChunkRow } from '../services/chunks.js';
-import { createChunkRoutes } from './chunks.js';
+import { attachAuthMiddleware, type AuthVariables } from '../../src/auth/middleware.js';
+import { issueTokenPair } from '../../src/auth/identity/token-service.js';
+import { requestIdMiddleware } from '../../src/middleware/request-id.js';
+import { createMemoryChunksRepo, type ChunkRow } from '../../src/services/chunks.js';
+import { createChunkRoutes } from '../../src/routes/chunks.js';
 
 const DOC = '01900000-0000-7000-8000-0000000000d1';
 const KB = '01900000-0000-7000-8000-0000000000aa';
@@ -23,8 +30,8 @@ const deptAcl = {
   ownerDeptId: DEPT_B as string | null,
 };
 
-vi.mock('../services/retrieve/dept-acl.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../services/retrieve/dept-acl.js')>();
+vi.mock('../../src/services/retrieve/dept-acl.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/services/retrieve/dept-acl.js')>();
   return {
     ...actual,
     isDeptAclEnforced: () => deptAcl.enforce,
@@ -34,7 +41,7 @@ vi.mock('../services/retrieve/dept-acl.js', async (importOriginal) => {
   };
 });
 
-vi.mock('../services/documents.js', () => ({
+vi.mock('../../src/services/documents.js', () => ({
   documentRepo: {
     getKb: async () => ({
       id: KB,

@@ -1,6 +1,13 @@
+/**
+ * 目标：KB 成员查找在同一请求内复用缓存。
+ * 需求：ARCH-P1b-1
+ * 被测：lookupKbMembership / membershipCacheKey
+ * 简介：KB 成员查找请求内缓存。
+ */
+
 import { describe, expect, it, vi } from 'vitest';
 
-import { lookupKbMembership, membershipCacheKey } from './kb-scope.js';
+import { lookupKbMembership, membershipCacheKey } from '../../src/auth/kb-scope.js';
 
 describe('kb-scope membership cache', () => {
   it('membershipCacheKey 区分 user 与 kb', () => {

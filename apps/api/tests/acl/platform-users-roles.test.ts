@@ -1,16 +1,23 @@
+/**
+ * 目标：平台用户角色写路径必须失效缓存。
+ * 需求：B4
+ * 被测：platform-users-roles routes
+ * 简介：写路径 invalidate 缓存。
+ */
+
 import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 
-import { attachAuthMiddleware, type AuthVariables } from '../auth/middleware.js';
-import { issueTokenPair } from '../auth/identity/token-service.js';
-import { requestIdMiddleware } from '../middleware/request-id.js';
-import { DEV_DEFAULT_TENANT } from '../services/members.js';
+import { attachAuthMiddleware, type AuthVariables } from '../../src/auth/middleware.js';
+import { issueTokenPair } from '../../src/auth/identity/token-service.js';
+import { requestIdMiddleware } from '../../src/middleware/request-id.js';
+import { DEV_DEFAULT_TENANT } from '../../src/services/members.js';
 import {
   createMemoryPlatformUsersRolesRepo,
   SUPER_ADMIN_ROLE_CODE,
-} from '../services/platform-users-roles.js';
-import { createPlatformUsersRolesRoutes } from './platform-users-roles.js';
+} from '../../src/services/platform-users-roles.js';
+import { createPlatformUsersRolesRoutes } from '../../src/routes/platform-users-roles.js';
 
 const TENANT = DEV_DEFAULT_TENANT;
 

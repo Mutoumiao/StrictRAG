@@ -11,11 +11,22 @@
 | `ask/` | 单轮信任路径、mode/docTypes、检索装载 | `prds/04-pipelines` · `prds/08-quality` · P0 R7–R9 |
 | `ingest/` | 入库 HTTP、体积/审批闸、分片策略、文档元数据 | `prds/04-pipelines/01-offline-ingest.md` · B12 |
 | `auth/` | JWT、AUTH_ENFORCE、hydrate | `prds/09-security` · QUAL-1 |
+| `acl/` | 成员、部门、kb-scope、列表同滤 | ADR-051 · DEPT_ACL |
 
 ## 测例
 
 | 文件 | 目标 | 需求锚点 | 被测 | 简介 | 状态 |
 |------|------|----------|------|------|------|
+| `acl/chunks-dept-filter.test.ts` | chunks 列表必须套部门过滤。 | DEPT_ACL | `GET /documents/:docId/chunks` | chunks 列表部门过滤。 | 现行 |
+| `acl/departments-http.test.ts` | 部门壳 HTTP 按契约读写。 | B5 | `createDepartmentsRoutes` | 部门壳 HTTP。 | 现行 |
+| `acl/dept-grants-http.test.ts` | 跨部门 grant HTTP 按 DEPT_ACL 约束。 | DEPT_ACL | `createDeptGrantsRoutes` | 跨部门 grant。 | 现行 |
+| `acl/documents-dept-filter.test.ts` | 文档列表必须套部门过滤。 | DEPT_ACL | `documents list dept filter` | 文档列表部门过滤。 | 现行 |
+| `acl/kb-member-gate.test.ts` | 无 KB 成员必须 403，授权以码为准。 | 以码为准 | `requireKbMember / requirePermission` | 无成员 403。 | 现行 |
+| `acl/kb-scope-cache.test.ts` | KB 成员查找在同一请求内复用缓存。 | ARCH-P1b-1 | `lookupKbMembership / membershipCacheKey` | KB 成员查找请求内缓存。 | 现行 |
+| `acl/members-http.test.ts` | 成员 CRUD HTTP 按成员码授权。 | 成员码 | `createMemberRoutes` | 成员 CRUD HTTP。 | 现行 |
+| `acl/permission-resolve.test.ts` | 有效权限码 = 模板 ∪ grants − denies。 | ADR-051 | `resolveEffectiveCodes / canAccessKbScoped` | 有效码求值。 | 现行 |
+| `acl/platform-users-roles.test.ts` | 平台用户角色写路径必须失效缓存。 | B4 | `platform-users-roles routes` | 写路径 invalidate 缓存。 | 现行 |
+| `acl/retrieve-dept-acl.test.ts` | 检索期按部门 ACL 过滤可见文档。 | DEPT_ACL | `filterDocsForDeptAcl` | 默认 enforce 关。 | 现行 |
 | `ask/budget.test.ts` | mode 预算表与 tryCharge 闸；检索/LLM 额度耗尽不得 answered。 | ADR-032 · prds/04-pipelines | `budgetForMode / tryChargeLlm / tryChargeRetrieve / runAskGraph 预算路径` | 校验 mode 默认额度与 tryCharge；检索/LLM 耗尽须 abstained。 | 现行 |
 | `ask/citations.test.ts` | 非法 citation 不得 answered；混合法/非法只保留证据 id 并仍走 verify。 | prds/08-quality | `runAskGraph（generate+citations）` | 非法引用拒答；混合引用只留证据 id；insufficient 走 model_abstained。 | 现行 |
 | `ask/es-sparse-probe.test.ts` | 稀疏探针脚本在缺少 KB 时必须拒绝误跑。 | OPS-1 | `requireProbeKbId` | 非生产 ES 宣称。 | 现行 |
@@ -57,7 +68,6 @@
 
 | 文件 | 目标 | 需求锚点 | 简介 | 状态 |
 |------|------|----------|------|------|
-| `../src/services/retrieve/dept-acl.test.ts` | 检索期部门过滤 | DEPT_ACL | 默认 enforce 关 | 待处理 |
 | `../src/services/ask/session-window.test.ts` | 近窗裁剪 | 历史≠evidence | 不把历史当 citation | 待处理 |
 
 ### ingest
@@ -70,15 +80,6 @@
 | 文件 | 目标 | 需求锚点 | 简介 | 状态 |
 |------|------|----------|------|------|
 | `../src/auth/auth-enforce-pilot.doc.test.ts` | 试点文档与开关一致 | `docs/ops/auth-enforce-pilot.md` | 文档护栏 | 待处理 |
-| `../src/auth/kb-scope.test.ts` | KB 成员查找请求内缓存 | ARCH-P1b-1 | | 待处理 |
-| `../src/auth/middleware.kb-member.test.ts` | 无成员 403 | 以码为准 | | 待处理 |
-| `../src/auth/permissions/resolve.test.ts` | 有效码 = 模板 ∪ grants − denies | ADR-051 | | 待处理 |
-| `../src/routes/members.test.ts` | 成员 CRUD HTTP | 成员码 | | 待处理 |
-| `../src/routes/departments.test.ts` | 部门壳 HTTP | B5 | | 待处理 |
-| `../src/routes/dept-grants.test.ts` | 跨部门 grant | DEPT_ACL | | 待处理 |
-| `../src/routes/chunks.dept-acl.test.ts` | chunks 列表部门过滤 | DEPT_ACL | | 待处理 |
-| `../src/routes/documents/dept-acl.test.ts` | 文档列表部门过滤 | DEPT_ACL | | 待处理 |
-| `../src/routes/platform-users-roles.test.ts` | 平台用户角色 | B4 | 写路径 invalidate 缓存 | 待处理 |
 
 ### kb / sessions / feedback / gateway
 
