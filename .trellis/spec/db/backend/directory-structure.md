@@ -12,10 +12,8 @@ packages/db/
     index.ts              # 导出 client / schema / query helpers
     client.ts             # createDb（分端 timeout）
     time.ts               # 本地格式串写库 · uuid 辅助
-    time.test.ts
     query/
       retrieval-gate.ts   # isDefaultRetrievable：ready ∧ active
-      retrieval-gate.test.ts
     schema/
       index.ts
       _shard/base-columns.ts
@@ -39,7 +37,6 @@ packages/db/
         ask-traces.ts
         ask-feedback.ts
         eval-runs.ts        # B10-followup 工程
-        ask-schema.test.ts
 ```
 
 > **完成度 / 相对 PRD 缺表** → `docs/module-status/db.md` + [database-guidelines](./database-guidelines.md)。  

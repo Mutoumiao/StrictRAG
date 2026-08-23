@@ -82,7 +82,7 @@ isDefaultRetrievable({ status, lifecycle })
 |------|------|
 | 默认闸 | ready ∧ active（ADR-038） |
 | 消费者 | `apps/api` retrieve **必须**复用 L0；禁止 route/service 私写平行 `status===ready` |
-| 单测 | `retrieval-gate.test.ts` 护栏；corpus 测例证明 draft/embedding 不可见 |
+| 单测 | `tests/retrieve/ready-active-gate.test.ts` 护栏；api corpus 测例证明 draft/embedding 不可见 |
 | **Wrong** | retrieve 手写 `WHERE status='ready'` 漏 lifecycle |
 | **Correct** | `docs.filter(isDefaultRetrievable)` 后再 docTypes |
 
@@ -189,7 +189,7 @@ pnpm --filter @strict-rag/db db:migrate
 | 单元 | repository mock |
 | 集成 | 测试库 migrate 后关键查询 |
 
-现状：`packages/db` 已有 vitest（遗留 `time` · `retrieval-gate` 等，见 `tests/index.md`）；集成 migrate 测仍待 Docker。新测例 HOW：`.trellis/spec/guides/testing.md`。
+现状：`packages/db` 已有 vitest（`tests/env/local-datetime.test.ts` · `tests/retrieve/ready-active-gate.test.ts` 等，见 `tests/index.md`）；集成 migrate 测仍待 Docker。新测例 HOW：`.trellis/spec/guides/testing.md`。
 
 ---
 

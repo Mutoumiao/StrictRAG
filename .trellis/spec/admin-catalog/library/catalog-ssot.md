@@ -91,7 +91,7 @@ collectMenuHrefs(nodes): string[]  // 测试/调试
 - `kb_admin` 默认无 `model.gateway.manage` → clip **无** `/models`  
 - 空码 → clip 无叶子  
 
-（api `resolve.test.ts` 已覆盖模板求值。）
+（api `tests/acl/permission-resolve.test.ts` 已覆盖模板求值。）
 
 ### 7. Wrong vs Correct
 

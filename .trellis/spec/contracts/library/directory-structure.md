@@ -17,7 +17,6 @@ packages/contracts/
     system/
       health.contract.ts
       dashboard.contract.ts       # B6 数据面板 summary（≤5 只读指标）
-      dashboard.contract.test.ts
       departments.contract.ts     # B5
       model-gateway.contract.ts   # B3
       platform-users-roles.contract.ts  # B4
@@ -26,20 +25,16 @@ packages/contracts/
     ingest/
       document.contract.ts
       chunk.contract.ts       # B1 分片 list/detail（ADR-052）
-      chunk.contract.test.ts
     ask/
       index.ts
       ask.contract.ts       # AskRequest/Response · options/scope strict
       reason.ts             # AskReason
       fixtures.ts           # makeAnsweredFinal / makeAbstainedFinal（测试）
-      fixtures.test.ts      # R10: schema.safeParse(fixture)
       session.contract.ts
       feedback.contract.ts
       member.contract.ts
-      ask.contract.test.ts
     kb/
       kb-settings.contract.ts   # B2 设置 GET data / PATCH body（ADR-054）
-      kb-settings.contract.test.ts
     async/
       queues.ts
 ```
@@ -96,7 +91,7 @@ packages/contracts/
 - Bad：apps/web 与 packages 各维护一份字面量 final
 
 #### 6. Tests Required
-- `packages/contracts/src/ask/fixtures.test.ts`：`R10:` safeParse answered/abstained  
+- `packages/contracts/tests/ask/fixtures.test.ts`：`R10:` safeParse answered/abstained  
 - web ask-panel / hooks：同工厂；关键 it 标题可挂 R2/R10
 
 #### 7. Wrong vs Correct
