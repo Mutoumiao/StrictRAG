@@ -17,24 +17,24 @@
 
 | id | package | Given / When / Then | 期望观测 | 状态 | 证据路径 |
 |----|---------|---------------------|----------|------|----------|
-| R1 | web | stream `ready` 且无合法 final | view → `error` | PASS | `apps/web/src/hooks/use-knowledge-ask.test.ts` · `R1:` |
-| R2 | web | mock abstain 终态 | `role=alert` 拒答，非普通答案 | PASS | `apps/web/src/components/ask-panel.test.tsx` · `R2:` |
-| R3 | web | mapBizError 已知 code | 保留 code + message | PASS | `apps/web/src/lib/map-biz-error.test.ts` · `R3:` |
-| R4 | web | clear / 坏 JSON / 无 token | `readClientSession()` → null（非 expires 产品闸） | PASS | `apps/web/src/auth/client-session.test.ts` · `R4:` |
-| R5 | admin | `ApiHttpError(code,msg,shouldRefresh)` | `.code` / `.shouldRefresh` 字段保留 | PASS | `apps/admin/src/lib/http-error.test.ts` · `R5:` |
-| R6 | admin | mapBizError | 同 R3 | PASS | `apps/admin/src/lib/map-biz-error.test.ts` · `R6:` |
-| R7 | api | corpus 装载：未 ready∧active | 文档被滤出检索集 | PASS | `apps/api/src/services/retrieve/corpus.test.ts` · `R7:` |
-| R8 | api | min 否决 | `abstained` / `unsupported_claims`，非 answered | PASS | `apps/api/src/graph/graph.test.ts` · `R8:` |
-| R9 | api | 合法 draft 必经 verify；负向未完整 verify | 不得 answered | PASS | `apps/api/src/graph/graph.test.ts` · `R9:` |
-| R10 | contracts+web | 共享 testing fixture | `AskResponseSchema.safeParse` + 拒答 UI 同工厂 | PASS | `packages/contracts` testing + ask-panel |
+| R1 | web | stream `ready` 且无合法 final | view → `error` | PASS | `apps/web/tests/ask/stream-ready-no-final.test.ts` · `R1:` |
+| R2 | web | mock abstain 终态 | `role=alert` 拒答，非普通答案 | PASS | `apps/web/tests/ask/abstain-alert.test.tsx` · `R2:` |
+| R3 | web | mapBizError 已知 code | 保留 code + message | PASS | `apps/web/tests/error-map/map-biz-error.test.ts` · `R3:` |
+| R4 | web | clear / 坏 JSON / 无 token | `readClientSession()` → null（非 expires 产品闸） | PASS | `apps/web/tests/auth/client-session.test.ts` · `R4:` |
+| R5 | admin | `ApiHttpError(code,msg,shouldRefresh)` | `.code` / `.shouldRefresh` 字段保留 | PASS | `apps/admin/tests/auth/http-error-fields.test.ts` · `R5:` |
+| R6 | admin | mapBizError | 同 R3 | PASS | `apps/admin/tests/error-map/map-biz-error.test.ts` · `R6:` |
+| R7 | api | corpus 装载：未 ready∧active | 文档被滤出检索集 | PASS | `apps/api/tests/ask/ready-active-corpus.test.ts` · `R7:` |
+| R8 | api | min 否决 | `abstained` / `unsupported_claims`，非 answered | PASS | `apps/api/tests/ask/min-veto.test.ts` · `R8:` |
+| R9 | api | 合法 draft 必经 verify；负向未完整 verify | 不得 answered | PASS | `apps/api/tests/ask/verify-required.test.ts` · `R9:` |
+| R10 | contracts+web | 共享 testing fixture | `AskResponseSchema.safeParse` + 拒答 UI 同工厂 | PASS | `packages/contracts/tests/ask/fixtures.test.ts` + `apps/web/tests/ask/abstain-alert.test.tsx` |
 
 ## 附录（只勾不补）
 
 | 能力 | 证据 | 备注 |
 |------|------|------|
-| db 双就绪纯函数 | `packages/db/src/query/retrieval-gate.test.ts` | R7 生产锚在 api corpus；db 为底层 |
-| admin 菜单 clip | `apps/admin/src/components/admin-shell.test.tsx` | 非 A1 必补 |
-| worker 入库 | `apps/worker/src/ingest/pipeline.test.ts` | 非 A1 必补 |
+| db 双就绪纯函数 | `packages/db/tests/retrieve/ready-active-gate.test.ts` | R7 生产锚在 api corpus；db 为底层 |
+| admin 菜单 clip | `apps/admin/tests/shell/menu-clip.test.tsx` | 非 A1 必补 |
+| worker 入库 | `apps/worker/tests/ingest/chunk-strategy-loud-fail.test.ts` | 非 A1 必补；双就绪入库期见 `dual-ready-index.test.ts` |
 
 ## 约定
 
