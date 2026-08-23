@@ -1,3 +1,10 @@
+/**
+ * 目标：L1 2×2 纯函数累计与覆盖计算正确，且不得当作签字。
+ * 需求：B10
+ * 被测：cellFor / accumulate / coverage / computeSignoffEligible
+ * 简介：≠ 签字；error 出格。
+ */
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -10,7 +17,7 @@ import {
   SIGNOFF_MIN_PER_CLASS,
   type GoldType,
   type L1Outcome,
-} from './l1-matrix.js';
+} from '../../src/eval/l1-matrix.js';
 
 describe('cellFor', () => {
   it('answerable × answered/abstained → A/B', () => {

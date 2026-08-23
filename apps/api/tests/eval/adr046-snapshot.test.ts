@@ -1,3 +1,10 @@
+/**
+ * 目标：评测快照绑定硬门不得松于试点。
+ * 需求：ADR-046
+ * 被测：evaluateAdr046Bind / bindQualitySnapshotToEval
+ * 简介：评测快照绑定硬门。
+ */
+
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -16,7 +23,7 @@ import {
   snapshotBindIdentity,
   writeBoundSnapshot,
   type HardGates,
-} from './adr046-snapshot.js';
+} from '../../src/eval/adr046-snapshot.js';
 
 const tmpDirs: string[] = [];
 

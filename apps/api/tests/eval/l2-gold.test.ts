@@ -1,3 +1,10 @@
+/**
+ * 目标：L2 题面加载拒绝非法文件，且不得当作准出。
+ * 需求：P2.5-L2
+ * 被测：loadL2Gold / l2TypeCoverage / defaultL2GoldPath
+ * 简介：≠ 准出。
+ */
+
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -12,7 +19,7 @@ import {
   loadL2Gold,
   type L2Case,
   type L2GoldFile,
-} from './l2-gold.js';
+} from '../../src/eval/l2-gold.js';
 
 const tmpDirs: string[] = [];
 

@@ -1,3 +1,10 @@
+/**
+ * 目标：L1 CLI 注入路径可跑且 skipTrace，不打 live。
+ * 需求：B10
+ * 被测：runL1Golden / loadGold / writeL1Report
+ * 简介：注入路径可跑且跳过落库 trace，不打 live。
+ */
+
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -5,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import type { ExecuteAskParams, ExecuteAskResult } from '../services/ask/index.js';
+import type { ExecuteAskParams, ExecuteAskResult } from '../../src/services/ask/index.js';
 import {
   GoldLoadError,
   buildEvalRunInsert,
@@ -15,7 +22,7 @@ import {
   runL1Golden,
   writeL1Report,
   type L1Report,
-} from './run-l1-golden.js';
+} from '../../src/scripts/run-l1-golden.js';
 
 const tmpDirs: string[] = [];
 

@@ -16,6 +16,7 @@
 | `sessions/` | 会话壳、近窗 | 历史≠evidence · rewrite 默认关 |
 | `feedback/` | 答案反馈 API | B13 |
 | `gateway/` | 模型绑定 / mock / 双节点 | B3 · QUAL-3 |
+| `eval/` | L1/L2 工程 seed | B10 · **≠ 准出** |
 
 ## 测例
 
@@ -53,6 +54,12 @@
 | `auth/enforce-401.test.ts` | AUTH_ENFORCE 开启且无 Bearer 时必须 401。 | QUAL-1 | `requirePermissionWhenEnforced` | enforce 开且无 Bearer → 401。 | 现行 |
 | `auth/role-hydrate.test.ts` | 每请求角色 hydrate 超时必须回退，缓存不超过 5s。 | B4-W | `role-hydrate middleware` | ≤5s 缓存。 | 现行 |
 | `auth/token-service.test.ts` | access jti 与 refresh 轮转在同一秒内可区分。 | prds/09-security | `issueTokenPair / rotateRefresh` | 同秒可区分。 | 现行 |
+| `eval/adr046-snapshot.test.ts` | 评测快照绑定硬门不得松于试点。 | ADR-046 | `evaluateAdr046Bind / bindQualitySnapshotToEval` | 评测快照绑定硬门。 | 现行 |
+| `eval/l1-cli.test.ts` | L1 CLI 注入路径可跑且 skipTrace，不打 live。 | B10 | `runL1Golden / loadGold / writeL1Report` | 注入路径可跑且跳过落库 trace，不打 live。 | 现行 |
+| `eval/l1-matrix.test.ts` | L1 2×2 纯函数累计与覆盖计算正确，且不得当作签字。 | B10 | `cellFor / accumulate / coverage / computeSignoffEligible` | ≠ 签字；error 出格。 | 现行 |
+| `eval/l2-cli.test.ts` | L2 CLI 注入可跑且 signoffEligible 恒为 false。 | P2.5-L2 | `runL2Golden / parseL2CliEnv` | 注入可跑，且准出资格恒为否。 | 现行 |
+| `eval/l2-fingerprint.test.ts` | rewrite 指纹纯函数稳定，且不因此打开 rewrite。 | ADR-046 相关 | `l2RewriteFingerprint` | 非开 rewrite。 | 现行 |
+| `eval/l2-gold.test.ts` | L2 题面加载拒绝非法文件，且不得当作准出。 | P2.5-L2 | `loadL2Gold / l2TypeCoverage / defaultL2GoldPath` | ≠ 准出。 | 现行 |
 | `feedback/http.test.ts` | 答案反馈 POST/PATCH 必须具备 kb 码。 | B13 | `createFeedbackRoutes` | 须 kb 码。 | 现行 |
 | `gateway/bindings-http.test.ts` | 供应商绑定 HTTP 按 B3 契约读写。 | B3 | `model-gateway routes` | 供应商绑定 HTTP。 | 现行 |
 | `gateway/resolve-mock.test.ts` | 网关解析缺 URL 时走 mock，绑定覆盖与重试保持契约。 | B3 · QUAL-3 | `buildGatewayConfig / applyBindingsToGatewayConfig / mock+http retry` | 缺 URL → mock。 | 现行 |
@@ -104,12 +111,6 @@
 
 | 文件 | 目标 | 需求锚点 | 简介 | 状态 |
 |------|------|----------|------|------|
-| `../src/eval/l1-matrix.test.ts` | L1 2×2 纯函数 | B10 | **≠ 签字**；error 出格 | 待处理 |
-| `../src/eval/l2-gold.test.ts` | L2 题面加载 | P2.5-L2 | **≠ 准出** | 待处理 |
-| `../src/eval/l2-fingerprint.test.ts` | rewrite 指纹纯函数 | ADR-046 相关 | 非开 rewrite | 待处理 |
-| `../src/eval/adr046-snapshot.test.ts` | 评测快照绑定硬门 | ADR-046 | | 待处理 |
-| `../src/scripts/run-l1-golden.test.ts` | L1 CLI 注入（不跑 live） | B10 | skipTrace | 待处理 |
-| `../src/scripts/run-l2-golden.test.ts` | L2 CLI 注入 | P2.5-L2 | signoffEligible 恒 false | 待处理 |
 | `../src/obs/obs.test.ts` | 指标与限流骨架 | ARCH-P2-4 | | 待处理 |
 | `../src/middleware/admin-write-audit.test.ts` | 管理写路径审计日志 | ARCH-P1b-2 | 不落表 | 待处理 |
 | `../src/env.test.ts` | api env Zod | | | 待处理 |

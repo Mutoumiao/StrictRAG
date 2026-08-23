@@ -1,14 +1,21 @@
+/**
+ * 目标：L2 CLI 注入可跑且 signoffEligible 恒为 false。
+ * 需求：P2.5-L2
+ * 被测：runL2Golden / parseL2CliEnv
+ * 简介：注入可跑，且准出资格恒为否。
+ */
+
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { l2RewriteFingerprint } from '../eval/l2-fingerprint.js';
-import { defaultL2GoldPath } from '../eval/l2-gold.js';
-import { rewriteSystemPrompt } from '../graph/prompts.js';
-import type { ExecuteAskDeps, ExecuteAskParams, ExecuteAskResult } from '../services/ask/index.js';
-import { evalRunDbRanAt } from './run-l1-golden.js';
+import { l2RewriteFingerprint } from '../../src/eval/l2-fingerprint.js';
+import { defaultL2GoldPath } from '../../src/eval/l2-gold.js';
+import { rewriteSystemPrompt } from '../../src/graph/prompts.js';
+import type { ExecuteAskDeps, ExecuteAskParams, ExecuteAskResult } from '../../src/services/ask/index.js';
+import { evalRunDbRanAt } from '../../src/scripts/run-l1-golden.js';
 import {
   acceptHit,
   buildL2EvalRunInsert,
@@ -17,7 +24,7 @@ import {
   parseL2CliEnv,
   runL2Golden,
   type L2Report,
-} from './run-l2-golden.js';
+} from '../../src/scripts/run-l2-golden.js';
 
 const tmpDirs: string[] = [];
 
