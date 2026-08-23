@@ -1,6 +1,13 @@
+/**
+ * 目标：稀疏探针脚本在缺少 KB 时必须拒绝误跑。
+ * 需求：OPS-1
+ * 被测：requireProbeKbId
+ * 简介：非生产 ES 宣称。
+ */
+
 import { describe, expect, it } from 'vitest';
 
-import { requireProbeKbId } from './seed-es-sparse-probe.js';
+import { requireProbeKbId } from '../../src/scripts/seed-es-sparse-probe.js';
 
 describe('requireProbeKbId', () => {
   it('returns L1_KB_ID when set', () => {

@@ -1,10 +1,17 @@
+/**
+ * 目标：稀疏检索 HTTP 切片按 env 解析，失败不得静默回 mock。
+ * 需求：OPS-1
+ * 被测：esConfigFromEnv / searchSparseEs
+ * 简介：稀疏检索 HTTP 切片。
+ */
+
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   EsSparseError,
   esConfigFromEnv,
   searchSparseEs,
-} from './es-sparse.js';
+} from '../../src/services/retrieve/es-sparse.js';
 
 afterEach(() => {
   vi.unstubAllGlobals();

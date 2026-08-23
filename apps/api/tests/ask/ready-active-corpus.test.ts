@@ -1,3 +1,10 @@
+/**
+ * 目标：未 ready∧active 的文档不得进入检索集。
+ * 需求：P0 R7
+ * 被测：filterDocsForRetrieve / loadCorpus 同形
+ * 简介：生产装载路径，非仅 db 纯函数。
+ */
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -5,9 +12,9 @@ import {
   parseDeptInheritDownFromConfig,
   resolveDeptAclEnforce,
   resolveDeptInheritDown,
-} from '../kb-settings.js';
-import { filterDocsForRetrieve } from './corpus.js';
-import { filterDocsForDeptAcl } from './dept-acl.js';
+} from '../../src/services/kb-settings.js';
+import { filterDocsForRetrieve } from '../../src/services/retrieve/corpus.js';
+import { filterDocsForDeptAcl } from '../../src/services/retrieve/dept-acl.js';
 
 describe('filterDocsForRetrieve（语料装载双闸门）', () => {
   const base = [

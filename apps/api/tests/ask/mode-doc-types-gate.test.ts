@@ -1,13 +1,20 @@
+/**
+ * 目标：ask 入口按 KB 允许的 mode/docTypes 拦截非法请求。
+ * 需求：B2-W
+ * 被测：POST /knowledge-bases/:kbId/ask mode/docTypes 闸
+ * 简介：mode/docTypes 闸。
+ */
+
 import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 
-import { attachAuthMiddleware, type AuthVariables } from '../auth/middleware.js';
-import { issueTokenPair } from '../auth/identity/token-service.js';
-import { requestIdMiddleware } from '../middleware/request-id.js';
-import type { ExecuteAskResult } from '../services/ask/index.js';
-import { createMemoryKbSettingsRepo } from '../services/kb-settings.js';
-import { createAskRoutes } from './ask.js';
+import { attachAuthMiddleware, type AuthVariables } from '../../src/auth/middleware.js';
+import { issueTokenPair } from '../../src/auth/identity/token-service.js';
+import { requestIdMiddleware } from '../../src/middleware/request-id.js';
+import type { ExecuteAskResult } from '../../src/services/ask/index.js';
+import { createMemoryKbSettingsRepo } from '../../src/services/kb-settings.js';
+import { createAskRoutes } from '../../src/routes/ask.js';
 
 const KB = '01900000-0000-7000-8000-0000000000aa';
 

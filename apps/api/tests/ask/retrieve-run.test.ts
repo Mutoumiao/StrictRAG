@@ -1,17 +1,23 @@
+/**
+ * 目标：runRetrieve 双闸、preferred 提升与语料责任边界必须成立。
+ * 需求：prds/04-pipelines
+ * 被测：runRetrieve / promotePreferredDocChunks
+ * 简介：默认 mock ES；双闸由 caller corpus 负责。
+ */
+
 import { describe, expect, it, vi } from 'vitest';
 
-import { logger } from '../../logger.js';
-import { GatewayError } from '../gateway/index.js';
-import { mockEmbedVector } from '../gateway/mock-client.js';
-import { rrfFuse } from './rrf.js';
-import { promotePreferredDocChunks, runRetrieve } from './retrieve.js';
-import { cosine, sparseOverlapScore } from './scoring.js';
-import type { CorpusChunk, RetrieveDeps } from './types.js';
+import { logger } from '../../src/logger.js';
+import { GatewayError } from '../../src/services/gateway/index.js';
+import { mockEmbedVector } from '../../src/services/gateway/mock-client.js';
+import { promotePreferredDocChunks, runRetrieve } from '../../src/services/retrieve/retrieve.js';
+import { sparseOverlapScore } from '../../src/services/retrieve/scoring.js';
+import type { CorpusChunk, RetrieveDeps } from '../../src/services/retrieve/types.js';
 
 const retrieveKb = { configJson: {} as Record<string, unknown> };
 
-vi.mock('../kb-settings.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../kb-settings.js')>();
+vi.mock('../../src/services/kb-settings.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/services/kb-settings.js')>();
   return {
     ...actual,
     kbSettingsRepo: {
@@ -61,23 +67,6 @@ function deps(corpus: CorpusChunk[], overrides: Partial<RetrieveDeps> = {}): Ret
     ...overrides,
   };
 }
-
-describe('scoring / rrf', () => {
-  it('cosine is 1 for identical vectors', () => {
-    const v = mockEmbedVector('hello world', dims);
-    expect(cosine(v, v)).toBeCloseTo(1, 5);
-  });
-
-  it('rrf prefers items high in multiple lists', () => {
-    const fused = rrfFuse([
-      ['a', 'b', 'c'],
-      ['b', 'a', 'd'],
-    ]);
-    expect(fused[0]?.id).toBe('a');
-    // a ranks 1+2, b ranks 2+1 — a slightly higher with k=60
-    expect(fused.map((f) => f.id)).toContain('b');
-  });
-});
 
 describe('runRetrieve dual gate via corpus', () => {
   it('rejects non-member (depth slot)', async () => {

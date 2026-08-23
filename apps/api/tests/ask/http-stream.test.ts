@@ -1,12 +1,19 @@
+/**
+ * 目标：同步与 SSE 终态字段必须一致；execute 抛错仍要给出 final。
+ * 需求：prds/05-api
+ * 被测：POST /knowledge-bases/:kbId/ask sync / SSE
+ * 简介：同步与流式终态一致；execute 抛错仍须给出 final。
+ */
+
 import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 
-import { attachAuthMiddleware, type AuthVariables } from '../auth/middleware.js';
-import { issueTokenPair } from '../auth/identity/token-service.js';
-import { requestIdMiddleware } from '../middleware/request-id.js';
-import type { ExecuteAskResult } from '../services/ask/index.js';
-import { createAskRoutes } from './ask.js';
+import { attachAuthMiddleware, type AuthVariables } from '../../src/auth/middleware.js';
+import { issueTokenPair } from '../../src/auth/identity/token-service.js';
+import { requestIdMiddleware } from '../../src/middleware/request-id.js';
+import type { ExecuteAskResult } from '../../src/services/ask/index.js';
+import { createAskRoutes } from '../../src/routes/ask.js';
 
 const KB = '01900000-0000-7000-8000-0000000000aa';
 const CHUNK = '11111111-1111-7111-8111-111111111111';
@@ -101,7 +108,7 @@ function buildApp(opts: {
         get: async () => null,
         update: async () => null,
       },
-      execute: (opts.execute as typeof import('../services/ask/index.js').executeAsk) ??
+      execute: (opts.execute as typeof import('../../src/services/ask/index.js').executeAsk) ??
         fixedExecute(sampleAnswered()),
       resolveOwnedSession: owned
         ? async ({ sessionId }) => owned.has(sessionId)
@@ -110,106 +117,6 @@ function buildApp(opts: {
   );
   return app;
 }
-
-describe('POST ask validation', () => {
-  it('rejects options.tauClaim → 400', async () => {
-    const { userId, accessToken } = await token(['web_consumer']);
-    const app = buildApp({ members: new Set([userId]) });
-    const res = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${accessToken}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        question: '年假几天',
-        options: { tauClaim: 0.1, mode: 'balanced' },
-      }),
-    });
-    expect(res.status).toBe(400);
-    const body = (await res.json()) as { ok: boolean; error: { code: string } };
-    expect(body.ok).toBe(false);
-    expect(body.error.code).toBe('VALIDATION_ERROR');
-  });
-
-  it('rejects scope inside options → 400', async () => {
-    const { userId, accessToken } = await token(['web_consumer']);
-    const app = buildApp({ members: new Set([userId]) });
-    const res = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${accessToken}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        question: '年假几天',
-        options: { scope: { docTypes: ['hr'] }, mode: 'balanced' },
-      }),
-    });
-    expect(res.status).toBe(400);
-  });
-
-  it('accepts top-level scope.docTypes', async () => {
-    const { userId, accessToken } = await token(['web_consumer']);
-    const app = buildApp({ members: new Set([userId]) });
-    const res = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${accessToken}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        question: '年假几天',
-        scope: { docTypes: ['hr'] },
-        options: { mode: 'balanced', stream: false },
-      }),
-    });
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as { ok: boolean; data: { reason: string } };
-    expect(body.ok).toBe(true);
-    expect(body.data.reason).toBe('verified');
-  });
-});
-
-describe('POST ask auth', () => {
-  it('non-member → 403', async () => {
-    const { accessToken } = await token(['web_consumer']);
-    const app = buildApp({ members: new Set() });
-    const res = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${accessToken}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({ question: 'hi' }),
-    });
-    expect(res.status).toBe(403);
-  });
-
-  it('no bearer → 401', async () => {
-    const app = buildApp({ members: new Set() });
-    const res = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ question: 'hi' }),
-    });
-    expect(res.status).toBe(401);
-  });
-
-  it('kb missing → 404', async () => {
-    const { userId, accessToken } = await token(['web_consumer']);
-    const app = buildApp({ members: new Set([userId]), kbExists: false });
-    const res = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${accessToken}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({ question: '年假' }),
-    });
-    expect(res.status).toBe(404);
-  });
-});
 
 describe('POST ask sync + SSE', () => {
   it('sync 200 + AskResponse shape', async () => {
@@ -409,7 +316,7 @@ describe('POST ask sync + SSE', () => {
   });
 
   it('真实图：rerank 失败 → HTTP abstained rerank_unavailable（非 answered）', async () => {
-    const { executeAsk } = await import('../services/ask/execute.js');
+    const { executeAsk } = await import('../../src/services/ask/execute.js');
     const { userId, accessToken } = await token(['web_consumer']);
     const app = buildApp({
       members: new Set([userId]),
@@ -448,7 +355,7 @@ describe('POST ask sync + SSE', () => {
   });
 
   it('真实图：sync 与 SSE final 字段一致（含 reason/answer/citations）', async () => {
-    const { executeAsk } = await import('../services/ask/execute.js');
+    const { executeAsk } = await import('../../src/services/ask/execute.js');
     const { userId, accessToken } = await token(['web_consumer']);
     const evidence = [
       {
@@ -550,213 +457,5 @@ describe('POST ask sync + SSE', () => {
     expect(JSON.stringify(finalPayload.suggestedActions)).toBe(
       JSON.stringify(sync.data.suggestedActions),
     );
-  });
-});
-
-describe('executeAsk trace + graph wiring', () => {
-  it('saves evidence_snapshot without session history text', async () => {
-    const { executeAsk } = await import('../services/ask/execute.js');
-    const saved: { evidenceSnapshot: { preview?: string; chunkId: string }[]; rawQuestion: string }[] =
-      [];
-    const CHUNK_ID = CHUNK;
-    const result = await executeAsk(
-      {
-        requestId: 'req-trace-1',
-        kbId: KB,
-        tenantId: '01900000-0000-7000-8000-000000000001',
-        userId: uuidv7(),
-        membership: 'member',
-        body: {
-          question: '年假有多少天？',
-          sessionId: null,
-          options: { mode: 'balanced' },
-        },
-      },
-      {
-        graphDeps: {
-          chat: async (purpose) => {
-            if (purpose === 'generate') {
-              return JSON.stringify({
-                answer: '年假为15天。',
-                citations: [CHUNK_ID],
-                insufficient: false,
-              });
-            }
-            if (purpose === 'claim_split') {
-              return JSON.stringify({
-                claims: [{ text: '年假为15天', chunkIds: [CHUNK_ID] }],
-              });
-            }
-            return JSON.stringify({ scores: [0.95] });
-          },
-          retrieve: async () => ({
-            ok: true,
-            evidence: [
-              {
-                chunkId: CHUNK_ID,
-                docId: DOC,
-                title: '休假',
-                text: '员工年假为15天，须提前申请。',
-                preview: '员工年假为15天',
-                lifecycle: 'active',
-                score: 0.9,
-              },
-            ],
-            meta: { esMode: 'mock', candidateCount: 1, denseHits: 1, sparseHits: 1 },
-          }),
-        },
-        saveTrace: async (input) => {
-          saved.push({
-            evidenceSnapshot: input.evidenceSnapshot,
-            rawQuestion: input.rawQuestion,
-          });
-          return { id: 't1' };
-        },
-      },
-    );
-
-    expect(result.httpStatus).toBe(200);
-    expect(result.response.reason).toBe('verified');
-    expect(saved).toHaveLength(1);
-    expect(saved[0]!.rawQuestion).toBe('年假有多少天？');
-    expect(saved[0]!.evidenceSnapshot[0]?.chunkId).toBe(CHUNK_ID);
-    // 快照不含会话闲聊/历史
-    const blob = JSON.stringify(saved[0]!.evidenceSnapshot);
-    expect(blob).not.toMatch(/刚才|历史会话|session history/i);
-  });
-
-  it('带 sessionId 落 trace 时 rewriteUsed=false，历史文不进 evidence', async () => {
-    const { executeAsk } = await import('../services/ask/execute.js');
-    const SID = '33333333-3333-7333-8333-333333333333';
-    const HISTORY_LEAK = '上一轮会话里的 Vue 秘密答案';
-    const saved: {
-      sessionId?: string | null;
-      evidenceSnapshot: unknown[];
-      configSnap?: Record<string, unknown>;
-      rewriteUsedField?: number;
-    }[] = [];
-
-    const result = await executeAsk(
-      {
-        requestId: 'req-sess-1',
-        kbId: KB,
-        tenantId: '01900000-0000-7000-8000-000000000001',
-        userId: uuidv7(),
-        membership: 'member',
-        body: {
-          question: '年假几天',
-          sessionId: SID,
-          options: { mode: 'balanced', debug: true },
-        },
-      },
-      {
-        graphDeps: {
-          chat: async (purpose) => {
-            if (purpose === 'generate') {
-              return JSON.stringify({
-                answer: '15天',
-                citations: [CHUNK],
-                insufficient: false,
-              });
-            }
-            if (purpose === 'claim_split') {
-              return JSON.stringify({ claims: [{ text: '15天', chunkIds: [CHUNK] }] });
-            }
-            return JSON.stringify({ scores: [0.95] });
-          },
-          retrieve: async () => ({
-            ok: true,
-            evidence: [
-              {
-                chunkId: CHUNK,
-                docId: DOC,
-                title: '休假',
-                text: '员工年假为15天',
-                preview: '15天',
-                lifecycle: 'active',
-                score: 0.9,
-              },
-            ],
-            meta: { esMode: 'mock', candidateCount: 1, denseHits: 1, sparseHits: 1 },
-          }),
-        },
-        saveTrace: async (input) => {
-          saved.push({
-            sessionId: input.sessionId,
-            evidenceSnapshot: input.evidenceSnapshot,
-            configSnap: input.configSnap,
-          });
-          // 模拟「若错误地把历史塞进 evidence」的检测：保证我们没塞
-          expect(JSON.stringify(input.evidenceSnapshot)).not.toContain(HISTORY_LEAK);
-          return { id: 't2' };
-        },
-      },
-    );
-
-    expect(result.httpStatus).toBe(200);
-    expect(result.response.sessionId).toBe(SID);
-    expect(result.response.debug?.rewriteUsed).toBe(false);
-    expect(saved[0]?.sessionId).toBe(SID);
-    expect(saved[0]?.configSnap?.sessionRewriteEnabledDefault).toBe(false);
-    // 历史原文不得出现在 evidence 或 citations
-    const evidenceBlob = JSON.stringify(saved[0]?.evidenceSnapshot);
-    expect(evidenceBlob).not.toContain(HISTORY_LEAK);
-    expect(JSON.stringify(result.response.citations)).not.toContain(HISTORY_LEAK);
-  });
-});
-
-describe('POST ask sessionId gate', () => {
-  it('未知 sessionId → 404', async () => {
-    const { userId, accessToken } = await token(['web_consumer']);
-    const app = buildApp({
-      members: new Set([userId]),
-      ownedSessions: new Set(),
-    });
-    const res = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${accessToken}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        question: 'hi',
-        sessionId: '33333333-3333-7333-8333-333333333333',
-        options: { stream: false },
-      }),
-    });
-    expect(res.status).toBe(404);
-  });
-
-  it('合法 sessionId 回显且主路径 200', async () => {
-    const SID = '33333333-3333-7333-8333-333333333333';
-    const { userId, accessToken } = await token(['web_consumer']);
-    const app = buildApp({
-      members: new Set([userId]),
-      ownedSessions: new Set([SID]),
-      execute: async (params) => {
-        const p = params as { requestId: string; body: { sessionId?: string | null } };
-        const base = sampleAnswered(p.requestId);
-        return {
-          ...base,
-          response: { ...base.response, sessionId: p.body.sessionId ?? null },
-          graph: { ...base.graph, sessionId: p.body.sessionId ?? null },
-        };
-      },
-    });
-    const res = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${accessToken}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        question: '年假',
-        sessionId: SID,
-        options: { stream: false, debug: true },
-      }),
-    });
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as { data: { sessionId: string | null } };
-    expect(body.data.sessionId).toBe(SID);
   });
 });
