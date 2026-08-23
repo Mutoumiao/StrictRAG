@@ -12,6 +12,7 @@
 | `ingest/` | 入库 HTTP、体积/审批闸、分片策略、文档元数据 | `prds/04-pipelines/01-offline-ingest.md` · B12 |
 | `auth/` | JWT、AUTH_ENFORCE、hydrate | `prds/09-security` · QUAL-1 |
 | `acl/` | 成员、部门、kb-scope、列表同滤 | ADR-051 · DEPT_ACL |
+| `kb/` | 知识库列表与设置 | B2 / B2-W |
 
 ## 测例
 
@@ -61,6 +62,12 @@
 | `ingest/jobs-query.test.ts` | 入库任务列表项映射保持查询契约。 | prds/06-async | `toIngestJobListItem` | 入队在 api，消费在 worker。 | 现行 |
 | `ingest/reindex-strategy.test.ts` | reindex 必须显式策略；未实现返回 400。 | B12 | `documents reindex` | 未实现 400。 | 现行 |
 | `ingest/sensitive-complete.test.ts` | 敏感文档 complete 必须过审批/密级闸。 | 审批/密级 | `documents sensitive complete` | 敏感 complete。 | 现行 |
+| `kb/ask-mode-doc-types.test.ts` | KB 允许的 mode/docTypes 必须正确解析，非法请求拒绝。 | B2-W | `resolveAskMode / parseDocTypesFromConfig / assertScopeDocTypesAllowed` | B2-W resolveAskMode / docTypes。 | 现行 |
+| `kb/data-class-complete.test.ts` | sensitive 文档 complete 必须过密级闸。 | P3b-SENS | `parseDataClassFromConfig / isSensitiveCompleteBlocked` | P3b-SENS dataClass / complete 闸。 | 现行 |
+| `kb/dept-acl-enforce-resolve.test.ts` | KB deptAclEnforce 覆盖 env，未写时展示与运行时分钉。 | P3b-KBENF | `parseDeptAclEnforceFromConfig / resolveDeptAclEnforce` | P3b-KBENF。 | 现行 |
+| `kb/dept-inherit-down.test.ts` | KB deptInheritDown 覆盖 env，祖先在关闭向下继承时不可见子孙。 | P3b-KBINH | `parseDeptInheritDownFromConfig / resolveDeptInheritDown / filterDocsForDeptAcl` | P3b-KBINH。 | 现行 |
+| `kb/settings-http.test.ts` | 知识库设置 HTTP 按 B2 契约读写。 | B2 | `kb-settings routes` | 设置 HTTP。 | 现行 |
+| `kb/visible-list.test.ts` | 可见知识库列表只返回当前身份能看到的库。 | 壳下拉数据 | `selectVisibleKbs / toKbListItem` | 可见库列表。 | 现行 |
 
 ## 待处理
 
@@ -85,9 +92,6 @@
 
 | 文件 | 目标 | 需求锚点 | 简介 | 状态 |
 |------|------|----------|------|------|
-| `../src/services/kb-list.test.ts` | 可见库列表 | 壳下拉数据 | | 待处理 |
-| `../src/services/kb-settings-mode.test.ts` | KB mode 策略 | B2-W | | 待处理 |
-| `../src/routes/kb-settings.test.ts` | 设置 HTTP | B2 | | 待处理 |
 | `../src/routes/sessions.test.ts` | 会话壳 HTTP | rewrite 默认关 | | 待处理 |
 | `../src/routes/feedback.test.ts` | 反馈 POST/PATCH | B13 | 须 kb 码 | 待处理 |
 | `../src/services/gateway/gateway.test.ts` | Gateway 解析与 mock | B3 · QUAL-3 | 缺 URL → mock | 待处理 |

@@ -1,12 +1,19 @@
+/**
+ * 目标：知识库设置 HTTP 按 B2 契约读写。
+ * 需求：B2
+ * 被测：kb-settings routes
+ * 简介：设置 HTTP。
+ */
+
 import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 
-import { attachAuthMiddleware, type AuthVariables } from '../auth/middleware.js';
-import { issueTokenPair } from '../auth/identity/token-service.js';
-import { requestIdMiddleware } from '../middleware/request-id.js';
-import { createMemoryKbSettingsRepo } from '../services/kb-settings.js';
-import { createKbSettingsRoutes } from './kb-settings.js';
+import { attachAuthMiddleware, type AuthVariables } from '../../src/auth/middleware.js';
+import { issueTokenPair } from '../../src/auth/identity/token-service.js';
+import { requestIdMiddleware } from '../../src/middleware/request-id.js';
+import { createMemoryKbSettingsRepo } from '../../src/services/kb-settings.js';
+import { createKbSettingsRoutes } from '../../src/routes/kb-settings.js';
 
 const KB = '01900000-0000-7000-8000-000000000099';
 const TENANT = '01900000-0000-7000-8000-000000000001';
