@@ -22,7 +22,7 @@ apps/worker/
       job-ledger.ts          # ingest_jobs 阶段账本（最小）
       doc-lock.ts            # 同 doc Redis SET NX 锁（最小；非 Redlock）
       es-store.ts            # mock ES（进程内 Map）
-      # 遗留 *.test.ts（待迁 tests/ingest/）
+      # 入库测例在 tests/ingest/
     # 复用 @strict-rag/db · @strict-rag/contracts
 ```
 

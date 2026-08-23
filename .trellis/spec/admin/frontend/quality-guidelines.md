@@ -81,7 +81,7 @@
 | 项 | 约定 |
 |----|------|
 | 运行 | `pnpm --filter @strict-rag/admin test` |
-| 环境 | `vitest.config.ts`：jsdom · `tests/**` + 遗留 `src/**` · `@` → `src` |
+| 环境 | `vitest.config.ts`：jsdom · `tests/**` · `@` → `src` |
 | 基建 | **仅** `src/test/`（setup · re-export）；用例现行 `tests/<能力>/`，HOW：[testing](../../guides/testing.md) |
 | 查询 | role/label；菜单/按钮按 **permissions** 断言显隐 |
 | 必测红线 | `admin.shell` Guard · `clipMenuForShell` 菜单 · 审批 decide/scan 显隐 · session/KB key 隔离 · **P0 R5/R6** |
@@ -103,7 +103,7 @@ new ApiHttpError(code, message, shouldRefresh: boolean)
 
 ### Convention: R5 断言 `ApiHttpError` 字段（非 mapBizError）
 
-**What**：P0 **R5** = 构造后直接 assert `.code` / `.shouldRefresh`（见 `apps/admin/src/lib/http-error.test.ts`）。  
+**What**：P0 **R5** = 构造后直接 assert `.code` / `.shouldRefresh`（见 `apps/admin/tests/auth/http-error-fields.test.ts`）。  
 **R6** = `mapBizError` 只保证展示字符串含 code（`mapBizError` **故意不**透出 `shouldRefresh`）。
 
 **Why**：经 `mapBizError` 测 shouldRefresh 永远失败或逼改生产 API 返回结构化对象（本期非目标）。

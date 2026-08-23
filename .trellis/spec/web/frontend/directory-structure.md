@@ -4,7 +4,7 @@
 
 ```text
 apps/web/
-  vitest.config.ts            # jsdom · tests/** + 遗留 src/**
+  vitest.config.ts            # jsdom · tests/**
   tests/
     index.md                  # 本包测例导航
   src/

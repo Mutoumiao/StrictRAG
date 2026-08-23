@@ -53,7 +53,7 @@
 | 项 | 约定 |
 |----|------|
 | 运行 | `pnpm --filter @strict-rag/web test` |
-| 环境 | `vitest.config.ts`：`environment: 'jsdom'` · `include: ['tests/**/*.test.{ts,tsx}', 'src/**/*.test.{ts,tsx}']` · alias `@` → `src` |
+| 环境 | `vitest.config.ts`：`environment: 'jsdom'` · `include: ['tests/**/*.test.{ts,tsx}']` · alias `@` → `src` |
 | 基建 | **仅** `src/test/`：`setup.ts`（jest-dom · cleanup · 清 storage）· re-export；ask final **工厂 SSOT** 见下 |
 | 用例位置 | **现行** `tests/<能力>/<意图>.test.ts(x)`；组织 HOW：[testing](../../guides/testing.md)；导航 `tests/index.md`。禁止再按源码同域镜像 |
 | 查询 / 交互 | `getByRole` / `getByLabelText` · `userEvent.setup()`；禁 `querySelector` 测行为 |
@@ -189,7 +189,7 @@ if (status === 'ready') {
 
 **Fix**：独立 `lastQuestion`（或失败时回填输入框）；重试走与提交相同的 `ask(q)` 路径。
 
-**Prevention**：改 `ask-panel` 提交/重试路径必跑 `ask-panel.test.tsx` 中 lastQuestion 用例。
+**Prevention**：改 `ask-panel` 提交/重试路径必跑 `tests/ask/abstain-alert.test.tsx` 中 lastQuestion 用例。
 
 ### Common Mistake: 流结束无 final 卡在 loading
 
@@ -199,7 +199,7 @@ if (status === 'ready') {
 
 **Fix**：`status==='ready'` 时若 `view.type==='loading'` → error「流式响应未包含有效终态」。有 final 后 view 已非 loading，ready **不得**覆盖 answered/abstained。
 
-**Prevention**：`use-knowledge-ask.test.ts` 覆盖「ready 仍 loading → error」与「final 后再 ready 保持 answered」。
+**Prevention**：`tests/ask/stream-ready-no-final.test.ts` 覆盖「ready 仍 loading → error」与「final 后再 ready 保持 answered」。
 
 ### Common Mistake: 测试 fixture 假 session 过 tsc
 

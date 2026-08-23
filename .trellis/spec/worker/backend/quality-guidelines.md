@@ -53,7 +53,7 @@
 
 #### 3. Tests / 清债门槛
 
-- `scan-mode-policy.test.ts`：启动矩阵  
+- `tests/ingest/scan-startup-policy.test.ts`：启动矩阵  
 - mock_infected 删对象 + MALWARE  
 - **清债 QUAL-2**：真引擎路径 · infected 删+审计 · 剧本 M · prod 启动健康检查 · **新建 task**
 
