@@ -1,5 +1,8 @@
 /**
- * useKnowledgeAsk 红线：final schema · 三态 · ready 无 final 不卡 loading。
+ * 目标：流式 ready 且无合法 final 时不得卡在 loading，必须落到 error。
+ * 需求：P0 R1
+ * 被测：useKnowledgeAsk
+ * 简介：流式三态；非法终态 → error。
  */
 
 import { act, renderHook, waitFor } from '@testing-library/react';

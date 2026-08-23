@@ -1,3 +1,10 @@
+/**
+ * 目标：会话壳服务调用形状正确，失败可映射且历史不得当 evidence。
+ * 需求：sessions API
+ * 被测：loadSessionList · refreshAfterAskFinal
+ * 简介：非 evidence。
+ */
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiHttpError } from '@/lib/http';

@@ -1,5 +1,8 @@
 /**
- * AskPanel 红线：lastQuestion 重试 · answered/abstained 语义。
+ * 目标：拒答以 alert 展示，不得当成普通答案。
+ * 需求：P0 R2 · R10
+ * 被测：AskPanel
+ * 简介：用 contracts testing 工厂。
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -122,7 +125,7 @@ describe('AskPanel', () => {
     ]);
     render(<AskPanel />);
     await waitFor(() => {
-      expect(document.querySelector('#web-kb-list option')?.getAttribute('value')).toBe(
+      expect(screen.getByRole('option', { name: '演示库', hidden: true })).toHaveValue(
         'kb-listed',
       );
     });
@@ -135,7 +138,7 @@ describe('AskPanel', () => {
     listKnowledgeBases.mockRejectedValue(new Error('forbidden'));
     render(<AskPanel />);
     await waitFor(() => expect(listKnowledgeBases).toHaveBeenCalled());
-    expect(document.getElementById('web-kb-list')?.querySelectorAll('option')).toHaveLength(0);
+    expect(screen.queryByRole('option', { hidden: true })).not.toBeInTheDocument();
     await user.type(screen.getByLabelText('知识库 ID'), 'kb-uuid');
     expect(localStorage.getItem('strict-rag:web:last-kb-id')).toBe('kb-uuid');
   });

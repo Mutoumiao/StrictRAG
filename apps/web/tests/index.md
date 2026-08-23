@@ -13,19 +13,17 @@
 | `sessions/` | 会话壳服务 | `prds/04-pipelines` 历史≠evidence |
 | `error-map/` | 业务码文案映射 | P0 R3 |
 
-现行目录尚无文件；下表仍被 Vitest 收集。
-
 ## 测例
 
-（尚无 `tests/<能力>/` 现行文件。）
+| 文件 | 目标 | 需求锚点 | 被测 | 简介 | 状态 |
+|------|------|----------|------|------|------|
+| `ask/abstain-alert.test.tsx` | 拒答以 alert 展示，不得当成普通答案。 | P0 R2 · R10 | `AskPanel` | 用 contracts testing 工厂。 | 现行 |
+| `ask/scope-top-level.test.ts` | ask 请求的 scope 必须在顶层，不得进入 options。 | ADR-050 | `buildAskRequestBody · parseScopeDocTypesInput` | 客户端 body 形状。 | 现行 |
+| `ask/stream-ready-no-final.test.ts` | 流式 ready 且无合法 final 时不得卡在 loading，必须落到 error。 | P0 R1 | `useKnowledgeAsk` | 流式三态；非法终态 → error。 | 现行 |
+| `auth/client-session.test.ts` | clear、坏 JSON 或无 token 时读 session 必须为 null。 | P0 R4 | `readClientSession · clearClientSession · saveClientSession` | 不测 expires 产品闸（DEC-1）。 | 现行 |
+| `error-map/map-biz-error.test.ts` | 已知业务码必须保留 code 与 message。 | P0 R3 | `mapBizError` | 纯文案映射。 | 现行 |
+| `sessions/session-shell.test.ts` | 会话壳服务调用形状正确，失败可映射且历史不得当 evidence。 | sessions API | `loadSessionList · refreshAfterAskFinal` | 非 evidence。 | 现行 |
 
 ## 待处理
 
-| 文件 | 目标 | 需求锚点 | 简介 | 状态 |
-|------|------|----------|------|------|
-| `../src/hooks/use-knowledge-ask.test.ts` | ready 且无合法 final 时不得卡在 loading | P0 R1 | 流式三态；非法终态 → error | 待处理 |
-| `../src/components/ask-panel.test.tsx` | 拒答以 alert 展示，非普通答案 | P0 R2 · R10 | 用 contracts testing 工厂 | 待处理 |
-| `../src/lib/map-biz-error.test.ts` | 已知业务码保留 code + message | P0 R3 | 纯文案映射 | 待处理 |
-| `../src/auth/client-session.test.ts` | clear / 坏 JSON / 无 token → null | P0 R4 | 不测 expires 产品闸（DEC-1） | 待处理 |
-| `../src/api/ask.scope.test.ts` | ask 请求 scope 在顶层，不进 options | ADR-050 | 客户端 body 形状 | 待处理 |
-| `../src/services/sessions.services.test.ts` | 会话壳服务调用形状 | sessions API | 非 evidence | 待处理 |
+（无。`src/` 下已无 `*.test.ts(x)`。）

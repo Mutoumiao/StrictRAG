@@ -1,10 +1,13 @@
 /**
- * B11：scope.docTypes 解析与 ask body 装配（真实导出函数，非假绿）。
+ * 目标：ask 请求的 scope 必须在顶层，不得进入 options。
+ * 需求：ADR-050
+ * 被测：buildAskRequestBody · parseScopeDocTypesInput
+ * 简介：客户端 body 形状。
  */
 
 import { describe, expect, it } from 'vitest';
 
-import { buildAskRequestBody, parseScopeDocTypesInput } from './ask';
+import { buildAskRequestBody, parseScopeDocTypesInput } from '@/api/ask';
 
 describe('parseScopeDocTypesInput', () => {
   it('空 / 仅空白 → undefined（不收窄）', () => {

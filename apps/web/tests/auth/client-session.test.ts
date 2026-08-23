@@ -1,3 +1,10 @@
+/**
+ * 目标：clear、坏 JSON 或无 token 时读 session 必须为 null。
+ * 需求：P0 R4
+ * 被测：readClientSession · clearClientSession · saveClientSession
+ * 简介：不测 expires 产品闸（DEC-1）。
+ */
+
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
