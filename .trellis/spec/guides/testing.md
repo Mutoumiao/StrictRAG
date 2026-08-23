@@ -9,7 +9,8 @@
 测试存在的理由只有一句：**证明当前阶段的某条能力/需求按 PRD 成立**。  
 测例不跟源码文件走，跟需求走。丢掉的是「一个源码文件配一份同名测例」，不是「模块测非法」。
 
-> **审阅冻结（2026-08-23）**：六问结论见 [§12](#12-审阅冻结2026-08-23)。现有 `src/**/*.test.*` **未**搬家。
+> **审阅冻结（2026-08-23）**：六问结论见 [§12](#12-审阅冻结2026-08-23)。  
+> **全量迁徙（2026-08-24）**：待处理 `src/**/*.test.*` 按本规范重切进 `tests/<能力>/`；`graph.test.ts` 按意图拆。文件头目标/简介必须简体中文。
 
 ---
 
@@ -149,7 +150,7 @@ index **不能**用来宣称「入库 / ask / 鉴权测全了」；那是 P0 红
       <intent>.test.ts
       <intent>.test.tsx        # 仅组件测
     _support/                  # 可选：本包测试 helper（非测例）
-  vitest.config.ts             # include：tests/** 与待处理 src/**
+  vitest.config.ts             # include：tests/**
 ```
 
 ### 4.1 能力目录名
@@ -193,7 +194,9 @@ index **不能**用来宣称「入库 / ask / 鉴权测全了」；那是 P0 红
 
 ## 5. 文件头契约
 
-每个测试文件顶部必须有块注释，四段里前三段必填：
+每个测试文件顶部必须有块注释。**目标、简介必须用简体中文写清测试目的与功能**（禁止只写英文模块名、`unit tests for foo.ts`、或把文件头当源码路径复述）。需求锚点可保留路径、编号与英文专有名词；`被测` 写符号/路由即可。
+
+四段里前三段必填：
 
 ```ts
 /**
@@ -206,12 +209,12 @@ index **不能**用来宣称「入库 / ask / 鉴权测全了」；那是 P0 红
 
 | 字段 | 要求 |
 |------|------|
-| **目标** | 一句话；读完就知道失败意味着什么。禁止只写模块名 |
+| **目标** | **简体中文**一句话；读完就知道失败意味着什么。禁止只写模块名 |
 | **需求** | 可核对锚点：PRD / ADR / `P0 R#` / backlog，或 `基建:` / `回归:`（见 §1） |
 | **被测** | 符号、路由或入口；改源码时靠这一列（或 grep import）找回测例，替代「源码旁一眼看到」 |
-| **简介** | 与 `index.md` 简介同义，可短于目标 |
+| **简介** | **简体中文**；与 `index.md` 简介同义，可短于目标；须说明测什么功能 |
 
-关闭 P0 行的关键 `it` 标题仍含 `R#:`（与 `docs/testing/p0-redlines.md` 一致）。
+关闭 P0 行的关键 `it` 标题仍含 `R#:`（与 `docs/testing/p0-redlines.md` 一致）。`describe` / `it` 标题可保留已有英文或编号，不必为迁徙改断言语义。
 
 ---
 
@@ -239,9 +242,7 @@ index **不能**用来宣称「入库 / ask / 鉴权测全了」；那是 P0 红
 
 ## 待处理
 
-| 文件 | 目标 | 需求锚点 | 简介 | 状态 |
-|------|------|----------|------|------|
-| `../src/graph/graph.test.ts` | 多意图混居（路由/预算/R8/R9） | P0 R8/R9 | 须单独变更，禁止顺手拆 | 待处理 |
+（无。`src/` 下已无 `*.test.ts(x)`。若再出现同域测例，用 `` `../src/...` `` 登记。）
 ```
 
 规则：
@@ -265,7 +266,7 @@ index **不能**用来宣称「入库 / ask / 鉴权测全了」；那是 P0 红
 | 运行 | `pnpm test`（turbo）；单包 `pnpm --filter @strict-rag/<pkg> test` |
 | 存货闸 | 仓库根 `scripts/check-test-inventory.mjs`；cwd = 包根。全量存货，漏行/假存货 exit 1。**不是**只拦新建 |
 | 夹具 | `scripts/check-test-inventory.fixture.mjs`；只挂 `apps/{api,web,admin,worker}`。packages 只挂闸 |
-| 收集 | `tests/**/*.test.{ts,tsx}` 为现行；过渡期同时收集 `src/**/*.test.{ts,tsx}` |
+| 收集 | `tests/**/*.test.{ts,tsx}`。全量迁徙完成后 **不再**收集 `src/**/*.test.{ts,tsx}` |
 | 环境 | api/worker/db/contracts/admin-catalog → node；web/admin → jsdom |
 | setup | 前端可留 `src/test/setup.ts`；不要把业务测例放进 `src/test/` |
 | 共享 ask final 工厂 | `@strict-rag/contracts/testing`（禁止 apps 手抄一份 JSON） |
@@ -278,12 +279,12 @@ index **不能**用来宣称「入库 / ask / 鉴权测全了」；那是 P0 红
 Vitest `include` 现行写法：
 
 ```ts
-include: ['tests/**/*.test.{ts,tsx}', 'src/**/*.test.{ts,tsx}'];
+include: ['tests/**/*.test.{ts,tsx}'];
 ```
 
-当前者已覆盖某文件、后者不再有待处理文件时，再删掉 `src/**` 这一段。
+全量迁徙完成后不要再写 `src/**/*.test.{ts,tsx}`。禁止再在 `src/` 旁建新测例。
 
-**全量存货闸已落地**（漏任何 `*.test.ts(x)` 都红，不是只拦新建）。Vitest 仍收集 `src/**`。不另做 src 白名单冻结。禁止再在 `src/` 旁建新测例。
+**全量存货闸已落地**（漏任何 `*.test.ts(x)` 都红，不是只拦新建）。不另做 src 白名单冻结。
 
 ---
 
@@ -309,14 +310,14 @@ include: ['tests/**/*.test.{ts,tsx}', 'src/**/*.test.{ts,tsx}'];
 历史约定是源码旁 `*.test.ts`。自本规范生效起：
 
 - **新测例**只进 `tests/<能力>/`。禁止再为「方便对照源码」新增同域测例。
-- **待处理文件**继续被 Vitest 收集，直到迁走；必须出现在该包 `tests/index.md` 的待处理表。只修已有 `it`，不要在同一变更里拆文件。
+- **待处理文件**必须出现在该包 `tests/index.md` 的待处理表，直到迁走。
 - **禁止顺手拆**：修 bug / 加 it 时不要把混居待处理文件拆进 `tests/`。迁徙必须是单独变更。
-- **禁止第一批拆** `apps/api/src/graph/graph.test.ts`（P0 R8/R9 证据仍在那里）。若要验证「目标 → 文件 → index → 绿」，用已经接近单意图的 P0（web R1 `use-knowledge-ask.test.ts`，或 db `retrieval-gate.test.ts`）。
-- 迁徙后同步 P0 证据路径、module-status 里写过的测试路径、包 directory-structure 示意树。
+- **全量迁徙（2026-08-24）**：按意图把 `src/**/*.test.*` 重切进 `tests/<能力>/`。单意图文件重命名后移动；读完「目标」仍要加「以及…」才能说清则拆。`graph.test.ts` 按 route / budget / retrieve 结果 / citations / min / verify / rewrite 拆，**不要**按 describe 个数机械拆成十几份。共享 harness 放 `tests/<能力>/_support/`（非 `*.test.ts`，闸不收）。
+- 迁徙后同步 P0 证据路径、module-status 里写过的测试路径、包 directory-structure 示意树；待处理表应变空；Vitest `include` 只留 `tests/**`。
 - 状态列只有 `现行` | `待处理`。禁止出现 `待迁` / `待拆`。
-- **拆分判据**（写入、本阶段不执行）：是否拆只看意图是否互不隶属——读完文件头「目标」仍要加「以及…」才能说清则该拆。可用 describe 审计辅助，不要按 describe 个数或标点机械拆。
+- **拆分判据**：是否拆只看意图是否互不隶属——读完文件头「目标」仍要加「以及…」才能说清则该拆。同一意图的正/负/边界 `it` 留在同一文件。可用 describe 审计辅助，不要按 describe 个数或标点机械拆。
 
-本规范 **不**要求一次搬完现有文件，也 **不**把「改到再拆」当默认。先做到：新文件可管、旧文件能在 index 里被找到；漏行即红。
+漏行即红。迁完后若某包 `src/` 下已无 `*.test.ts(x)`，不要保留空的待处理表行。
 
 ---
 
@@ -327,14 +328,14 @@ include: ['tests/**/*.test.{ts,tsx}', 'src/**/*.test.{ts,tsx}'];
 | 为每个 `foo.ts` 建 `foo.test.ts` | 按需求/意图建文件；一个模块可以有多份 |
 | 仓库根 `tests/ask` 混跑所有包 | 测例留在主包内 |
 | web 重写一遍 min 分数逻辑「顺便集成」 | api 测真值；web 测拒答展示 |
-| 一份 `graph.test.ts` 装路由+预算+R8+R9 | 拆成多份意图文件（**单独变更**，见 §9） |
+| 一份 `graph.test.ts` 装路由+预算+R8+R9 | 拆成多份意图文件（见 §9）；禁止修 bug 时顺手拆 |
 | 无文件头、现行表无行 | 视为测例未完成（存货） |
 | 用 index 或「有测试文件」宣称能力测全 | 存货用 index；覆盖用 P0 / 验收剧本 |
 | 把 L1 mock 覆盖率当签字 | 见 [l1-eval](../api/backend/l1-eval.md)；eval 测例必须在简介写清 ≠ 准出 |
 | 测例 import 另一 app | 下沉 packages 或只测本包入口 |
 | 为 mapper/env 编造假 PRD | 用 `基建:` |
 | 为对称删掉 worker/db 双就绪测 | 不同生命周期，先问失败时哪条能力为假 |
-| 修 graph 时顺手拆近 900 行 | 单独迁徙；第一批不要碰 R8/R9 文件 |
+| 修 bug 时顺手拆混居文件 | 迁徙必须单独变更；全量迁徙按 §9 意图拆 |
 
 ---
 
@@ -345,11 +346,11 @@ include: ['tests/**/*.test.{ts,tsx}', 'src/**/*.test.{ts,tsx}'];
 - [ ] 主包按 §3 选择，而不是按「我正在改的那个文件」？
 - [ ] 路径是 `tests/<能力>/<意图>.test.ts(x)`？未在 `src/` 旁新建？
 - [ ] 单文件单意图（§2.3 粒度）；横切需求已拆成多文件？
-- [ ] 文件头含目标 / 需求 / 被测？现行表有行且含「被测」？
+- [ ] 文件头含目标 / 需求 / 被测？**目标与简介为简体中文**，能说明目的与功能？现行表有行且含「被测」？
 - [ ] 未在次包重复断言 **同一生命周期** 的业务真值？
 - [ ] 前端行为测用 role/label，不用 `querySelector` 当断言？
 - [ ] 未打实网；ask final 工厂走 `@strict-rag/contracts/testing`？
-- [ ] 未把修 bug 和拆待处理混居文件放进同一变更？
+- [ ] 未把修 bug 和拆混居文件放进同一变更？（全量迁徙任务除外）
 
 ---
 
@@ -363,5 +364,5 @@ include: ['tests/**/*.test.{ts,tsx}', 'src/**/*.test.{ts,tsx}'];
 | 2. 主包过严？ | **不过严**。web 不重算 min。同一不变量的不同生命周期（api corpus / db 纯函数 / worker 扫描闸）不是重复真值。全栈测走 E2E，不进 `pnpm test`。 |
 | 3. index 完成谓词？ | **只做存货谓词**（`src/` 与 `tests/` 的 `*.test.ts(x)` 必须有反引号行）。不是覆盖谓词。漏行即红。闸是全量存货，不是只拦新建。 |
 | 4. 能力目录冻结？ | **优先词，非闭集**。已吸收 `error-map` / `retrieve` / `docs-guard` / `system` / `async`。新词先写该包能力表。 |
-| 5. 过渡更激进？ | **否**。分批；**禁止顺手拆**；**禁止第一批拆** `graph.test.ts`。样板用已接近单意图的 P0。 |
+| 5. 过渡更激进？ | **第一批（闸）否**。**第二批（2026-08-24）全量迁徙**：按意图重切；`graph.test.ts` 按 §9 拆；禁止在修 bug 的同一变更里顺手拆。 |
 | 6. 脚本测不进能力树？ | **仓库根 `scripts/*.test.mjs` 不进**。包内 `src/scripts/*.test.ts` 是能力测（如 `eval/`）。文档护栏可留在包内 `docs-guard/`。 |

@@ -194,7 +194,7 @@ Load `trellis-brainstorm`; stay in planning.
 Lightweight: `prd.md` can be enough. Complex: finish `prd.md`, `design.md`, and `implement.md`; ask for review before `task.py start`.
 Multi-deliverable scope: consider a parent task plus independently verifiable child tasks; dependencies must be written in child artifacts, not implied by tree position.
 Sub-agent mode: curate `implement.jsonl` and `check.jsonl` as spec/research manifests before start.
-测例：规划里列出将新增/改动的测试文件。新测例只进 `tests/<能力>/` 并同一变更登记 `tests/index.md`。`待处理` 只修已有 it。禁止本任务写 `待迁`/`待拆`。漏行即红。
+测例：规划里列出将新增/改动的测试文件。新测例只进 `tests/<能力>/`，文件头目标/简介用简体中文，同一变更登记 `tests/index.md`。`待处理` 只修已有 it。禁止写 `待迁`/`待拆`。漏行即红。
 [/workflow-state:planning]
 
 <!-- Per-turn breadcrumb: shown throughout Phase 1 when codex.dispatch_mode=inline.
@@ -208,7 +208,7 @@ Load `trellis-brainstorm`; stay in planning.
 Lightweight: `prd.md` can be enough. Complex: finish `prd.md`, `design.md`, and `implement.md`; ask for review before `task.py start`.
 Multi-deliverable scope: consider a parent task plus independently verifiable child tasks; dependencies must be written in child artifacts, not implied by tree position.
 Inline mode: skip jsonl curation; Phase 2 reads artifacts/specs via `trellis-before-dev`.
-测例：规划里列出将新增/改动的测试文件。新测例只进 `tests/<能力>/` 并同一变更登记 `tests/index.md`。`待处理` 只修已有 it。禁止本任务写 `待迁`/`待拆`。漏行即红。
+测例：规划里列出将新增/改动的测试文件。新测例只进 `tests/<能力>/`，文件头目标/简介用简体中文，同一变更登记 `tests/index.md`。`待处理` 只修已有 it。禁止写 `待迁`/`待拆`。漏行即红。
 [/workflow-state:planning-inline]
 
 ### Phase 2: Execute
@@ -229,7 +229,7 @@ Tools: `trellis-implement` / `trellis-research` are sub-agent types only (Task/A
 Flow: `trellis-implement` -> `trellis-check` -> `trellis-update-spec` -> commit (Phase 3.4) -> `/trellis:finish-work`.
 Main-session default: dispatch implement/check sub-agents. Sub-agent self-exemption: if already running as `trellis-implement`, do NOT spawn another `trellis-implement` or `trellis-check`; if already running as `trellis-check`, do NOT spawn another `trellis-check` or `trellis-implement`. Dispatch is main session only.
 Dispatch prompt starts with `Active task: <task path from task.py current>`. Read context: jsonl entries -> `prd.md` -> `design.md if present` -> `implement.md if present`.
-测例：新文件只进 `tests/<能力>/`，同一变更登记 `tests/index.md`。`待处理` 只修已有 it。禁止顺手拆混居文件。存货闸漏行即红。本阶段禁止 `待迁`/`待拆`。
+测例：新文件只进 `tests/<能力>/`，文件头目标/简介用简体中文，同一变更登记 `tests/index.md`。`待处理` 只修已有 it。禁止顺手拆混居文件。存货闸漏行即红。禁止 `待迁`/`待拆`。
 [/workflow-state:in_progress]
 
 <!-- Per-turn breadcrumb: shown while status='in_progress' when
@@ -241,7 +241,7 @@ Dispatch prompt starts with `Active task: <task path from task.py current>`. Rea
 Flow: `trellis-before-dev` -> edit -> `trellis-check` -> validation -> `trellis-update-spec` -> commit (Phase 3.4) -> `/trellis:finish-work`.
 Do not dispatch implement/check sub-agents in inline mode.
 Read context: `prd.md` -> `design.md if present` -> `implement.md if present`, plus relevant spec/research loaded by skills.
-测例：新文件只进 `tests/<能力>/`，同一变更登记 `tests/index.md`。`待处理` 只修已有 it。禁止顺手拆混居文件。存货闸漏行即红。本阶段禁止 `待迁`/`待拆`。
+测例：新文件只进 `tests/<能力>/`，文件头目标/简介用简体中文，同一变更登记 `tests/index.md`。`待处理` 只修已有 it。禁止顺手拆混居文件。存货闸漏行即红。禁止 `待迁`/`待拆`。
 [/workflow-state:in_progress-inline]
 
 ### Phase 3: Finish

@@ -136,8 +136,8 @@ pnpm build | dev          # turbo
 - **导航**：`docs/testing/README.md` → 各包 `tests/index.md`（存货不是覆盖；漏行即红）
 - **P0 必绿**：`docs/testing/p0-redlines.md`
 - **验收剧本**（非单测替代）：`prds/10-delivery/03-acceptance-scenarios.md`
-- **新测例**：只进 `<包>/tests/<能力>/<意图>.test.ts(x)`，写文件头并登记 index；**禁止**再按源码一对一镜像，**禁止**在 `src/` 旁新建
-- 历史 `src/**/*.test.*` 为 **待处理**，以各包 index 待处理表为准；**只修已有 it**；**禁止**修 bug 时顺手拆混居文件，迁徙须单独变更
+- **新测例**：只进 `<包>/tests/<能力>/<意图>.test.ts(x)`，文件头 **目标/简介必须简体中文**（目的与功能），并登记 index；**禁止**再按源码一对一镜像，**禁止**在 `src/` 旁新建
+- 若 index 仍有 **待处理** 行：只修已有 it；**禁止**修 bug 时顺手拆混居文件
 
 ## Conventions
 
