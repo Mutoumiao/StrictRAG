@@ -1,13 +1,19 @@
+/**
+ * 目标：operable overlay 与 .env.example 叠加后栈组合必须合法。
+ * 需求：OPS-STACK
+ * 被测：parseEnvAssignments · stackEnvIssues
+ * 简介：解析赋值跳过注释；example 与 overlay last-wins 对齐 docker 骨架。
+ */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { stackEnvIssues } from './env.js';
-import { parseEnvAssignments } from './operable-env.js';
+import { stackEnvIssues } from '../../src/env.js';
+import { parseEnvAssignments } from '../../src/operable-env.js';
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
 
 function stackInput(vars: Record<string, string>) {
   return {

@@ -1,10 +1,16 @@
+/**
+ * 目标：稀疏索引 HTTP 配置与对账不得静默错配。
+ * 需求：OPS-1
+ * 被测：esHttpConfigFromEnv · sparseTextForChunk · reconcileIndexed
+ * 简介：空 URL 为 null；chunk 文本拼接；missing/orphan。
+ */
 import { describe, expect, it } from 'vitest';
 
 import {
   esHttpConfigFromEnv,
   reconcileIndexed,
   sparseTextForChunk,
-} from './es-http.js';
+} from '../../src/ingest/es-http.js';
 
 describe('esHttpConfigFromEnv', () => {
   it('null when URL empty', () => {

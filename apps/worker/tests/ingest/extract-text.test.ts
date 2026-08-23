@@ -1,10 +1,16 @@
+/**
+ * 目标：utf8 文本层可抽；PDF 不得当 utf8 垃圾返回。
+ * 需求：prds/04-pipelines/01-offline-ingest.md
+ * 被测：hasUtf8TextLayer · decodeUtf8Text · extractUtf8TextLayer
+ * 简介：txt/md 按类型或扩展名；pdf 走 NO_TEXT_LAYER。
+ */
 import { describe, expect, it } from 'vitest';
 
 import {
   decodeUtf8Text,
   extractUtf8TextLayer,
   hasUtf8TextLayer,
-} from './extract-text.js';
+} from '../../src/ingest/extract-text.js';
 
 describe('hasUtf8TextLayer', () => {
   it('accepts txt/md by contentType', () => {

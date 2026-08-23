@@ -1,3 +1,9 @@
+/**
+ * 目标：同文档入库互斥，忙则 DOC_LOCK_BUSY。
+ * 需求：X-04
+ * 被测：tryAcquireDocLock · releaseDocLock · withDocLock · createIoredisDocLock
+ * 简介：Redis SET NX EX；Lua 按 token 释放；非 Redlock。
+ */
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -11,7 +17,7 @@ import {
   withDocLock,
   type DocLockStore,
   type IoredisLike,
-} from './doc-lock.js';
+} from '../../src/ingest/doc-lock.js';
 
 /** 进程内锁替身：真实驱动 setNxEx / releaseIfOwner 语义 */
 function createMemoryStore(): DocLockStore & { map: Map<string, string> } {

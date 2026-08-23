@@ -1,3 +1,9 @@
+/**
+ * 目标：重试不重分块；半套稀疏索引不得假完成。
+ * 需求：X-04
+ * 被测：decideChunkPath · missingEmbeddingChunkIds · mockEsStore · isIngestErrorRetryable
+ * 简介：indexVersion 路径、缺 embedding 补齐、retry 矩阵。
+ */
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -7,8 +13,8 @@ import {
   missingEmbeddingChunkIds,
   resolveIndexVersion,
   withStageAndVersion,
-} from './idempotency.js';
-import { mockEsStore } from './es-store.js';
+} from '../../src/ingest/idempotency.js';
+import { mockEsStore } from '../../src/ingest/es-store.js';
 
 describe('decideChunkPath · R-I-idem-2', () => {
   it('无 indexVersion → materialize（首跑/reindex）', () => {

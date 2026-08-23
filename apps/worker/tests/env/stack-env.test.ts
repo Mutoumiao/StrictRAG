@@ -1,6 +1,12 @@
+/**
+ * 目标：非法 worker 栈环境组合不得通过启动校验。
+ * 需求：基建: worker stackEnvIssues
+ * 被测：stackEnvIssues
+ * 简介：http 无 URL、s3 无 endpoint 失败；mock+local 与带 URL 的 http 合法。
+ */
 import { describe, expect, it } from 'vitest';
 
-import { stackEnvIssues } from './env.js';
+import { stackEnvIssues } from '../../src/env.js';
 
 describe('stackEnvIssues', () => {
   it('http without URL fails', () => {

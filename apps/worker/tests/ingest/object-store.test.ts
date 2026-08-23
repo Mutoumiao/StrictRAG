@@ -1,10 +1,20 @@
+/**
+ * 目标：本地对象存储可读 utf8 与原始字节，缺 key 不得抛。
+ * 需求：STORAGE · prds/03-data
+ * 被测：readObjectText · readObjectBytes · storeConfigFromEnv
+ * 简介：本地目录读写；s3 模式映射。
+ */
 import { mkdir, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { readObjectBytes, readObjectText, storeConfigFromEnv } from './object-store.js';
+import {
+  readObjectBytes,
+  readObjectText,
+  storeConfigFromEnv,
+} from '../../src/ingest/object-store.js';
 
 describe('object-store local', () => {
   it('reads utf8 object', async () => {

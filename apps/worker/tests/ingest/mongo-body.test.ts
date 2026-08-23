@@ -1,3 +1,9 @@
+/**
+ * 目标：空 Mongo URL 不得真连，走 local id。
+ * 需求：prds/03-data
+ * 被测：localMongoDocId · upsertDocumentBody · findDocumentBody · pingMongo
+ * 简介：空 url 返回 local:docId / null / false。
+ */
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -5,7 +11,7 @@ import {
   localMongoDocId,
   pingMongo,
   upsertDocumentBody,
-} from './mongo-body.js';
+} from '../../src/ingest/mongo-body.js';
 
 describe('mongo-body', () => {
   it('local id prefix', () => {

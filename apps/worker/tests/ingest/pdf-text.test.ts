@@ -1,6 +1,12 @@
+/**
+ * 目标：PDF 文本层可抽取；扫描件无文本层须返回空。
+ * 需求：prds/04-pipelines/01-offline-ingest.md
+ * 被测：isPdfObject · extractPdfTextLayer
+ * 简介：本地 mini PDF fixture 抽 Tj 文本；无算子返回 null。
+ */
 import { describe, expect, it } from 'vitest';
 
-import { extractPdfTextLayer, isPdfObject } from './pdf-text.js';
+import { extractPdfTextLayer, isPdfObject } from '../../src/ingest/pdf-text.js';
 
 function miniPdf(text: string): Buffer {
   const stream = `BT /F1 12 Tf 10 100 Td (${text}) Tj ET`;

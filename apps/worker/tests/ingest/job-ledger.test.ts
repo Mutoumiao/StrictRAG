@@ -1,3 +1,9 @@
+/**
+ * 目标：ingest_jobs 阶段账本须记录开始/结束与失败码。
+ * 需求：X-04
+ * 被测：buildStageStartRow · buildStageEndPatch · recordStageStart · recordStageEnd
+ * 简介：最小账本行、成功链、失败码、pipeline 接线。
+ */
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -7,7 +13,7 @@ import {
   ledgerStatusFromResult,
   recordStageEnd,
   recordStageStart,
-} from './job-ledger.js';
+} from '../../src/ingest/job-ledger.js';
 
 describe('ledgerJobName / ledgerStatusFromResult', () => {
   it('jobName equals stage', () => {

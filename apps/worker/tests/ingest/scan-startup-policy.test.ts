@@ -1,9 +1,15 @@
+/**
+ * 目标：扫描模式启动闸与运行时拦截一致；on 未接引擎须失败。
+ * 需求：X-01/X-02
+ * 被测：checkScanModeStartupPolicy · isScanModeRuntimeBlocked
+ * 简介：development 允许 mock；任意 APP_ENV 下 on 拒绝；staging/production 禁止 mock/off。
+ */
 import { describe, expect, it } from 'vitest';
 
 import {
   checkScanModeStartupPolicy,
   isScanModeRuntimeBlocked,
-} from './scan-mode-policy.js';
+} from '../../src/scan-mode-policy.js';
 
 describe('checkScanModeStartupPolicy · X-01 / X-02', () => {
   it('development 允许 mock_clean / mock_infected / off', () => {

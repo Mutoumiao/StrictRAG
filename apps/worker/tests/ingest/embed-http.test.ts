@@ -1,6 +1,12 @@
+/**
+ * 目标：embed HTTP 客户端须按 Gateway 契约取向量。
+ * 需求：prds/07-models
+ * 被测：embedTextsHttp · mockEmbedVector
+ * 简介：mock 维数稳定；POST /embeddings；空 baseUrl 失败。
+ */
 import { describe, expect, it, vi } from 'vitest';
 
-import { embedTextsHttp, mockEmbedVector } from './embed-http.js';
+import { embedTextsHttp, mockEmbedVector } from '../../src/ingest/embed-http.js';
 
 describe('mockEmbedVector', () => {
   it('stable dims', () => {
