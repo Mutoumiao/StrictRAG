@@ -79,6 +79,7 @@ packages/admin-catalog      → 权限码 + 菜单（ADR-056）
 packages/db                 → Drizzle schema（api+worker 共用）
 packages/ui|eslint-config|typescript-config
 docs/module-status/         → IS：能力矩阵 + 包级现状（代码镜像）
+docs/testing/               → 测试仓库入口 + P0 红线
 prds/00–11                  → WHAT：产品…决策 SSOT
 prds/12-delivery-guides     → 交付/开工/试点/设计（辅助）
 .trellis/                   → HOW workflow · spec · tasks
@@ -102,6 +103,7 @@ product.pen                 → 线稿
 | 交付配套 / 控制台 | `prds/12-delivery-guides/README.md` · `04-交付控制台.md` |
 | Sprint0 / 垂直切片 | `prds/12-delivery-guides/06-工程开工.md` |
 | 编码 HOW | `.trellis/spec/<包>/` |
+| 写/改测例 | `.trellis/spec/guides/testing.md` · `docs/testing/README.md` · 各包 `tests/index.md` |
 
 ## Build & Run
 
@@ -130,9 +132,12 @@ pnpm build | dev          # turbo
 ## Testing
 
 - **命令**：`pnpm test`（turbo → vitest）
-- **已有**：`apps/api|worker|web` · `packages/db|contracts|admin-catalog` 同域 `*.test.ts`
-- **目标（PRD）**：集成测 + 验收剧本 `prds/10-delivery/03-acceptance-scenarios.md`
-- 新增测试与源码同域放置
+- **HOW**：`.trellis/spec/guides/testing.md`（目标来自 PRD；按能力落主包 `tests/`）
+- **导航**：`docs/testing/README.md` → 各包 `tests/index.md`
+- **P0 必绿**：`docs/testing/p0-redlines.md`
+- **验收剧本**（非单测替代）：`prds/10-delivery/03-acceptance-scenarios.md`
+- **新测例**：`<包>/tests/<能力>/<意图>.test.ts(x)`，写文件头并登记 index；**禁止**再按源码一对一镜像
+- 历史 `src/**/*.test.*` 为遗留，以各包 index 遗留表为准；**禁止**修 bug 时顺手拆混居文件，迁徙须单独变更
 
 ## Conventions
 

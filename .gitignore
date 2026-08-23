@@ -54,4 +54,4 @@ skills-lock.json
 # Local workspace
 .trellis/tasks/
 /prds
-
+docs/handoff/*
