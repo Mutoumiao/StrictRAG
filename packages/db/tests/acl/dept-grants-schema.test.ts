@@ -1,6 +1,13 @@
+/**
+ * 目标：跨部门 grant 表必须暴露授权列，形状与 user+dept 唯一约束字段对齐。
+ * 需求：DEPT_ACL
+ * 被测：deptCrossGrants
+ * 简介：核对 grant 列名与形状。
+ */
+
 import { describe, expect, it } from 'vitest';
 
-import { deptCrossGrants } from '../index.js';
+import { deptCrossGrants } from '../../src/schema/index.js';
 
 describe('dept_cross_grants schema (P3b-GRANT)', () => {
   it('exposes grant columns and unique user+dept index', () => {

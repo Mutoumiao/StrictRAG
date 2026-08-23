@@ -1,6 +1,13 @@
+/**
+ * 目标：文档表必须含部门与可见级列，且 id / 时间列策略不变。
+ * 需求：P3b-META
+ * 被测：documents
+ * 简介：核对 ownerDeptId / visibilityLevel 及本地时间、uuid；强制未接。
+ */
+
 import { describe, expect, it } from 'vitest';
 
-import { documents } from '../index.js';
+import { documents } from '../../src/schema/index.js';
 
 describe('documents schema (P3b-META)', () => {
   it('exposes ownerDeptId and visibilityLevel columns', () => {

@@ -1,6 +1,13 @@
+/**
+ * 目标：默认检索闸只放行 ready∧active，其它状态或生命周期不得进入默认检索集。
+ * 需求：双就绪闸（P0 R7 附录；主锚在 api corpus）
+ * 被测：isDefaultRetrievable · filterDefaultRetrievable
+ * 简介：纯函数过滤；R7 生产路径在 api。
+ */
+
 import { describe, expect, it } from 'vitest';
 
-import { filterDefaultRetrievable, isDefaultRetrievable } from './retrieval-gate.js';
+import { filterDefaultRetrievable, isDefaultRetrievable } from '../../src/query/retrieval-gate.js';
 
 describe('default retrieval gate', () => {
   it('allows only ready ∧ active', () => {

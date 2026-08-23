@@ -16,14 +16,14 @@
 
 ## 测例
 
-（尚无 `tests/<能力>/` 现行文件。）
+| 文件 | 目标 | 需求锚点 | 被测 | 简介 | 状态 |
+|------|------|----------|------|------|------|
+| `acl/dept-grants-schema.test.ts` | 跨部门 grant 表必须暴露授权列，形状与 user+dept 唯一约束字段对齐。 | DEPT_ACL | `deptCrossGrants` | 核对 grant 列名与形状。 | 现行 |
+| `ask/ask-schema.test.ts` | ask_sessions / traces / feedback / eval_runs 必须可导出且含会话与证据快照列。 | prds/03-data | `users · kbMembers · askSessions · askTraces · askFeedback · evalRuns` | 核对 Phase 2 ask 表导出与关键列。 | 现行 |
+| `env/local-datetime.test.ts` | 写库时间必须是本地 yyyy-MM-dd HH:mm:ss 格式串，失败则 ORM 时间契约不成立。 | prds/02-engineering/02-orm-drizzle.md | `formatLocalDateTime` | 断言输出形状为本地日期时间串。 | 现行 |
+| `ingest/documents-schema.test.ts` | 文档表必须含部门与可见级列，且 id / 时间列策略不变。 | P3b-META | `documents` | 核对 ownerDeptId / visibilityLevel 及本地时间、uuid；强制未接。 | 现行 |
+| `retrieve/ready-active-gate.test.ts` | 默认检索闸只放行 ready∧active，其它状态或生命周期不得进入默认检索集。 | 双就绪闸（P0 R7 附录；主锚在 api corpus） | `isDefaultRetrievable · filterDefaultRetrievable` | 纯函数过滤；R7 生产路径在 api。 | 现行 |
 
 ## 待处理
 
-| 文件 | 目标 | 需求锚点 | 简介 | 状态 |
-|------|------|----------|------|------|
-| `../src/time.test.ts` | 写库时间本地格式串 | `prds/02-engineering/02-orm-drizzle.md` | | 待处理 |
-| `../src/query/retrieval-gate.test.ts` | isDefaultRetrievable = ready∧active | 双就绪闸 | **附录**；R7 主锚 api corpus | 待处理 |
-| `../src/schema/ask/ask-schema.test.ts` | ask_sessions/traces/feedback/eval_runs 列 | `prds/03-data` | | 待处理 |
-| `../src/schema/kb/documents.schema.test.ts` | 文档表含部门/可见级列 | P3b-META | 强制未接 | 待处理 |
-| `../src/schema/system/dept-cross-grants.schema.test.ts` | grant 表形状 | DEPT_ACL | | 待处理 |
+（无。`src/` 下已无 `*.test.ts(x)`。）
