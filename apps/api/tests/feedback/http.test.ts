@@ -1,13 +1,20 @@
+/**
+ * 目标：答案反馈 POST/PATCH 必须具备 kb 码。
+ * 需求：B13
+ * 被测：createFeedbackRoutes
+ * 简介：须 kb 码。
+ */
+
 import { Hono } from 'hono';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 
-import { attachAuthMiddleware, type AuthVariables } from '../auth/middleware.js';
-import { issueTokenPair } from '../auth/identity/token-service.js';
-import { requestIdMiddleware } from '../middleware/request-id.js';
-import { metricGet, metricsReset } from '../obs/index.js';
-import { createMemoryFeedbackRepo } from '../services/feedback.js';
-import { createFeedbackRoutes } from './feedback.js';
+import { attachAuthMiddleware, type AuthVariables } from '../../src/auth/middleware.js';
+import { issueTokenPair } from '../../src/auth/identity/token-service.js';
+import { requestIdMiddleware } from '../../src/middleware/request-id.js';
+import { metricGet, metricsReset } from '../../src/obs/index.js';
+import { createMemoryFeedbackRepo } from '../../src/services/feedback.js';
+import { createFeedbackRoutes } from '../../src/routes/feedback.js';
 
 const KB = '01900000-0000-7000-8000-0000000000aa';
 const TENANT = '01900000-0000-7000-8000-000000000001';
