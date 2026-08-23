@@ -15,6 +15,7 @@
 | `kb/` | 知识库列表与设置 | B2 / B2-W |
 | `sessions/` | 会话壳、近窗 | 历史≠evidence · rewrite 默认关 |
 | `feedback/` | 答案反馈 API | B13 |
+| `gateway/` | 模型绑定 / mock / 双节点 | B3 · QUAL-3 |
 
 ## 测例
 
@@ -53,6 +54,8 @@
 | `auth/role-hydrate.test.ts` | 每请求角色 hydrate 超时必须回退，缓存不超过 5s。 | B4-W | `role-hydrate middleware` | ≤5s 缓存。 | 现行 |
 | `auth/token-service.test.ts` | access jti 与 refresh 轮转在同一秒内可区分。 | prds/09-security | `issueTokenPair / rotateRefresh` | 同秒可区分。 | 现行 |
 | `feedback/http.test.ts` | 答案反馈 POST/PATCH 必须具备 kb 码。 | B13 | `createFeedbackRoutes` | 须 kb 码。 | 现行 |
+| `gateway/bindings-http.test.ts` | 供应商绑定 HTTP 按 B3 契约读写。 | B3 | `model-gateway routes` | 供应商绑定 HTTP。 | 现行 |
+| `gateway/resolve-mock.test.ts` | 网关解析缺 URL 时走 mock，绑定覆盖与重试保持契约。 | B3 · QUAL-3 | `buildGatewayConfig / applyBindingsToGatewayConfig / mock+http retry` | 缺 URL → mock。 | 现行 |
 | `ingest/approval-scan.test.ts` | 审批未过不得 complete / 入扫描。 | 审批未过不得 complete | `canEnqueueScan / canBecomeActive / scanDeniedCode` | 审批扫描闸。 | 现行 |
 | `ingest/chunk-strategies.test.ts` | 已实现分片策略可写；未实现必须 400，禁止静默 default。 | B12 · X-03 | `chunk-strategies` | 禁静默 default。 | 现行 |
 | `ingest/chunks-http.test.ts` | chunks HTTP 只读路由按成员与文档闸返回。 | B1 | `createChunkRoutes` | chunks HTTP。 | 现行 |
@@ -96,8 +99,6 @@
 
 | 文件 | 目标 | 需求锚点 | 简介 | 状态 |
 |------|------|----------|------|------|
-| `../src/services/gateway/gateway.test.ts` | Gateway 解析与 mock | B3 · QUAL-3 | 缺 URL → mock | 待处理 |
-| `../src/routes/model-gateway.test.ts` | 供应商绑定 HTTP | B3 | | 待处理 |
 
 ### eval / obs / env
 

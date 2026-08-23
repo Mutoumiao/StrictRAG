@@ -1,13 +1,20 @@
+/**
+ * 目标：供应商绑定 HTTP 按 B3 契约读写。
+ * 需求：B3
+ * 被测：model-gateway routes
+ * 简介：供应商绑定 HTTP。
+ */
+
 import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 
-import { attachAuthMiddleware, type AuthVariables } from '../auth/middleware.js';
-import { issueTokenPair } from '../auth/identity/token-service.js';
-import { requestIdMiddleware } from '../middleware/request-id.js';
-import { DEV_DEFAULT_TENANT } from '../services/members.js';
-import { createMemoryModelGatewayRepo } from '../services/model-gateway.js';
-import { createModelGatewayRoutes } from './model-gateway.js';
+import { attachAuthMiddleware, type AuthVariables } from '../../src/auth/middleware.js';
+import { issueTokenPair } from '../../src/auth/identity/token-service.js';
+import { requestIdMiddleware } from '../../src/middleware/request-id.js';
+import { DEV_DEFAULT_TENANT } from '../../src/services/members.js';
+import { createMemoryModelGatewayRepo } from '../../src/services/model-gateway.js';
+import { createModelGatewayRoutes } from '../../src/routes/model-gateway.js';
 
 const TENANT = DEV_DEFAULT_TENANT;
 

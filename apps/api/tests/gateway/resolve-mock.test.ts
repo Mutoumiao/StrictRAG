@@ -1,6 +1,13 @@
+/**
+ * 目标：网关解析缺 URL 时走 mock，绑定覆盖与重试保持契约。
+ * 需求：B3 · QUAL-3
+ * 被测：buildGatewayConfig / applyBindingsToGatewayConfig / mock+http retry
+ * 简介：缺 URL → mock。
+ */
+
 import { describe, expect, it } from 'vitest';
 
-import { mergeBindingRows } from './bindings.js';
+import { mergeBindingRows } from '../../src/services/gateway/bindings.js';
 import {
   GatewayError,
   applyBindingsToGatewayConfig,
@@ -10,7 +17,7 @@ import {
   mapGatewayFailureToAskReason,
   resolveChatModel,
   withSameModelRetry,
-} from './index.js';
+} from '../../src/services/gateway/index.js';
 
 const baseCfg = buildGatewayConfig({
   APP_ENV: 'test',
