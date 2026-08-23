@@ -1,3 +1,10 @@
+/**
+ * 目标：试点文档与 AUTH_ENFORCE 开关默认值保持一致。
+ * 需求：docs/ops/auth-enforce-pilot.md
+ * 被测：docs/ops/auth-enforce-pilot.md · .env.example
+ * 简介：文档护栏。
+ */
+
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

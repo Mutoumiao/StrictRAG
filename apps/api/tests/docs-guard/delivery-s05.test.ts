@@ -1,14 +1,17 @@
 /**
- * 结构护栏：交付控制台 §0.5 曾挂账的 8 行不得回退为「待盘点」。
- * 驱动真实仓内工件 `prds/12-delivery-guides/04-交付控制台.md`（非 mock 文案）。
+ * 目标：交付控制台 §0.5 已闭合待盘点行不得回退。
+ * 需求：交付控制台
+ * 被测：prds/12-delivery-guides/04-交付控制台.md
+ * 简介：读 PRD 文件，非 mock。
  */
+
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const monorepoRoot = resolve(here, '../../..');
+const monorepoRoot = resolve(here, '../../../..');
 const consolePath = resolve(
   monorepoRoot,
   'prds/12-delivery-guides/04-交付控制台.md',

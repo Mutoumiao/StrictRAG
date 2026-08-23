@@ -19,6 +19,7 @@
 | `eval/` | L1/L2 工程 seed | B10 · **≠ 准出** |
 | `obs/` | 指标、限流、写审计 | ARCH-P2-4 · ARCH-P1b-2 |
 | `env/` | env、health/ready、OpenAPI | P0 骨架 |
+| `docs-guard/` | 交付文档护栏 | 控制台 §0.5 |
 
 ## 测例
 
@@ -56,6 +57,8 @@
 | `auth/enforce-401.test.ts` | AUTH_ENFORCE 开启且无 Bearer 时必须 401。 | QUAL-1 | `requirePermissionWhenEnforced` | enforce 开且无 Bearer → 401。 | 现行 |
 | `auth/role-hydrate.test.ts` | 每请求角色 hydrate 超时必须回退，缓存不超过 5s。 | B4-W | `role-hydrate middleware` | ≤5s 缓存。 | 现行 |
 | `auth/token-service.test.ts` | access jti 与 refresh 轮转在同一秒内可区分。 | prds/09-security | `issueTokenPair / rotateRefresh` | 同秒可区分。 | 现行 |
+| `docs-guard/auth-enforce-pilot.test.ts` | 试点文档与 AUTH_ENFORCE 开关默认值保持一致。 | docs/ops/auth-enforce-pilot.md | `docs/ops/auth-enforce-pilot.md · .env.example` | 文档护栏。 | 现行 |
+| `docs-guard/delivery-s05.test.ts` | 交付控制台 §0.5 已闭合待盘点行不得回退。 | 交付控制台 | `prds/12-delivery-guides/04-交付控制台.md` | 读 PRD 文件，非 mock。 | 现行 |
 | `env/body-limit.test.ts` | 超限 JSON body 必须 413 PAYLOAD_TOO_LARGE。 | prds/05-api · ARCH-P0 | `createApp body-limit` | 超限 JSON body 必须 413 PAYLOAD_TOO_LARGE。 | 现行 |
 | `env/defaults.test.ts` | api env 默认值保持关闭态，tauClaim 双源冲突必须拒绝。 | 基建: api env Zod | `env Zod 对齐（不启动进程）` | rewrite / AUTH_ENFORCE 默认关。 | 现行 |
 | `env/error-envelope.test.ts` | 未知路径与未处理异常必须走统一错误信封，且不得泄漏 stack。 | prds/05-api · ARCH-P0 | `createApp onError / isAskTimeoutExcept / isBodyLimitExcept` | 未知路径与未处理异常走统一信封，且不得泄漏 stack。 | 现行 |
@@ -116,7 +119,6 @@
 
 | 文件 | 目标 | 需求锚点 | 简介 | 状态 |
 |------|------|----------|------|------|
-| `../src/auth/auth-enforce-pilot.doc.test.ts` | 试点文档与开关一致 | `docs/ops/auth-enforce-pilot.md` | 文档护栏 | 待处理 |
 
 ### kb / sessions / feedback / gateway
 
@@ -128,4 +130,3 @@
 | 文件 | 目标 | 需求锚点 | 简介 | 状态 |
 |------|------|----------|------|------|
 | `../src/routes/dashboard.test.ts` | 面板 summary HTTP | B6 | | 待处理 |
-| `../src/delivery-s05-inventory.test.ts` | 控制台 §0.5 待盘点行不得回退 | 交付控制台 | 读 PRD 文件，非 mock | 待处理 |
