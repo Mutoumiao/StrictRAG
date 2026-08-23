@@ -2,6 +2,7 @@
 
 > SSOT 产品语义仍以 `prds/00–11` 为准。  
 > 本表 = **本地合并前**可勾选、可自动化的 P0 测例清单（eng-review 修订版）。  
+> 测例组织 HOW：`.trellis/spec/guides/testing.md`；全量导航：`docs/testing/README.md`。  
 > 门禁命令：`pnpm check-types` && `pnpm test`（**不**强制远程 CI，见 D2）。
 
 **来源：** office-hours design + `/plan-eng-review`（2026-08-07）

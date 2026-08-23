@@ -7,6 +7,8 @@ apps/worker/
   package.json
   tsconfig.json
   eslint.config.js
+  tests/
+    index.md                 # 本包测例导航
   src/
     index.ts                 # BullMQ workers · 优雅退出 · 无 HTTP
     env.ts                   # Zod：INGEST_* · STORAGE_* · APP_ENV
@@ -20,7 +22,7 @@ apps/worker/
       job-ledger.ts          # ingest_jobs 阶段账本（最小）
       doc-lock.ts            # 同 doc Redis SET NX 锁（最小；非 Redlock）
       es-store.ts            # mock ES（进程内 Map）
-      *.test.ts
+      # 遗留 *.test.ts（待迁 tests/ingest/）
     # 复用 @strict-rag/db · @strict-rag/contracts
 ```
 

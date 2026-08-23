@@ -6,6 +6,8 @@
 packages/contracts/
   package.json          # exports: "." + "./testing"
   tsconfig.json · eslint.config.js
+  tests/
+    index.md            # 本包测例导航
   src/
     index.ts            # 生产聚合导出（不含 testing）
     testing.ts          # 测试辅助入口 → ask/fixtures

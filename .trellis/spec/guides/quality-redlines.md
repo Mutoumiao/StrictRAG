@@ -2,7 +2,8 @@
 
 > **WHAT** 权威：`prds/08-quality/` · `prds/04-pipelines/`  
 > **HOW**：本文件约束实现与评审时不可越过的底线。  
-> 触及 ask / 检索 / 生成 / 验证时 **必读**。
+> 触及 ask / 检索 / 生成 / 验证时 **必读**。  
+> 写/改对应测例：先读 [testing](./testing.md)，P0 证据表 `docs/testing/p0-redlines.md`。
 
 ---
 

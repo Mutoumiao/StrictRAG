@@ -53,9 +53,9 @@
 | 项 | 约定 |
 |----|------|
 | 运行 | `pnpm --filter @strict-rag/web test` |
-| 环境 | `vitest.config.ts`：`environment: 'jsdom'` · `include: ['src/**/*.test.{ts,tsx}']` · alias `@` → `src` |
+| 环境 | `vitest.config.ts`：`environment: 'jsdom'` · `include: ['tests/**/*.test.{ts,tsx}', 'src/**/*.test.{ts,tsx}']` · alias `@` → `src` |
 | 基建 | **仅** `src/test/`：`setup.ts`（jest-dom · cleanup · 清 storage）· re-export；ask final **工厂 SSOT** 见下 |
-| 用例位置 | 与实现 **同域** `foo.test.ts(x)`（对齐 api/worker）；**禁止**镜像整棵 `src/` 的中央 `test/` |
+| 用例位置 | **现行** `tests/<能力>/<意图>.test.ts(x)`；组织 HOW：[testing](../../guides/testing.md)；导航 `tests/index.md`。禁止再按源码同域镜像 |
 | 查询 / 交互 | `getByRole` / `getByLabelText` · `userEvent.setup()`；禁 `querySelector` 测行为 |
 | Provider | **无**全局假 `renderWithProviders`（当前无 QueryClient 等）；需要时在单测内包；直接 `render` |
 | 必测红线 | final schema · lastQuestion 重试 · ready 无 final · session key 与 admin 隔离 · **P0 表 R1–R4/R10** |
@@ -162,10 +162,10 @@ if (status === 'ready') {
 - **Bad**：`data-ask-final` 不经 `AskResponseSchema` 盲 `as`  
 - **Bad**：`onSubmit` 先 `setQuestion('')`，`onRetry` 再读 `question` → 重试按钮死  
 - **Bad**：流结束 `status=ready` 仍 `view=loading` 且无兜底 → 提问按钮永久 disabled  
-- **Bad**：`renderWithProviders` 无 Provider 却假封装；中央 `test/` 镜像整 src  
+- **Bad**：`renderWithProviders` 无 Provider 却假封装；在 `src/` 旁按文件再添 `*.test.ts`  
 - **Good**：answered / abstained / 错误态三套明确 UI；只应用校验通过的 final payload  
 - **Good**：`lastQuestion` 记最近成功发起的文案；重试 `submitQuestion(lastQuestion \|\| question)`  
-- **Good**：同域 `*.test.ts(x)` + `src/test/` 仅基建  
+- **Good**：测例进 `tests/<能力>/` + `src/test/` 仅基建 + `tests/index.md` 有行  
 
 ## 模块分层反模式（摘要）
 

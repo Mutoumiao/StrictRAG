@@ -48,7 +48,7 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列�
 - 依赖：`ai` · `@ai-sdk/react`（版本由 catalog 统一管理）
 - **B13**：`FeedbackBar`（`ask-panel.tsx`）在 answered/abstained 且有 `requestId` 时展示 up/down → `src/api/feedback.ts` → `POST /api/v1/ask/{requestId}/feedback`（**无** FeedbackBar 专用 RTL 用例）
 - **B11**：可选文档类型输入（逗号分隔）→ `parseScopeDocTypesInput` / `buildAskRequestBody` → `createAskTransport.getScope` → ask 顶层 `scope.docTypes`；空=不收窄（ADR-050）；**非**强制选类型、**非** GET settings 字典
-- **单元 / 组件测试**（Vitest + jsdom + RTL）：`vitest.config.ts` · `src/test/{setup,test-utils}` · 各模块同域的 `*.test.ts(x)`
+- **单元 / 组件测试**（Vitest + jsdom + RTL）：`vitest.config.ts` · `src/test/{setup,test-utils}` · 测例文件仍多为 `src` 同域遗留（清单 `apps/web/tests/index.md`）；新测例 HOW：`.trellis/spec/guides/testing.md`
   - ask final 工厂来自 **`@strict-rag/contracts/testing`**（`src/test/fixtures/ask.ts` 只做 re-export）
   - P0 挂账（`docs/testing/p0-redlines.md`）：**R1** ready 状态但无 final · **R2** 拒答 UI · **R3** mapBizError · **R4** clear / 坏 JSON / 无 token 时返回 null（**不是** expires 产品闸门）· **R10** 同一工厂
   - 其它：`sessions.services`（失败 / 部分失败场景）· lastQuestion 重试 · **`api/ask.scope.test.ts`**（B11 parse/body）· hook `getScope` 接线

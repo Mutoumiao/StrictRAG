@@ -81,8 +81,8 @@
 | 项 | 约定 |
 |----|------|
 | 运行 | `pnpm --filter @strict-rag/admin test` |
-| 环境 | `vitest.config.ts`：jsdom · `src/**/*.test.{ts,tsx}` · `@` → `src` |
-| 基建 | **仅** `src/test/`（setup · re-export）；用例 **同域** 并置 |
+| 环境 | `vitest.config.ts`：jsdom · `tests/**` + 遗留 `src/**` · `@` → `src` |
+| 基建 | **仅** `src/test/`（setup · re-export）；用例现行 `tests/<能力>/`，HOW：[testing](../../guides/testing.md) |
 | 查询 | role/label；菜单/按钮按 **permissions** 断言显隐 |
 | 必测红线 | `admin.shell` Guard · `clipMenuForShell` 菜单 · 审批 decide/scan 显隐 · session/KB key 隔离 · **P0 R5/R6** |
 | P0 清单 | `docs/testing/p0-redlines.md`；关键 `it` 标题 `R#:` |

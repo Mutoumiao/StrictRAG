@@ -3,75 +3,78 @@
 ## 当前（S2 最小）
 
 ```text
-apps/api/src/
-  index.ts                 # 启动 + SIGINT/SIGTERM → closeDb/closeQueue
-  app.ts                   # createApp：requestId → secure → timeout → bodyLimit → auth → adminWriteAudit → routes → notFound/onError
-  env.ts                   # Zod env（+ API_REQUEST_TIMEOUT_MS · API_JSON_BODY_LIMIT_BYTES …）
-  auth/
-    types.ts
-    middleware.ts          # attachAuth · requireAuth · requirePermission · WhenEnforced · requireKbMember · requireKbScope · evaluateKbMember · isAuthEnforceEnabled
-    kb-scope.ts            # ARCH-P1b-1：lookupKbMembership 请求内缓存纯函数
-    role-hydrate.ts        # B4-W：DB 角色 ≤5s 缓存 · ROLE_LOAD_TIMEOUT · vitest 默认 null loader
-    auth-enforce.redline.test.ts  # QUAL-1
-    identity/              # 双 JWT 过渡
-      jwt.ts · refresh-store.ts · token-service.ts
-    permissions/resolve.ts # 有效码求值 · super_admin 旁路成员
-  graph/                   # 单轮信任路径（线性状态机）
-    run.ts · state.ts · prompts.ts · parse.ts · route-rules.ts
-    budget.ts · reasons.ts · tracer.ts · graph.test.ts
-  routes/
-    auth.ts                # dev-login · refresh · me · bootstrap ensureUserRoleCodes
-    documents/             # ARCH-P1a 试点：按域目录（P1 入库 + B12 complete/reindex 闸 + P3b-META PATCH + complete 可写部门）
-      index.ts             # export documentRoutes · PATCH / complete 写部门两字段 · GET 列表 enforce 时同滤
-      mappers.ts           # toListItem / toDetail 纯函数
-    chunks.ts              # B1 分片只读 list/detail（ADR-052）
-    members.ts             # 成员 list/invite/delete
-    ask.ts                 # POST …/ask 同步 + AI SDK UI Message Stream（B2-W mode/docTypes）
-    sessions.ts            # 会话壳（rewrite 默认关；图边在 graph/run.ts）
-    feedback.ts            # B13：POST/PATCH 用 evaluateKbMember / checkPermission({ kbId })
-    kb-settings.ts         # B2/B2-W 知识库设置
-    model-gateway.ts       # B3 模型供应商 + 平台绑定
-    platform-users-roles.ts # B4（写路径 invalidateRoleCache）
-    departments.ts         # B5
-    dashboard.ts           # B6 数据面板只读 summary
-  openapi/                 # ARCH-P2-1：OpenAPI 3.1 文档 + Scalar HTML（dev/test 默认开）
-    document.ts            # buildOpenApiDocument · components 自 contracts Zod toJSONSchema
-    routes.ts              # GET /api/v1/openapi.json · /api/v1/docs · OPENAPI_DOCS_ENABLED
-  middleware/
-    request-id.ts          # X-Request-Id · ApiVariables.kbMemberCache?
-    timeout.ts             # 可关全局 timeout；ask except
-    body-limit.ts          # JSON 体限；上传/complete except
-    on-error.ts            # 全局 throw 兜底
-    admin-write-audit.ts   # ARCH-P1b-2 管理写路径 Pino 操作日志（不落表）
-  # secureHeaders / notFound 直接在 app.ts 内联
-  services/
-    documents.ts · kb-list.ts · chunks.ts · chunk-strategies.ts  # B12 注册表
-    members.ts · sessions.ts · feedback.ts · kb-settings.ts · model-gateway.ts
-    platform-users-roles.ts · departments.ts · dashboard.ts
-    db.ts · storage.ts · queue.ts
-    ask/                   # executeAsk · session-window（近窗裁剪）· session-guard · traces 落库
-    gateway/               # chat · embed · rerank；B3-W bindings + QUAL-3 dual endpoints
-    retrieve/              # 混合检索 · 双闸门 · RRF · es-sparse（OPS-1 http 切片）
-  eval/
-    l1-matrix.ts           # L1 2×2 纯函数（A–D · coverage）；error 不计格
-    l1-matrix.test.ts
-    l2-gold.ts             # L2 多轮题面加载 / 覆盖（纯函数）
-    l2-gold.test.ts
-    l2-fingerprint.ts      # P2.5-L2S：rewrite prompt+model 指纹（纯函数；≠ 准出）
-    l2-fingerprint.test.ts
-    adr046-snapshot.ts     # ADR-046 配置快照绑定 + 硬门单向 + 四要素 / businessPass 闸
-    adr046-snapshot.test.ts
-  scripts/
-    run-l1-golden.ts       # L1 批跑 CLI：串行 executeAsk(skipTrace) → artifacts/；可选 persist eval_runs
-    run-l1-golden.test.ts  # loadGold · mock execute 注入（CI 不跑 live LLM）
-    run-l2-golden.ts       # L2 批跑 CLI：进程内窗 + 末轮机械分；signoffEligible 恒 false
-    run-l2-golden.test.ts  # 分配 / 泄漏 / 注入 execute（CI 不跑 live LLM / 不写 PG）
-    seed-es-sparse-probe.ts # OPS-1：PG chunks → ES bulk + sample search
-  obs/                     # metrics · rate-limit · memory/ask tracer
-  gates/                   # 上传体积 · 审批 scan
-  ready/checks.ts
-  lib/response.ts · pg-error.ts
-  logger.ts
+apps/api/
+  tests/
+    index.md               # 本包测例导航（HOW：guides/testing.md）
+  src/
+    index.ts                 # 启动 + SIGINT/SIGTERM → closeDb/closeQueue
+    app.ts                   # createApp：requestId → secure → timeout → bodyLimit → auth → adminWriteAudit → routes → notFound/onError
+    env.ts                   # Zod env（+ API_REQUEST_TIMEOUT_MS · API_JSON_BODY_LIMIT_BYTES …）
+    auth/
+      types.ts
+      middleware.ts          # attachAuth · requireAuth · requirePermission · WhenEnforced · requireKbMember · requireKbScope · evaluateKbMember · isAuthEnforceEnabled
+      kb-scope.ts            # ARCH-P1b-1：lookupKbMembership 请求内缓存纯函数
+      role-hydrate.ts        # B4-W：DB 角色 ≤5s 缓存 · ROLE_LOAD_TIMEOUT · vitest 默认 null loader
+      auth-enforce.redline.test.ts  # QUAL-1（遗留）
+      identity/              # 双 JWT 过渡
+        jwt.ts · refresh-store.ts · token-service.ts
+      permissions/resolve.ts # 有效码求值 · super_admin 旁路成员
+    graph/                   # 单轮信任路径（线性状态机）
+      run.ts · state.ts · prompts.ts · parse.ts · route-rules.ts
+      budget.ts · reasons.ts · tracer.ts · graph.test.ts（遗留，待拆）
+    routes/
+      auth.ts                # dev-login · refresh · me · bootstrap ensureUserRoleCodes
+      documents/             # ARCH-P1a 试点：按域目录（P1 入库 + B12 complete/reindex 闸 + P3b-META PATCH + complete 可写部门）
+        index.ts             # export documentRoutes · PATCH / complete 写部门两字段 · GET 列表 enforce 时同滤
+        mappers.ts           # toListItem / toDetail 纯函数
+      chunks.ts              # B1 分片只读 list/detail（ADR-052）
+      members.ts             # 成员 list/invite/delete
+      ask.ts                 # POST …/ask 同步 + AI SDK UI Message Stream（B2-W mode/docTypes）
+      sessions.ts            # 会话壳（rewrite 默认关；图边在 graph/run.ts）
+      feedback.ts            # B13：POST/PATCH 用 evaluateKbMember / checkPermission({ kbId })
+      kb-settings.ts         # B2/B2-W 知识库设置
+      model-gateway.ts       # B3 模型供应商 + 平台绑定
+      platform-users-roles.ts # B4（写路径 invalidateRoleCache）
+      departments.ts         # B5
+      dashboard.ts           # B6 数据面板只读 summary
+    openapi/                 # ARCH-P2-1：OpenAPI 3.1 文档 + Scalar HTML（dev/test 默认开）
+      document.ts            # buildOpenApiDocument · components 自 contracts Zod toJSONSchema
+      routes.ts              # GET /api/v1/openapi.json · /api/v1/docs · OPENAPI_DOCS_ENABLED
+    middleware/
+      request-id.ts          # X-Request-Id · ApiVariables.kbMemberCache?
+      timeout.ts             # 可关全局 timeout；ask except
+      body-limit.ts          # JSON 体限；上传/complete except
+      on-error.ts            # 全局 throw 兜底
+      admin-write-audit.ts   # ARCH-P1b-2 管理写路径 Pino 操作日志（不落表）
+    # secureHeaders / notFound 直接在 app.ts 内联
+    services/
+      documents.ts · kb-list.ts · chunks.ts · chunk-strategies.ts  # B12 注册表
+      members.ts · sessions.ts · feedback.ts · kb-settings.ts · model-gateway.ts
+      platform-users-roles.ts · departments.ts · dashboard.ts
+      db.ts · storage.ts · queue.ts
+      ask/                   # executeAsk · session-window（近窗裁剪）· session-guard · traces 落库
+      gateway/               # chat · embed · rerank；B3-W bindings + QUAL-3 dual endpoints
+      retrieve/              # 混合检索 · 双闸门 · RRF · es-sparse（OPS-1 http 切片）
+    eval/
+      l1-matrix.ts           # L1 2×2 纯函数（A–D · coverage）；error 不计格
+      l1-matrix.test.ts
+      l2-gold.ts             # L2 多轮题面加载 / 覆盖（纯函数）
+      l2-gold.test.ts
+      l2-fingerprint.ts      # P2.5-L2S：rewrite prompt+model 指纹（纯函数；≠ 准出）
+      l2-fingerprint.test.ts
+      adr046-snapshot.ts     # ADR-046 配置快照绑定 + 硬门单向 + 四要素 / businessPass 闸
+      adr046-snapshot.test.ts
+    scripts/
+      run-l1-golden.ts       # L1 批跑 CLI：串行 executeAsk(skipTrace) → artifacts/；可选 persist eval_runs
+      run-l1-golden.test.ts  # loadGold · mock execute 注入（CI 不跑 live LLM）
+      run-l2-golden.ts       # L2 批跑 CLI：进程内窗 + 末轮机械分；signoffEligible 恒 false
+      run-l2-golden.test.ts  # 分配 / 泄漏 / 注入 execute（CI 不跑 live LLM / 不写 PG）
+      seed-es-sparse-probe.ts # OPS-1：PG chunks → ES bulk + sample search
+    obs/                     # metrics · rate-limit · memory/ask tracer
+    gates/                   # 上传体积 · 审批 scan
+    ready/checks.ts
+    lib/response.ts · pg-error.ts
+    logger.ts
 ```
 
 仓根 fixture / 产物（非 `src/`）：

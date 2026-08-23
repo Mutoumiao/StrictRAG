@@ -19,6 +19,7 @@
 - [ ] migrate SQL 可评审；生产禁用裸 `db:push`  
 - [ ] api 与 worker 使用同一 schema 模块  
 - [ ] `pnpm --filter @strict-rag/db check-types` · `test`  
+- [ ] 新测例是否落在 `tests/<能力>/`、文件头含目标/需求、并已写入 `tests/index.md`？（HOW：[testing](../../guides/testing.md)）  
 
 ---
 

@@ -88,7 +88,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 | 知识库表 | `packages/db/src/schema/kb/*`（`documents.ts` · `chunk-embeddings.ts` · `ingest-jobs.ts`） |
 | 问答 / 评测表 | `packages/db/src/schema/ask/*` · `eval-runs.ts` · migration `drizzle/0006_b10_eval_runs.sql` |
 | 平台 / 部门 | `schema/system/platform-roles.ts` · `departments.ts` |
-| 检索闸门 | `packages/db/src/query/retrieval-gate.ts` · `retrieval-gate.test.ts` |
+| 检索闸门 | `packages/db/src/query/retrieval-gate.ts` · `retrieval-gate.test.ts`（遗留；导航 `packages/db/tests/index.md`） |
 | Client | `packages/db/src/client.ts` · `time.ts` |
 | Journal | `packages/db/drizzle/meta/_journal.json` |
 | Task（辅证 · 已归档） | `08-04-p1-kb-doc-schema` · `08-05-p2-contracts-schema` · `08-11-b10-followup-eval-runs` 等 |

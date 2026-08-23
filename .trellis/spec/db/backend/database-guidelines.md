@@ -189,7 +189,7 @@ pnpm --filter @strict-rag/db db:migrate
 | 单元 | repository mock |
 | 集成 | 测试库 migrate 后关键查询 |
 
-现状：`packages/db` 已有 vitest（`time` · `retrieval-gate`）；集成 migrate 测仍待 Docker。
+现状：`packages/db` 已有 vitest（遗留 `time` · `retrieval-gate` 等，见 `tests/index.md`）；集成 migrate 测仍待 Docker。新测例 HOW：`.trellis/spec/guides/testing.md`。
 
 ---
 

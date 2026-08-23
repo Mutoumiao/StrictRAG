@@ -93,7 +93,7 @@
 
 | 债 | 影响 | 备注 |
 |----|------|------|
-| 域文件随功能增长 | 易漏测试 | 新契约建议同域 `*.contract.test.ts` / `chunk-strategy.test.ts` 等 |
+| 域文件随功能增长 | 易漏测试 | 新契约测例按意图进 `tests/<能力>/` 并写 `tests/index.md`（HOW：guides/testing.md） |
 | `SESSION_DISABLED` 与 rewrite 语义别名 | 易被误用为「拒绝多会话」 | 代码注释已约束 |
 | `AskSse*` 历史命名 | 易与 AI SDK data parts 混淆 | 语义上已是 data-status |
 | `ingest-job` 经 queues 再导出 | 新人可能找不到 SSOT 文件 | 路径：`async/ingest-job.ts` |
@@ -114,6 +114,6 @@
 | 分片 | `src/ingest/chunk.contract.ts` |
 | 知识库设置 | `src/kb/kb-settings.contract.ts` |
 | 运营域 | `src/system/{dashboard,model-gateway,platform-users-roles,departments,health}.contract.ts` |
-| 单测 | 同域 `*.test.ts` / `*.contract.test.ts` |
+| 单测 | 遗留仍在 `src/**/*.test.ts`；导航 `packages/contracts/tests/index.md` |
 | P0 清单 | `docs/testing/p0-redlines.md`（协作 R10） |
 | Task（辅证 · 已归档） | `archive/2026-08/08-05-p2-contracts-schema` · `08-11-b12-chunk-strategies` · `08-12-spec-w1-chunk-strategy-truth` 等 |

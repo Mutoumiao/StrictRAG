@@ -6,6 +6,8 @@
 packages/db/
   package.json            # db:generate · db:migrate 等
   drizzle/                # 迁移 SQL（评审入口；0000–0006+）
+  tests/
+    index.md              # 本包测例导航
   src/
     index.ts              # 导出 client / schema / query helpers
     client.ts             # createDb（分端 timeout）

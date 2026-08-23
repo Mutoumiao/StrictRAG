@@ -18,6 +18,7 @@
 - [ ] 导出是否走 `src/index.ts` 且使用 `.js` 扩展名（NodeNext）？  
 - [ ] 测试专用工厂是否走 **`@strict-rag/contracts/testing`**（不进主 index）？  
 - [ ] 改 `AskResponse` 是否同步 `ask/fixtures` + R10 schema 测？  
+- [ ] 新测例是否落在 `tests/<能力>/`、文件头含目标/需求、并已写入 `tests/index.md`？（HOW：[testing](../../guides/testing.md)）  
 
 ## Quality Check
 

@@ -5,12 +5,14 @@
 ```text
 packages/admin-catalog/
   package.json     # exports "." → src/index.ts；无 Next/Hono runtime deps
+  tests/
+    index.md                 # 本包测例导航
   src/
     index.ts                 # 聚合导出
     permissions.ts           # PERMISSION_DEFINITIONS · PermissionCode · isPermissionCode
     role-templates.ts        # ROLE_TEMPLATES（默认角色绑码）
     menu-tree.ts             # MENU_TREE（admin L1/L2 · 节点挂码）
-    catalog.test.ts
+    catalog.test.ts          # 遗留（待迁 tests/acl/）
 ```
 
 ```typescript

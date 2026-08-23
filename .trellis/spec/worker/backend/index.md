@@ -15,10 +15,12 @@
 - [ ] chunk 是否尊重 `IMPLEMENTED` 策略（X-03），未另造注册表？  
 - [ ] 改重试/入队/chunk/embed 时是否读 [ingest-idempotency](./ingest-idempotency.md)（X-04）？  
 - [ ] 宣称某入库阶段「已具备」时是否对照 [ingest-capability-matrix](./ingest-capability-matrix.md)（X-05/14）？  
+- [ ] 新测例是否按 [testing](../../guides/testing.md) 落 `tests/<能力>/` 并更新 `tests/index.md`（禁止再同域镜像）？  
 
 ## Quality Check
 
 - [ ] `pnpm --filter @strict-rag/worker check-types` · `lint` · `test`  
+- [ ] 新测例是否落在 `tests/<能力>/`、文件头含目标/需求、并已写入 `tests/index.md`？（HOW：[testing](../../guides/testing.md)）  
 - [ ] 失败任务可观测；retryable 与 [ingest-idempotency §4](./ingest-idempotency.md) 方向一致  
 - [ ] 提交说明勿写「生产杀毒已上 / QUAL-2 完成 / 生产级 Redlock 与完整账本已齐」（最小幂等/账本/锁见幂等文 §5）  
 

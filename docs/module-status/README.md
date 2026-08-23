@@ -15,7 +15,7 @@
 | **挂账** | 把未完成的事项登记进 backlog（待办清单）跟踪，而不是忘掉它 |
 | **clip / 裁剪** | 菜单裁剪：按"用户权限 ∩ 已实现页面"过滤出实际可见的菜单项 |
 | **双 JWT** | 临时鉴权方案：access token + refresh token 配对使用，**不是**生产级身份认证（IdP） |
-| **红线测（P0）** | 回归红线测试：一旦破坏就必须立即修复的关键行为测试 |
+| **红线测（P0）** | 回归红线测试：一旦破坏就必须立即修复的关键行为测试；清单 `docs/testing/p0-redlines.md`，组织 HOW `.trellis/spec/guides/testing.md` |
 | **P0 / P1 / S2 / B1–B11** | 交付阶段与 backlog 条目编号，口径与"交付控制台"、`phase-2-backlog` 一致 |
 | **ADR** | 架构决策记录（Architecture Decision Record） |
 

@@ -49,6 +49,7 @@
 | [guides/index.md](./guides/index.md) | 思考指南总入口 |
 | [monorepo-boundaries](./guides/monorepo-boundaries.md) | 包边界、依赖方向、禁止项 |
 | [quality-redlines](./guides/quality-redlines.md) | RAG 质量红线（拒答 / min / evidence）；P0 自动化表 → `docs/testing/p0-redlines.md` |
+| [testing](./guides/testing.md) | 测例 HOW：能力目录、主包落点、文件头、`tests/index.md`；仓库入口 `docs/testing/README.md` |
 | [phase-scaffold-rules](./guides/phase-scaffold-rules.md) | 阶段门禁：允许/禁止（非 IS SSOT） |
 | [cross-layer-thinking-guide](./guides/cross-layer-thinking-guide.md) | 跨层数据流 |
 | [code-reuse-thinking-guide](./guides/code-reuse-thinking-guide.md) | 复用与防重复 |

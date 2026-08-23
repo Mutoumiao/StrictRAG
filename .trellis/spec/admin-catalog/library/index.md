@@ -17,7 +17,8 @@
 ## Quality Check
 
 - [ ] 无 React 依赖（本包保持数据-only）  
-- [ ] `pnpm --filter @strict-rag/admin-catalog check-types` · `lint`  
+- [ ] `pnpm --filter @strict-rag/admin-catalog check-types` · `lint` · `test`  
+- [ ] 新测例是否落在 `tests/<能力>/`、文件头含目标/需求、并已写入 `tests/index.md`？（HOW：[testing](../../guides/testing.md)）  
 
 ---
 

@@ -87,7 +87,7 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 - 模块私有 API：`app/(ops)/{dashboard,documents,approvals,members,chunks,kb/settings,models,users,roles,departments,feedback}/api.ts`（**没有** 集中 `lib/admin-api.ts`）
 - 类型 `@strict-rag/contracts`；菜单 / 权限码 `@strict-rag/admin-catalog`
 - 样式：Tailwind v4 + ui 主题；构建 `next build --webpack`
-- **单元 / 组件测试**：外壳 / Guard / 审批 / dashboard + **P0 R5/R6** + `lib/kb-context.test.ts`（admin KB key 不与 web 混写）+ `auth/client-session.test.ts`（admin session 与 web 隔离）
+- **单元 / 组件测试**：外壳 / Guard / 审批 / dashboard + **P0 R5/R6** + `lib/kb-context.test.ts`（admin KB key 不与 web 混写）+ `auth/client-session.test.ts`（admin session 与 web 隔离）。文件仍多为 `src` 同域遗留；导航 `apps/admin/tests/index.md`；新测例 HOW：`.trellis/spec/guides/testing.md`
   - **没有** members / chunks / models / users / roles / **feedback** 工作区测；documents / departments / settings 工作区测已有；**没有** E2E；**没有** http 全路径 refresh 集成测
 
 ---

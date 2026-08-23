@@ -24,6 +24,7 @@
 - [ ] 是否未为对称提前拆碎 `src/api` 或空建 features？  
 - [ ] services/hooks 是否不做权限引擎；鉴权/成员约束是否以 **API** 为准？  
 - [ ] 抽公共是否对照 [module-layering §12.1](./module-layering.md) / [admin §12.1](../../admin/frontend/module-layering.md)（A 欠抽 / B 过抽）？  
+- [ ] 新测例是否按 [testing](../../guides/testing.md) 落 `tests/<能力>/` 并更新 `tests/index.md`（禁止再同域镜像）？  
 
 ## Quality Check
 
@@ -36,6 +37,7 @@
 - [ ] **抽公共**：有无 A 类欠抽 / B 类过抽？ask 流与会话壳是否被错误合成上帝 hook？见 [§12.1](./module-layering.md)  
 - [ ] 改 ask/重试/session → 红线测仍绿（P0 R1–R4/R10 · `docs/testing/p0-redlines.md`）；fixture 满足 `AuthSession`  
 - [ ] ask final 是否来自 `@strict-rag/contracts/testing`（禁止手抄双份）？  
+- [ ] 新测例是否落在 `tests/<能力>/`、文件头含目标/需求、并已写入 `tests/index.md`？（HOW：[testing](../../guides/testing.md)）  
 - [ ] `pnpm --filter @strict-rag/web check-types` · `lint` · `test` · `build`（`next build --webpack`）  
 
 

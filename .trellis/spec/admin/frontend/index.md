@@ -21,6 +21,7 @@
 - [ ] store / hooks 目录 / types 是否「有需要才建」？services 膨胀是否按 **业务用例** 拆分？  
 - [ ] services 是否不做权限引擎（无码树/role 放行）；授权是否仍以 **API 验码** 为准、UI 只裁剪？  
 - [ ] 抽公共是否对照 [module-layering §12.1](./module-layering.md)（A 欠抽 / B 过抽；优先纯函数再薄 hook）？  
+- [ ] 新测例是否按 [testing](../../guides/testing.md) 落 `tests/<能力>/` 并更新 `tests/index.md`（禁止再同域镜像）？  
 
 ## Quality Check
 
@@ -31,6 +32,7 @@
 - [ ] 改 Guard/菜单/审批显隐 → 红线测仍绿；Guard mock 用持续 resolve（非 once）  
 - [ ] `ApiHttpError` 三参；R5 直测字段（非 mapBizError）；R6 文案；session fixture 含 `app`/`permissions`/`expiresAtMs`  
 - [ ] P0 清单 R5/R6：`docs/testing/p0-redlines.md`  
+- [ ] 新测例是否落在 `tests/<能力>/`、文件头含目标/需求、并已写入 `tests/index.md`？（HOW：[testing](../../guides/testing.md)）  
 - [ ] `pnpm --filter @strict-rag/admin check-types` · `lint` · `test` · `build`（`next build --webpack`）  
 
 

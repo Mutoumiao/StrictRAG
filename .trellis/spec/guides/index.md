@@ -9,19 +9,20 @@
 1. **[阶段门禁规则](./phase-scaffold-rules.md)** — 允许/禁止什么（完成度见 module-status）  
 2. **[Monorepo 边界](./monorepo-boundaries.md)** — 包依赖方向与禁项  
 3. **[质量红线](./quality-redlines.md)** — RAG 宁拒勿妄（触及 ask/入库/verify 时必读）  
-4. 功能跨层时 → **[跨层思考](./cross-layer-thinking-guide.md)**  
-5. 出现重复代码/常量时 → **[复用思考](./code-reuse-thinking-guide.md)**  
-6. **包级 checklist** → 打开目标包 `.trellis/spec/<pkg>/<layer>/index.md` 的 **Pre-Development Checklist**，并读其列出的专文（**X-17**：guides 不替代包 index）
+4. **写测例 / 改测例** → **[测试组织](./testing.md)**（能力目录 · 主包落点 · `tests/index.md`）  
+5. 功能跨层时 → **[跨层思考](./cross-layer-thinking-guide.md)**  
+6. 出现重复代码/常量时 → **[复用思考](./code-reuse-thinking-guide.md)**  
+7. **包级 checklist** → 打开目标包 `.trellis/spec/<pkg>/<layer>/index.md` 的 **Pre-Development Checklist**，并读其列出的专文（**X-17**：guides 不替代包 index）
 
 ```text
-guides（本目录）     →  跨包思考 / 红线 / 边界
-        ↓ 第 6 步
+guides（本目录）     →  跨包思考 / 红线 / 边界 / 测试组织
+        ↓ 第 7 步
 spec/<pkg>/<layer>/  →  包内 HOW + checklist + 专文
         ↓
 源码 + docs/module-status  →  IS 真相
 ```
 
-| 你改… | 第 6 步打开 |
+| 你改… | 第 7 步打开 |
 |--------|-------------|
 | `apps/api` | [api/backend/index](../api/backend/index.md)（ask → [ask-pipeline](../api/backend/ask-pipeline.md)） |
 | `apps/worker` | [worker/backend/index](../worker/backend/index.md) |
@@ -39,9 +40,10 @@ spec/<pkg>/<layer>/  →  包内 HOW + checklist + 专文
 | [phase-scaffold-rules](./phase-scaffold-rules.md) | 任何实现任务开工前 |
 | [monorepo-boundaries](./monorepo-boundaries.md) | 新增包、跨包 import、放逻辑位置 |
 | [quality-redlines](./quality-redlines.md) | 检索 / 生成 / 验证 / 拒答 / 门禁；**P0 自动化表指针** |
+| [testing](./testing.md) | **写/改测例必读**：目标来自 PRD、主包落点、能力目录、`tests/index.md` |
 | [cross-layer-thinking-guide](./cross-layer-thinking-guide.md) | 数据穿越 api↔db↔worker↔web |
 | [code-reuse-thinking-guide](./code-reuse-thinking-guide.md) | 改常量、抽 helper、复制粘贴前 |
-| **包 `index.md` checklist** | **第 6 步必达**（X-17）；非本目录文件 |
+| **包 `index.md` checklist** | **第 7 步必达**（X-17）；非本目录文件 |
 
 ---
 
@@ -68,6 +70,15 @@ spec/<pkg>/<layer>/  →  包内 HOW + checklist + 专文
 - [ ] rerank 节点数 / 多策略 reindex  
 
 → [quality-redlines](./quality-redlines.md) · `prds/08-quality/` · `docs/testing/p0-redlines.md` · [l1-eval](../api/backend/l1-eval.md) · [worker quality](../worker/backend/quality-guidelines.md) · [chunk-strategies](../api/backend/chunk-strategies.md)
+
+### 测试组织
+
+- [ ] 新增或移动 `*.test.ts(x)`  
+- [ ] 不知道测例该放哪个包 / 如何命名  
+- [ ] 一份文件混了多条互不隶属的意图  
+- [ ] 改完测例但没更新 `tests/index.md`  
+
+→ [testing](./testing.md) · `docs/testing/README.md` · 目标包 `tests/index.md`
 
 ### 运维文档（非 code-spec，但签字/债锚点）
 

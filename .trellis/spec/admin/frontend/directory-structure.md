@@ -4,7 +4,9 @@
 
 ```text
 apps/admin/
-  vitest.config.ts            # jsdom · 同域 *.test.ts(x)
+  vitest.config.ts            # jsdom · tests/** + 遗留 src/**
+  tests/
+    index.md                  # 本包测例导航
   src/
     test/                     # setup · re-export（非业务）
     env.client.ts             # 仅 NEXT_PUBLIC_*
@@ -80,7 +82,7 @@ app/(ops)/<module>/
 6. **跨模块**：优先 import 对方 **`api`**；禁止复制 path；慎 import 对方 services。  
 7. **禁止**再建全站大杂烩 `src/api/`。  
 8. **store / hooks 目录 / types**：不需要不建。  
-9. **测试**：同域 `*.test.ts(x)`；`src/test/` 仅基建；E2E 不进 `src/`。见 [quality-guidelines · 前端测试](./quality-guidelines.md)。  
+9. **测试**：现行 `tests/<能力>/`；`src/test/` 仅基建；E2E 不进 `src/`。HOW：[testing](../../guides/testing.md) · 导航 `tests/index.md`。  
 10. **新运营域**：在 `app/(ops)/<module>/` 落树，不要塞进无关模块；落地 href 须与 catalog / `ADMIN_IMPLEMENTED_HREFS` 同步。  
 11. 域被 ≥2 无关路由依赖时 → 上提 `src/features/<domain>/`（见 module-layering §11）。  
 12. **抽公共时机**（欠抽 / 过抽）：见 [module-layering §12.1](./module-layering.md)；check 必查。

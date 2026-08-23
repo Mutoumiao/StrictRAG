@@ -67,9 +67,11 @@ L1 工程 seed 见 [l1-eval](./l1-eval.md)（**≠** 业务签字门禁）。
 
 | id | 锚点 | 断言要点 |
 |----|------|----------|
-| **R7** | `services/retrieve/corpus.ts` · `filterDocsForRetrieve` | 未 `ready∧active` **不得**进语料；测在 `corpus.test.ts`（**生产装载路径**） |
-| **R8** | `graph/graph.test.ts` min veto | 低分 claim → `abstained` / `unsupported_claims`，**非** answered |
+| **R7** | `services/retrieve/corpus.ts` · `filterDocsForRetrieve` | 未 `ready∧active` **不得**进语料；遗留测在 `corpus.test.ts`（**生产装载路径**）；迁徙后见 `tests/index.md` |
+| **R8** | 遗留 `graph/graph.test.ts` min veto | 低分 claim → `abstained` / `unsupported_claims`，**非** answered |
 | **R9** | graph verify | happy：合法 draft 经 verify；**负向**：未完整 verify（如 claim_split 失败）→ `status !== 'answered'` |
+
+测例落点与文件头：[testing](../../guides/testing.md)。P0 证据路径以 `docs/testing/p0-redlines.md` 为准。
 
 ### Convention: 检索闸测钉生产路径（R7）
 

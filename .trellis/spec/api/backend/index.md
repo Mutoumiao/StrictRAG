@@ -26,11 +26,13 @@
 - [ ] 触及 L2 题面/runner 时是否读 [l2-eval](./l2-eval.md)（图边/CLI/persist 落地 ≠ 准出；**禁止**默认开 rewrite / 把 runner 或 persist 当准出）？  
 - [ ] 是否误把 L2 persist / `evalRunId` 写成准出或算出 `signoffEligible=true`？  
 - [ ] 触及 L3 打点/告警时是否读 [l3-metrics](./l3-metrics.md)（打点+告警+主题投诉已计 + L2 过期闩 ≠ 准出 / ≠ 熔断；**禁止**按计数或告警改默认；**禁止**每问查 `eval_runs`）？  
+- [ ] 新测例是否按 [testing](../../guides/testing.md) 落 `tests/<能力>/` 并更新 `tests/index.md`（禁止再同域镜像）？  
 
 ## Quality Check
 
 - [ ] `pnpm --filter @strict-rag/api check-types` · `lint` · `test`  
 - [ ] 鉴权改动含 resolve / token rotation 测试  
+- [ ] 新测例是否落在 `tests/<能力>/`、文件头含目标/需求、并已写入 `tests/index.md`？（HOW：[testing](../../guides/testing.md)）  
 - [ ] ask 改动含 graph/route 拒答与成员 403 断言；R8/R9（含负向 verify）仍绿  
 - [ ] 检索闸改动：R7 钉 **corpus `filterDocsForRetrieve`**（非仅 db 纯函数）  
 - [ ] 改 AI SDK 流路径时：是否有 **execute throw → data-ask-final + internal_guard** 回归测？  

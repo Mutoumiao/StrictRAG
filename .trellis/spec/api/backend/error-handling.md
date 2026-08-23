@@ -118,7 +118,7 @@ ask 业务拒答 reason（`model_abstained` 等）走 **业务响应**，不要�
 3. 未登录 → `UNAUTHORIZED`；已登录无码/无成员 → `FORBIDDEN`  
 4. **不要**在 apps 内新建平行错误码表  
 5. 业务 handler 继续 `return fail()` / `return ok()`；`onError` 只处理 throw  
-6. 测试：`app.error.test.ts` · `lib/pg-error.test.ts`
+6. 测试：遗留 `app.error.test.ts` · `lib/pg-error.test.ts`（导航 `apps/api/tests/index.md`）
 
 ## 现状
 
