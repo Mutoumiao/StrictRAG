@@ -40,7 +40,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 ### Schema · ask（S2）
 - `ask_sessions` · `ask_traces`（含 evidence 快照类型）· `ask_feedback`
 - **B10-followup / P2.5-L2P**：`eval_runs`（L1 `golden_2x2` / L2 `session_multiturn`；L2 `signoff_eligible` 恒 0；migration `0006_b10_eval_runs`）
-- schema 单测：`schema/ask/ask-schema.test.ts`
+- schema 单测：`tests/ask/ask-schema.test.ts`
 
 ### Migrations（journal 8 条）
 - `0000_phase0_schema_meta` → `0007_p3b_doc_dept_meta`（`drizzle/meta/_journal.json`）
@@ -88,7 +88,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 | 知识库表 | `packages/db/src/schema/kb/*`（`documents.ts` · `chunk-embeddings.ts` · `ingest-jobs.ts`） |
 | 问答 / 评测表 | `packages/db/src/schema/ask/*` · `eval-runs.ts` · migration `drizzle/0006_b10_eval_runs.sql` |
 | 平台 / 部门 | `schema/system/platform-roles.ts` · `departments.ts` |
-| 检索闸门 | `packages/db/src/query/retrieval-gate.ts` · `retrieval-gate.test.ts`（遗留；导航 `packages/db/tests/index.md`） |
+| 检索闸门 | `packages/db/src/query/retrieval-gate.ts` · `tests/retrieve/ready-active-gate.test.ts`（导航 `packages/db/tests/index.md`） |
 | Client | `packages/db/src/client.ts` · `time.ts` |
 | Journal | `packages/db/drizzle/meta/_journal.json` |
 | Task（辅证 · 已归档） | `08-04-p1-kb-doc-schema` · `08-05-p2-contracts-schema` · `08-11-b10-followup-eval-runs` 等 |

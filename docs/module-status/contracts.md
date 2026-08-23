@@ -46,11 +46,11 @@
 - 会话外壳 + 列表包装 + `SessionListQuerySchema`（`ask/session.contract`）
 - 反馈 + 队列列表包装 + `FeedbackQueueQuerySchema`（`ask/feedback.contract`）
 - KB 成员 + 邀请 / 移除（`ask/member.contract`）
-- 契约单测：`ask/ask.contract.test.ts` 等
+- 契约单测：`tests/ask/contract.test.ts` 等
 
 ### 测试辅助（仅 Vitest）
 - 子路径 **`@strict-rag/contracts/testing`** → `src/testing.ts`（**未**挂主 `index` 生产面）
-- `makeAnsweredFinal` / `makeAbstainedFinal`（`ask/fixtures.ts`）；**R10** `ask/fixtures.test.ts`
+- `makeAnsweredFinal` / `makeAbstainedFinal`（`ask/fixtures.ts`）；**R10** `tests/ask/fixtures.test.ts`
 - 消费方：web `src/test/fixtures/ask.ts` re-export
 
 ### 知识库设置（B2）
@@ -106,14 +106,14 @@
 | 类型 | 指针 |
 |------|------|
 | 入口导出 | `packages/contracts/src/index.ts` · `package.json` exports `./testing` |
-| 策略 SSOT | `src/ingest/chunk-strategy.ts` · `chunk-strategy.test.ts` |
-| 入库 job | `src/async/ingest-job.ts` · `ingest-job.test.ts` · `async/queues.ts` |
+| 策略 SSOT | `src/ingest/chunk-strategy.ts` · `tests/ingest/chunk-strategy.test.ts` |
+| 入库 job | `src/async/ingest-job.ts` · `tests/async/ingest-job.test.ts` · `async/queues.ts` |
 | 业务错误码 | `src/common/biz-code.ts` |
-| ask fixtures | `src/ask/fixtures.ts` · `fixtures.test.ts`（R10） |
+| ask fixtures | `src/ask/fixtures.ts` · `tests/ask/fixtures.test.ts`（R10） |
 | 入库文档 | `src/ingest/document.contract.ts`（complete/reindex `chunkStrategy`） |
 | 分片 | `src/ingest/chunk.contract.ts` |
 | 知识库设置 | `src/kb/kb-settings.contract.ts` |
 | 运营域 | `src/system/{dashboard,model-gateway,platform-users-roles,departments,health}.contract.ts` |
-| 单测 | 遗留仍在 `src/**/*.test.ts`；导航 `packages/contracts/tests/index.md` |
+| 单测 | `packages/contracts/tests/<能力>/`；导航 `packages/contracts/tests/index.md` |
 | P0 清单 | `docs/testing/p0-redlines.md`（协作 R10） |
 | Task（辅证 · 已归档） | `archive/2026-08/08-05-p2-contracts-schema` · `08-11-b12-chunk-strategies` · `08-12-spec-w1-chunk-strategy-truth` 等 |

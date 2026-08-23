@@ -48,10 +48,10 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列�
 - 依赖：`ai` · `@ai-sdk/react`（版本由 catalog 统一管理）
 - **B13**：`FeedbackBar`（`ask-panel.tsx`）在 answered/abstained 且有 `requestId` 时展示 up/down → `src/api/feedback.ts` → `POST /api/v1/ask/{requestId}/feedback`（**无** FeedbackBar 专用 RTL 用例）
 - **B11**：可选文档类型输入（逗号分隔）→ `parseScopeDocTypesInput` / `buildAskRequestBody` → `createAskTransport.getScope` → ask 顶层 `scope.docTypes`；空=不收窄（ADR-050）；**非**强制选类型、**非** GET settings 字典
-- **单元 / 组件测试**（Vitest + jsdom + RTL）：`vitest.config.ts` · `src/test/{setup,test-utils}` · 测例文件仍多为 `src` 同域遗留（清单 `apps/web/tests/index.md`）；新测例 HOW：`.trellis/spec/guides/testing.md`
+- **单元 / 组件测试**（Vitest + jsdom + RTL）：`vitest.config.ts` · `src/test/{setup,test-utils}` · 测例在 `tests/<能力>/`（清单 `apps/web/tests/index.md`）；HOW：`.trellis/spec/guides/testing.md`
   - ask final 工厂来自 **`@strict-rag/contracts/testing`**（`src/test/fixtures/ask.ts` 只做 re-export）
   - P0 挂账（`docs/testing/p0-redlines.md`）：**R1** ready 状态但无 final · **R2** 拒答 UI · **R3** mapBizError · **R4** clear / 坏 JSON / 无 token 时返回 null（**不是** expires 产品闸门）· **R10** 同一工厂
-  - 其它：`sessions.services`（失败 / 部分失败场景）· lastQuestion 重试 · **`api/ask.scope.test.ts`**（B11 parse/body）· hook `getScope` 接线
+  - 其它：`sessions.services`（失败 / 部分失败场景）· lastQuestion 重试 · **`tests/ask/scope-top-level.test.ts`**（B11 parse/body）· hook `getScope` 接线
   - **没有**登录页测试、**没有** Guard 测试、**没有** E2E、**没有** `lib/http` refresh 测试、**没有**客户端 expires 自动失效逻辑
 
 ---
@@ -89,9 +89,9 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列�
 | 鉴权 | `src/components/auth-guard.tsx` · `src/auth/api.ts` · `client-session.ts` |
 | 问答面板 | `src/components/ask-panel.tsx`（含 B11 文档类型可选） |
 | ask 流 | `src/hooks/use-knowledge-ask.ts`（含 ready 无 final 兜底 + getScope）· `src/api/ask.ts`（`parseScopeDocTypesInput` / `buildAskRequestBody`）· `ask-panel.tsx`（`lastQuestion`） |
-| B11 测 | `src/api/ask.scope.test.ts` · `hooks/use-knowledge-ask.test.ts` getScope |
+| B11 测 | `tests/ask/scope-top-level.test.ts` · `tests/ask/stream-ready-no-final.test.ts` getScope |
 | 会话 / 反馈 | `src/api/sessions.ts` · `src/services/sessions.services.ts` · `src/api/feedback.ts` · `ask-panel` FeedbackBar |
-| 前端测试 | `vitest.config.ts` · `src/test/` · `hooks/use-knowledge-ask.test.ts`（R1）· `components/ask-panel.test.tsx`（R2）· `auth/client-session.test.ts`（R4）· `lib/map-biz-error.test.ts`（R3）· `services/sessions.services.test.ts` · fixtures → `@strict-rag/contracts/testing` |
+| 前端测试 | `vitest.config.ts` · `src/test/` · `tests/ask/stream-ready-no-final.test.ts`（R1）· `tests/ask/abstain-alert.test.tsx`（R2）· `tests/auth/client-session.test.ts`（R4）· `tests/error-map/map-biz-error.test.ts`（R3）· `tests/sessions/session-shell.test.ts` · fixtures → `@strict-rag/contracts/testing` |
 | P0 清单 | `docs/testing/p0-redlines.md`（本包 R1–R4 · 协作 R10） |
 | 命令 | `pnpm --filter @strict-rag/web test`（`package.json` → `vitest run`） |
 | 传输层 | `src/lib/http.ts`（**尚无**单测） |

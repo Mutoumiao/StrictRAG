@@ -23,7 +23,7 @@
 - **菜单树**：`MENU_TREE` + `filterMenuByCodes`（按有效权限码裁剪）
 - **外壳裁剪（B7 + B3–B6 + B13）**：`ADMIN_IMPLEMENTED_HREFS` + `clipMenuForShell` + `collectMenuHrefs`；已落地 **十一条**：`/dashboard` · `/documents` · `/approvals` · `/members` · `/chunks` · `/kb/settings` · `/models` · `/users` · `/roles` · `/departments` · **`/feedback`**
 - 菜单树 `MENU_TREE` 含 `/feedback`（码 `feedback.queue`）；kb_admin 模板含 `feedback.queue`
-- 单测：`catalog.test.ts`（kb_admin clip 含 `/feedback` 等；super_admin clip 覆盖全部 `ADMIN_IMPLEMENTED_HREFS`）
+- 单测：`tests/acl/catalog-clip.test.ts`（kb_admin clip 含 `/feedback` 等；super_admin clip 覆盖全部 `ADMIN_IMPLEMENTED_HREFS`）
 
 ---
 
@@ -43,6 +43,6 @@
 |------|------|
 | 入口 | `packages/admin-catalog/src/index.ts` |
 | 权限 / 角色 / 菜单 | `permissions.ts` · `role-templates.ts` · `menu-tree.ts` |
-| 单测 | `packages/admin-catalog/src/catalog.test.ts` |
+| 单测 | `packages/admin-catalog/tests/acl/catalog-clip.test.ts` |
 | 消费方 | `apps/admin/src/components/admin-shell.tsx` · `apps/api/src/auth/permissions/` |
 | Task（辅证 · 归档） | `08-09-b6-dashboard-shell` · `08-11-b13-feedback-ui` · B7 等 |

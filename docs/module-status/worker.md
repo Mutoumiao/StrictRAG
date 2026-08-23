@@ -94,10 +94,10 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 |------|------|
 | 入口 / 队列 | `apps/worker/src/index.ts` · `queues.ts` · `db.ts` |
 | 流水线 | `apps/worker/src/ingest/pipeline.ts` · `es-store.ts` |
-| 扫描闸 | `apps/worker/src/scan-mode-policy.ts` · `scan-mode-policy.test.ts` · `env.ts` superRefine |
-| 幂等 / 重试 / 锁 | `ingest/idempotency.ts` · `doc-lock.ts` · `job-ledger.ts` · 对应 `*.test.ts` · `bull-outcome.ts` |
+| 扫描闸 | `apps/worker/src/scan-mode-policy.ts` · `tests/ingest/scan-startup-policy.test.ts` · `env.ts` superRefine |
+| 幂等 / 重试 / 锁 | `ingest/idempotency.ts` · `doc-lock.ts` · `job-ledger.ts` · `tests/ingest/{idempotency,doc-lock,job-ledger,bull-outcome}.test.ts` |
 | 策略 SSOT | `packages/contracts/src/ingest/chunk-strategy.ts`（`IMPLEMENTED_*`） |
 | job 契约 | `packages/contracts/src/async/ingest-job.ts` |
 | 环境变量默认值 | `apps/worker/src/env.ts` |
-| 单测 | 遗留 `src/**/*.test.ts`（`pipeline.test.ts` 等）——**不是**入库 E2E；导航 `apps/worker/tests/index.md` |
+| 单测 | `apps/worker/tests/ingest/` · `tests/env/`——**不是**入库 E2E；导航 `apps/worker/tests/index.md` |
 | Task（辅证 · 已归档） | `08-04-p1-*` · `08-12-spec-w1-scan-failclosed` · `08-12-spec-w1-chunk-strategy-truth` · `08-12-spec-w1-ingest-idempotency-impl` · `08-12-ingest-jobs-ledger-min` · `08-12-ingest-doc-lock-min` · QUAL-2：`08-11-qual-scan-engine` |

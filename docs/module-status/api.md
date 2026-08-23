@@ -70,7 +70,7 @@
 - 始终做权限码校验；`codes` 必须是 admin-catalog 的子集；最后一个可用的 `super_admin` 被禁用或剥离权限时返回 400；系统内置的 super_admin 角色禁止禁用
 - 数据表：`platform_roles` / `user_roles`；内置四个系统角色种子数据；测试用内存仓库
 - **B4-W 已接线**：中间件每请求 `hydrateAuthz`（读取 `user_roles` + 启用角色 `codesJson`）；进程缓存 TTL **5s**；loader 超时 **3s** 时回退 JWT claims（`role-hydrate.ts`）；写路径 `invalidateRoleCache`（**单实例假设**）；dev-login `ensureUserRoleCodes` bootstrap；dev/test 无绑定时回退 claims；**没有**密码字段 / 生产 IdP
-- **QUAL-1**：`AUTH_ENFORCE=true` 时 `requirePermissionWhenEnforced` 无 Bearer → 401 `UNAUTHORIZED`（`auth-enforce.redline.test.ts`）；**默认仍关**
+- **QUAL-1**：`AUTH_ENFORCE=true` 时 `requirePermissionWhenEnforced` 无 Bearer → 401 `UNAUTHORIZED`（`tests/auth/enforce-401.test.ts`）；**默认仍关**
 - 权限运行时实况：**`codes_json` 过渡**（非 PRD 理想三表）；终态迁表须 ADR
 
 ### 部门组织骨架（B5 · ADR-057 最小集）
@@ -92,7 +92,7 @@
 ### 问答（S2 最小集）
 - **纯规则路由**（`graph/route-rules.ts`）：寒暄白名单 + 后置禁词 + 知识向线索 → `chitchat` / `single`（P2 不依赖 LLM 路由）；随后**线性状态机**（不是 LangGraph.js）：检索 → 约束生成 → 验证 → 拒答，实现见 `graph/run.ts`
 - 同步 ask 接口 + AI SDK UI Message Stream 流式输出（使用 `data-status` / `data-ask-final` 数据部件，**没有**自写的 `event: final` 事件）
-- 流式异常处理：`execute` 抛错时仍会写出 `data-status phase=error` 与 `data-ask-final`（`reason=internal_guard`）；有单测覆盖（`routes/ask.test.ts`）
+- 流式异常处理：`execute` 抛错时仍会写出 `data-status phase=error` 与 `data-ask-final`（`reason=internal_guard`）；有单测覆盖（`tests/ask/http-stream.test.ts`）
 - 会话：`POST …/sessions` 创建 + 列表 / 详情外壳；**rewrite 图边已落、默认关**（`SESSION_REWRITE_ENABLED=false`；dogfood 可开；**≠** L2 准出）；**显式回溯加深部分**（命中「刚才/之前/刚刚+说/聊」时窗硬顶 8）；**文档回溯检索加码部分**（命中「这份/那份文档」时用上轮 evidence `docId` 提权，不翻聊天）；**库外文档回溯抑制部分**（「网上那份文件」不查末轮 docId、不 `preferredDocIds`）；**四态派生部分**（`resolveBackReference`：external > session > document > none；**无** intent LLM）；list 接口的 query 参数绑定 `SessionListQuerySchema` 校验
 - ask 结果落库 `ask_traces`（evidence_snapshot / graph_trace / config_snap；`rewriteUsed` / `sessionDeepened` **跟图**），`services/ask/traces.ts`
 - 反馈提交 / 管理队列 API（`routes/feedback`）；queue 接口的 query 参数绑定 `FeedbackQueueQuerySchema` 校验
@@ -102,14 +102,14 @@
 - 观测骨架：进程内 metrics、内存 tracer、ask 限流（`ASK_RATE_LIMIT_RPM` 默认 0 即关闭）、`/metrics` 端点**无鉴权**（生产保护策略见 `docs/ops/rate-limit-and-metrics.md` · ARCH-P2-4；**≠** 把进程内全局限流当生产方案）
 - **L3 打点+告警部分**（P2.5-L3 / L3A / L3F / L2S）：`recordL3Ask` 记六键 + `l3_topic_complaint_total` + `l3_guard_alert_total{kind}`（`coref_fail_rate` / `rewrite_dogfood` / `topic_complaint` / `l2_stale`）；超阈或 dogfood 开 env 时 Pino warn（每 kind 每进程一闩）；`executeAsk` 传 `rewriteEnvOn`；**无**自动熔断 / **无**面板 / **≠** 准出
 - **P0 红线单测已挂账**（清单见 `docs/testing/p0-redlines.md`；**不是** L1 黄金集评测、**也不是**远程 CI 门禁）：
-  - **R7** `filterDocsForRetrieve` / `corpus.test.ts`（生产装载路径；db 包的 `retrieval-gate` 为底层附录）
-  - **R8** 生成结果低于阈值被否决时必须拒答（abstained）（`graph.test.ts`）
-  - **R9** 正常路径必须经过 verify 环节；负向用例中未完整执行 verify 时不得标记为 answered（同一文件）
+  - **R7** `filterDocsForRetrieve` / `tests/ask/ready-active-corpus.test.ts`（生产装载路径；db 包的 `retrieval-gate` 为底层附录）
+  - **R8** 生成结果低于阈值被否决时必须拒答（abstained）（`tests/ask/min-veto.test.ts`）
+  - **R9** 正常路径必须经过 verify 环节；负向用例中未完整执行 verify 时不得标记为 answered（`tests/ask/verify-required.test.ts`）
   - 关键 `it` 用例标题带 `R#:` 前缀；**不**要求测试内部 stub `AUTH_ENFORCE`
 
 ### 评测 L1 工程 seed（B10 · 部分 · ≠ 业务签字）
 - 仓根 `fixtures/l1/gold.yaml`：**≥60 题**（answerable 30 + 不可答类 30）；扩展名 yaml、**内容为 JSON**（零 yaml 依赖）；逻辑 `expectedDocIds` 见 `fixtures/l1/README.md`；业务题面 RACI → `fixtures/l1/RACI.md`
-- 纯函数 `apps/api/src/eval/l1-matrix.ts`：2×2（A–D）+ `coverage=A/(A+B)`（分母 0→null）；`outcome=error` **不计格**，只增 `errorCount`；单测同目录
+- 纯函数 `apps/api/src/eval/l1-matrix.ts`：2×2（A–D）+ `coverage=A/(A+B)`（分母 0→null）；`outcome=error` **不计格**，只增 `errorCount`；单测 `tests/eval/l1-matrix.test.ts`
 - CLI `apps/api/src/scripts/run-l1-golden.ts`：串行 **`executeAsk` + `skipTrace: true`**（可注入 `execute` / `graphDeps`）→ 仓根 `artifacts/l1-last-run.{json,md}` + **`l1-gate-snapshot.json`**（**gitignore**）；报告含 **`retrieve_mode` / `mode`** + **`answerableCount` / `unanswerableClassCount`** + **`signoffEligible`**（`live` ∧ 两类各≥30；截断/mock=false）+ ADR-046 `gateSnapshot`/`gateVerdict`
 - 签字 live profile（OPS-1）：`docs/ops/live-retrieve-profile.md`；探针 `src/scripts/seed-es-sparse-probe.ts`（PG→ES bulk）
 - 跑法：`L1_KB_ID=<uuid> pnpm --filter @strict-rag/api exec tsx src/scripts/run-l1-golden.ts`（可选 `L1_MAX_CASES` 等；见 `apps/api/README.md`）
@@ -182,18 +182,18 @@
 | 问答图 / ask 路由 | `apps/api/src/graph/` · `apps/api/src/routes/ask.ts` · `apps/api/src/services/ask/` |
 | 会话 / 反馈 | `apps/api/src/routes/sessions.ts` · `routes/feedback.ts` |
 | 入库 / 策略闸 / 入队 | `routes/documents/`（ARCH-P1a）· `services/chunk-strategies.ts` · `services/queue.ts` · `gates/` · contracts `chunk-strategy.ts` · `async/ingest-job.ts` |
-| 分片只读 | `apps/api/src/routes/chunks.ts` · `services/chunks.ts` · `routes/chunks.test.ts` |
-| 知识库设置 | `apps/api/src/routes/kb-settings.ts` · `services/kb-settings.ts` · `routes/kb-settings.test.ts` |
-| 模型网关 B3 | `apps/api/src/routes/model-gateway.ts` · `services/model-gateway.ts` · `routes/model-gateway.test.ts` |
-| 数据面板 B6 | `apps/api/src/routes/dashboard.ts` · `services/dashboard.ts` · `routes/dashboard.test.ts` |
+| 分片只读 | `apps/api/src/routes/chunks.ts` · `services/chunks.ts` · `tests/ingest/chunks-http.test.ts` |
+| 知识库设置 | `apps/api/src/routes/kb-settings.ts` · `services/kb-settings.ts` · `tests/kb/settings-http.test.ts` |
+| 模型网关 B3 | `apps/api/src/routes/model-gateway.ts` · `services/model-gateway.ts` · `tests/gateway/bindings-http.test.ts` |
+| 数据面板 B6 | `apps/api/src/routes/dashboard.ts` · `services/dashboard.ts` · `tests/ops/dashboard-http.test.ts` |
 | 鉴权 / 成员 | `apps/api/src/auth/` · `routes/members.ts` |
 | Gateway 运行时 / 检索 | `apps/api/src/services/gateway/`（`getGatewayForTenant` · `bindings.ts` · `resolve.ts`）· `services/retrieve/`（`corpus.ts` · `es-sparse.ts` · `filterDocsForRetrieve`） |
 | 观测 | `apps/api/src/obs/` |
 | L1 工程 seed / followup 工程 | `fixtures/l1/gold.yaml` · `RACI.md` · `README.md` · `apps/api/src/eval/l1-matrix.ts` · `eval/adr046-snapshot.ts` · `scripts/run-l1-golden.ts` · `scripts/seed-es-sparse-probe.ts` · `packages/db/src/schema/ask/eval-runs.ts` · `docs/ops/live-retrieve-profile.md` · `turbo.json`（`L1_*` / `L1_PERSIST_EVAL`） |
-| L2 题面 + 工程 runner | `fixtures/l2/gold.yaml` · `README.md` · `RACI.md` · `sample-report.md` · `corpus/` · `apps/api/src/eval/l2-gold.ts` · `l2-fingerprint.ts` · `l2-gold.test.ts` · `scripts/run-l2-golden.ts` · `run-l2-golden.test.ts` · `turbo.json`（`L2_*`） |
+| L2 题面 + 工程 runner | `fixtures/l2/gold.yaml` · `README.md` · `RACI.md` · `sample-report.md` · `corpus/` · `apps/api/src/eval/l2-gold.ts` · `l2-fingerprint.ts` · `tests/eval/l2-gold.test.ts` · `scripts/run-l2-golden.ts` · `tests/eval/l2-cli.test.ts` · `turbo.json`（`L2_*`） |
 | 环境变量默认值 | `apps/api/src/env.ts`（`RETRIEVE_ES_MODE=mock` · `AUTH_ENFORCE=false` · `SESSION_REWRITE_ENABLED=false`）；L1 CLI 另读 `L1_KB_ID` 等（**非** `env.ts` Zod 必填） |
-| 单测 | 遗留 `apps/api/src/**/*.test.ts`；导航 `apps/api/tests/index.md`；新测例 HOW：`.trellis/spec/guides/testing.md` |
-| P0 红线 | `docs/testing/p0-redlines.md` · `services/retrieve/corpus.test.ts`（R7）· `graph/graph.test.ts`（R8/R9） |
+| 单测 | `apps/api/tests/<能力>/`；导航 `apps/api/tests/index.md`；HOW：`.trellis/spec/guides/testing.md` |
+| P0 红线 | `docs/testing/p0-redlines.md` · `tests/ask/ready-active-corpus.test.ts`（R7）· `tests/ask/min-veto.test.ts`（R8）· `tests/ask/verify-required.test.ts`（R9） |
 | Task（辅证 · 08-11 归档） | `archive/2026-08/08-11-b12-chunk-strategies` · `08-11-b13-feedback-ui` · `08-11-b2-w-kb-settings-wire` · `08-11-b3-w-gateway-read-db` · `08-11-b4-w-jwt-db-roles` · `08-11-b10-followup-eval-runs` · `08-11-ops-live-retrieve-profile` · `08-11-qual-auth-enforce-redline` · `08-11-qual-rerank-dual-node` · `08-11-qual-scan-engine`（QUAL-2 延期） |
 | Task（辅证 · 08-12 归档） | `archive/2026-08/08-12-spec-arch-review-backlog` · `08-12-spec-w1-*` · `08-12-spec-w2-*` · `08-12-spec-closeout`（HOW 债；**非**业务抬成熟度） |
 | Task（B1–B6 / S2 · 归档） | `08-06-b1-chunk-readonly` · `08-07-b2-kb-settings` · `08-07-b3-model-providers` · `08-07-b4-*` · `08-07-b5-*` · `08-09-b6-dashboard-shell` · `08-09-b10-l1-golden-min` · `08-05-phase-2-ask` |
