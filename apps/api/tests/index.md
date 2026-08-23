@@ -13,6 +13,7 @@
 | `auth/` | JWT、AUTH_ENFORCE、hydrate | `prds/09-security` · QUAL-1 |
 | `acl/` | 成员、部门、kb-scope、列表同滤 | ADR-051 · DEPT_ACL |
 | `kb/` | 知识库列表与设置 | B2 / B2-W |
+| `sessions/` | 会话壳、近窗 | 历史≠evidence · rewrite 默认关 |
 
 ## 测例
 
@@ -68,6 +69,8 @@
 | `kb/dept-inherit-down.test.ts` | KB deptInheritDown 覆盖 env，祖先在关闭向下继承时不可见子孙。 | P3b-KBINH | `parseDeptInheritDownFromConfig / resolveDeptInheritDown / filterDocsForDeptAcl` | P3b-KBINH。 | 现行 |
 | `kb/settings-http.test.ts` | 知识库设置 HTTP 按 B2 契约读写。 | B2 | `kb-settings routes` | 设置 HTTP。 | 现行 |
 | `kb/visible-list.test.ts` | 可见知识库列表只返回当前身份能看到的库。 | 壳下拉数据 | `selectVisibleKbs / toKbListItem` | 可见库列表。 | 现行 |
+| `sessions/http.test.ts` | 会话壳 HTTP 在 rewrite 默认关闭下可用。 | rewrite 默认关 | `createSessionRoutes` | 会话壳 HTTP。 | 现行 |
+| `sessions/session-window.test.ts` | 近窗裁剪后历史不得当作 citation。 | 历史≠evidence | `clipSessionWindow / resolveBackReference` | 不把历史当 citation。 | 现行 |
 
 ## 待处理
 
@@ -75,7 +78,6 @@
 
 | 文件 | 目标 | 需求锚点 | 简介 | 状态 |
 |------|------|----------|------|------|
-| `../src/services/ask/session-window.test.ts` | 近窗裁剪 | 历史≠evidence | 不把历史当 citation | 待处理 |
 
 ### ingest
 
@@ -92,7 +94,6 @@
 
 | 文件 | 目标 | 需求锚点 | 简介 | 状态 |
 |------|------|----------|------|------|
-| `../src/routes/sessions.test.ts` | 会话壳 HTTP | rewrite 默认关 | | 待处理 |
 | `../src/routes/feedback.test.ts` | 反馈 POST/PATCH | B13 | 须 kb 码 | 待处理 |
 | `../src/services/gateway/gateway.test.ts` | Gateway 解析与 mock | B3 · QUAL-3 | 缺 URL → mock | 待处理 |
 | `../src/routes/model-gateway.test.ts` | 供应商绑定 HTTP | B3 | | 待处理 |

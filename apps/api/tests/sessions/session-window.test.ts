@@ -1,6 +1,13 @@
+/**
+ * 目标：近窗裁剪后历史不得当作 citation。
+ * 需求：历史≠evidence
+ * 被测：clipSessionWindow / resolveBackReference
+ * 简介：不把历史当 citation。
+ */
+
 import { describe, expect, it } from 'vitest';
 
-import { createMemorySessionsRepo } from '../sessions.js';
+import { createMemorySessionsRepo } from '../../src/services/sessions.js';
 import {
   clipAssistantContent,
   clipSessionWindow,
@@ -9,7 +16,7 @@ import {
   isExplicitSessionBackref,
   resolveBackReference,
   uniqueEvidenceDocIds,
-} from './session-window.js';
+} from '../../src/services/ask/session-window.js';
 
 describe('clipSessionWindow', () => {
   it('keeps last 2 users and assistants between/after them', () => {

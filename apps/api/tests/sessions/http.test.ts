@@ -1,15 +1,22 @@
+/**
+ * 目标：会话壳 HTTP 在 rewrite 默认关闭下可用。
+ * 需求：rewrite 默认关
+ * 被测：createSessionRoutes
+ * 简介：会话壳 HTTP。
+ */
+
 import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 
-import { attachAuthMiddleware, type AuthVariables } from '../auth/middleware.js';
-import { issueTokenPair } from '../auth/identity/token-service.js';
-import { requestIdMiddleware } from '../middleware/request-id.js';
+import { attachAuthMiddleware, type AuthVariables } from '../../src/auth/middleware.js';
+import { issueTokenPair } from '../../src/auth/identity/token-service.js';
+import { requestIdMiddleware } from '../../src/middleware/request-id.js';
 import {
   createMemorySessionsRepo,
   type SessionsRepo,
-} from '../services/sessions.js';
-import { createSessionRoutes } from './sessions.js';
+} from '../../src/services/sessions.js';
+import { createSessionRoutes } from '../../src/routes/sessions.js';
 
 const KB = '01900000-0000-7000-8000-0000000000aa';
 const TENANT = '01900000-0000-7000-8000-000000000001';
