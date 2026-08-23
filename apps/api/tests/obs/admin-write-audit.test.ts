@@ -1,15 +1,22 @@
+/**
+ * 目标：管理写路径必须打审计日志且不落表、不含敏感键。
+ * 需求：ARCH-P1b-2
+ * 被测：adminWriteAuditMiddleware / shouldAuditAdminWrite
+ * 简介：不落表。
+ */
+
 import { Hono } from 'hono';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import * as loggerMod from '../logger.js';
-import type { ApiVariables } from './request-id.js';
+import * as loggerMod from '../../src/logger.js';
+import type { ApiVariables } from '../../src/middleware/request-id.js';
 import {
   adminWriteAuditMiddleware,
   buildAdminWritePayload,
   extractKbIdFromPath,
   shouldAuditAdminWrite,
-} from './admin-write-audit.js';
-import { requestIdMiddleware } from './request-id.js';
+} from '../../src/middleware/admin-write-audit.js';
+import { requestIdMiddleware } from '../../src/middleware/request-id.js';
 
 /** 单测：日志 payload 不得含敏感键名（仅测试用，不进生产模块） */
 function assertNoSensitiveLogKeys(obj: Record<string, unknown>): boolean {

@@ -17,6 +17,7 @@
 | `feedback/` | 答案反馈 API | B13 |
 | `gateway/` | 模型绑定 / mock / 双节点 | B3 · QUAL-3 |
 | `eval/` | L1/L2 工程 seed | B10 · **≠ 准出** |
+| `obs/` | 指标、限流、写审计 | ARCH-P2-4 · ARCH-P1b-2 |
 
 ## 测例
 
@@ -81,6 +82,13 @@
 | `kb/dept-inherit-down.test.ts` | KB deptInheritDown 覆盖 env，祖先在关闭向下继承时不可见子孙。 | P3b-KBINH | `parseDeptInheritDownFromConfig / resolveDeptInheritDown / filterDocsForDeptAcl` | P3b-KBINH。 | 现行 |
 | `kb/settings-http.test.ts` | 知识库设置 HTTP 按 B2 契约读写。 | B2 | `kb-settings routes` | 设置 HTTP。 | 现行 |
 | `kb/visible-list.test.ts` | 可见知识库列表只返回当前身份能看到的库。 | 壳下拉数据 | `selectVisibleKbs / toKbListItem` | 可见库列表。 | 现行 |
+| `obs/admin-write-audit.test.ts` | 管理写路径必须打审计日志且不落表、不含敏感键。 | ARCH-P1b-2 | `adminWriteAuditMiddleware / shouldAuditAdminWrite` | 不落表。 | 现行 |
+| `obs/l2-stale.test.ts` | rewrite dogfood 下 L2 指纹过期才告警。 | ARCH-P2-4 | `evaluateL2Stale` | rewrite dogfood 下 L2 指纹过期才告警。 | 现行 |
+| `obs/l3-ask.test.ts` | L3 ask 计数与护栏告警闩按阈值只告一次。 | ARCH-P2-4 | `recordL3Ask` | L3 ask 计数满阈只告一次，护栏告警有闩。 | 现行 |
+| `obs/l3-topic-complaint.test.ts` | 主题投诉计数满阈只告一次。 | ARCH-P2-4 | `recordL3TopicComplaint` | 主题投诉计数满阈只告一次。 | 现行 |
+| `obs/metrics.test.ts` | ask/llm/rerank 指标必须可按标签聚合。 | ARCH-P2-4 | `recordAskResult / recordLlmCall / recordRerank / metricGet` | 按标签聚合 ask / llm / rerank 计数。 | 现行 |
+| `obs/rate-limit.test.ts` | 超限必须返回 429 RATE_LIMITED。 | ARCH-P2-4 | `checkFixedWindowRateLimit / POST ask 429` | 超限返回 429 RATE_LIMITED；ask 路由走同一闸。 | 现行 |
+| `obs/tracer.test.ts` | memory tracer 记录主链 span，executeAsk 接线不得丢 span。 | ARCH-P2-4 | `createMemoryTracer / executeAsk` | 内存 tracer 记下主链 span；executeAsk 接线不得丢 span。 | 现行 |
 | `sessions/http.test.ts` | 会话壳 HTTP 在 rewrite 默认关闭下可用。 | rewrite 默认关 | `createSessionRoutes` | 会话壳 HTTP。 | 现行 |
 | `sessions/session-window.test.ts` | 近窗裁剪后历史不得当作 citation。 | 历史≠evidence | `clipSessionWindow / resolveBackReference` | 不把历史当 citation。 | 现行 |
 
@@ -111,8 +119,6 @@
 
 | 文件 | 目标 | 需求锚点 | 简介 | 状态 |
 |------|------|----------|------|------|
-| `../src/obs/obs.test.ts` | 指标与限流骨架 | ARCH-P2-4 | | 待处理 |
-| `../src/middleware/admin-write-audit.test.ts` | 管理写路径审计日志 | ARCH-P1b-2 | 不落表 | 待处理 |
 | `../src/env.test.ts` | api env Zod | | | 待处理 |
 | `../src/app.health.test.ts` | health/ready | P0 | | 待处理 |
 | `../src/app.error.test.ts` | 全局错误信封 | `prds/05-api` | | 待处理 |
