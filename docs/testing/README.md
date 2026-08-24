@@ -2,11 +2,12 @@
 
 > **HOW（怎么写、放哪）**：`.trellis/spec/guides/testing.md`  
 > **P0 必绿子集**：[p0-redlines.md](./p0-redlines.md)  
+> **阶段流程覆盖**：[coverage.md](./coverage.md)（剧本步骤 → 测例；**不是**契约）  
 > **产品语义**：`prds/00–11`  
-> **验收剧本**（非单测替代）：`prds/10-delivery/03-acceptance-scenarios.md`
+> **验收剧本**（期望原文 / 非单测替代）：`prds/10-delivery/03-acceptance-scenarios.md`
 
 本仓测例按 **能力 / 需求** 落在各包 `tests/`，不按源码文件一对一镜像。  
-人与 Agent 先打开本页选包，再打开该包 `tests/index.md` 看存货（文件 → 目标）。**测全了没有**看 [p0-redlines.md](./p0-redlines.md) 与验收剧本，不要用 index 宣称覆盖。
+人与 Agent 先打开本页选包，再打开该包 `tests/index.md` 看存货（文件 → 目标）。**测全了没有**看 [p0-redlines.md](./p0-redlines.md) 与 [coverage.md](./coverage.md)；不要用 index 宣称覆盖。期望原文仍是验收剧本。
 
 ## 包目录
 

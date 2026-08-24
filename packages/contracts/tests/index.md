@@ -2,7 +2,7 @@
 
 > HOW：`.trellis/spec/guides/testing.md`  
 > 本包主责：Zod 形状与错误码短名。HTTP 接线在 api/web/admin。  
-> **存货不是覆盖。** 本表只登记本包 `src/` 与 `tests/` 下的 `*.test.ts(x)`；漏行即红。测全了没有看 `docs/testing/p0-redlines.md` 与验收剧本。
+> **存货不是覆盖。** 本表只登记本包 `src/` 与 `tests/` 下的 `*.test.ts(x)`；漏行即红。测全了没有看 `docs/testing/p0-redlines.md` 与 `docs/testing/coverage.md`（期望原文仍是验收剧本）。
 
 ## 能力
 

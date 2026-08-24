@@ -3,6 +3,7 @@
 > **角色**：HOW（怎么写测例、放哪、如何命名、如何让人/Agent 管得住）。  
 > **不是**：产品语义 SSOT（仍是 `prds/00–11`）；也不是完成度 SSOT（仍是源码 + `docs/module-status/`）。  
 > **P0 必绿子集**：`docs/testing/p0-redlines.md`。  
+> **阶段流程覆盖（测全了没有）**：`docs/testing/coverage.md`。  
 > **仓库导航**：`docs/testing/README.md`。  
 > **包导航**：各包 `tests/index.md`（有测例的包必有）。
 
@@ -23,7 +24,7 @@
 | 目标在哪 | 文件头 `目标` + `tests/index.md` 同行 |
 | 测什么 | `需求` 锚到 PRD / ADR / P0 / backlog / `基建:` / `回归:`，而不是锚到 `foo.ts` |
 | 功能是否正常 | `pnpm test` 绿，且 index 能指出对应文件；绿而说不清需求 = 假绿 |
-| 测全了没有 | **不是** index 能回答的；覆盖看 `docs/testing/p0-redlines.md` 与验收剧本。index 只是存货表 |
+| 测全了没有 | **不是** index 能回答的；合并 10 条看 `docs/testing/p0-redlines.md`；阶段流程看 `docs/testing/coverage.md`（对照验收剧本）。index 只是存货表 |
 
 写新测例前，必须能填出这一行：
 
@@ -53,7 +54,24 @@
 | 当前阶段做没做完（IS） | 源码 + `docs/module-status/` |
 | 这条能力的自动化证据在哪 | 主包 `tests/index.md` |
 | 合并前不可破的 10 条 | `docs/testing/p0-redlines.md` |
-| 验收剧本（非单测替代） | `prds/10-delivery/03-acceptance-scenarios.md` |
+| 阶段流程测全了没有 | `docs/testing/coverage.md`（派生对照；**不是**契约） |
+| 验收剧本（期望原文 / 非单测替代） | `prds/10-delivery/03-acceptance-scenarios.md` |
+
+### 1.1 覆盖目录
+
+`docs/testing/coverage.md` 是验收剧本步骤的**反向对照**（步骤 → 有没有自动化证据）。  
+**不是**产品语义 SSOT，**不是**完成度 SSOT，**不是**存货闸。写错以源码为准回写。禁止用它宣称「P2 已测全」或抬 `module-status` 成熟度。
+
+| 规则 | 说明 |
+|------|------|
+| 行来源 | 一行 = `prds/10-delivery/03-acceptance-scenarios.md` 一个步骤。不把 00–11 每句话拆成行 |
+| 覆盖值 | 闭集：`已测` / `部分测` / `缺测` / `缺实现` / `延后` / `UAT` |
+| 缺测 vs 缺实现 | 源码已具备但无对应能力测 → 缺测；PRD 要求但源码未做 → 缺实现。禁止给缺实现写假装测 |
+| 部分测 | 「缺口」列必须写清缺哪条 Then |
+| P0 | 不在覆盖表展开；入口链到红线表 |
+| 基建/回归 | 不进覆盖表；留在各包 index |
+
+覆盖表本阶段只登记、不补测。给 `缺测` / `部分测` 写新文件时仍走 §8，且只做 **P2 必签** 且源码已具备的行。
 
 ---
 
@@ -301,7 +319,7 @@ include: ['tests/**/*.test.{ts,tsx}'];
 
 **存货完成谓词**（写新测例时）：文件在 `tests/`、文件头三项齐全、现行表有行且含「被测」、需求锚点可打开（含 `基建:` / `回归:`）、意图不与邻文件重叠。
 
-**覆盖完成谓词**不在 index：P0 看红线表；阶段能力看验收剧本。有 index 行 ≠ 该能力测全。
+**覆盖完成谓词**不在 index：P0 看红线表；阶段流程看 `docs/testing/coverage.md`（期望原文仍是验收剧本）。有 index 行 ≠ 该能力测全。
 
 ---
 
