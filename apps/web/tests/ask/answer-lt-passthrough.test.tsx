@@ -1,6 +1,6 @@
 /**
  * 目标：制度答案含 `a < b` 或 `<工号>` 必须原样可见，不得被剥掉或当 HTML 标签吃掉。
- * 需求：K6
+ * 需求：剧本 K6 · prds/10-delivery/03-acceptance-scenarios.md
  * 被测：AskPanel（AnsweredCard 文本节点）
  * 简介：答案走 React 文本节点，小于号与尖括号工号原样展示。
  */

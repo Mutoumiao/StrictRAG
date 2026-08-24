@@ -15,12 +15,10 @@ import {
   CHUNK,
   DOC,
   baseInput,
-  deps as graphDeps,
   evidenceOk,
   happyChat,
   runAskGraph,
   type GraphChat,
-  type GraphDeps,
 } from './_support/graph-harness.js';
 
 const dims = 8;
@@ -88,30 +86,27 @@ describe('embed only in retrieve', () => {
     expect(embed).toHaveBeenCalledTimes(3);
   });
 
-  it('route/generate/verify do not call embed when retrieve is injected', async () => {
-    type GraphDepsHasEmbed = 'embed' extends keyof GraphDeps ? true : false;
-    const graphDepsHasEmbed: GraphDepsHasEmbed = false;
-    expect(graphDepsHasEmbed).toBe(false);
-
-    const embed = vi.fn();
+  it('route/generate/verify do not call retrieveDeps.embed (P2 graph has no grade)', async () => {
+    const embed = vi.fn(async (texts: string[]) => texts.map((t) => mockEmbedVector(t, dims)));
     const purposes: string[] = [];
     const chat: GraphChat = async (purpose, messages) => {
       purposes.push(purpose);
       return happyChat(purpose, messages);
     };
-    const injected = graphDeps({
+    const r = await runAskGraph(baseInput(), {
       chat,
       retrieve: async () => ({
         ok: true,
         evidence: evidenceOk,
         meta: { esMode: 'mock', candidateCount: 1, denseHits: 1, sparseHits: 1 },
       }),
+      // 检索已注入；仍把 embed 接到 retrieveDeps。若 route/generate/verify 直接调它，spy 会亮。
+      retrieveDeps: retrieveDeps([], { embed }),
     });
-    expect('embed' in injected).toBe(false);
-
-    const r = await runAskGraph(baseInput(), injected);
     expect(r.status).toBe('answered');
+    expect(r.debug?.retrieveCalls).toBe(1);
     expect(purposes).toEqual(['generate', 'claim_split', 'judge']);
+    expect(purposes).not.toContain('rewrite');
     expect(embed).not.toHaveBeenCalled();
   });
 

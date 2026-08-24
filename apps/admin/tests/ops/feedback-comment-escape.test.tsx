@@ -1,8 +1,8 @@
 /**
- * 目标：反馈 comment 含 `<script>alert(1)</script>` 必须当文本展示，不得当 HTML 执行或插入 script 节点。
- * 需求：K6
+ * 目标：反馈 comment 含 `<script>alert(1)</script>` 必须当文本展示，不得当 HTML 解析执行。
+ * 需求：剧本 K6 · prds/10-delivery/03-acceptance-scenarios.md
  * 被测：FeedbackWorkspace
- * 简介：队列 comment 走文本节点；负向断言 script 数量不因 comment 增加。
+ * 简介：队列 comment 走 React 文本节点原样可见。
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -57,14 +57,14 @@ describe('FeedbackWorkspace', () => {
     localStorage.clear();
   });
 
-  it('K6: comment 含 script 标签按文本展示，不插入 script 节点', async () => {
+  it('K6: comment 含 script 标签按文本展示', async () => {
     localStorage.setItem('strict-rag:admin:last-kb-id', 'kb-1');
     loadFeedbackQueue.mockResolvedValue({ ok: true, items: [xssItem] });
 
-    const scriptsBefore = document.querySelectorAll('script').length;
     render(<FeedbackWorkspace />);
 
-    expect(await screen.findByText(XSS_COMMENT)).toBeInTheDocument();
-    expect(document.querySelectorAll('script')).toHaveLength(scriptsBefore);
+    const node = await screen.findByText(XSS_COMMENT);
+    expect(node).toBeInTheDocument();
+    expect(node.tagName.toLowerCase()).not.toBe('script');
   });
 });

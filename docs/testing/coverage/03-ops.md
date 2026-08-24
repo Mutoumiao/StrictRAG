@@ -18,13 +18,13 @@
 
 ## 剧本 G · 反馈闭环
 
-P2 必签。API 已有提交/队列；admin 有薄队列页但无 RTL；web 无提交测。
+P2 必签。API 已有提交/队列；admin 有薄队列页（comment 文本节点测见 K6）；web 无提交测。
 
 | ID | 期望摘要 | 阶段 | 形态 | 覆盖 | 主包 | 证据 | 缺口 |
 |----|----------|------|------|------|------|------|------|
 | G1 | 对 abstained 提交 missing_doc，状态 open | P2必签 | 单测 | 部分测 | api | apps/api/tests/feedback/http.test.ts（`category: 'missing_doc'` → 201/`status=open`） | 未断言「仅 abstained 可开单」；web 答后提交无测（`apps/web/src/api/feedback.ts` 无对应 it）。 |
-| G2 | 管理员 linked_doc / 上传后队列可关闭 | P2必签 | 单测 | 部分测 | api | apps/api/tests/feedback/http.test.ts（PATCH `dismissed` 后 `status=open` 列表为空）· apps/admin/src/app/(ops)/feedback/_components/feedback-workspace.tsx | 只测 `dismissed`；未测 `linked_doc`、上传后关闭。admin 反馈页无 RTL（`docs/module-status/admin.md`）。 |
-| G3 | 提名黄金集须测试/产品审核后才进 gold | P2必签 | 单测 | 缺实现 | api | packages/contracts/src/ask/feedback.contract.ts（`promoted_to_gold`） | 状态枚举有；无审核闸、无「未审不得进 gold.yaml」断言。 |
+| G2 | 管理员 linked_doc / 上传后队列可关闭 | P2必签 | 单测 | 部分测 | api | apps/api/tests/feedback/http.test.ts（PATCH `dismissed` 后 `status=open` 列表为空）· apps/admin/tests/ops/feedback-comment-escape.test.tsx（K6 comment 文本节点，≠ 本步关单） | 只测 `dismissed`；未测 `linked_doc`、上传后关闭。admin 关单路径无 RTL。 |
+| G3 | 提名黄金集须测试/产品审核后才进 gold | P2必签 | 单测 | 缺实现 | api | packages/contracts/src/ask/feedback.contract.ts（`promoted_to_gold`） | 状态枚举有；无审核闸、无「未审不得进 gold.yaml」断言。→ QUAL-G3 |
 
 ## 剧本 N · At-rest 加密与备份契约
 
@@ -85,7 +85,7 @@ R1–R6、R8–R10 为 P2 必签。R7/R11/R12 在启用对应路径时签。源�
 | ID | 期望摘要 | 阶段 | 形态 | 覆盖 | 主包 | 证据 | 缺口 |
 |----|----------|------|------|------|------|------|------|
 | R1 | 多次 retrieve → query embed 次数 ≤ retrieve；不增加 maxLLM | P2必签 | 单测 | 已测 | api | apps/api/tests/ask/embed-budget.test.ts | 两次 retrieve → embed 两次；embed 不计 maxLLM |
-| R2 | route/grade/generate/verify 不直接调用 embed | P2必签 | 单测 | 已测 | api | apps/api/tests/ask/embed-budget.test.ts | 注入 retrieve 时 embed 0 次；图节点只走 chat |
+| R2 | route/grade/generate/verify 不直接调用 embed | P2必签 | 单测 | 已测 | api | apps/api/tests/ask/embed-budget.test.ts | 注入 retrieve 且 `retrieveDeps.embed` 已接线 → spy 0 次；chat 仅 generate/claim_split/judge。P2 图无 grade 节点。 |
 | R3 | ask 路径对 evidence body 再 embed → 失败或禁止 | P2必签 | 单测 | 已测 | api | apps/api/tests/ask/embed-budget.test.ts | embed 参数仅为 `[question]`，不得传入 chunk.text |
 | R4 | runtime 配 `maxEmbedCalls` → 启动 warning；行为 ≡ 无该字段 | P2必签 | 单测 | 缺实现 | api | apps/api/src/env.ts · apps/api/src/graph/budget.ts（仅 maxLLM/maxRetrieve） | 无 `maxEmbedCalls` 字段。 |
 | R5 | 打满 ingest 配额 → ask 仍可达；打满 ask 不阻断 ingest | P2必签 | 注入 | 缺实现 | api | — | 无三平面配额。ask 429 是 RPM 闸（`obs/rate-limit.test.ts`），不是平面配额。 |
@@ -127,7 +127,7 @@ P2 必签（UI 可薄，契约不可缺）。
 | AB5 | 质量区仅展示 τ + 签字包信息；无写入控件；GET 可读 snapshot | P2必签 | 单测 | 部分测 | api | apps/api/tests/kb/settings-http.test.ts（GET 含只读 `qualitySnapshot.tauClaim`）· apps/admin/src/app/(ops)/kb/settings/_components/settings-workspace.tsx（质量只读区） | API GET 已测。admin 测例未断言无 τ 滑块/写入控件。 |
 | AB6 | 无 `kb.config.write` → 菜单隐藏或页 403；PATCH 403 | P2必签 | 单测 | 已测 | api | apps/api/tests/kb/settings-http.test.ts（doc_operator GET 403）· apps/admin/tests/ops/kb-settings-workspace.test.tsx（无码 403 态）· packages/admin-catalog/tests/acl/catalog-clip.test.ts | API 与薄页均拒无码。 |
 | AB7 | 维护 docTypes 后 GET doc-types：列表与设置一致 | P2必签 | 单测 | 部分测 | api | apps/api/tests/kb/ask-mode-doc-types.test.ts（config 解析）· apps/admin/tests/ops/kb-settings-services.test.ts（`parseDocTypesInput`） | 解析/客户端拆分已测。`settings-http` 未测 PATCH `docTypes` 后 GET 回读一致。无独立 `GET …/doc-types` 路由。 |
-| AB8 | 分片策略「设置」打开 053 弹窗；保存服 AA 语义 | P2必签 | 单测 | 缺实现 | admin | apps/admin/src/app/(ops)/kb/settings/_components/settings-workspace.tsx（仅展示已实现码）· docs/module-status/admin.md | 无 053 弹窗；complete/reindex 策略闸在入库分册。 |
+| AB8 | 分片策略「设置」打开 053 弹窗；保存服 AA 语义 | P2必签 | 单测 | 缺实现 | admin | apps/admin/src/app/(ops)/kb/settings/_components/settings-workspace.tsx（仅展示已实现码）· docs/module-status/admin.md | 无 053 弹窗；complete/reindex 策略闸在入库分册。→ QUAL-AB8 |
 
 ## 剧本 AC · 模型供应商与绑定
 
@@ -141,7 +141,7 @@ P2 必签。缺 URL 走 mock 的网关测 ≠ 生产双节点已测。
 | AC4 | prod/staging 绑 judge≡judge_aux 同 provider+model → 拒绝保存/加载 | P2必签 | 单测 | 部分测 | api | apps/api/tests/gateway/bindings-http.test.ts（同模 400 / 文案含 judge） | 保存拒绝已测。启动/加载同模失败未测。 |
 | AC5 | rerank fallback 链长 &lt; `RERANK_MIN_NODES` → 拒绝（ADR-034） | P2必签 | 单测 | 已测 | api | apps/api/tests/gateway/resolve-mock.test.ts（staging http 单节点抛 `/RERANK_MIN_NODES/`；双 URL 接受） | 配置闸已测。mock 双节点重试 ≠ 生产双节点签字。 |
 | AC6 | KB 设置选 generate/embed/rerank 覆盖；ask/入库解析用 KB 选择；审计 | P2必签 | 单测 | 部分测 | api | apps/api/tests/gateway/resolve-mock.test.ts（`mergeBindingRows` KB 覆盖 generate）· apps/api/src/routes/kb-settings.ts（GET/PUT KB bindings） | 合并覆盖已测。无 KB PUT HTTP 测；无 ask/入库解析用 KB 选择的端到端。 |
-| AC7 | KB 尝试绑 judge → 400/403 | P2必签 | 单测 | 缺实现 | api | apps/api/src/routes/kb-settings.ts（PUT 走 `PutPlatformBindingsBodySchema` + `validatePlatformBindings`，未禁 judge） | KB 写入口未拒绝 judge。 |
+| AC7 | KB 尝试绑 judge → 400/403 | P2必签 | 单测 | 缺实现 | api | apps/api/src/routes/kb-settings.ts（PUT 走 `PutPlatformBindingsBodySchema` + `validatePlatformBindings`，未禁 judge） | KB 写入口未拒绝 judge。→ QUAL-AC7 |
 | AC8 | 无 `model.gateway.manage` 调 Provider API → 403 | P2必签 | 单测 | 已测 | api | apps/api/tests/gateway/bindings-http.test.ts（kb_admin GET providers → 403/`model.gateway.manage`） | — |
 | AC9 | `model-catalog` 仅启用模型；无凭证字段 | P2必签 | 单测 | 已测 | api | apps/api/tests/gateway/bindings-http.test.ts（仅 `enabled:true`；body 不含 secret） | — |
 
