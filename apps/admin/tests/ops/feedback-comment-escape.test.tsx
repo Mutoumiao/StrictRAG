@@ -1,0 +1,70 @@
+/**
+ * 目标：反馈 comment 含 `<script>alert(1)</script>` 必须当文本展示，不得当 HTML 执行或插入 script 节点。
+ * 需求：K6
+ * 被测：FeedbackWorkspace
+ * 简介：队列 comment 走文本节点；负向断言 script 数量不因 comment 增加。
+ */
+
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { render, screen } from '@/test/test-utils';
+
+const me = {
+  userId: 'u-1',
+  email: 'a@b.com',
+  permissions: [] as string[],
+};
+
+const loadFeedbackQueue = vi.fn();
+const resolveFeedback = vi.fn();
+
+vi.mock('@/components/auth-guard', () => ({
+  useAdminAuth: () => ({
+    me,
+    session: { sessionId: 's', userId: 'u-1', roles: [], expiresAt: '' },
+    refresh: vi.fn(),
+  }),
+}));
+
+vi.mock('@/app/(ops)/feedback/services', () => ({
+  loadFeedbackQueue: (...args: unknown[]) => loadFeedbackQueue(...args),
+  resolveFeedback: (...args: unknown[]) => resolveFeedback(...args),
+}));
+
+import { FeedbackWorkspace } from '@/app/(ops)/feedback/_components/feedback-workspace';
+
+const XSS_COMMENT = '<script>alert(1)</script>';
+
+const xssItem = {
+  feedbackId: '018f0000-0000-7000-8000-0000000000c1',
+  requestId: 'req-xss-1',
+  kbId: '018f0000-0000-7000-8000-0000000000b1',
+  userId: '018f0000-0000-7000-8000-0000000000a1',
+  rating: 'down' as const,
+  category: null,
+  comment: XSS_COMMENT,
+  status: 'open' as const,
+  handlerId: null,
+  resolvedAt: null,
+  createdAt: null,
+};
+
+describe('FeedbackWorkspace', () => {
+  beforeEach(() => {
+    me.permissions = ['admin.shell', 'feedback.queue'];
+    loadFeedbackQueue.mockReset();
+    resolveFeedback.mockReset();
+    localStorage.clear();
+  });
+
+  it('K6: comment 含 script 标签按文本展示，不插入 script 节点', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', 'kb-1');
+    loadFeedbackQueue.mockResolvedValue({ ok: true, items: [xssItem] });
+
+    const scriptsBefore = document.querySelectorAll('script').length;
+    render(<FeedbackWorkspace />);
+
+    expect(await screen.findByText(XSS_COMMENT)).toBeInTheDocument();
+    expect(document.querySelectorAll('script')).toHaveLength(scriptsBefore);
+  });
+});

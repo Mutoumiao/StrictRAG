@@ -28,6 +28,7 @@
 | `ops/document-lifecycle.test.ts` | 文档生命周期入口闸必须按状态判断，失败则未就绪也可发布。 | complete/reindex 入口 | `canPublish / canRevertDraft` | 不测策略执行。 | 现行 |
 | `ops/document-upload.test.ts` | 上传服务必须按 upload-url → PUT → complete 调用，失败则入口顺序错乱。 | 上传入口 | `uploadAdminDocument` | 体积闸真值在 api。 | 现行 |
 | `ops/documents-workspace.test.tsx` | 文档列表薄页必须按码控制详情/保存/部门列，失败则运营交互与权限不符。 | 文档运营 UI | `DocumentsWorkspace · deptLabel / readyColLabel / visibilityLabel` | 部门列展示。 | 现行 |
+| `ops/feedback-comment-escape.test.tsx` | 反馈 comment 含 `<script>` 必须当文本展示，不得插入 script 节点。 | K6 | `FeedbackWorkspace` | comment 走文本节点；负向断言 script 不增加。 | 现行 |
 | `ops/kb-settings-services.test.ts` | 设置服务必须正确解析文档类型输入，失败则 PATCH 写出错误 docTypes。 | KB settings | `parseDocTypesInput` | 不写 URL。 | 现行 |
 | `ops/kb-settings-workspace.test.tsx` | KB 设置薄页必须按 kb.config.write 显隐，未改勾选不得 PATCH 强制/继承。 | B2 设置 UI | `SettingsWorkspace` | mode 真值在 api。 | 现行 |
 | `shell/auth-guard.test.tsx` | 无会话或无 admin.shell 必须跳转登录，失败则壳内页对无权限用户可见。 | admin.shell | `AdminAuthGuard` | mock 须持续 resolve。 | 现行 |

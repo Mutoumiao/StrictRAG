@@ -48,7 +48,7 @@ O1/O2/O4 为 P2 代码门禁必签；O3/O5–O11 在启用独立索引或 stagin
 
 | ID | 期望摘要 | 阶段 | 形态 | 覆盖 | 主包 | 证据 | 缺口 |
 |----|----------|------|------|------|------|------|------|
-| O1 | 两租户同共享索引：A ask 永不返回 B 的 chunk | P2必签代码门禁 | 单测 | 缺测 | api | apps/api/src/services/retrieve/es-sparse.ts（filter 仅 `kbId`）· apps/api/tests/ask/es-sparse.test.ts | 查询无 `tenantId`；测例不断言跨租户隔离；默认 mock。禁止标已测。 |
+| O1 | 两租户同共享索引：A ask 永不返回 B 的 chunk | P2必签代码门禁 | 单测 | 已测 | api | apps/api/tests/ask/sparse-kb-filter.test.ts | 锁 kbId term + 外库 chunk 丢弃。默认 mock ES。**≠ tenantId 闸（O4 / QUAL-TENANT-Q）** |
 | O2 | Router 默认全部指向共享名；写入/查询一致 | P2必签代码门禁 | 单测 | 部分测 | api | apps/api/tests/ask/es-sparse.test.ts · apps/worker/tests/ingest/es-http.test.ts（默认 index=`strict_rag_dev`） | 两边默认名一致。无 Router 对象、无写查一体断言。 |
 | O3 | 配置一租户独立 index 后，该租户写/查只打独立名 | 独立索引演练 | UAT | 延后 | api | docs/module-status/api.md（≠ 多租户 Router / B8） | 独立索引能力未做。 |
 | O4 | 无 `tenantId` 的 query builder → 单测/门禁失败（独立索引亦然） | P2必签代码门禁 | 单测 | 缺实现 | api | apps/api/src/services/retrieve/es-sparse.ts · apps/worker/src/ingest/es-http.ts | 查询/bulk 均无 `tenantId` 强制字段；缺的是门禁实现，不是「已有闸未测」。 |
@@ -84,9 +84,9 @@ R1–R6、R8–R10 为 P2 必签。R7/R11/R12 在启用对应路径时签。源�
 
 | ID | 期望摘要 | 阶段 | 形态 | 覆盖 | 主包 | 证据 | 缺口 |
 |----|----------|------|------|------|------|------|------|
-| R1 | 多次 retrieve → query embed 次数 ≤ retrieve；不增加 maxLLM | P2必签 | 单测 | 缺测 | api | apps/api/src/services/retrieve/retrieve.ts（每 retrieve 一次 `embed([question])`）· apps/api/tests/ask/budget.test.ts | 结构上 embed 不计 LLM。无「embed 次数 ≤ retrieve」计数断言。 |
-| R2 | route/grade/generate/verify 不直接调用 embed | P2必签 | 单测 | 缺测 | api | apps/api/src/graph/run.ts（无 embed 调用） | 图内无 embed。无静态/单测锁定「仅 retrieve 内」。 |
-| R3 | ask 路径对 evidence body 再 embed → 失败或禁止 | P2必签 | 单测 | 缺测 | api | apps/api/src/services/retrieve/retrieve.ts（dense 用已有 `chunk.embedding`） | 无「对 body 再 embed 则失败」闸测。 |
+| R1 | 多次 retrieve → query embed 次数 ≤ retrieve；不增加 maxLLM | P2必签 | 单测 | 已测 | api | apps/api/tests/ask/embed-budget.test.ts | 两次 retrieve → embed 两次；embed 不计 maxLLM |
+| R2 | route/grade/generate/verify 不直接调用 embed | P2必签 | 单测 | 已测 | api | apps/api/tests/ask/embed-budget.test.ts | 注入 retrieve 时 embed 0 次；图节点只走 chat |
+| R3 | ask 路径对 evidence body 再 embed → 失败或禁止 | P2必签 | 单测 | 已测 | api | apps/api/tests/ask/embed-budget.test.ts | embed 参数仅为 `[question]`，不得传入 chunk.text |
 | R4 | runtime 配 `maxEmbedCalls` → 启动 warning；行为 ≡ 无该字段 | P2必签 | 单测 | 缺实现 | api | apps/api/src/env.ts · apps/api/src/graph/budget.ts（仅 maxLLM/maxRetrieve） | 无 `maxEmbedCalls` 字段。 |
 | R5 | 打满 ingest 配额 → ask 仍可达；打满 ask 不阻断 ingest | P2必签 | 注入 | 缺实现 | api | — | 无三平面配额。ask 429 是 RPM 闸（`obs/rate-limit.test.ts`），不是平面配额。 |
 | R6 | mock embed TPM 触顶 → 队列堆积+告警；文档非 ready 直至清单全 embed；无半套 ready | P2必签 | 注入 | 缺实现 | worker | apps/worker/tests/ingest/embed-es-serial.test.ts（双就绪，非 TPM） | 无 ingest TPM/配额。 |
@@ -109,7 +109,7 @@ T1–T7、T9 为 P2 必签（契约/夹具/文档）。T8/T10 在多 KB 或放�
 | T4 | 提案 + L1 重跑 + 业务/产品签字 + 配置快照绑定 → 可生效加严包 | P2必签 | 单测 | 部分测 | api | apps/api/tests/eval/adr046-snapshot.test.ts（四要素齐 + 未放宽 + live 覆盖>0 → `signedPackage`） | 人签仍 UAT；测例用注入布尔，非真实签字流。 |
 | T5 | 加严包「覆盖↑ 且 C 上限↑」→ 拒绝（diff 校验失败） | P2必签 | 单测 | 已测 | api | apps/api/tests/eval/adr046-snapshot.test.ts（coverageMin↑ 且 cRateMax↑ → `direction=looser`） | — |
 | T6 | KB 快照 τ/门禁数字 = 已签字包；篡改快照 → 加载拒绝或不一致告警失败 | P2必签 | 单测 | 部分测 | api | apps/api/tests/eval/adr046-snapshot.test.ts（`bindQualitySnapshotToEval` / `writeBoundSnapshot`） | 绑定身份稳定已测。无运行时「篡改快照拒绝加载」。 |
-| T7 | 存在 `stricter_than_pilot` + 相对默认 diff + `eval_runs` 关联 | P2必签 | 单测 | 缺测 | api | apps/api/src/eval/adr046-snapshot.ts（字段 `stricterThanPilot`） | 快照有字段。无审计事件 + `eval_runs` 关联断言。 |
+| T7 | 存在 `stricter_than_pilot` + 相对默认 diff + `eval_runs` 关联 | P2必签 | 单测 | 已测 | api | apps/api/tests/eval/stricter-than-pilot-bind.test.ts | stricterThanPilot + evalRunId 进 evalBindId。无人签/独立审计 HTTP |
 | T8 | KB-A 加严、KB-B 默认 → 各自独立，互不污染 | 多 KB 演练 | UAT | 延后 | api | — | 无多 KB 快照隔离测。 |
 | T9 | ask.options 传 `tauClaim` → 400/拒绝（仍不可调） | P2必签 | 契约+单测 | 已测 | contracts | packages/contracts/tests/ask/contract.test.ts · apps/api/tests/ask/http-validation.test.ts · apps/api/tests/kb/settings-http.test.ts · packages/contracts/tests/kb/settings-contract.test.ts | AskOptions / 请求根 / PATCH settings 均拒 `tauClaim`。 |
 | T10 | 合法放宽须有 ADR 编号 + 合规会签 + 产品 A 记录后才可换包 | 放宽演练 | UAT | 延后 | api | — | 合法放宽路径未做。 |
@@ -153,7 +153,7 @@ P2 必签。无 `SUPER_ADMIN_*` 空库启动路径；无启动失败测。
 |----|----------|------|------|------|------|------|------|
 | AD1 | 空库 + 配置 SUPER_ADMIN_* 启动 api → 创建超管；permission_definitions 含 catalog 全码；超管角色绑全码 | P2必签 | 单测 | 缺实现 | api | apps/api/src/env.ts（无 `SUPER_ADMIN_*`）· apps/api/src/services/platform-users-roles.ts（`ensureSystemRoles` 种子四模板）· apps/api/tests/acl/platform-users-roles.test.ts | 无空库启动建超管。dev-login `ensureUserRoleCodes` ≠ 本步。 |
 | AD2 | 缺 SUPER_ADMIN_* 且无超管启动 → 启动失败 | P2必签 | 单测 | 缺实现 | api | apps/api/src/env.ts | 无该启动失败闸。 |
-| AD3 | 已有超管再启动 → 不用 env 重置密码；码仍补齐 | P2必签 | 单测 | 缺测 | api | apps/api/src/services/platform-users-roles.ts（`ensureSystemRoles` 已有系统角色则 return） | 有「已有则跳过种子」。无启动再入、不重置密码、补码测。 |
+| AD3 | 已有超管再启动 → 不用 env 重置密码；码仍补齐 | P2必签 | 单测 | 部分测 | api | apps/api/tests/acl/system-roles-skip-reseed.test.ts | 已有 isSystem 则不再 insert。**补码 / SUPER_ADMIN 启动闸未做** → QUAL-SUPER-BOOT |
 | AD4 | 超管建角色：树勾选 doc.* 等保存 → 200；审计 | P2必签 | 单测 | 已测 | api | apps/api/tests/acl/platform-users-roles.test.ts（POST 合法码 201；未知码 400）· apps/api/tests/obs/admin-write-audit.test.ts（`/admin/roles` 写应审计） | 审计为中间件命中，非本 POST 日志体。 |
 | AD5 | 超管建平台用户并绑该角色；用户登录 admin 后 `/me/permissions` = 角色并集 | P2必签 | 单测 | 部分测 | api | apps/api/tests/acl/platform-users-roles.test.ts（POST 用户 + 绑角色 201，列表含 `roleCodes`） | 无登录后 `/me/permissions` = 并集测。 |
 | AD6 | 无 `user.manage` 调用户 API → 403 | P2必签 | 单测 | 已测 | api | apps/api/tests/acl/platform-users-roles.test.ts（kb_admin GET users → 403/`user.manage`） | — |
@@ -183,14 +183,14 @@ Phase 4 建议，**不挡 P2** → 默认延后。I2 指标可部分测。
 | C | 5 | 0 | 1 | 0 | 3 | 0 | 1 |
 | G | 3 | 0 | 2 | 0 | 1 | 0 | 0 |
 | N | 9 | 0 | 0 | 1 | 0 | 0 | 8 |
-| O | 11 | 0 | 1 | 1 | 1 | 8 | 0 |
+| O | 11 | 1 | 1 | 0 | 1 | 8 | 0 |
 | P | 11 | 0 | 3 | 0 | 1 | 7 | 0 |
-| R | 12 | 0 | 0 | 3 | 6 | 3 | 0 |
-| T | 10 | 2 | 5 | 1 | 0 | 2 | 0 |
+| R | 12 | 3 | 0 | 0 | 6 | 3 | 0 |
+| T | 10 | 3 | 5 | 0 | 0 | 2 | 0 |
 | AB | 8 | 3 | 4 | 0 | 1 | 0 | 0 |
 | AC | 9 | 5 | 3 | 0 | 1 | 0 | 0 |
-| AD | 10 | 4 | 3 | 1 | 2 | 0 | 0 |
+| AD | 10 | 4 | 4 | 0 | 2 | 0 | 0 |
 | I | 5 | 0 | 1 | 0 | 0 | 4 | 0 |
-| **合计** | **93** | **14** | **23** | **7** | **16** | **24** | **9** |
+| **合计** | **93** | **19** | **24** | **1** | **16** | **24** | **9** |
 
 ID 闭集（93）：C1–C5；G1–G3；N1–N9；O1–O11；P1–P11；R1–R12；T1–T10；AB1–AB8；AC1–AC9；AD1–AD10；I1–I5。

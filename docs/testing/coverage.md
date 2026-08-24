@@ -52,43 +52,36 @@
 
 ## 汇总
 
-登记日：2026-08-24。数字须与分册行数一致。本表不是完成度 SSOT。
+登记日：2026-08-24（补测批次同日回写）。数字须与分册行数一致。本表不是完成度 SSOT。
 
 | 分册 | 步骤数 | 已测 | 部分测 | 缺测 | 缺实现 | 延后 | UAT |
 |------|--------|------|--------|------|--------|------|-----|
-| [ask](./coverage/00-ask.md) | 64 | 19 | 26 | 5 | 1 | 11 | 2 |
-| [ingest](./coverage/01-ingest.md) | 53 | 8 | 28 | 3 | 6 | 8 | 0 |
-| [acl](./coverage/02-acl.md) | 69 | 19 | 37 | 5 | 1 | 4 | 3 |
-| [ops](./coverage/03-ops.md) | 93 | 14 | 23 | 7 | 16 | 24 | 9 |
-| **合计** | **279** | **60** | **114** | **20** | **24** | **47** | **14** |
+| [ask](./coverage/00-ask.md) | 64 | 24 | 26 | 0 | 1 | 11 | 2 |
+| [ingest](./coverage/01-ingest.md) | 53 | 10 | 29 | 0 | 6 | 8 | 0 |
+| [acl](./coverage/02-acl.md) | 69 | 22 | 37 | 2 | 1 | 4 | 3 |
+| [ops](./coverage/03-ops.md) | 93 | 19 | 24 | 1 | 16 | 24 | 9 |
+| **合计** | **279** | **75** | **116** | **3** | **24** | **47** | **14** |
 
-`延后` / `缺实现` / `UAT` 不是欠债清单。下一批只做 **P2 必签** 且 `缺测`（源码已有）或挑信任环上的 `部分测`。
+`延后` / `缺实现` / `UAT` 不是欠债清单。P2 必签 `缺测` 本批已补（2026-08-24）；剩余 `缺测` 为建议项 S6/Z3 与部署检查表 N2。下一批优先信任环上的 `部分测`。
 
-### P2 必签 · 缺测（下一批优先）
+`缺实现` 调度：总 backlog [§2.5.2](../../.trellis/tasks/08-06-project-backlog/status.md) · HOW [research/coverage-gap-impl.md](../../.trellis/tasks/08-06-project-backlog/research/coverage-gap-impl.md)。禁止假绿。
+
+### P2 必签 · 缺测（已关闭本批）
 
 不含建议项（S6、Z3）、不含部署检查表（N2）。
 
-| ID | 分册 | 缺口（短） |
-|----|------|------------|
-| H3 | ask | `/ready` 停 PG/Redis → 503 |
-| H4 | ask | Gateway 软依赖 ready=degraded |
-| H7 | ask | HTML/特殊字符问句不被 escape 破坏 |
-| K4 | ask | generate/verify/citation/body 逐字一致 |
-| K6 | ask | feedback 消毒 vs 制度 `<` 原样 |
-| M3 | ingest | mock_clean 扫描→解析→双就绪全链 |
-| Q3 | ingest | 页眉噪声夹具不得 ready |
-| V5 | ingest | 审批 reject HTTP：不 scan、可重提 |
-| Y4 | acl | kb_admin approve 200 后可 scan |
-| Z7 | acl | PATCH chunk body 负向 |
-| X3 | acl | hr scope 不得用 finance 证据作答 |
-| O1 | ops | 共享索引跨租户隔离（现仅 kbId；默认 mock） |
-| R1–R3 | ops | query embed 次数闸 / 禁图内 embed / 禁再 embed body |
-| T7 | ops | `stricter_than_pilot` 与 eval_runs 关联 |
-| AD3 | ops | 已有超管再启动不重置密码、码仍补齐 |
+| ID | 分册 | 本批 |
+|----|------|------|
+| H3 H4 H7 K4 K6 | ask | 已测 |
+| M3 Q3 | ingest | 已测 |
+| V5 | ingest | 部分测（reject+禁 scan；可重提 API 未做） |
+| Y4 Z7 X3 | acl | 已测 |
+| O1 R1–R3 T7 | ops | 已测 |
+| AD3 | ops | 部分测（跳过重种子；补码 → QUAL-SUPER-BOOT） |
 
-P2 必签的 `部分测` 行很多（114 里大部分是切片）。补测时先信任环（A/D/F/H/K/U），再入库闸（L/M/V），再运营壳。不要按 114 行机械铺开。
+P2 必签的 `部分测` 仍多。补测时先信任环（A/D/F/H/K/U），再入库闸（L/M/V），再运营壳。不要按 116 行机械铺开。
 
-P2 必签但 **缺实现** 的（不写假装测）：K5 Langfuse 明文 ACL、E4 近重复、E5 L1→L0、L7 孤儿清理、V3 禁自审、AA1 策略参数写、B1-A4 `acl_filter_too_large`、O4 tenantId 查询闸、AD1/AD2 SUPER_ADMIN 启动闸、R4–R10 三平面配额等。详见各分册。
+P2 必签但 **缺实现** 的（不写假装测；已挂 QUAL-* task）：K5→QUAL-K5、E4→QUAL-E4、E5→QUAL-E5、L7→QUAL-L7、V3→QUAL-V3、AA1→QUAL-AA1、B1-A4→QUAL-ACL-CAP、O4→QUAL-TENANT-Q、AD1/AD2/AD3 补码→QUAL-SUPER-BOOT、R4–R10→QUAL-PLANE。M7 仍归 QUAL-2。详见各分册。
 
 ## 附录
 

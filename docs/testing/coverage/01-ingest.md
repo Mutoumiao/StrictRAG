@@ -42,7 +42,7 @@
 |----|----------|------|------|------|------|------|------|
 | M1 | 上传 > 50 MiB 合法 PDF：complete 拒绝（413 / `PAYLOAD_TOO_LARGE`）；PG 无成功进入 parse 的 `uploaded` 成功路径 | P2必签 | 单测 | 部分测 | api | apps/api/tests/ingest/complete-size.test.ts（`checkUploadByteSize(max+1)` → `PAYLOAD_TOO_LARGE`）；apps/api/tests/ingest/gates-live.test.ts（绕过 PUT 直写超限对象，complete → 413，无 Docker 时 skip） | 无「PG 无 uploaded 成功路径」断言；complete-size 只测纯函数，不经 handler / 不写库 |
 | M2 | ≤ 上限 EICAR 或 mock infected：`scanning` → 不 parse；Mongo 无权威 body；无 `chunk_manifest`；`failed`+`MALWARE`；对象已删；审计可查 | P2必签 | 单测 | 部分测 | worker | 源码 `mock_infected` 删本地对象并 `MALWARE`（apps/worker/src/ingest/pipeline.ts）；apps/worker/tests/ingest/idempotency.test.ts / bull-outcome.test.ts（`MALWARE` 不可重试，禁止当 clean 重投） | ≠ 真杀毒（QUAL-2 未接）。无 pipeline 注入测删对象 / 无 Mongo body / 无 manifest；无审计 hash+uploaderId |
-| M3 | mock clean：`scanning → parsing → … → 双就绪 ready`（与 A/L 衔接仍绿） | P2必签 | 单测 | 缺测 | worker | 源码 `mock_clean`/`off` 放行后 enqueue parse；双就绪写 `ready`+`lifecycle=draft` | 无 scanning→parsing→双就绪 ready 的阶段链测；≠ 生产扫描 |
+| M3 | mock clean：`scanning → parsing → … → 双就绪 ready`（与 A/L 衔接仍绿） | P2必签 | 单测 | 已测 | worker | apps/worker/tests/ingest/mock-clean-stage-chain.test.ts | 内存仓驱动 scan→…→es_index；ready+draft。≠ 生产扫描 / ≠ 真杀毒 |
 | M4 | prod/staging 关闭/缺失扫描引擎配置：worker 启动失败（fail closed）；不进入「可上传无扫描」灰态 | P2必签 | 单测 | 已测 | worker | apps/worker/tests/ingest/scan-startup-policy.test.ts（任意 `APP_ENV` 下 `on` 拒绝；staging/production 禁止 `mock_*`/`off`）；apps/worker/tests/ingest/scan-runtime-block.test.ts（运行时 `on` 不得当 clean） | 真引擎仍未接：staging/production 当前无合法扫描配置（见 docs/module-status/worker.md）。≠ 真杀毒已测 |
 | M5 | 仅前端改大 limit：complete 仍 Head 校验 → 超大对象不能入库 | P2必签 | 注入 | 部分测 | api | apps/api/tests/ingest/gates-live.test.ts（绕过 HTTP PUT 直写超限，complete 仍 413）；complete 走 `headObject` + `checkUploadByteSize` | 默认 CI 无 Docker 则 skip；无「只改前端 limit」对照 |
 | M6 | 预签名无 max body 能力：complete 仍拦超限（不依赖预签名） | P2必签 | 注入 | 部分测 | api | 同 M5：complete 以 Head 为权威闸（apps/api/src/routes/documents/index.ts）；upload-url 回 `maxBytes` 但不替代 complete | 无「预签名无 max body」专用断言；gates-live 可 skip |
@@ -59,7 +59,7 @@
 |----|----------|------|------|------|------|------|------|
 | Q1 | 纯扫描 PDF 且 OCR 关 → `needs_ocr` + `NO_TEXT_LAYER`；默认 ask 检不到；admin 列表可见 | P2必签 | 单测 | 部分测 | worker | apps/worker/tests/ingest/pdf-text.test.ts（无算子 PDF → null）；apps/worker/tests/ingest/extract-text.test.ts（pdf 字节 → `NO_TEXT_LAYER`，不当 utf8 垃圾）；源码 parse 写 `status=needs_ocr`；db 闸 `needs_ocr` 不可检 | 无 pipeline 夹具断言文档 `needs_ocr`；无 ask 检不到串联；无 admin 列表可见 `needs_ocr`。无 `INGEST_OCR_ENABLED` 开关（默认即无引擎） |
 | Q2 | 有文本层制度 PDF → 可 ready（双就绪后）；active 后成员 ask 可检索 | P2必签 | 单测 | 部分测 | worker | apps/worker/tests/ingest/pdf-text.test.ts（未压缩 Tj 可抽出文本层） | 无「有文本层 PDF → ready → active → ask 可检索」；抽出文本 ≠ 双就绪 |
-| Q3 | 「仅页眉 ~20 字符」夹具 → 不得 ready；不得物化成功用的空/近空 manifest | P2必签 | 单测 | 缺测 | worker | 源码 `INGEST_MIN_EXTRACTED_CHARS` 默认 40，过短写 `needs_ocr`+`NO_TEXT_LAYER` | 无 ~20 字符页眉夹具；无「近空 manifest 不得物化成功」 |
+| Q3 | 「仅页眉 ~20 字符」夹具 → 不得 ready；不得物化成功用的空/近空 manifest | P2必签 | 单测 | 已测 | worker | apps/worker/tests/ingest/header-too-short.test.ts | ~20 字 → needs_ocr + NO_TEXT_LAYER；不得 chunk/ready / 成功 manifest |
 | Q4 | parse 后全文过短（< 阈值 / `minPassageChars` 量级）→ 不得进 chunk/ready | P2必签 | 单测 | 部分测 | worker | apps/worker/tests/ingest/split-paragraphs.test.ts（过短片段丢弃、空白壳 → `[]`）；源码全文 < 阈值走 `needs_ocr` | 无「全文 < `INGEST_MIN_EXTRACTED_CHARS` → 不得 chunk/ready」直测 |
 | Q5 | `ingest.scan` 与 `ingest.ocr` 逻辑 stage 隔离（interim 单物理队列不混 stage）；`MALWARE` 与 `OCR_*` / `NO_TEXT_LAYER` 不混用 | P2必签 | 契约 | 部分测 | contracts | packages/contracts/tests/async/ingest-job.test.ts（`INGEST_STAGES = scan,parse,chunk,embed,es_index`，无 ocr）；apps/worker/tests/ingest/queue-names.test.ts（仅 `sr-ingest`）；idempotency：`MALWARE` 与 `NO_TEXT_LAYER` 分码且均不可重试 | 无 `ingest.ocr` 逻辑 stage；无「scan/ocr 串 stage」负向；无 `OCR_*` 码 |
 | Q6 | 若启用 OCR：body 在 chunk_manifest 物化前定稿；禁 ready 后 patch body | 启用 OCR 或 P5 | 单测 | 延后 | worker | 无 OCR 引擎；无 ready 后 patch body 路径 | 待 OCR 开闸再签 |
@@ -80,7 +80,7 @@
 | V2 | 未审批时查文档：非 ready；默认 ask 不可检 | P2必签 | 单测 | 部分测 | api | apps/api/tests/ingest/approval-scan.test.ts（pending/none/rejected 不可 scan；uploaded/needs_ocr 不得 active）；ready-active-corpus / db 闸非 ready 不可检；gates-live 非 ready PATCH active → 409 | 无「未审批文档 ask 不可检」直连 |
 | V3 | 提交人 approve 自己的 ticket（默认配置）→ 拒绝（禁自审） | P2必签 | 单测 | 缺实现 | api | approve 路由不比对提交人；`uploaded_by` / `approved_by` 列未在 complete/approve 写入（packages/db/src/schema/kb/documents.ts 有列） | 无禁自审；无提交人≠审批人断言 |
 | V4 | 另一 kb admin approve → 入队 scan；其后 M/L 链可绿 | P2必签 | 注入 | 部分测 | api | approve 只改 `approval_status=approved`，scan 另 `POST …/scan`；canEnqueueScan('approved')=true（approval-scan.test.ts）；admin ops/approvals-workspace.test.tsx（有 decide 可点通过；有 `doc.upload` 显示入队 scan；**不替代 api 闸**） | approve 不自动入队；无「另一 kb_admin 通过后 scan 200」HTTP；无 M/L 衔接 |
-| V5 | admin reject：不 scan；可重提 | P2必签 | 单测 | 缺测 | api | 源码 `POST …/reject` 改 `rejected`；scan 闸拒非 approved | 无 reject HTTP 测；无「驳回后不可 scan / 可重提」 |
+| V5 | admin reject：不 scan；可重提 | P2必签 | 单测 | 部分测 | api | apps/api/tests/ingest/reject-http.test.ts | reject 200 后 scan 403 且不入队。**无独立重提 API**（rejected→pending） |
 | V6 | 伪造「跳过审批直写 ready」API → 不存在或 403 | P2必签 | 单测 | 部分测 | api | 无 PATCH status=ready 路由；worker 任意 stage 未批准 → `NOT_APPROVED`（不可重试）；canEnqueueScan 未批为 false | 无对伪造直写 ready 路径的 404/403 负向测 |
 | V7 | BlockNote 提交发布 → approve：服务端导出 MD；编辑者 UI 无强制导出步骤；进 scan 链 | P2.x | 单测 | 延后 | api | 仓内无 BlockNote；sourceType 默认 `upload` | 非本阶段；无服务端导出 MD |
 | V8 | approve 后跳过 scan 标 ready → 禁止 | P2必签 | 单测 | 部分测 | api | apps/api/tests/ingest/approval-scan.test.ts（仅 `status=ready` 可 active）；ready 仅 worker es_index 双就绪写入 | 无「approve 后直标 ready」负向 HTTP |
@@ -106,9 +106,9 @@
 
 | 覆盖 | 行数 | ID |
 |------|------|-----|
-| 已测 | 8 | E6 L6 L8 M4 M9 AA3 AA4 AA5 |
-| 部分测 | 28 | E1 E2 E3 L1 L2 L3 L4 L5 L9 M1 M2 M5 M6 M8 M10 Q1 Q2 Q4 Q5 Q10 V1 V2 V4 V6 V8 AA2 AA6 AA7 |
-| 缺测 | 3 | M3 Q3 V5 |
+| 已测 | 10 | E6 L6 L8 M3 M4 M9 Q3 AA3 AA4 AA5 |
+| 部分测 | 29 | E1 E2 E3 L1 L2 L3 L4 L5 L9 M1 M2 M5 M6 M8 M10 Q1 Q2 Q4 Q5 Q10 V1 V2 V4 V5 V6 V8 AA2 AA6 AA7 |
+| 缺测 | 0 | — |
 | 缺实现 | 6 | E4 E5 L7 M7 V3 AA1 |
 | 延后 | 8 | Q6 Q7 Q8 Q9 Q11 Q12 V7 AA8 |
 | UAT | 0 | — |
