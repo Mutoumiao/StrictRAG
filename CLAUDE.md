@@ -155,3 +155,17 @@ pnpm build | dev          # turbo
 - 用 task/sign-off 叙事覆盖源码或抬高 module-status 成熟度
 - 暗示「业务已完成 / 全文 Phase 2 完成 / 生产 ES 已上」——提交说明写清做了什么 / 未做什么
 - 删除或「精简」`prds/00–11` 已冻条款
+
+## Agent skills
+
+### Issue tracker
+
+工单以 markdown 文件存在 `.scratch/<feature>/`。See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+五类角色标签名等于角色名：`needs-triage`、`needs-info`、`ready-for-agent`、`ready-for-human`、`wontfix`。See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+single-context：根目录一份 `CONTEXT.md`，ADR 约定在 `docs/adr/`。See `docs/agents/domain.md`.
