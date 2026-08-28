@@ -30,6 +30,7 @@ Status: open
 - [裁定第三批 P2 执行顺序](./issues/08-third-p2-execution-order.md) — 四块全收串行：检索补钉→ask 审计→web 消费→评测；未进 §6 半接线与前批明确不做全划出；LangGraph 硬性标准、源码需重构。
 - [检索语义补钉](./issues/09-retrieval-semantics-patch.md) — ES 查询期 tenantId+kbId、sparse_unavailable、档位 retrieveK 60/10、Mongo chunk_bodies 批取；dense 查询期 WHERE / 生效区间 / 召回扩展划出。
 - [ask 审计与引用](./issues/10-ask-audit-citations.md) — `GET /ask/:requestId` 成员闸回读当时 evidence_snapshot + graph_trace；web 引用点回快照；断线重拉 / 审计管理台 / Langfuse SDK 划出。
+- [web 消费余量](./issues/11-web-consumption-remainder.md) — 档位读 ask-modes 并传 mode；无库空态阻断；建议动作主按钮；429 配额文案；反馈报错/缺文档。库选择器只列成员库 / 在线编写划出。
 
 ## Not yet specified
 
