@@ -5,7 +5,7 @@
 | 规则 | 说明 |
 |------|------|
 | 拒答可见 | 失败 reason / userMessage 映射用户文案；禁止伪装成成功答案 |
-| citations | 仅展示服务端返回的合法 id；不可前端「补编」引用 |
+| citations | 仅展示服务端返回的合法 id；不可前端「补编」引用；点回走 `GET /ask/:requestId` **当时快照**（preview 截断），禁止当 `chunk.view` 现网全文 |
 | options | 只传白名单：stream / debug / mode / locale |
 | scope | 产品检索 scope（如 `docTypes`）放在 **请求顶层** `scope`，**禁止**塞进 `options`（ADR-050） |
 | 流式终态 | **只信 `data-ask-final`**（`AskResponseSchema.safeParse` 通过后才更新 answered/abstained） |
@@ -43,6 +43,7 @@
 | 会话 API | `src/api/sessions.ts` → api sessions 路由 |
 | 会话编排 | `src/services/sessions.services.ts`（无 path） |
 | 反馈 API | `src/api/feedback.ts` · UI：`ask-panel` FeedbackBar |
+| 引用回溯 | `src/api/ask.ts` `getAskAudit` → `GET /api/v1/ask/:requestId`；UI：`CitationBlock` |
 | 身份 API | `src/auth/api.ts` |
 | 客户端 env | `env.client.ts` → 仅公开 API base 等 `NEXT_PUBLIC_*` |
 

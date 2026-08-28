@@ -16,7 +16,7 @@ apps/web/src/
   lib/http.ts
   auth/api.ts · client-session.ts
   api/                    # 集中：按资源域
-    ask.ts                # transport 装配（无业务 path 外泄到 UI）
+    ask.ts                # transport 装配 + GET /ask/:requestId 审计（无业务 path 外泄到 UI）
     sessions.ts
     feedback.ts
     knowledge-bases.ts    # GET 身份可见库

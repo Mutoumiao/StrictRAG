@@ -38,6 +38,7 @@
 | 方法 | 路径 | 中间件 | 说明 |
 |------|------|--------|------|
 | `POST` | `/api/v1/knowledge-bases/:kbId/ask` | `requireKbMember` **始终** | 同步 JSON；stream → **AI SDK UI Message Stream**（见下） |
+| `GET` | `/api/v1/ask/:requestId` | 登录 + 该 trace 的 KB 成员（`evaluateKbMember`；超管旁路） | **审计回溯**：当时 `evidence_snapshot`（preview 截断）+ `graph_trace`；**禁止**当断线重拉；**禁止**经此通道返回正文 `text`/`body` |
 | `POST` | `/api/v1/knowledge-bases/:kbId/sessions` | 成员闸 | **建会话壳**（X-29）；body `CreateSessionBodySchema`（`title?`）；**201** + `SessionSummary` |
 | `GET` | `/api/v1/knowledge-bases/:kbId/sessions` | 成员闸 | 列表（仅本人线程；query `SessionListQuerySchema`） |
 | `GET` | `/api/v1/knowledge-bases/:kbId/sessions/:sessionId` | 成员闸 + 本人 | 详情/历史壳；历史 **≠** evidence |

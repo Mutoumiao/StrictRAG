@@ -17,6 +17,7 @@
 - [ ] 是否禁止自写 SSE 分帧（须 `@ai-sdk/react` + transport）？  
 - [ ] 拒答/错误「重试」是否用 `lastQuestion`（不依赖提交后已空的输入框）？  
 - [ ] 反馈是否走 `src/api/feedback.ts` → `POST /api/v1/ask/:requestId/feedback`（类型来自 contracts）？  
+- [ ] 引用点回是否走 `getAskAudit` → `GET /api/v1/ask/:requestId` 当时快照（禁止现网 `chunk.view` 全文、禁止前端补编）？  
 - [ ] 会话存储 key 是否仅为 `strict-rag:web:client-session`？  
 - [ ] 业务 HTTP / path 是否只在 `src/api/*` 或 `auth/api`，传输在 `lib/http`？  
 - [ ] services（若有）是否禁止写 URL、只调 api？hooks 是否不与 services 双轨编排？  

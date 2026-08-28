@@ -13,6 +13,7 @@
 - [ ] 触及 ask / 检索 / 验证时是否读 [quality-redlines](../../guides/quality-redlines.md) + [ask-pipeline](./ask-pipeline.md) + `docs/testing/p0-redlines.md`（R7–R9）？  
 - [ ] 权限是否 **以码为准**（读 [auth-authorization](./auth-authorization.md)）；改角色是否 `invalidateRoleCache`？  
 - [ ] ask / sessions / members / **chunks** / **kb settings** / **model-gateway** / **users·roles** / **departments** / **dashboard** / **feedback.queue** 是否 **始终**验码（与 `AUTH_ENFORCE` 无关）？平台码无 kb 成员闸  
+- [ ] `GET /ask/:requestId` 是否走该 trace 的 KB 成员闸、只回 snapshot+trace、**禁止**当断线重拉 / 禁止漏正文？  
 - [ ] complete/reindex 是否读 [chunk-strategies](./chunk-strategies.md)（多策略禁静默 default）？  
 - [ ] Gateway/rerank 是否读 [model-gateway](./model-gateway.md)（双节点 · 无假 answered）？  
 - [ ] 新登录/refresh/会话/ask 字段是否改 contracts + 双端 http？  

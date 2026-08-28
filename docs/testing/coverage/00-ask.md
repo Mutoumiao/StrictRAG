@@ -42,7 +42,7 @@
 |----|----------|------|------|------|------|------|------|
 | F1 | 四真一假 claim 整答拒答 | P2必签 | 单测 | 已测 | apps/api | apps/api/tests/ask/min-veto.test.ts | — |
 | F2 | answered citations 均在 evidence 内 | P2必签 | 单测 | 已测 | apps/api | apps/api/tests/ask/citations.test.ts | — |
-| F3 | 历史 requestId 查询 evidence_snapshot 仍在（即使 reindex 后） | P2必签 | 单测 | 部分测 | apps/api | apps/api/tests/ask/execute-trace.test.ts | 落库快照；无 reindex 后按历史 requestId 回读 |
+| F3 | 历史 requestId 查询 evidence_snapshot 仍在（即使 reindex 后） | P2必签 | 单测 | 已测 | apps/api | apps/api/tests/ask/http-audit.test.ts（reindex 后仍回读落库快照）；落库见 `execute-trace.test.ts` | — |
 
 ## 剧本 H · 韧性与入口防护
 
