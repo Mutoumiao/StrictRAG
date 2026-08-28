@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（S2c 运营薄壳：文档 / 审批 / 成员 / 分片 / 设置 / 模型 + 用户 / 角色 / 部门 + **数据面板** + **反馈队列**） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT + admin **dev-login**（经 api）· 知识库 = 手工填写 uuid · 菜单 = `clipMenuForShell` 裁剪（catalog 为 SSOT）· API 默认 `http://127.0.0.1:4000` |
 | 关联模块 | API 依赖：`api` 的文档 / 审批 / 成员 / 分片 / 设置 / 模型 / 用户角色 / 部门 / dashboard / **feedback-queue**；菜单与权限码：`admin-catalog`；类型：`contracts`；样式：`ui` |
-| 最近更新 | 2026-08-28（顶栏建库入口：`kb.create` · 名称 + 首位库管预填当前用户） |
+| 最近更新 | 2026-08-28（分片策略设置弹窗：启用 + MIME 族 recommended；上传走 for-upload） |
 | Spec | `.trellis/spec/admin/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · 审批 / 成员相关 API |
 
@@ -37,6 +37,7 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 - `/documents`：按知识库拉取文档列表；表格展示部门 / 可见级 / status / approval / lifecycle / **向量 / 稀疏就绪**（有树时部门列显示名，否则 uuid；可见级默认中文标签；可按部门/可见级**本地**筛，不加 GET query；审批操作在审批页进行；稀疏就绪 **≠** 生产 ES）
 - 点行改 `ownerDeptId` / `visibilityLevel`：有 `dept.manage` 用部门下拉，否则 uuid 粘贴；`doc.editor` 裁保存
 - `DocumentListItem` 的 `embedReady` / `esReady` **已渲染**为向量/稀疏列（适配层标志，**≠** 生产 ES）
+- 上传走 `for-upload` 人选（仅 1 个自动 complete；≥2 弹出策略下拉）；**不是**写死 `structure_paragraph`
 
 ### 分片只读（B1）
 - `/chunks`：选择文档 → 查看 preview 列表（**limit=50 游标分页 + 底部「加载更多」**）→ **点击后**才拉取该分片的完整正文；无 `chunk.view` 权限时显示 403 状态
@@ -44,10 +45,10 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 - **禁止**在页面挂载时批量预拉所有分片全文
 
 ### 知识库设置（B2）
-- `/kb/settings`：基本信息、**语料分级 `dataClass`**、**部门强制勾选**、**部门继承勾选**、问答档位、**质量只读展示**、**rewrite 锁定开关**（无开启控件）
-- 需要 `kb.config.write` 权限；无权限时显示 403 状态；数据路径仅 `kb/settings/api.ts` 一处
+- `/kb/settings`：基本信息、**语料分级 `dataClass`**、**部门强制勾选**、**部门继承勾选**、问答档位、**分片策略弹窗（启用 + 各 MIME 族 recommended）**、**质量只读展示**、**rewrite 锁定开关**（无开启控件）
+- 需要 `kb.config.write` 权限；无权限时显示 403 状态；数据路径仅 `kb/settings/api.ts` 一处（上传 `for-upload` 在 documents `api.ts`）
 - `dataClass=sensitive` **≠** 已解禁（complete 闸仍 fail-closed）；`deptInheritDown` 可勾选，**未改不得写回** GET 缺省 true；`deptAclEnforce` 可勾选，**未改不得写回** GET 缺省 false（避免钉成显式关）；勾选本库强制 **≠** 仓库默认开 / **≠** ES 已对称
-- **没有** τ 滑块、**没有**供应商 Key 配置、**没有** docTypes / 分片策略弹窗 / 知识库模型绑定分区
+- **没有** τ 滑块、**没有**供应商 Key 配置、**没有** paramSchema 动态表单 / 平台策略 CRUD 页；改策略启用不自动 reindex
 
 ### 模型网关（B3 最小集）
 - `/models`：供应商列表 / 新建 / 编辑 / 删除（预设、baseUrl、Key 密码框、模型表可逐行编辑**类型 / 启用 / dims**）+ **平台级 purpose 绑定**（catalog 下拉选择）
@@ -98,10 +99,10 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 
 | 项 | 说明 |
 |----|------|
-| 知识库设置全量项（docTypes / 分片策略 / KB 级模型绑定） | B2 最小已落地；全量项仍挂账 |
+| 知识库设置全量项（docTypes 分区 CRUD / paramSchema 动态表单 / 平台策略 CRUD / KB 级 generate·rerank 绑定） | B2 最小 + 策略启用弹窗已落地；全量项仍挂账 |
 | APM / 时序大盘 / 告警 | B6 仅为只读计数摘要，**不是**观测生产向 |
 | 按历史 indexVersion 浏览分片的 UI | ADR-052 明确不做 |
-| 文档上传 UI | 列表只读；上传走 API 或其他入口 |
+| Reindex 列表按钮 | 下一张工单「文档运营余量最小闭环」 |
 | 部分 API 封装符号未接线 | `patchPlatformRole` / `getDocument` / `listFeedbackQueue(status)` 等封装已写但当前 UI 未调用 |
 | 完整运营 IA / 多知识库选择器 | 目前手填 uuid；不是产品级的库管体验 |
 | 生产视觉 / product.pen **像素级**定稿 | 已使用 Soft Bento token + ui 组件；**并非**对 product.pen 的全屏像素还原 |

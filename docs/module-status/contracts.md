@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（支撑 P0/P1 入库 + S2 问答/会话/反馈/成员 + B1–B6 运营契约 + **B12 策略码 / ingest job**；**非**全量 OpenAPI） |
 | 默认依赖模式 | 纯库；无运行时开关 |
 | 关联模块 | 被 `api` · `worker` · `web` · `admin` 消费；是全仓错误码、响应信封、队列名与 **可写分片策略集** 的唯一来源 |
-| 最近更新 | 2026-08-28（`CreateKbBodySchema` 必填 `initialAdminUserId`，不收 body `tenantId`） |
+| 最近更新 | 2026-08-28（策略三层 catalog / for-upload / PATCH 契约；`docFamilyFromContentType`） |
 | Spec | `.trellis/spec/contracts/library/` |
 | PRD | `prds/05-api` · 各域契约与 PRD 短名对齐 |
 
@@ -36,7 +36,8 @@
 - **策略码 SSOT**（`ingest/chunk-strategy.ts`）：
   - `KNOWN`：`structure_paragraph` · `fixed_window` · `heading_sections`（含未实现 roadmap）
   - **`IMPLEMENTED`：仅 `structure_paragraph`**（可写库 / worker 可执行 ⊆ 此集）
-  - `DEFAULT_CHUNK_STRATEGY` · `isImplementedChunkStrategy`
+  - `DEFAULT_CHUNK_STRATEGY` · `isImplementedChunkStrategy` · `CHUNK_STRATEGY_PLATFORM_SEED` · `docFamilyFromContentType`
+  - catalog HTTP：`ForUploadQuerySchema` / `PatchKbChunkStrategiesBodySchema` / `ChunkStrategyCatalogResponseSchema`
   - **禁止**把 KNOWN 未实现码当成可写入已交付
 
 ### 问答（S2）

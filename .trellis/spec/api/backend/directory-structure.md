@@ -34,6 +34,7 @@ apps/api/
       sessions.ts            # 会话壳（rewrite 默认关；图边在 graph/run.ts）
       feedback.ts            # B13：POST/PATCH 用 evaluateKbMember / checkPermission({ kbId })
       kb-settings.ts         # B2/B2-W 知识库设置
+      chunk-strategies.ts    # ADR-053 catalog / schema / for-upload / PATCH
       model-gateway.ts       # B3 模型供应商 + 平台绑定
       platform-users-roles.ts # B4（写路径 invalidateRoleCache）
       departments.ts         # B5

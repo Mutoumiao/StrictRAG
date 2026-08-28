@@ -1,9 +1,10 @@
 # api · 分片策略注册表（ADR-053 / B12 · X-03 真 SSOT）
 
-> 路径：`apps/api/src/services/chunk-strategies.ts` · 挂载 `routes/documents/` complete / reindex  
-> **实现集合 SSOT**：`@strict-rag/contracts` → `IMPLEMENTED_CHUNK_STRATEGIES` / `isImplementedChunkStrategy`  
-> 契约 body：`packages/contracts` document complete/reindex 的 `chunkStrategy?`  
-> PRD：ADR-053 · 剧本 AA · task `08-11-b12-chunk-strategies` · 假 SSOT 清债 `08-12-spec-w1-chunk-strategy-truth`
+> 路径：`apps/api/src/services/chunk-strategy-catalog.ts`（表）· `chunk-strategies.ts`（写入闸）· `routes/chunk-strategies.ts`  
+> **实现集合 SSOT**：`@strict-rag/contracts` → `IMPLEMENTED_CHUNK_STRATEGIES`（可写 ⊆ 此集）  
+> **表权威**：`chunk_strategy_definitions` + `kb_chunk_strategies`（种子来自 `CHUNK_STRATEGY_PLATFORM_SEED`）  
+> 契约：complete/reindex `chunkStrategy?`；catalog / schema / for-upload / PATCH 见 `chunk-strategy.contract.ts`  
+> PRD：ADR-053 · 功能表 §4.5 · 剧本 AA
 
 ---
 
@@ -17,7 +18,7 @@
 | 增删 catalog / 扩实现 | contracts `IMPLEMENTED_*` 与 api REGISTRY 对齐 |
 | 旧文档策略 | **禁止**因注册表变更自动切换既有 `documents.chunkStrategy` |
 
-**不在范围**：admin 策略运营大盘 UI；worker 内第二套注册表；未实现算法冒充已上线。
+**不在范围**：平台注册表运营 CRUD 页；paramSchema 动态表单引擎；worker 新算法；OCR；自动全库 reindex。
 
 ### 2. 两层集合（防假 SSOT）
 
@@ -53,14 +54,14 @@ resolveDocumentChunkStrategy({ existing, requested, requireExplicit? })
 | `DEFAULT_CHUNK_STRATEGY` | `structure_paragraph` |
 | catalog 种子 | 三码（其中仅 default 的 `implemented=true`） |
 
-**HTTP 挂载**（`routes/documents/index.ts`）：
+**HTTP 挂载**：
 
 | 路径 | 策略行为 |
 |------|----------|
-| complete（catalog 多码且文档**无**既有 strategy） | `requireExplicit=true` → body 必带 `chunkStrategy` 且须 **implemented** |
-| complete（已有 **implemented** strategy） | 可省略 → **保留**；显式未实现码 → 400 |
-| reindex（catalog length > 1） | 必带 **`chunkStrategy`**；码须 implemented；旧脏数据（如曾写入未实现码）须显式改到已实现 |
-| reindex 显式新已实现策略 | `changed=true`；审计日志含 code |
+| `GET …/chunk-strategies` · `/schema` · `PATCH` | `kb.config.write`；PATCH 写 `kb_chunk_strategies` |
+| `GET …/chunk-strategies/for-upload?contentType=` | 库启用 ∩ 文档族 ∩ **implemented**；仅 1 个 → `autoCode`；≥2 → `requireExplicit` |
+| complete | 走 for-upload available：仅 1 个可省略自动；≥2 未选 → 400；写入 `chunk_strategy` + `chunk_strategy_params` 快照 |
+| reindex | 同上 available 计数；既有已实现且仍 available 可省略保留；脏未实现省略 → 400 |
 
 ### Wire 字段名（X-12 · ADR-059）
 

@@ -68,6 +68,14 @@
 - **禁止**把 ask SSE 做成 admin 默认首页（用户端在 web）  
 - **禁止**无 `feedback.queue` 时前端假装可关单（按钮可见 ≠ API 授权）
 
+### Convention: 分片策略设置与上传人选
+
+**What**：知识库设置「分片策略」分区用弹窗启用码 + 各 MIME 族 recommended；上传走 `for-upload` 人选，禁止写死 `structure_paragraph`。改库启用不自动 reindex。
+
+**Why**：ADR-053 三层最小闭环；Reindex 列表按钮仍属下一张工单。
+
+**Related**：api `routes/chunk-strategies.ts`；设置 HTTP 在 `kb/settings/api.ts`，上传 `for-upload` 在 `documents/api.ts`。
+
 ### Convention: 建库入口
 
 **What**：有 `kb.create` 才在顶栏 KB 选择器旁显示「创建知识库」；表单 = 名称 + 首位库管（预填当前用户、可改）。成功后写入 `last-kb-id`。

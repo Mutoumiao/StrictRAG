@@ -91,13 +91,13 @@
 
 | ID | 期望摘要 | 阶段 | 形态 | 覆盖 | 主包 | 证据 | 缺口 |
 |----|----------|------|------|------|------|------|------|
-| AA1 | 改 KB 某策略参数并保存：200；有审计日志；旧文档 chunk 边界/version 不变 | P2必签 | 单测 | 缺实现 | api | KB settings 白名单无策略参数；admin 设置页仅只读展示 `IMPLEMENTED_CHUNK_STRATEGIES`，声明「禁止因本页自动切换旧文档」。审计中间件覆盖 settings PATCH（apps/api/tests/obs/admin-write-audit.test.ts）但不含策略参数写 | 无 KB 策略参数保存 API；无「旧文档 version 不变」 |
-| AA2 | 新上传类型仅 1 策略 → 自动该策略；流水线用其参数快照 | P2必签 | 单测 | 部分测 | api | apps/api/tests/ingest/chunk-strategies.test.ts（未传可解析默认 `structure_paragraph`）；admin document-upload.test.ts（complete 带 implemented 策略） | 现行 catalog 恒多策略（含 roadmap 码），complete 走强制显式；无「类型仅 1 策略自动选用」；无参数快照 |
-| AA3 | 新上传类型 ≥2 策略且未选 → 400 | P2必签 | 契约 | 已测 | api | apps/api/tests/ingest/chunk-strategies.test.ts（`requireExplicit` 未传 → `chunkStrategy is required`）；apps/api/tests/ingest/reindex-strategy.test.ts（complete 未带 → 400） | — |
-| AA4 | 同上选 recommended 或另一策略 → 200 进审批/流水线；文档记录 `chunk_strategy` | P2必签 | 注入 | 已测 | api | apps/api/tests/ingest/reindex-strategy.test.ts（complete 显式 `structure_paragraph` → 200 并落库；未实现码 → 400 不静默 default） | 无「recommended」产品标签；可写集仅 `structure_paragraph` |
+| AA1 | 改 KB 某策略参数并保存：200；有审计日志；旧文档 chunk 边界/version 不变 | P2必签 | 单测 | 缺实现 | api | PATCH 可写启用/recommended（`tests/kb/chunk-strategies-http.test.ts`）；admin 弹窗声明不自动 reindex。无 paramOverrides 运营表单、无「旧文档 version 不变」断言 | 动态 paramSchema 引擎与审计查询面不在本张最小闭环 |
+| AA2 | 新上传类型仅 1 策略 → 自动该策略；流水线用其参数快照 | P2必签 | 单测 | 已测 | api | `tests/ingest/reindex-strategy.test.ts`（complete 未带 → 200 auto + params 快照）；`chunk-strategies.test.ts` 绑定仅 1 个自动 | 可写集仍仅 `structure_paragraph` |
+| AA3 | 新上传类型 ≥2 策略且未选 → 400 | P2必签 | 契约 | 已测 | api | `tests/ingest/chunk-strategies.test.ts`（`resolveBindChunkStrategy` ≥2 未传 → required） | P2 仅 1 个已实现，HTTP 多策略要等第二套 worker 算法 |
+| AA4 | 同上选 recommended 或另一策略 → 200 进审批/流水线；文档记录 `chunk_strategy` | P2必签 | 注入 | 已测 | api | complete 显式已实现 → 200 落库；for-upload 带 `recommendedCode`；未实现码 400 | 可写集仅 `structure_paragraph` |
 | AA5 | 文档列表点 Reindex，类型多策略且 body 无 `chunkStrategy` → 400 `VALIDATION_ERROR` | P2必签 | 注入 | 已测 | api | apps/api/tests/ingest/reindex-strategy.test.ts（reindex 未带 → 400，message `/chunkStrategy is required/i`，不写库）；路由 `BizCode.VALIDATION_ERROR` | 测例未直断言 `error.code=VALIDATION_ERROR`（status 400 + 文案已覆盖） |
 | AA6 | 传合法 `chunkStrategy` 后 reindex：新 indexVersion；成功后检索用新切块 | P2必签 | 注入 | 部分测 | api | apps/api/tests/ingest/reindex-strategy.test.ts（显式已实现 → 200 入队 `stage=chunk`）；worker 首跑/reindex 抬 `indexVersion` 并冻结 manifest | 无新 indexVersion 断言；无「检索用新切块」 |
-| AA7 | 无 `kb.config.write` 改策略配置 → 403 | P2必签 | 单测 | 部分测 | api | apps/api/tests/kb/settings-http.test.ts（`doc_operator` 无 `kb.config.write` → 403 `FORBIDDEN`） | 策略参数写面未单列（见 AA1）；本行只盖到 settings 总闸 |
+| AA7 | 无 `kb.config.write` 改策略配置 → 403 | P2必签 | 单测 | 已测 | api | `tests/kb/chunk-strategies-http.test.ts`（`doc_operator` 列表 403）；settings 总闸仍在 `settings-http.test.ts` | — |
 | AA8 | OCR 策略在 OCR 未启用时：不可选或选后 `needs_ocr`（服 043）；不因此 P2 启引擎 | 与 OCR 开关一致 | 单测 | 延后 | api | `KNOWN_CHUNK_STRATEGY_CODES` 无 OCR 策略；worker 无 OCR 引擎（对照 Q10） | 无 OCR 策略码可选；待 OCR 开闸与开关对齐 |
 
 ## 本分册计数
@@ -106,8 +106,8 @@
 
 | 覆盖 | 行数 | ID |
 |------|------|-----|
-| 已测 | 10 | E6 L6 L8 M3 M4 M9 Q3 AA3 AA4 AA5 |
-| 部分测 | 29 | E1 E2 E3 L1 L2 L3 L4 L5 L9 M1 M2 M5 M6 M8 M10 Q1 Q2 Q4 Q5 Q10 V1 V2 V4 V5 V6 V8 AA2 AA6 AA7 |
+| 已测 | 12 | E6 L6 L8 M3 M4 M9 Q3 AA2 AA3 AA4 AA5 AA7 |
+| 部分测 | 27 | E1 E2 E3 L1 L2 L3 L4 L5 L9 M1 M2 M5 M6 M8 M10 Q1 Q2 Q4 Q5 Q10 V1 V2 V4 V5 V6 V8 AA6 |
 | 缺测 | 0 | — |
 | 缺实现 | 6 | E4 E5 L7 M7 V3 AA1 |
 | 延后 | 8 | Q6 Q7 Q8 Q9 Q11 Q12 V7 AA8 |

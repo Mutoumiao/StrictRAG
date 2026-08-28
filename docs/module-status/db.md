@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（schema + client + 检索谓词底座；**无**业务服务层） |
 | 默认依赖模式 | 需要调用方提供 `DATABASE_URL`；时间列使用本地格式字符串（见 ORM PRD） |
 | 关联模块 | `api` 与 `worker` 共用 client / schema；检索闸门谓词被 api retrieve 复用 |
-| 最近更新 | 2026-08-20（enforce 开时 api 读 grant 精确 ∪ 祖先部门子树） |
+| 最近更新 | 2026-08-28（`chunk_strategy_definitions` + `kb_chunk_strategies`，migration `0009`） |
 | Spec | `.trellis/spec/db/backend/` |
 | PRD | `prds/03-data` · `prds/02-engineering/02-orm-drizzle.md` |
 
@@ -36,14 +36,15 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 - `chunk_embeddings`：**`embedding` 列为 jsonb `number[]`**（演示 mock 向量；**不是** native pgvector/`vector` 列）
 - `ingest_jobs`：schema 已有；**worker** `job-ledger` 按阶段边界最小写（**非**本包服务层；无查询 API；同 doc 锁在 worker Redis 侧）
 - `kb_members`
+- **ADR-053**：`chunk_strategy_definitions` · `kb_chunk_strategies`（migration `0009_chunk_strategy_layers`）
 
 ### Schema · ask（S2）
 - `ask_sessions` · `ask_traces`（含 evidence 快照类型）· `ask_feedback`
 - **B10-followup / P2.5-L2P**：`eval_runs`（L1 `golden_2x2` / L2 `session_multiturn`；L2 `signoff_eligible` 恒 0；migration `0006_b10_eval_runs`）
 - schema 单测：`tests/ask/ask-schema.test.ts`
 
-### Migrations（journal 8 条）
-- `0000_phase0_schema_meta` → `0007_p3b_doc_dept_meta`（`drizzle/meta/_journal.json`）
+### Migrations（journal 10 条，idx 0–9）
+- `0000_phase0_schema_meta` → `0009_chunk_strategy_layers`（`drizzle/meta/_journal.json`）
 - 脚本：`db:generate` / `db:migrate` / `db:studio`（运维产品化流水线 **不**在本包宣称）
 
 ### 查询谓词
