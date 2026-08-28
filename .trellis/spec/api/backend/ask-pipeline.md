@@ -212,6 +212,17 @@ route
 - 每次 `chargeAndChat` / retrieve 前 `tryCharge*`；不足 → **立即** `budget_exhausted`，**禁止**跳过节点假完成。  
 - 客户端 **不可**覆盖预算或 `tauClaim`（env `TAU_CLAIM` 唯一源）。
 
+##### 检索预算（`retrieveBudgetForMode` · mode 默认）
+
+| mode | retrieveK | rerankTopN |
+|------|----------:|-----------:|
+| fast | 60 | 10 |
+| balanced | 150 | 20 |
+| strict | 150 | 20 |
+
+- 仅服务端按 `state.mode` 注入 `RetrieveInput.retrieveK/rerankTopN`；客户端 **禁止**透传（contracts `options` 无这两键）。  
+- ES sparse 失败 → `sparse_unavailable`（禁止并入模糊 `internal_guard`）；`http` 无 sparseSearch（配置错）仍 `internal_guard`。
+
 ##### **未**实现的边（禁止 HOW/代码假接线）
 
 | PRD/路线图概念 | 当前行为 |
@@ -264,15 +275,16 @@ route
 | Key | 默认 | 说明 |
 |-----|------|------|
 | `TAU_CLAIM` | `0.5` | 验证门槛 **唯一**源；禁止客户端覆盖 |
-| `RETRIEVE_ES_MODE` | `mock` | `http` = ES sparse 切片（OPS-1；需 `ELASTICSEARCH_URL`）；失败 loud，禁回落 mock |
+| `RETRIEVE_ES_MODE` | `mock` | `http` = ES sparse 切片（OPS-1；需 `ELASTICSEARCH_URL`）；查询期强制 tenantId+kbId filter；失败 loud，禁回落 mock |
 | `ELASTIC_INDEX` | `strict_rag_dev` | 仅 `http` 模式；**≠** 多租户 B8 |
+| `MONGODB_URL` | 空 | 非空时检索融合后从 Mongo `chunk_bodies` 批取权威正文（缺块 fail-closed，禁回退 PG 演示）；空 = 演示回退 PG `body_text` |
 | `GATEWAY_MODE` | 空→按 URL 推断 | 无 `GATEWAY_BASE_URL` → mock |
 | `GATEWAY_RERANK_FALLBACK_URL` | 空 | QUAL-3 第二 rerank 节点 |
 | `RERANK_MIN_NODES` | 按 `APP_ENV` | staging/prod 默认 2；dev/test 默认 1；见 [model-gateway](./model-gateway.md) §9 |
 | `SESSION_REWRITE_ENABLED` | `false` | dogfood 可 `true`；**禁止**仓库默认改 true |
 | `ASK_RATE_LIMIT_RPM` | `0` | 0=关闭 |
 | `AUTH_ENFORCE` | `false` | **不影响** ask 成员闸（始终 enforce 成员） |
-| `DEPT_ACL_ENFORCE` | `false` | 开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树（无树/缺节点只精确；grant 子树不读 inheritDown）；超管 `roleBypassesKbMembership` 绕过；列表同滤；**无** ES 查询期 / **禁止**默认改 true |
+| `DEPT_ACL_ENFORCE` | `false` | 开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树（无树/缺节点只精确；grant 子树不读 inheritDown）；超管 `roleBypassesKbMembership` 绕过；列表同滤；ES 查询期已强制 tenantId+kbId，部门/ACL principals 查询期对称仍无 / **禁止**默认改 true |
 | `DEPT_INHERIT_DOWN` | `true` | 仅 `'false'` 关祖先；精确+grant 仍在；**禁止**默认改 false |
 | `LANGFUSE_ENABLED` | `false` | 真 SDK 不阻塞 ask |
 | `OBS_MEMORY_TRACE` | `true` | 进程内 tracer |
@@ -400,6 +412,18 @@ return c.json(okEnvelope(response), httpStatus);
 **Decision**：`RETRIEVE_ES_MODE=default mock`（PG chunk 文本替身）；`http` = OPS-1 ES BM25 切片（`es-sparse.ts`）；全文 B8 仍延期。签字 profile：`docs/ops/live-retrieve-profile.md`。
 
 **禁止话术**：「生产 Elasticsearch 已上」。
+
+---
+
+## Design Decision: 检索期 tenantId 强制 + 融合后 Mongo 正文批取
+
+**Context**：共享索引必须在 ES 查询期强制租户隔离，不能事后交 PG；证据正文权威在 Mongo，不能单点读 PG 演示正文。
+
+**Decision**：
+- `buildAclFilter({tenantId, kbId})`（`services/retrieve/es-sparse.ts`）供 ES 查询共用；`status/lifecycle/indexVersion` 闸门仍由 PG corpus（`loadCorpusFromDb`）对称承载；dense 侧不做 pgvector 查询期 WHERE（B8 分层）。
+- RRF 融合后按 chunkIds 批取 Mongo `chunk_bodies`（`services/retrieve/mongo-body.ts`），切片口径 `contextPrefix + "\n" + text`；缺块/拉取失败 → `internal_guard`，**禁止**回退 PG。`MONGODB_URL` 空 = 演示回退 PG `body_text`。
+
+**Related**：`services/retrieve/retrieve.ts` · `graph/budget.ts` `retrieveBudgetForMode`。
 
 ---
 
