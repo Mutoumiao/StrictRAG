@@ -43,6 +43,7 @@ describe('documents mappers（ARCH-P1a 域内纯函数）', () => {
     expect(item.errorCode).toBeNull();
     expect(item.embedReady).toBe(true);
     expect(item.esReady).toBe(false);
+    expect(item.docType).toBe('policy');
   });
 
   it('toDetail 含租户/KB 与元数据', () => {

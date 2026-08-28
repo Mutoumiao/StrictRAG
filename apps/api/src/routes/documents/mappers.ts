@@ -45,6 +45,7 @@ export function toListItem(r: DocMapSource): DocumentListItem {
     esReady: r.esReady === 1,
     ownerDeptId: r.ownerDeptId ?? null,
     visibilityLevel: (r.visibilityLevel ?? 20) as VisibilityLevel,
+    docType: r.docType ?? null,
   };
 }
 

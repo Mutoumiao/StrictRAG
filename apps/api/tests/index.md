@@ -94,6 +94,8 @@
 | `ingest/chunks-query.test.ts` | 分片只读查询返回 preview/body 契约。 | ADR-052 · B1 | `buildPreview / buildBody` | 分片只读查询。 | 现行 |
 | `ingest/complete-size.test.ts` | complete 体积超限必须拒绝。 | 上传/complete 限 | `checkUploadByteSize` | complete 体积闸。 | 现行 |
 | `ingest/document-mappers.test.ts` | 文档列表/详情 DTO 映射稳定。 | 基建: 文档 DTO 映射 | `document mappers` | 纯函数。 | 现行 |
+| `ingest/document-doctype.test.ts` | 文档类型 PATCH 必须属于该 KB 已有枚举，非法码须 400。 | 功能表 §4.3 | `PATCH /documents/:docId docType · assertDocTypeAllowed` | 空枚举不可写非空码。 | 现行 |
+| `ingest/document-lifecycle-http.test.ts` | 文档 lifecycle 四态可写；上架仍须 status=ready。 | 功能表 §4.3 | `PATCH /documents/:docId/lifecycle` | 不测生效区间。 | 现行 |
 | `ingest/document-meta.test.ts` | 文档元数据 PATCH 正确处理部门两字段。 | P3b-META | `documents meta PATCH` | 部门两字段。 | 现行 |
 | `ingest/document-validation.test.ts` | 文档写入校验拒绝非法字段。 | 入库 HTTP | `documents validation` | 文档写入校验。 | 现行 |
 | `ingest/gates-live.test.ts` | live 闸组合在真实 handler 下拒绝未审批 complete。 | complete 闸 | `createApp document gates` | 无 Docker / not ready 时 skip。 | 现行 |

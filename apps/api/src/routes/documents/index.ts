@@ -36,10 +36,12 @@ import { ingestJobsRepo } from '../../services/ingest-jobs.js';
 import { selectVisibleKbs, toKbListItem } from '../../services/kb-list.js';
 import { DEV_DEFAULT_TENANT } from '../../services/members.js';
 import {
+  assertDocTypeAllowed,
   isSensitiveCompleteBlocked,
   parseDataClassFromConfig,
   parseDeptAclEnforceFromConfig,
   parseDeptInheritDownFromConfig,
+  parseDocTypesFromConfig,
   resolveDeptAclEnforce,
   resolveDeptInheritDown,
 } from '../../services/kb-settings.js';
@@ -492,7 +494,7 @@ documentRoutes.patch(
   },
 );
 
-/** PATCH /api/v1/documents/:docId — 只写 ownerDeptId / visibilityLevel；不改 lifecycle、不入队 */
+/** PATCH /api/v1/documents/:docId — 部门 / 可见级 / 类型；不改 lifecycle、不入队 */
 documentRoutes.patch('/documents/:docId', requirePermission('doc.editor'), async (c) => {
   const docId = c.req.param('docId');
   const parsed = PatchDocumentMetaBodySchema.safeParse(await c.req.json().catch(() => ({})));
@@ -505,9 +507,19 @@ documentRoutes.patch('/documents/:docId', requirePermission('doc.editor'), async
     return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
   }
 
+  if (parsed.data.docType !== undefined) {
+    const kb = await documentRepo.getKb(doc.kbId);
+    const allowed = parseDocTypesFromConfig(kb?.configJson ?? null);
+    const gate = assertDocTypeAllowed(allowed, parsed.data.docType);
+    if (!gate.ok) {
+      return fail(c, BizCode.VALIDATION_ERROR, gate.message, 400);
+    }
+  }
+
   await documentRepo.patchMeta(docId, {
     ownerDeptId: parsed.data.ownerDeptId,
     visibilityLevel: parsed.data.visibilityLevel,
+    docType: parsed.data.docType,
   });
   const updated = await documentRepo.getDoc(docId);
   if (!updated) {

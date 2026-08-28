@@ -218,20 +218,23 @@ export const documentRepo = {
       .where(eq(documents.id, docId));
   },
 
-  /** P3b-META：只改部门/密级两列；不改 lifecycle、不入队 */
+  /** 部门 / 可见级 / 类型；不改 lifecycle、不入队 */
   async patchMeta(
     docId: string,
     patch: {
       ownerDeptId?: string | null;
       visibilityLevel?: 10 | 20 | 30 | 40;
+      docType?: string | null;
     },
   ) {
     const set: {
       ownerDeptId?: string | null;
       visibilityLevel?: 10 | 20 | 30 | 40;
+      docType?: string | null;
     } = {};
     if (patch.ownerDeptId !== undefined) set.ownerDeptId = patch.ownerDeptId;
     if (patch.visibilityLevel !== undefined) set.visibilityLevel = patch.visibilityLevel;
+    if (patch.docType !== undefined) set.docType = patch.docType;
     if (Object.keys(set).length === 0) return;
     await getDb().update(documents).set(set).where(eq(documents.id, docId));
   },

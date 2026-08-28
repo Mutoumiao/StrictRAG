@@ -140,6 +140,24 @@ export function resolveAskMode(params: {
 }
 
 /**
+ * 文档标注 docType 须属于该 KB 已有枚举（空枚举则只能清成 null）。
+ * 与 ask scope 不同：scope 在枚举为空时不限制。
+ */
+export function assertDocTypeAllowed(
+  kbDocTypes: readonly string[],
+  docType: string | null,
+): { ok: true } | { ok: false; message: string } {
+  if (docType == null) return { ok: true };
+  if (kbDocTypes.includes(docType)) return { ok: true };
+  return {
+    ok: false,
+    message: kbDocTypes.length
+      ? `docType not in kb enum: ${docType}`
+      : `docType not in kb enum: ${docType} (kb has no docTypes)`,
+  };
+}
+
+/**
  * B2-W：scope.docTypes 须 ⊆ KB 允许列表（KB 列表为空 = 不限制）。
  */
 export function assertScopeDocTypesAllowed(params: {
