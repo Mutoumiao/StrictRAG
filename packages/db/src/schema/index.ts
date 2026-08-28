@@ -14,6 +14,8 @@ export { chunkManifests } from './kb/chunk-manifests.js';
 export { chunkEmbeddings } from './kb/chunk-embeddings.js';
 export { ingestJobs } from './kb/ingest-jobs.js';
 export { kbMembers } from './kb/kb-members.js';
+export { chunkStrategyDefinitions } from './kb/chunk-strategy-definitions.js';
+export { kbChunkStrategies } from './kb/kb-chunk-strategies.js';
 export { askSessions } from './ask/ask-sessions.js';
 export { askTraces } from './ask/ask-traces.js';
 export type { EvidenceSnapshotItem } from './ask/ask-traces.js';
