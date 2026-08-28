@@ -1,8 +1,16 @@
 import type { CreateKbResponse, KbMemberRole } from '@strict-rag/contracts';
-import { documents, formatLocalDateTime, kbMembers, knowledgeBases, users } from '@strict-rag/db';
+import {
+  documents,
+  formatLocalDateTime,
+  kbChunkStrategies,
+  kbMembers,
+  knowledgeBases,
+  users,
+} from '@strict-rag/db';
 import { eq } from 'drizzle-orm';
 import { uuidv7 } from 'uuidv7';
 
+import { defaultKbStrategyRows } from './chunk-strategy-catalog.js';
 import { getDb } from './db.js';
 
 export type CreateKbResult =
@@ -46,6 +54,25 @@ export const documentRepo = {
         createdBy: input.createdBy,
       });
     });
+    const strategyRows = defaultKbStrategyRows(id);
+    if (strategyRows.length > 0) {
+      try {
+        await getDb()
+          .insert(kbChunkStrategies)
+          .values(
+            strategyRows.map((r) => ({
+              id: uuidv7(),
+              kbId: r.kbId,
+              code: r.code,
+              enabled: r.enabled,
+              paramOverrides: r.paramOverrides,
+              recommendedFamilies: r.recommendedFamilies,
+            })),
+          );
+      } catch {
+        /* 表未迁：for-upload 按已实现码回落 */
+      }
+    }
     return {
       ok: true,
       kb: {
@@ -132,7 +159,7 @@ export const documentRepo = {
   async markCompletePending(
     docId: string,
     byteSize: number,
-    opts?: { chunkStrategy?: string },
+    opts?: { chunkStrategy?: string; chunkStrategyParams?: Record<string, unknown> },
   ) {
     await getDb()
       .update(documents)
@@ -144,6 +171,9 @@ export const documentRepo = {
         errorMessage: null,
         ...(opts?.chunkStrategy !== undefined
           ? { chunkStrategy: opts.chunkStrategy }
+          : {}),
+        ...(opts?.chunkStrategyParams !== undefined
+          ? { chunkStrategyParams: opts.chunkStrategyParams }
           : {}),
       })
       .where(eq(documents.id, docId));
@@ -174,10 +204,17 @@ export const documentRepo = {
   },
 
   /** B12：显式改策略（reindex 覆盖时） */
-  async setChunkStrategy(docId: string, chunkStrategy: string) {
+  async setChunkStrategy(
+    docId: string,
+    chunkStrategy: string,
+    chunkStrategyParams?: Record<string, unknown>,
+  ) {
     await getDb()
       .update(documents)
-      .set({ chunkStrategy })
+      .set({
+        chunkStrategy,
+        ...(chunkStrategyParams !== undefined ? { chunkStrategyParams } : {}),
+      })
       .where(eq(documents.id, docId));
   },
 

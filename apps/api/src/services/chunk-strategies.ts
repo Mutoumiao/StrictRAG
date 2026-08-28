@@ -174,7 +174,94 @@ export function resolveDocumentChunkStrategy(params: {
  * 是否「多策略闸」：catalog 中有 >1 个已知码时 reindex 须显式传
  *（即使仅 1 个已实现，也避免运营以为可选假策略）。
  * 写入许可仍只看 implemented。
+ * complete/reindex HTTP 已改走库启用 ∩ MIME 的 available 计数，不再用本函数做选择规则。
  */
 export function isMultiStrategyCatalog(): boolean {
   return listChunkStrategies().length > 1;
+}
+
+/**
+ * 上传绑定：available = 库启用 ∩ 文档族 ∩ 已实现。
+ * 仅 1 个 → 可自动；≥2 未传 → 400；未实现/不在 available → 400。
+ */
+export function resolveBindChunkStrategy(params: {
+  availableCodes: string[];
+  requested?: string | null;
+}): { ok: true; code: string } | { ok: false; message: string } {
+  const available = [...new Set(params.availableCodes.filter(Boolean))];
+  const requested = params.requested?.trim();
+  if (requested) {
+    const gate = resolveRequiredChunkStrategy(requested);
+    if (!gate.ok) return gate;
+    if (!available.includes(gate.code)) {
+      return {
+        ok: false,
+        message: `chunkStrategy not available for this upload: ${gate.code}`,
+      };
+    }
+    return { ok: true, code: gate.code };
+  }
+  if (available.length === 1) {
+    const only = available[0]!;
+    if (!isWritableChunkStrategy(only)) return rejectNotImplemented(only);
+    return { ok: true, code: only };
+  }
+  const writable = available.filter((c) => isWritableChunkStrategy(c)).join(',') || implementedListMessage();
+  return {
+    ok: false,
+    message: `chunkStrategy is required (implemented: ${writable})`,
+  };
+}
+
+/**
+ * reindex：≥2 available 必须人选；仅 1 个可自动；
+ * 省略时若既有已实现且仍 available 则保留；脏未实现码省略 → 400。
+ */
+export function resolveReindexChunkStrategy(params: {
+  availableCodes: string[];
+  requested?: string | null;
+  existing?: string | null;
+}):
+  | { ok: true; code: string; retained: boolean; changed: boolean }
+  | { ok: false; message: string } {
+  const available = [...new Set(params.availableCodes.filter(Boolean))];
+  const requested = params.requested?.trim();
+  if (requested) {
+    const gate = resolveBindChunkStrategy({
+      availableCodes: available,
+      requested,
+    });
+    if (!gate.ok) return gate;
+    const prev = params.existing ?? DEFAULT_CHUNK_STRATEGY;
+    return {
+      ok: true,
+      code: gate.code,
+      retained: prev === gate.code,
+      changed: prev !== gate.code,
+    };
+  }
+  if (available.length >= 2) {
+    return {
+      ok: false,
+      message: `chunkStrategy is required (implemented: ${available.join(',')})`,
+    };
+  }
+  const existing = params.existing?.trim();
+  if (existing) {
+    if (!isWritableChunkStrategy(existing)) {
+      return rejectNotImplemented(existing);
+    }
+    if (available.includes(existing) || available.length === 0) {
+      return { ok: true, code: existing, retained: true, changed: false };
+    }
+  }
+  if (available.length === 1) {
+    const code = available[0]!;
+    const prev = existing ?? DEFAULT_CHUNK_STRATEGY;
+    return { ok: true, code, retained: prev === code, changed: prev !== code };
+  }
+  return {
+    ok: false,
+    message: `chunkStrategy is required (implemented: ${implementedListMessage()})`,
+  };
 }

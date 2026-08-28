@@ -15,7 +15,9 @@ import {
   isWritableChunkStrategy,
   listChunkStrategies,
   listWritableChunkStrategies,
+  resolveBindChunkStrategy,
   resolveDocumentChunkStrategy,
+  resolveReindexChunkStrategy,
   resolveRequiredChunkStrategy,
   shouldRetainExistingStrategy,
 } from '../../src/services/chunk-strategies.js';
@@ -131,5 +133,54 @@ describe('B12 chunk strategies · 实现真 SSOT（X-03）', () => {
       requireExplicit: false,
     });
     expect(r).toMatchObject({ ok: true, code: DEFAULT_CHUNK_STRATEGY, retained: true });
+  });
+
+  it('绑定：仅 1 个 available 未传 → 自动该码', () => {
+    const r = resolveBindChunkStrategy({
+      availableCodes: [DEFAULT_CHUNK_STRATEGY],
+      requested: undefined,
+    });
+    expect(r).toEqual({ ok: true, code: DEFAULT_CHUNK_STRATEGY });
+  });
+
+  it('绑定：≥2 available 未传 → 400', () => {
+    const r = resolveBindChunkStrategy({
+      availableCodes: [DEFAULT_CHUNK_STRATEGY, 'fixed_window'],
+      requested: undefined,
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.message).toMatch(/chunkStrategy is required/i);
+  });
+
+  it('绑定：未实现码即使在列表也拒绝写入', () => {
+    const r = resolveBindChunkStrategy({
+      availableCodes: [DEFAULT_CHUNK_STRATEGY, 'fixed_window'],
+      requested: 'fixed_window',
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.message).toMatch(/not implemented/i);
+  });
+
+  it('reindex：≥2 available 未传 → 400', () => {
+    const r = resolveReindexChunkStrategy({
+      availableCodes: [DEFAULT_CHUNK_STRATEGY, 'fixed_window'],
+      requested: undefined,
+      existing: DEFAULT_CHUNK_STRATEGY,
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it('reindex：仅 1 个且既有已实现 → 保留', () => {
+    const r = resolveReindexChunkStrategy({
+      availableCodes: [DEFAULT_CHUNK_STRATEGY],
+      requested: undefined,
+      existing: DEFAULT_CHUNK_STRATEGY,
+    });
+    expect(r).toMatchObject({
+      ok: true,
+      code: DEFAULT_CHUNK_STRATEGY,
+      retained: true,
+      changed: false,
+    });
   });
 });

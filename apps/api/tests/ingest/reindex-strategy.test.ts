@@ -1,12 +1,12 @@
 /**
- * 目标：reindex 必须显式策略；未实现返回 400。
- * 需求：B12
- * 被测：documents reindex
- * 简介：未实现 400。
+ * 目标：reindex / complete 按库可用策略计数：仅 1 个可自动，≥2 未选 400，未实现 400。
+ * 需求：B12 · 功能表 §4.5
+ * 被测：documents reindex / complete
+ * 简介：未实现 400；选择规则走 for-upload available。
  */
 
 import { Hono } from 'hono';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 
 import { issueTokenPair } from '../../src/auth/identity/token-service.js';
@@ -20,6 +20,7 @@ const TENANT = '01900000-0000-7000-8000-000000000001';
 const docState = {
   chunkStrategy: 'structure_paragraph' as string | null,
   setCalls: [] as string[],
+  params: null as Record<string, unknown> | null,
 };
 
 vi.mock('../../src/services/documents.js', () => ({
@@ -35,16 +36,24 @@ vi.mock('../../src/services/documents.js', () => ({
             approvalStatus: 'approved',
             status: 'ready',
             byteSize: 12,
+            contentType: 'text/plain',
           }
         : null,
     setChunkStrategy: async (_id: string, code: string) => {
       docState.setCalls.push(code);
       docState.chunkStrategy = code;
     },
-    markCompletePending: async (_id: string, _size: number, opts?: { chunkStrategy?: string }) => {
+    markCompletePending: async (
+      _id: string,
+      _size: number,
+      opts?: { chunkStrategy?: string; chunkStrategyParams?: Record<string, unknown> },
+    ) => {
       if (opts?.chunkStrategy) {
         docState.setCalls.push(opts.chunkStrategy);
         docState.chunkStrategy = opts.chunkStrategy;
+      }
+      if (opts?.chunkStrategyParams) {
+        docState.params = opts.chunkStrategyParams;
       }
     },
     getKb: async (id: string) =>
@@ -65,6 +74,10 @@ vi.mock('../../src/services/storage.js', () => ({
 
 // 从域目录 shipped 入口 import（ARCH-P1a）
 const { documentRoutes } = await import('../../src/routes/documents/index.js');
+const {
+  createMemoryChunkStrategyCatalogRepo,
+  setChunkStrategyCatalogRepoForTest,
+} = await import('../../src/services/chunk-strategy-catalog.js');
 
 async function token(roles: string[] = ['kb_admin']) {
   const pair = await issueTokenPair({
@@ -84,14 +97,32 @@ function buildApp() {
   return app;
 }
 
+function useCatalog(codes: string[]) {
+  setChunkStrategyCatalogRepoForTest(
+    createMemoryChunkStrategyCatalogRepo({
+      kbId: KB,
+      enabled: codes.map((code) => ({
+        code,
+        enabled: true,
+        recommendedFamilies: ['md', 'txt', 'docx', 'pdf_text'],
+      })),
+    }),
+  );
+}
+
 describe('B12 reindex 策略闸（X-03 已实现集合）', () => {
+  beforeEach(() => {
+    useCatalog(['structure_paragraph']);
+  });
   afterEach(() => {
     docState.chunkStrategy = 'structure_paragraph';
     docState.setCalls = [];
+    docState.params = null;
+    setChunkStrategyCatalogRepoForTest(null);
     vi.unstubAllEnvs();
   });
 
-  it('多策略 catalog reindex 未带 chunkStrategy → 400', async () => {
+  it('仅 1 个可用 reindex 未带 chunkStrategy → 200 保留既有已实现策略', async () => {
     const app = buildApp();
     const accessToken = await token(['super_admin']);
     const res = await app.request(`/api/v1/documents/${DOC}/reindex`, {
@@ -102,9 +133,12 @@ describe('B12 reindex 策略闸（X-03 已实现集合）', () => {
       },
       body: JSON.stringify({}),
     });
-    expect(res.status).toBe(400);
-    const body = (await res.json()) as { error: { message: string } };
-    expect(body.error.message).toMatch(/chunkStrategy is required/i);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { chunkStrategy: string; strategyChanged: boolean };
+    };
+    expect(body.data.chunkStrategy).toBe('structure_paragraph');
+    expect(body.data.strategyChanged).toBe(false);
     expect(docState.setCalls).toHaveLength(0);
   });
 
@@ -169,12 +203,17 @@ describe('B12 reindex 策略闸（X-03 已实现集合）', () => {
 });
 
 describe('B12 complete AA3 策略闸（X-03）', () => {
+  beforeEach(() => {
+    useCatalog(['structure_paragraph']);
+  });
   afterEach(() => {
     docState.chunkStrategy = null;
     docState.setCalls = [];
+    docState.params = null;
+    setChunkStrategyCatalogRepoForTest(null);
   });
 
-  it('多策略且无既有策略、complete 未带 chunkStrategy → 400', async () => {
+  it('仅 1 个可用、complete 未带 chunkStrategy → 200 自动该策略并写参数快照', async () => {
     docState.chunkStrategy = null;
     const app = buildApp();
     const accessToken = await token(['super_admin']);
@@ -186,10 +225,13 @@ describe('B12 complete AA3 策略闸（X-03）', () => {
       },
       body: JSON.stringify({}),
     });
-    expect(res.status).toBe(400);
-    const body = (await res.json()) as { error: { message: string } };
-    expect(body.error.message).toMatch(/chunkStrategy is required/i);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { chunkStrategy?: string } };
+    expect(body.data.chunkStrategy).toBe('structure_paragraph');
+    expect(docState.params).toMatchObject({ chunkTokens: 256, contextMode: 'l1_llm' });
   });
+
+
 
   it('complete 显式已实现策略 → 200 并落库', async () => {
     docState.chunkStrategy = null;

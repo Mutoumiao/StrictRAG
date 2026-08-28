@@ -26,9 +26,10 @@ import { checkUploadByteSize } from '../../gates/upload-size.js';
 import { fail, ok } from '../../lib/response.js';
 import { childLogger, logger } from '../../logger.js';
 import type { ApiVariables } from '../../middleware/request-id.js';
+import { getForUpload, paramsSnapshotFor } from '../../services/chunk-strategy-catalog.js';
 import {
-  isMultiStrategyCatalog,
-  resolveDocumentChunkStrategy,
+  resolveBindChunkStrategy,
+  resolveReindexChunkStrategy,
 } from '../../services/chunk-strategies.js';
 import { documentRepo } from '../../services/documents.js';
 import { ingestJobsRepo } from '../../services/ingest-jobs.js';
@@ -235,16 +236,15 @@ documentRoutes.post(
       );
     }
 
-    // B12 / AA3：多策略 catalog 且文档尚无策略 → complete 必须显式传；已有策略可省略并保留（且须已实现）
-    const multi = isMultiStrategyCatalog();
-    const strategyGate = resolveDocumentChunkStrategy({
-      existing: doc.chunkStrategy,
+    const forUpload = await getForUpload(kbId, doc.contentType ?? 'application/octet-stream');
+    const strategyGate = resolveBindChunkStrategy({
+      availableCodes: forUpload.available.map((a) => a.code),
       requested: body.data.chunkStrategy,
-      requireExplicit: multi && !doc.chunkStrategy?.trim(),
     });
     if (!strategyGate.ok) {
       return fail(c, BizCode.VALIDATION_ERROR, strategyGate.message, 400);
     }
+    const strategyParams = await paramsSnapshotFor(kbId, strategyGate.code);
 
     let ownerDeptId = doc.ownerDeptId;
     if (body.data.ownerDeptId !== undefined || body.data.visibilityLevel !== undefined) {
@@ -279,6 +279,7 @@ documentRoutes.post(
 
     await documentRepo.markCompletePending(docId, head.byteSize, {
       chunkStrategy: strategyGate.code,
+      chunkStrategyParams: strategyParams,
     });
 
     childLogger({ requestId: c.get('requestId') }).info(
@@ -288,8 +289,7 @@ documentRoutes.post(
         kbId,
         chunkStrategy: strategyGate.code,
         explicit: Boolean(body.data.chunkStrategy),
-        retained: strategyGate.retained,
-        changed: strategyGate.changed,
+        available: forUpload.available.map((a) => a.code),
       },
       'chunk strategy selected on complete',
     );
@@ -324,19 +324,19 @@ documentRoutes.post(
       return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
     }
 
-    // 多策略 catalog → reindex 强制显式传；最终 code 须 worker 已实现（见 resolve）
-    const multi = isMultiStrategyCatalog();
-    const strategyGate = resolveDocumentChunkStrategy({
-      existing: doc.chunkStrategy,
+    const forUpload = await getForUpload(doc.kbId, doc.contentType ?? 'application/octet-stream');
+    const strategyGate = resolveReindexChunkStrategy({
+      availableCodes: forUpload.available.map((a) => a.code),
       requested: parsed.data.chunkStrategy,
-      requireExplicit: multi,
+      existing: doc.chunkStrategy,
     });
     if (!strategyGate.ok) {
       return fail(c, BizCode.VALIDATION_ERROR, strategyGate.message, 400);
     }
 
     if (strategyGate.changed) {
-      await documentRepo.setChunkStrategy(docId, strategyGate.code);
+      const strategyParams = await paramsSnapshotFor(doc.kbId, strategyGate.code);
+      await documentRepo.setChunkStrategy(docId, strategyGate.code, strategyParams);
     }
 
     const jobId =
