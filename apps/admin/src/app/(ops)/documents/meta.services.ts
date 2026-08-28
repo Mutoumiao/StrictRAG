@@ -10,6 +10,7 @@ import type { Department, DocumentDetail, PatchDocumentMetaBody } from '@strict-
 import { mapBizError } from '@/lib/map-biz-error';
 
 import { listDepartments } from '../departments/api';
+import { getKbSettings } from '../kb/settings/api';
 import { getDocument, patchDocumentMeta } from './api';
 
 export type LoadDocumentDetailResult =
@@ -50,6 +51,20 @@ export async function loadDepartmentOptions(): Promise<LoadDepartmentOptionsResu
   try {
     const departments = await listDepartments();
     return { ok: true, departments };
+  } catch (err) {
+    return { ok: false, message: mapBizError(err) };
+  }
+}
+
+export type LoadKbDocTypesResult =
+  | { ok: true; docTypes: string[] }
+  | { ok: false; message: string };
+
+/** 本库已有类型枚举。走设置 GET（需 kb.config.write）；无 path。不重做类型 CRUD。 */
+export async function loadKbDocTypes(kbId: string): Promise<LoadKbDocTypesResult> {
+  try {
+    const settings = await getKbSettings(kbId);
+    return { ok: true, docTypes: settings.docTypes ?? [] };
   } catch (err) {
     return { ok: false, message: mapBizError(err) };
   }

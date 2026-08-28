@@ -16,6 +16,8 @@ import type {
   PatchLifecycleBody,
   PatchLifecycleResponse,
   PutObjectResponse,
+  ReindexDocumentBody,
+  ReindexDocumentResponse,
   UploadUrlBody,
   UploadUrlResponse,
 } from '@strict-rag/contracts';
@@ -81,5 +83,12 @@ export async function getChunkStrategiesForUpload(kbId: string, contentType: str
   const q = new URLSearchParams({ contentType });
   return http.get<ForUploadResponse>(
     `/api/v1/knowledge-bases/${kbId}/chunk-strategies/for-upload?${q.toString()}`,
+  );
+}
+
+export async function reindexDocument(docId: string, body: ReindexDocumentBody) {
+  return http.post<ReindexDocumentResponse, ReindexDocumentBody>(
+    `/api/v1/documents/${docId}/reindex`,
+    body,
   );
 }

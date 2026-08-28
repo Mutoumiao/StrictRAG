@@ -51,6 +51,46 @@ export function readyColLabel(ready: boolean): string {
   return ready ? '就绪' : '未就绪';
 }
 
+const PIPELINE_STATUS = new Set([
+  'scanning',
+  'parsing',
+  'chunking',
+  'embedding',
+  'indexing_es',
+]);
+
+export type OpsLabel =
+  | '待审'
+  | '处理中'
+  | '需 OCR'
+  | '失败'
+  | '就绪未发布'
+  | '现行可问'
+  | '已替代'
+  | '已归档';
+
+/**
+ * 双轴运营标签：lifecycle 终态优先，再 status，再审批。
+ * 原串 status / lifecycle 另作次要信息，禁止合成一个模糊「状态」。
+ */
+export function opsLabel(
+  status: string,
+  lifecycle: string,
+  approvalStatus?: string,
+): OpsLabel {
+  if (lifecycle === 'archived') return '已归档';
+  if (lifecycle === 'superseded') return '已替代';
+  if (status === 'failed') return '失败';
+  if (status === 'needs_ocr') return '需 OCR';
+  if (status === 'ready' && lifecycle === 'active') return '现行可问';
+  if (status === 'ready') return '就绪未发布';
+  if (status === 'needs_review' || approvalStatus === 'pending') return '待审';
+  if (PIPELINE_STATUS.has(status) || (status === 'uploaded' && approvalStatus === 'approved')) {
+    return '处理中';
+  }
+  return '待审';
+}
+
 /** 当前已加载行本地筛。不写 URL；不是 LIST ACL。 */
 export function filterDocumentRows(
   rows: DocumentListItem[],

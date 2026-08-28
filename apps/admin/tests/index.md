@@ -28,10 +28,12 @@
 | `ops/approvals-workspace.test.tsx` | 审批页必须按码显隐操作入口，失败则无 decide 仍露出通过/驳回。 | 审批闸 UI | `ApprovalsWorkspace` | 不替代 api 闸测。 | 现行 |
 | `ops/dashboard-workspace.test.tsx` | 数据面板无码须保持 403、有码才加载 summary，失败则指标页对无权限可见。 | B6 UI | `DashboardWorkspace` | 指标真值在 api。 | 现行 |
 | `ops/departments-workspace.test.tsx` | 部门薄页必须按码显隐授权与归属入口，失败则无权限用户看到写操作。 | B5 UI | `DepartmentsWorkspace · grantVisibilityLabel / grantExpiresLabel` | ACL 真值在 api。 | 现行 |
-| `ops/document-lifecycle.test.ts` | 文档生命周期入口闸必须按状态判断，失败则未就绪也可发布。 | complete/reindex 入口 | `canPublish / canRevertDraft` | 不测策略执行。 | 现行 |
+| `ops/document-lifecycle.test.ts` | 文档生命周期入口闸必须按状态判断，失败则未就绪也可发布。 | 功能表 §4.3 | `canPublish / canRevertDraft / canArchive / canSupersede` | 上架仅 ready+draft。 | 现行 |
+| `ops/document-ops-label.test.ts` | 文档列表运营标签必须按 status × lifecycle 映射八态，失败则合成一个模糊状态。 | 功能表 §4.3 | `opsLabel` | 终态优先；原串另列。 | 现行 |
+| `ops/document-reindex.test.ts` | Reindex 人选在可用策略 ≥2 时未选不得提交。 | 功能表 §4.3 | `pickReindexChunkStrategy` | HTTP 闸在 api。 | 现行 |
 | `ops/chunk-strategy-panel.test.tsx` | 知识库设置分片策略弹窗必须能启用策略并保存 recommended，且声明不自动 reindex。 | 功能表 §4.5 | `ChunkStrategyPanel` | HTTP 真值在 api。 | 现行 |
 | `ops/document-upload.test.ts` | 上传服务必须按 upload-url → PUT → complete 调用，失败则入口顺序错乱。 | 上传入口 | `uploadAdminDocument` | 体积闸真值在 api。 | 现行 |
-| `ops/documents-workspace.test.tsx` | 文档列表薄页必须按码控制详情/保存/部门列，失败则运营交互与权限不符。 | 文档运营 UI | `DocumentsWorkspace · deptLabel / readyColLabel / visibilityLabel` | 部门列展示。 | 现行 |
+| `ops/documents-workspace.test.tsx` | 文档列表薄页必须按码控制详情/保存/部门列，失败则运营交互与权限不符。 | 文档运营 UI | `DocumentsWorkspace · deptLabel / readyColLabel / visibilityLabel` | 含类型列、运营标签、Reindex、归档。 | 现行 |
 | `ops/feedback-comment-escape.test.tsx` | 反馈 comment 含 `<script>` 必须当文本展示，不得当 HTML 解析。 | 剧本 K6 · prds/10-delivery/03-acceptance-scenarios.md | `FeedbackWorkspace` | comment 走 React 文本节点原样可见。 | 现行 |
 | `ops/kb-settings-services.test.ts` | 设置服务必须正确解析文档类型输入，失败则 PATCH 写出错误 docTypes。 | KB settings | `parseDocTypesInput` | 不写 URL。 | 现行 |
 | `ops/kb-settings-workspace.test.tsx` | KB 设置薄页必须按 kb.config.write 显隐，未改勾选不得 PATCH 强制/继承。 | B2 设置 UI | `SettingsWorkspace` | mode 真值在 api。 | 现行 |

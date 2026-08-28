@@ -41,22 +41,46 @@ vi.mock('@/app/(ops)/documents/meta.services', () => ({
   loadDocumentDetail: (...args: unknown[]) => loadDocumentDetail(...args),
   saveDocumentMeta: (...args: unknown[]) => saveDocumentMeta(...args),
   loadDepartmentOptions: (...args: unknown[]) => loadDepartmentOptions(...args),
+  loadKbDocTypes: async () => ({ ok: true, docTypes: ['policy', 'hr'] }),
 }));
 
+const planReindexChunkStrategy = vi.fn();
+const reindexAdminDocument = vi.fn();
+vi.mock('@/app/(ops)/documents/reindex.services', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@/app/(ops)/documents/reindex.services')>();
+  return {
+    ...actual,
+    planReindexChunkStrategy: (...args: unknown[]) => planReindexChunkStrategy(...args),
+    reindexAdminDocument: (...args: unknown[]) => reindexAdminDocument(...args),
+  };
+});
+
 const uploadAdminDocument = vi.fn();
-vi.mock('@/app/(ops)/documents/upload.services', () => ({
-  uploadAdminDocument: (...args: unknown[]) => uploadAdminDocument(...args),
-}));
+vi.mock('@/app/(ops)/documents/upload.services', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/app/(ops)/documents/upload.services')>();
+  return {
+    ...actual,
+    uploadAdminDocument: (...args: unknown[]) => uploadAdminDocument(...args),
+  };
+});
 
 vi.mock('@/app/(ops)/documents/jobs.services', () => ({
   loadIngestJobs: async () => ({ ok: true, jobs: [] }),
 }));
 
+const setDocumentLifecycle = vi.fn(
+  async (_docId: string, lifecycle: 'active' | 'draft' | 'archived' | 'superseded') => ({
+    ok: true as const,
+    lifecycle,
+  }),
+);
 vi.mock('@/app/(ops)/documents/lifecycle.services', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/app/(ops)/documents/lifecycle.services')>();
   return {
     ...actual,
-    setDocumentLifecycle: vi.fn(async () => ({ ok: true, lifecycle: 'active' })),
+    setDocumentLifecycle: (...args: unknown[]) =>
+      setDocumentLifecycle(...(args as [string, 'active' | 'draft' | 'archived' | 'superseded'])),
   };
 });
 
@@ -89,6 +113,7 @@ const listDoc = {
   esReady: true,
   ownerDeptId: null as string | null,
   visibilityLevel: 20 as const,
+  docType: null as string | null,
 };
 
 const detailDoc = {
@@ -116,6 +141,9 @@ describe('DocumentsWorkspace', () => {
     saveDocumentMeta.mockReset();
     loadDepartmentOptions.mockReset();
     uploadAdminDocument.mockReset();
+    planReindexChunkStrategy.mockReset();
+    reindexAdminDocument.mockReset();
+    setDocumentLifecycle.mockClear();
     localStorage.clear();
   });
 
@@ -224,7 +252,7 @@ describe('DocumentsWorkspace', () => {
     expect(within(detailVisibility()).getByRole('option', { name: '30 负责人' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument();
     expect(loadDocumentDetail).toHaveBeenCalledWith(DOC_ID);
-    expect(screen.getByText(/空归属=库级/).closest('td')).toHaveAttribute('colspan', '8');
+    expect(screen.getByText(/空归属=库级/).closest('td')).toHaveAttribute('colspan', '7');
   });
 
   it('无 doc.editor：能看详情、无保存按钮', async () => {
@@ -266,6 +294,7 @@ describe('DocumentsWorkspace', () => {
       expect(saveDocumentMeta).toHaveBeenCalledWith(DOC_ID, {
         ownerDeptId: DEPT_ID,
         visibilityLevel: 30,
+        docType: null,
       });
     });
     expect(screen.getByLabelText('归属部门')).toHaveValue(DEPT_ID);
@@ -342,6 +371,7 @@ describe('DocumentsWorkspace', () => {
       expect(saveDocumentMeta).toHaveBeenCalledWith(DOC_ID, {
         ownerDeptId: DEPT_ID,
         visibilityLevel: 20,
+        docType: null,
       });
     });
     expect(screen.getByText('已保存')).toBeInTheDocument();
@@ -477,6 +507,88 @@ describe('DocumentsWorkspace', () => {
     expect(screen.getByText('报销制度')).toBeInTheDocument();
     expect(screen.queryByText('请假制度')).not.toBeInTheDocument();
     assertListCalledWithKbOnly();
+  });
+
+  it('列表有类型列与运营标签 现行可问；原串作次要信息', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', 'kb-1');
+    me.permissions = ['admin.shell', 'doc.view'];
+    loadDocumentList.mockResolvedValue({
+      ok: true,
+      rows: [{ ...listDoc, docType: 'policy' }],
+    });
+
+    render(<DocumentsWorkspace />);
+
+    expect(await screen.findByRole('columnheader', { name: '类型' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: '运营' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: 'policy' })).toBeInTheDocument();
+    expect(screen.getByText('现行可问')).toBeInTheDocument();
+    expect(screen.getByText('ready · active')).toBeInTheDocument();
+  });
+
+  it('有 doc.lifecycle：ready+draft 可上架/废止/归档', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', 'kb-1');
+    me.permissions = ['admin.shell', 'doc.view', 'doc.lifecycle'];
+    loadDocumentList.mockResolvedValue({
+      ok: true,
+      rows: [{ ...listDoc, lifecycle: 'draft' }],
+    });
+    loadDocumentDetail.mockResolvedValue({
+      ok: true,
+      detail: { ...detailDoc, lifecycle: 'draft' },
+    });
+
+    render(<DocumentsWorkspace />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByText('请假制度'));
+
+    expect(await screen.findByRole('button', { name: '上架 active' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '废止 superseded' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '归档 archived' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '归档 archived' }));
+    await waitFor(() => {
+      expect(setDocumentLifecycle).toHaveBeenCalledWith(DOC_ID, 'archived');
+    });
+    expect(screen.getAllByText('已归档').length).toBeGreaterThan(0);
+  });
+
+  it('有 doc.reindex 且 ≥2 未选：Reindex 按钮不可提交', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', 'kb-1');
+    me.permissions = ['admin.shell', 'doc.view', 'doc.reindex'];
+    loadDocumentList.mockResolvedValue({ ok: true, rows: [listDoc] });
+    loadDocumentDetail.mockResolvedValue({ ok: true, detail: detailDoc });
+    planReindexChunkStrategy.mockResolvedValue({
+      ok: true,
+      plan: {
+        contentType: 'text/plain',
+        family: 'txt',
+        available: [
+          { code: 'structure_paragraph', name: '结构段落', implemented: true, recommended: true },
+          { code: 'fixed_window', name: '固定窗口', implemented: true, recommended: false },
+        ],
+        recommendedCode: 'structure_paragraph',
+        requireExplicit: true,
+        autoCode: null,
+      },
+    });
+
+    reindexAdminDocument.mockResolvedValue({
+      ok: true,
+      data: { docId: DOC_ID, enqueued: true, jobId: 'j1', stage: 'chunk', chunkStrategy: 'fixed_window', strategyChanged: true },
+    });
+    render(<DocumentsWorkspace />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByText('请假制度'));
+
+    expect(await screen.findByLabelText('分片策略')).toBeInTheDocument();
+    const btn = screen.getByRole('button', { name: 'Reindex' });
+    expect(btn).toBeDisabled();
+    await user.selectOptions(screen.getByLabelText('分片策略'), 'fixed_window');
+    expect(btn).not.toBeDisabled();
+    await user.click(btn);
+    await waitFor(() => {
+      expect(reindexAdminDocument).toHaveBeenCalledWith(DOC_ID, 'fixed_window');
+    });
   });
 });
 

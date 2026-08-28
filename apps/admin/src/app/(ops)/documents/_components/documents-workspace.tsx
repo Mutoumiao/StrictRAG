@@ -1,9 +1,10 @@
 'use client';
 
 /**
- * 文档薄列表：status / approval / lifecycle / 向量 / 稀疏。
- * 点行展开详情；可改 ownerDeptId / visibilityLevel（有 doc.editor 才显示保存）。
+ * 文档薄列表：类型 / 运营标签 / 向量 / 稀疏。
+ * 点行展开详情；可改 ownerDeptId / visibilityLevel / docType（有 doc.editor 才显示保存）。
  * 有 dept.manage 时归属用部门列表下拉；无该码仍 uuid 粘贴。不宣称强制隔离已上。
+ * Reindex 走 for-upload；≥2 必须人选。lifecycle 含归档/废止。上架仍须 ready。
  * 表头上方按已加载行本地筛部门/可见级；不改 GET query。
  * 稀疏就绪是适配层/mock 标志，≠ 生产 ES。
  */
@@ -15,6 +16,7 @@ import type {
   DocumentListItem,
   ForUploadResponse,
   IngestJobListItem,
+  Lifecycle,
   VisibilityLevel,
 } from '@strict-rag/contracts';
 import { Button } from '@strict-rag/ui/components/ui/button';
@@ -36,18 +38,33 @@ import {
   deptLabel,
   filterDocumentRows,
   loadDocumentList,
+  opsLabel,
   readyColLabel,
   visibilityLabel,
 } from '../list.services';
 import {
   loadDepartmentOptions,
   loadDocumentDetail,
+  loadKbDocTypes,
   saveDocumentMeta,
   type LoadDepartmentOptionsResult,
 } from '../meta.services';
 import { loadIngestJobs } from '../jobs.services';
-import { canPublish, canRevertDraft, setDocumentLifecycle } from '../lifecycle.services';
+import {
+  canArchive,
+  canPublish,
+  canRevertDraft,
+  canSupersede,
+  setDocumentLifecycle,
+} from '../lifecycle.services';
+import {
+  pickReindexChunkStrategy,
+  planReindexChunkStrategy,
+  reindexAdminDocument,
+} from '../reindex.services';
 import { pickUploadChunkStrategy, planUploadChunkStrategy, uploadAdminDocument } from '../upload.services';
+
+const LIST_COL_COUNT = 7;
 
 const VISIBILITY_LEVELS: VisibilityLevel[] = [10, 20, 30, 40];
 
@@ -62,7 +79,9 @@ export function DocumentsWorkspace() {
   const canEdit = me.permissions.includes('doc.editor');
   const canUpload = me.permissions.includes('doc.upload');
   const canLifecycle = me.permissions.includes('doc.lifecycle');
+  const canReindex = me.permissions.includes('doc.reindex');
   const canManageDept = me.permissions.includes('dept.manage');
+  const canReadKbTypes = me.permissions.includes('kb.config.write');
   const [rows, setRows] = useState<DocumentListItem[]>([]);
   const [state, setState] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +97,8 @@ export function DocumentsWorkspace() {
   );
   const [ownerDeptId, setOwnerDeptId] = useState('');
   const [visibilityLevel, setVisibilityLevel] = useState<VisibilityLevel>(20);
+  const [docType, setDocType] = useState('');
+  const [kbDocTypes, setKbDocTypes] = useState<string[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saveOk, setSaveOk] = useState(false);
@@ -90,6 +111,10 @@ export function DocumentsWorkspace() {
   const [pickedStrategy, setPickedStrategy] = useState('');
   const [jobs, setJobs] = useState<IngestJobListItem[]>([]);
   const [jobsNote, setJobsNote] = useState<string | null>(null);
+  const [reindexPlan, setReindexPlan] = useState<ForUploadResponse | null>(null);
+  const [reindexPicked, setReindexPicked] = useState('');
+  const [reindexBusy, setReindexBusy] = useState(false);
+  const [reindexMessage, setReindexMessage] = useState<string | null>(null);
   const openIdRef = useRef<string | null>(null);
   const deptOptionsCache = useRef<Department[] | null>(null);
   const deptOptionsInflight = useRef<Promise<LoadDepartmentOptionsResult> | null>(null);
@@ -175,7 +200,35 @@ export function DocumentsWorkspace() {
     setDetail(result.detail);
     setOwnerDeptId(result.detail.ownerDeptId ?? '');
     setVisibilityLevel(result.detail.visibilityLevel ?? 20);
+    setDocType(result.detail.docType ?? '');
     setDetailState('ready');
+    setReindexPlan(null);
+    setReindexPicked('');
+    setReindexMessage(null);
+    if (canReadKbTypes) {
+      const types = await loadKbDocTypes(result.detail.kbId);
+      if (openIdRef.current !== docId) return;
+      setKbDocTypes(types.ok ? types.docTypes : null);
+    } else {
+      setKbDocTypes(null);
+    }
+    if (canReindex) {
+      const planned = await planReindexChunkStrategy(
+        result.detail.kbId,
+        result.detail.contentType ?? 'application/octet-stream',
+      );
+      if (openIdRef.current !== docId) return;
+      if (planned.ok) {
+        setReindexPlan(planned.plan);
+        setReindexPicked(
+          planned.plan.requireExplicit
+            ? ''
+            : (planned.plan.autoCode ?? planned.plan.recommendedCode ?? ''),
+        );
+      } else {
+        setReindexMessage(planned.message);
+      }
+    }
     const jobsResult = await loadIngestJobs(docId);
     if (openIdRef.current !== docId) return;
     if (jobsResult.ok) {
@@ -241,7 +294,14 @@ export function DocumentsWorkspace() {
     await runUpload(pendingFile, picked.code);
   }
 
-  async function onLifecycle(lifecycle: 'active' | 'draft') {
+  function lifecycleSavedMessage(lifecycle: Lifecycle): string {
+    if (lifecycle === 'active') return '已上架';
+    if (lifecycle === 'draft') return '已撤回 draft';
+    if (lifecycle === 'archived') return '已归档';
+    return '已废止';
+  }
+
+  async function onLifecycle(lifecycle: Lifecycle) {
     if (!openId) return;
     const docId = openId;
     setBusy(true);
@@ -254,13 +314,37 @@ export function DocumentsWorkspace() {
     if (result.ok) {
       setDetail((d) => (d ? { ...d, lifecycle: result.lifecycle } : d));
       setRows((rs) => rs.map((r) => (r.id === docId ? { ...r, lifecycle: result.lifecycle } : r)));
-      setSaveMessage(lifecycle === 'active' ? '已上架' : '已撤回 draft');
+      setSaveMessage(lifecycleSavedMessage(lifecycle));
       setSaveOk(true);
     } else {
       setSaveMessage(result.message);
       setSaveOk(false);
     }
     setBusy(false);
+  }
+
+  async function onReindex() {
+    if (!openId || !reindexPlan) return;
+    const picked = pickReindexChunkStrategy(reindexPlan, reindexPicked);
+    if (!picked.ok) {
+      setReindexMessage(picked.message);
+      return;
+    }
+    const docId = openId;
+    setReindexBusy(true);
+    setReindexMessage(null);
+    const result = await reindexAdminDocument(docId, picked.code);
+    if (openIdRef.current !== docId) {
+      setReindexBusy(false);
+      return;
+    }
+    if (result.ok) {
+      setReindexMessage('已入队 reindex');
+      await load();
+    } else {
+      setReindexMessage(result.message);
+    }
+    setReindexBusy(false);
   }
 
   async function onSave() {
@@ -271,6 +355,7 @@ export function DocumentsWorkspace() {
     const result = await saveDocumentMeta(docId, {
       ownerDeptId: ownerDeptId.trim() === '' ? null : ownerDeptId.trim(),
       visibilityLevel,
+      docType: docType.trim() === '' ? null : docType.trim(),
     });
     if (openIdRef.current !== docId) {
       setBusy(false);
@@ -280,6 +365,7 @@ export function DocumentsWorkspace() {
       setDetail(result.detail);
       setOwnerDeptId(result.detail.ownerDeptId ?? '');
       setVisibilityLevel(result.detail.visibilityLevel ?? 20);
+      setDocType(result.detail.docType ?? '');
       setSaveMessage('已保存');
       setSaveOk(true);
     } else {
@@ -417,9 +503,8 @@ export function DocumentsWorkspace() {
               <TableHead>标题</TableHead>
               <TableHead>部门</TableHead>
               <TableHead>可见级</TableHead>
-              <TableHead>status</TableHead>
-              <TableHead>approval</TableHead>
-              <TableHead>lifecycle</TableHead>
+              <TableHead>类型</TableHead>
+              <TableHead>运营</TableHead>
               <TableHead>向量</TableHead>
               <TableHead>稀疏</TableHead>
             </TableRow>
@@ -455,15 +540,19 @@ export function DocumentsWorkspace() {
                     </span>
                   </TableCell>
                   <TableCell>{visibilityLabel(r.visibilityLevel)}</TableCell>
-                  <TableCell>{r.status}</TableCell>
-                  <TableCell>{r.approvalStatus}</TableCell>
-                  <TableCell>{r.lifecycle}</TableCell>
+                  <TableCell>{r.docType ?? '未分类'}</TableCell>
+                  <TableCell>
+                    <div>{opsLabel(r.status, r.lifecycle, r.approvalStatus)}</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {r.status} · {r.lifecycle}
+                    </div>
+                  </TableCell>
                   <TableCell>{readyColLabel(r.embedReady)}</TableCell>
                   <TableCell>{readyColLabel(r.esReady)}</TableCell>
                 </TableRow>
                 {openId === r.id ? (
                   <TableRow>
-                    <TableCell colSpan={8}>
+                    <TableCell colSpan={LIST_COL_COUNT}>
                       {detailState === 'loading' ? (
                         <p className="text-sm text-muted-foreground">加载详情…</p>
                       ) : null}
@@ -525,6 +614,36 @@ export function DocumentsWorkspace() {
                                 ))}
                               </select>
                             </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor="doc-type">类型</Label>
+                              {kbDocTypes ? (
+                                <select
+                                  id="doc-type"
+                                  className="flex h-9 w-full rounded-md border border-input bg-card px-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                                  value={docType}
+                                  onChange={(e) => setDocType(e.target.value)}
+                                  disabled={!canEdit}
+                                >
+                                  <option value="">未分类</option>
+                                  {kbDocTypes.map((code) => (
+                                    <option key={code} value={code}>
+                                      {code}
+                                    </option>
+                                  ))}
+                                  {docType && !kbDocTypes.includes(docType) ? (
+                                    <option value={docType}>{docType}</option>
+                                  ) : null}
+                                </select>
+                              ) : (
+                                <Input
+                                  id="doc-type"
+                                  value={docType}
+                                  onChange={(e) => setDocType(e.target.value)}
+                                  placeholder="须属于本库枚举"
+                                  disabled={!canEdit}
+                                />
+                              )}
+                            </div>
                           </div>
                           {canLifecycle ? (
                             <div className="flex flex-wrap gap-2">
@@ -549,9 +668,72 @@ export function DocumentsWorkspace() {
                                   撤回 draft
                                 </Button>
                               ) : null}
+                              {canSupersede(detail.lifecycle) ? (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={busy}
+                                  onClick={() => void onLifecycle('superseded')}
+                                >
+                                  废止 superseded
+                                </Button>
+                              ) : null}
+                              {canArchive(detail.lifecycle) ? (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={busy}
+                                  onClick={() => void onLifecycle('archived')}
+                                >
+                                  归档 archived
+                                </Button>
+                              ) : null}
                             </div>
                           ) : null}
                           <p className="text-xs text-muted-foreground">检索闸仍 ready∧active，不自动升。</p>
+                          {canReindex ? (
+                            <div className="space-y-2">
+                              <p className="text-xs font-semibold">Reindex</p>
+                              {reindexPlan?.requireExplicit ? (
+                                <div className="flex flex-wrap items-center gap-2 text-sm">
+                                  <Label htmlFor="reindex-chunk-strategy">分片策略</Label>
+                                  <select
+                                    id="reindex-chunk-strategy"
+                                    className="flex h-9 rounded-md border border-input bg-card px-3 text-sm"
+                                    value={reindexPicked}
+                                    onChange={(e) => setReindexPicked(e.target.value)}
+                                    disabled={reindexBusy}
+                                  >
+                                    <option value="">请选择</option>
+                                    {reindexPlan.available.map((a) => (
+                                      <option key={a.code} value={a.code}>
+                                        {a.name}
+                                        {a.recommended ? '（recommended）' : ''}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              ) : null}
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={
+                                  reindexBusy ||
+                                  !reindexPlan ||
+                                  (reindexPlan.requireExplicit && !reindexPicked.trim())
+                                }
+                                onClick={() => void onReindex()}
+                              >
+                                {reindexBusy ? '入队中…' : 'Reindex'}
+                              </Button>
+                              {reindexMessage ? (
+                                <p className="text-xs text-muted-foreground">{reindexMessage}</p>
+                              ) : null}
+                            </div>
+                          ) : null}
                           <div className="text-xs">
                             <p className="font-semibold">入库阶段</p>
                             {jobsNote ? <p className="text-muted-foreground">{jobsNote}</p> : null}
