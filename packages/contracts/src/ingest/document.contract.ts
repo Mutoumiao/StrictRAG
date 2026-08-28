@@ -148,6 +148,7 @@ export const DocumentListItemSchema = z.object({
   esReady: z.boolean(),
   ownerDeptId: z.string().uuid().nullable().default(null),
   visibilityLevel: VisibilityLevelSchema.default(20),
+  docType: z.string().nullable().optional().default(null),
 });
 export type DocumentListItem = z.infer<typeof DocumentListItemSchema>;
 
@@ -168,15 +169,21 @@ export const DocumentDetailSchema = DocumentListItemSchema.extend({
 });
 export type DocumentDetail = z.infer<typeof DocumentDetailSchema>;
 
-/** PATCH /documents/:docId — 只写这两字段 */
+/** PATCH /documents/:docId — 部门 / 可见级 / 类型；不改 lifecycle、不入队 */
 export const PatchDocumentMetaBodySchema = z
   .object({
     ownerDeptId: z.string().uuid().nullable().optional(),
     visibilityLevel: VisibilityLevelSchema.optional(),
+    /** 须属于该 KB 已有枚举；null = 清除分类 */
+    docType: z.string().min(1).max(64).nullable().optional(),
   })
-  .refine((b) => b.ownerDeptId !== undefined || b.visibilityLevel !== undefined, {
-    message: 'at least one field',
-  });
+  .refine(
+    (b) =>
+      b.ownerDeptId !== undefined || b.visibilityLevel !== undefined || b.docType !== undefined,
+    {
+      message: 'at least one field',
+    },
+  );
 export type PatchDocumentMetaBody = z.infer<typeof PatchDocumentMetaBodySchema>;
 
 /** POST …/documents/:docId/approve | reject */

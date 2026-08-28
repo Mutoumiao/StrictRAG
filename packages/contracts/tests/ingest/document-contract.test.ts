@@ -150,6 +150,15 @@ describe('PatchDocumentMetaBodySchema', () => {
     );
     expect(PatchDocumentMetaBodySchema.safeParse({ ownerDeptId: 'hr' }).success).toBe(false);
   });
+
+  it('accepts docType string or null', () => {
+    expect(PatchDocumentMetaBodySchema.safeParse({ docType: 'hr' }).success).toBe(true);
+    expect(PatchDocumentMetaBodySchema.safeParse({ docType: null }).success).toBe(true);
+  });
+
+  it('rejects empty docType string', () => {
+    expect(PatchDocumentMetaBodySchema.safeParse({ docType: '' }).success).toBe(false);
+  });
 });
 
 describe('DocumentDetailSchema / list item', () => {
@@ -168,6 +177,7 @@ describe('DocumentDetailSchema / list item', () => {
     const keys = Object.keys(DocumentListItemSchema.shape);
     expect(keys).toContain('ownerDeptId');
     expect(keys).toContain('visibilityLevel');
+    expect(keys).toContain('docType');
     const parsed = DocumentListItemSchema.parse({
       id: DETAIL_BASE.id,
       title: DETAIL_BASE.title,
