@@ -16,6 +16,7 @@ export const AskReasonSchema = z.enum([
   'budget_exhausted',
   'coref_unresolved',
   'rerank_unavailable',
+  'sparse_unavailable',
   'claim_split_failed',
   'not_member',
   'acl_filter_too_large',
