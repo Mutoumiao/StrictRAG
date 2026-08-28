@@ -12,7 +12,7 @@
 | A1 | 创建 KB，配置模型成功 | P2必签 | 单测 | 部分测 | apps/api | apps/api/tests/ingest/document-validation.test.ts · apps/api/tests/ingest/gates-live.test.ts · apps/api/tests/gateway/bindings-http.test.ts | 空 body 拒 400；live 创建可 skip；模型绑定另切片。无「建 KB + 配模型」一条必绿 happy |
 | A2 | 添加成员；上传制度 → ready → lifecycle=active，可检索 | P2必签 | 单测 | 部分测 | apps/api · apps/worker | apps/api/tests/acl/members-http.test.ts · apps/api/tests/ask/ready-active-corpus.test.ts · apps/worker/tests/ingest/dual-ready-index.test.ts | 邀请成员与检索双闸已测；上传→ready→active 端到端依赖 worker/live |
 | A3 | `answered` + citations + answerKind=knowledge | P2必签 | 单测 | 部分测 | apps/api | apps/api/tests/ask/verify-required.test.ts · apps/api/tests/ask/http-stream.test.ts | 图内 mock 语料 answered + citations + verify；未断言 `answerKind=knowledge`；非成员真库 E2E |
-| A4 | `abstained` + 非 chitchat；有 suggestedActions | P2必签 | 单测 | 部分测 | apps/api | apps/api/tests/ask/retrieve-outcomes.test.ts | 空证据 `low_retrieval` abstained；未断言 suggestedActions 非空 |
+| A4 | `abstained` + 非 chitchat；有 suggestedActions | P2必签 | 单测 | 部分测 | apps/api · apps/web | apps/api/tests/ask/retrieve-outcomes.test.ts · apps/web/tests/ask/suggested-actions.test.tsx | 空证据 `low_retrieval` abstained；web 主按钮已测。api 未断言 suggestedActions 非空 |
 
 ## 剧本 D · 图边与路由
 
@@ -48,7 +48,7 @@
 
 | ID | 期望摘要 | 阶段 | 形态 | 覆盖 | 主包 | 证据 | 缺口 |
 |----|----------|------|------|------|------|------|------|
-| H1 | 短时超限刷 ask → 429 `RATE_LIMITED`；可带 Retry-After | P2必签 | 单测 | 部分测 | apps/api | apps/api/tests/obs/rate-limit.test.ts | 429 + JSON `retryAfterSec`；无 `Retry-After` 响应头断言 |
+| H1 | 短时超限刷 ask → 429 `RATE_LIMITED`；可带 Retry-After | P2必签 | 单测 | 部分测 | apps/api · apps/web | apps/api/tests/obs/rate-limit.test.ts · apps/web/tests/ask/quota-429.test.tsx | 429 + JSON `retryAfterSec`；web 配额文案已测。无 `Retry-After` 响应头断言 |
 | H2 | `GET /health` 进程存活 200 | P2必签 | 单测 | 已测 | apps/api | apps/api/tests/env/health-ready.test.ts | — |
 | H3 | `GET /ready`：停 PG 或 Redis → 503 或 status=fail | P2必签 | 单测 | 已测 | apps/api | apps/api/tests/env/ready-hard-deps.test.ts | mock createDb / ioredis，不停本机 PG |
 | H4 | Gateway 不可用（软依赖）：ready 可为 degraded 仍 200 | P2必签 | 单测 | 已测 | apps/api | apps/api/tests/env/ready-soft-gateway.test.ts | Gateway fetch 失败仍 200 / ready=true；checks.gateway=down |

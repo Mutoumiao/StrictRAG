@@ -16,7 +16,7 @@ apps/web/src/
   lib/http.ts
   auth/api.ts · client-session.ts
   api/                    # 集中：按资源域
-    ask.ts                # transport 装配 + GET /ask/:requestId 审计（无业务 path 外泄到 UI）
+    ask.ts                # transport 装配 + GET /ask/:requestId 审计 + GET …/ask-modes（无业务 path 外泄到 UI）
     sessions.ts
     feedback.ts
     knowledge-bases.ts    # GET 身份可见库
@@ -272,7 +272,7 @@ export async function loadSessionList(kbId: string) {
 | 改路由组合 | `app/**/page.tsx` |
 | 改问答 UI 展示 | `components/ask-panel` 等 |
 | 改流式三态 / 订阅 / 终态校验 | `hooks/use-knowledge-ask.ts` |
-| 改 ask path / transport / body 装配 | `src/api/ask.ts` |
+| 改 ask path / transport / body 装配 / 档位 GET | `src/api/ask.ts` |
 | 改 sessions/feedback HTTP | `src/api/sessions.ts` · `feedback.ts` |
 | 改非流式业务编排（toast/store/多步） | 按需 `*.services.ts`（features 或同域） |
 | 改登录 / token | `auth/*` |

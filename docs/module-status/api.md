@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（已包含：P0/P1 入库 + S2 最小问答 + B1–B6 最小运营 API + B10 L1 工程 seed + B12 策略闸 + B13 反馈 API；演示依赖 mock ES / 通常走 mock Gateway；L1 **≠** 业务签字门禁） |
 | 默认依赖模式 | 检索：`RETRIEVE_ES_MODE=mock`（默认 mock ES；`http` 须 `ELASTICSEARCH_URL`）；鉴权：临时双 JWT，`AUTH_ENFORCE` **默认 `false`**；rewrite：`SESSION_REWRITE_ENABLED` **默认 false**（图边已落；dogfood 可开；**≠** 准出）；对象存储：默认 `local`（`STORAGE_MODE=s3` 走 RustFS / S3 兼容）；Gateway：`GATEWAY_MODE=''`（空按 `GATEWAY_BASE_URL` 推断，缺 URL 走 mock）；上传上限 `INGEST_MAX_FILE_BYTES=52_428_800`（50 MiB）/ 天花板 `INGEST_MAX_FILE_BYTES_CEILING=209_715_200`（200 MiB）；`LANGFUSE_ENABLED=false`；`OBS_MEMORY_TRACE=true`。**B3-W/B2-W**：ask 读取 platform 绑定 + **KB scope 绑定覆盖（只读 list，无 PUT KB 绑定 HTTP）**；**B4-W**：每请求从 DB `user_roles` hydrate；`DEPT_ACL_ENFORCE` **默认 `false`**（开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤且列表项带部门字段；`DEPT_INHERIT_DOWN` 默认 true；KB `deptInheritDown` 可覆盖 env；KB `deptAclEnforce` 可覆盖 env，未写跟 env，GET 未写回读 false；设置页可勾选，未改不写回；ES 查询期已强制 tenantId+kbId（共享索引安全隔离），部门/ACL principals 查询期对称仍无）；`MONGODB_URL` 空（非空时检索融合后批取 Mongo `chunk_bodies` 权威正文，缺块 fail-closed）；`ASK_RATE_LIMIT_RPM=0`；L1 CLI 需显式指定 `L1_KB_ID`（可选 `L1_PERSIST_EVAL`） |
 | 关联模块 | 入库演示还需要 `worker` + PostgreSQL + Redis；契约 `@strict-rag/contracts`（含 `IMPLEMENTED_CHUNK_STRATEGIES` / `IngestJobData`）；schema `@strict-rag/db`（含 `eval_runs`）；L1 gold / RACI 在仓根 `fixtures/l1/`；L2 题面草案在 `fixtures/l2/` |
-| 最近更新 | 2026-08-28（ask 审计：`GET /ask/:requestId` 成员闸回读 evidence_snapshot + graph_trace；preview 截断；≠ 断线重拉） |
+| 最近更新 | 2026-08-28（成员 `GET …/ask-modes` 只回 allowedModes/defaultMode；≠ settings、≠ τ） |
 | Spec | `.trellis/spec/api/backend/`（含 [dashboard](../../.trellis/spec/api/backend/dashboard.md) · [l1-eval](../../.trellis/spec/api/backend/l1-eval.md) · [l2-eval](../../.trellis/spec/api/backend/l2-eval.md) · [l3-metrics](../../.trellis/spec/api/backend/l3-metrics.md)） |
 | PRD | `prds/05-api` · `04-pipelines` · `08-quality` · `09-security` |
 
@@ -97,6 +97,7 @@
 - 流式异常处理：`execute` 抛错时仍会写出 `data-status phase=error` 与 `data-ask-final`（`reason=internal_guard`）；有单测覆盖（`tests/ask/http-stream.test.ts`）
 - 会话：`POST …/sessions` 创建 + 列表 / 详情外壳；**rewrite 图边已落、默认关**（`SESSION_REWRITE_ENABLED=false`；dogfood 可开；**≠** L2 准出）；**显式回溯加深部分**（命中「刚才/之前/刚刚+说/聊」时窗硬顶 8）；**文档回溯检索加码部分**（命中「这份/那份文档」时用上轮 evidence `docId` 提权，不翻聊天）；**库外文档回溯抑制部分**（「网上那份文件」不查末轮 docId、不 `preferredDocIds`）；**四态派生部分**（`resolveBackReference`：external > session > document > none；**无** intent LLM）；list 接口的 query 参数绑定 `SessionListQuerySchema` 校验
 - ask 结果落库 `ask_traces`（evidence_snapshot / graph_trace / config_snap；`rewriteUsed` / `sessionDeepened` **跟图**），`services/ask/traces.ts`
+- **`GET /api/v1/knowledge-bases/:kbId/ask-modes`**：始终 `requireKbMember`；只回 `allowedModes`/`defaultMode`（`AskModesSchema`）；缺设置回默认档；**不**回 τ / 质量快照（`tests/ask/http-ask-modes.test.ts`）；`GET …/settings` 仍要 `kb.config.write`
 - **`GET /api/v1/ask/:requestId`**：登录 + 该 trace 的 KB 成员（`evaluateKbMember`；超管旁路）回读当时 `evidenceSnapshot`（chunkId/docId/lifecycle/preview 截断）与 `graphTrace`；**不**返回 answer / rawQuestion / 正文；**不**查现网分片（reindex 后快照仍在）；`toAskAudit`（`services/ask/traces.ts`）· `tests/ask/http-audit.test.ts`
 - 反馈提交 / 管理队列 API（`routes/feedback`）；queue 接口的 query 参数绑定 `FeedbackQueueQuerySchema` 校验
 - Gateway 切片（`GATEWAY_MODE` mock/http；ask 走 `getGatewayForTenant`；Key 不进日志）；rerank 双节点：`GATEWAY_RERANK_FALLBACK_URL` + `RERANK_MIN_NODES`（staging/prod 默认 2；`services/gateway/resolve.ts`；QUAL-3 测）
@@ -185,6 +186,7 @@
 | 路由挂载 / 错误中间件 | `apps/api/src/app.ts` · `middleware/on-error.ts` · `lib/pg-error.ts` |
 | 超时 / 请求体限制 | `middleware/timeout.ts` · `body-limit.ts` · `env.ts`（`API_REQUEST_TIMEOUT_MS` 等） |
 | 问答图 / ask 路由 | `apps/api/src/graph/` · `apps/api/src/routes/ask.ts` · `apps/api/src/services/ask/` |
+| ask 档位（成员） | `routes/ask.ts` `GET …/ask-modes` · `tests/ask/http-ask-modes.test.ts` |
 | ask 审计回溯 | `routes/ask.ts` `GET /ask/:requestId` · `services/ask/traces.ts` `toAskAudit` · `tests/ask/http-audit.test.ts` |
 | 空库拒答 200 | `apps/api/src/services/ask/execute.ts` · `routes/ask.ts` · `tests/ask/http-stream.test.ts`（`kb_not_ready → 200`） |
 | 会话 / 反馈 | `apps/api/src/routes/sessions.ts` · `routes/feedback.ts` |

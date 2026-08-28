@@ -6,7 +6,10 @@
 |------|------|
 | 拒答可见 | 失败 reason / userMessage 映射用户文案；禁止伪装成成功答案 |
 | citations | 仅展示服务端返回的合法 id；不可前端「补编」引用；点回走 `GET /ask/:requestId` **当时快照**（preview 截断），禁止当 `chunk.view` 现网全文 |
-| options | 只传白名单：stream / debug / mode / locale |
+| options | 只传白名单：stream / debug / mode / locale；`mode` 来自 `GET …/ask-modes` 的 allowedModes（禁止直改 τ / retrieveK） |
+| 无可用库 | 列表成功且为空 → 阻断提问，文案「找管理员开通成员」；列表失败仍可粘贴 uuid（选择器半接线不在此改） |
+| 建议动作 | 拒答 `suggestedActions` 出主按钮（首项 default）；按 type 换问法 / 重试 / 缺文档 / 联系管理员；禁止只做无动作列表 |
+| 配额 | HTTP 429 / `RATE_LIMITED` → 配额文案；禁止装 answered |
 | scope | 产品检索 scope（如 `docTypes`）放在 **请求顶层** `scope`，**禁止**塞进 `options`（ADR-050） |
 | 流式终态 | **只信 `data-ask-final`**（`AskResponseSchema.safeParse` 通过后才更新 answered/abstained） |
 | 流式进度 | `data-status`（transient）仅驱动 loading phase；`phase=error` 可进错误态。**空库 `kb_not_ready` 是业务拒答**，走 `data-ask-final` abstained，禁止当系统错误卡 |
@@ -15,7 +18,7 @@
 | 禁止 | 自写 SSE 分帧；用 text-delta / 中间事件覆盖终态答案 |
 | 质量面板 | 禁止 UI 暴露 tauClaim 等调参给普通用户 |
 | rewrite | P2 强制关；debug 若展示须 `rewriteUsed=false` |
-| 反馈（B13） | 仅提交本轮 `requestId` 的 rating/category/comment；**禁止**把用户评论当 citation/evidence 回灌 ask |
+| 反馈（B13） | 仅提交本轮 `requestId` 的 rating/category/comment；类别含报错 `wrong_answer` / 缺文档 `missing_doc`；**禁止**把用户评论当 citation/evidence 回灌 ask |
 | 反馈 API | `src/api/feedback.ts` → `POST /api/v1/ask/:requestId/feedback`；鉴权/成员以 **API** 为准 |
 
 ## 技术约定
@@ -44,6 +47,7 @@
 | 会话编排 | `src/services/sessions.services.ts`（无 path） |
 | 反馈 API | `src/api/feedback.ts` · UI：`ask-panel` FeedbackBar |
 | 引用回溯 | `src/api/ask.ts` `getAskAudit` → `GET /api/v1/ask/:requestId`；UI：`CitationBlock` |
+| 档位 | `src/api/ask.ts` `getAskModes` → `GET /api/v1/knowledge-bases/:kbId/ask-modes`；body `options.mode` |
 | 身份 API | `src/auth/api.ts` |
 | 客户端 env | `env.client.ts` → 仅公开 API base 等 `NEXT_PUBLIC_*` |
 

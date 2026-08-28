@@ -18,6 +18,11 @@
 - [ ] 拒答/错误「重试」是否用 `lastQuestion`（不依赖提交后已空的输入框）？  
 - [ ] 反馈是否走 `src/api/feedback.ts` → `POST /api/v1/ask/:requestId/feedback`（类型来自 contracts）？  
 - [ ] 引用点回是否走 `getAskAudit` → `GET /api/v1/ask/:requestId` 当时快照（禁止现网 `chunk.view` 全文、禁止前端补编）？  
+- [ ] 档位是否读 `GET …/ask-modes` 的 `allowedModes`/`defaultMode` 并传 `options.mode`（禁止直改 τ / retrieveK）？  
+- [ ] 无可用库是否阻断提问并引导找管理员开通成员（列表失败仍可粘贴 uuid）？  
+- [ ] 拒答 `suggestedActions` 是否出主按钮（换问法 / 重试 / 缺文档 / 联系管理员）？  
+- [ ] 429 `RATE_LIMITED` 是否出配额文案，禁止装 answered？  
+- [ ] 反馈是否含报错 / 缺文档类别（`wrong_answer` / `missing_doc`）？  
 - [ ] 会话存储 key 是否仅为 `strict-rag:web:client-session`？  
 - [ ] 业务 HTTP / path 是否只在 `src/api/*` 或 `auth/api`，传输在 `lib/http`？  
 - [ ] services（若有）是否禁止写 URL、只调 api？hooks 是否不与 services 双轨编排？  
