@@ -33,7 +33,7 @@
 
 | 判定 | 主要落点 |
 |------|----------|
-| **缺** | Reindex UI；文档类型标注 UI；评测 HTTP+admin 页；`GET /ask/:requestId`；ingest-report；失败 Webhook；ES 查询强制 `tenantId`；web 档位；web 无库空态；在线编写页 |
+| **缺** | 评测 HTTP+admin 页；`GET /ask/:requestId`；ingest-report；失败 Webhook；ES 查询强制 `tenantId`；web 档位；web 无库空态；在线编写页 |
 | **半接线** | `/me/permissions` 走 `/auth/me`；成员无 PUT/`allowedDocIds`；策略仅进程内闸；KB 绑定可碰 judge；对称 ACL / 生效区间 / Mongo 正文；scan 外的 maintenance；Langfuse 无 SDK；web 库选择器/引用点回/建议动作/配额文案 |
 | **齐（含壳）** | 登录 JWT；会话壳+rewrite 关；ask 同步+SSE；空库 200+`kb_not_ready`；成员闸；verify/min 否决/claim_split；硬 rerank 失败不 answered；分片只读；审批闸；反馈 API；用户/角色/部门壳；面板权限；Key 不明文 |
 
@@ -48,8 +48,8 @@
 | §3 无可用知识库 | P2 | `apps/web/src/components/ask-panel.tsx`：`kbOptions` 空仍渲染提问表 | 缺 | 无「找管理员开通成员」阻断空态 |
 | §3 问答档位 | P2 | web `ask.ts` options 仅 `stream:true`；面板无 mode | 缺 | 不读 `allowedModes`、不传 `mode` |
 | §4.1 / §4.3 创建知识库 | P2 | admin 顶栏 KB 选择器旁有建库入口（`kb.create`）；`CreateKbBodySchema` 必填 `initialAdminUserId`（工单「建库闭环」） | 齐（入口） | 成员 PUT / 向导配策略仍后批 |
-| §4.3 Reindex | P2 | admin 无 reindex 调用；api `POST …/reindex` 已有 | 缺 | 权限码闲置，列表无按钮 |
-| §4.3 文档类型标注 | P2 | 文档 PATCH 仅部门/可见级；列表无 `docType` | 缺 | 无法标注/校验类型 |
+| §4.3 Reindex | P2 | admin 行展开 Reindex + ≥2 人选；api `POST …/reindex`（工单「文档运营余量最小闭环」） | 齐（按钮） | 旧文档仍须点 Reindex 才按新切块 |
+| §4.3 文档类型标注 | P2 | PATCH `docType` 须 ∈ KB 枚举；列表类型列（工单「文档运营余量最小闭环」） | 齐（标注） | 类型分区 CRUD 仍后批 |
 | §4.2 修改日志可查 | P2 | settings 仅 GET/PATCH，无运营查询面 | 缺 | 谁/何时/旧→新不可查 |
 | §4.5 平台注册表 | P2 | 有 `chunk_strategy_definitions` 种子表；无运营 CRUD 页（工单「策略三层最小闭环」明确不做） | 齐（种子表） | 运营扩展任意新 code 仍后批 |
 | §4.5 库启用 | P2 | 有 `kb_chunk_strategies` + 设置弹窗启用/recommended（工单「策略三层最小闭环」） | 齐（启用） | paramSchema 动态表单仍后批 |
@@ -84,7 +84,7 @@
 
 | 定位 | 入场 | 证据 | 判定 | 缺口 |
 |------|------|------|------|------|
-| 文档页 | P2 | 列表有 status×lifecycle 列、上传、上架 | 半接线 | 无类型列、编写、Reindex、入库报告入口 |
+| 文档页 | P2 | 类型列、运营标签、Reindex、四态 lifecycle（工单「文档运营余量最小闭环」） | 齐（运营最小） | 无编写、入库报告入口 |
 | 知识库设置 | P2 禁空壳 | 页非空 | 半接线 | 策略/类型/绑定分区不齐（见下） |
 | 反馈队列 | P2 | dismiss / linked_doc | 半接线 | 无回流黄金集；IA 未拆「反馈」一级 |
 | 平台模型绑定 | P2 | purpose 下拉 | 半接线 | 无 rerank 链节点校验；不禁 judge=aux 同模 |
@@ -94,8 +94,8 @@
 | KB 消费绑定 | P2 generate/embed/rerank | 仅 embed.primary | 半接线 | 无 generate/rerank、无跟随平台 |
 | 质量只读 | P2 τ+签字包链 | tauClaim / gatePackageId | 半接线 | 无链展示 |
 | 上传 | P2 预签名→审批；策略可选 | upload-url→complete；for-upload 人选 | 半接线 | 上传不标部门/类型（策略人选已收） |
-| 状态双轴 | P2 运营标签 | 分列原串 | 半接线 | 未映射「现行可问」等标签 |
-| 生命周期 | P2 四态+生效区间 | 仅 active↔draft | 半接线 | 无废止/替代/归档/区间 |
+| 状态双轴 | P2 运营标签 | 运营列映射八态，原串次要（工单「文档运营余量最小闭环」） | 齐（标签） | — |
+| 生命周期 | P2 四态+生效区间 | draft/active/superseded/archived 动作（工单「文档运营余量最小闭环」） | 齐（四态） | 生效区间仍后批 |
 | 文档绑定策略 | P2 一篇一策略 | 写死 `structure_paragraph` | 半接线 | 无人选、无审计展示 |
 | 超管引导 | P2 | 仅 dev-login 选 super_admin | 半接线 | 无启动引导超管 |
 | 末位超管 | P2 | 闸在 api；admin 无提示 | 半接线 | 前端可点禁用 |
@@ -178,7 +178,7 @@
 
 1. **空库拒答语义**：**已收**（工单「空库拒答对齐 200」：200 + `kb_not_ready`；web 拒答卡）  
 2. **建库闭环**：**已收**（工单「建库闭环」：`initialAdminUserId` + 令牌租户 + 顶栏入口）  
-3. **文档运营余量**：**已排入第二批**（工单「文档运营余量最小闭环」，挡住策略三层最小闭环）  
+3. **文档运营余量**：**已收**（工单「文档运营余量最小闭环」：Reindex 人选、类型列+PATCH、双轴标签、archived/superseded）  
 4. **策略三层**：**已收**（工单「策略三层最小闭环」：表 + catalog/for-upload + 设置启用/recommended + 上传人选 + 参数快照）  
 5. **评测底线**：gold-questions + eval 入队 + admin 薄页（CLI 已有，不算齐）  
 6. **ask 审计与引用**：`GET /ask/:requestId`；web 引用点回  

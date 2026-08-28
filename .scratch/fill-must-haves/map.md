@@ -26,6 +26,7 @@ Status: open
 - [建库闭环](./issues/04-create-kb-closed-loop.md) — 建库必填首位库管并写入成员；租户令牌覆盖；admin 顶栏入口。
 - [裁定第二批 P2 执行顺序](./issues/05-second-p2-execution-order.md) — 第二批只做策略三层最小闭环 → 文档运营余量最小闭环（真实挡住）；第三批 grilling 等这两张都完成。
 - [策略三层最小闭环](./issues/06-strategy-three-layer-min.md) — 两张表 + catalog/for-upload + 设置启用/recommended + 上传人选 + 参数快照。
+- [文档运营余量最小闭环](./issues/07-document-ops-remainder-min.md) — Reindex 人选、类型列+PATCH、双轴运营标签、archived/superseded。
 
 ## Not yet specified
 

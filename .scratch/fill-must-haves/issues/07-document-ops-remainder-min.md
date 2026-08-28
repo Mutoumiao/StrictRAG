@@ -2,7 +2,8 @@
 
 Type: task
 Label: wayfinder:task
-Status: open
+Status: resolved
+Assignee: grok
 Triage: ready-for-agent
 Blocked by: 06
 
@@ -32,4 +33,20 @@ Blocked by: 06
 - 策略三层表与 catalog HTTP（上一张）
 - 评测、ask 审计、web 消费、检索补钉
 
+## Answer
+
+文档运营余量最小闭环已落地。
+
+- **Reindex**：行展开按钮（`doc.reindex`）；≥2 走 for-upload 人选，未选不可提交；仅 1 个可自动。API 已有，本张接 UI。
+- **类型**：列表类型列；PATCH `docType` 须属于该 KB 枚举（空枚举只能清 null），否则 400。不重做类型分区 CRUD。
+- **双轴标签**：运营列映射待审 / 处理中 / 需 OCR / 失败 / 就绪未发布 / 现行可问 / 已替代 / 已归档；原串 `status · lifecycle` 次要。
+- **lifecycle**：补废止 / 归档；上架仍须 `status=ready` 且仅 draft。检索闸不自动升。
+- **测例**：contracts PATCH/列表 docType；api 非法码 400 + 四态 HTTP；admin 标签映射、Reindex ≥2、归档按钮。
+- **08-06**：只补指针。未 `task.py create`。
+
+未做：生效区间、DELETE、替代联动、上传标部门、类型分区 CRUD、GET /doc-types、在线编写、入库报告、策略审计展示。
+
 ## Comments
+
+- 2026-08-28 按图顺序认领本工单并执行。不开启裁定第三批 P2 执行顺序。
+- 2026-08-28 落盘如上。
