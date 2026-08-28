@@ -10,6 +10,7 @@ import type {
   CompleteUploadResponse,
   DocumentDetail,
   DocumentListItem,
+  ForUploadResponse,
   IngestJobListItem,
   PatchDocumentMetaBody,
   PatchLifecycleBody,
@@ -73,5 +74,12 @@ export async function completeUpload(kbId: string, docId: string, body: Complete
   return http.post<CompleteUploadResponse, CompleteUploadBody>(
     `/api/v1/knowledge-bases/${kbId}/documents/${docId}/complete`,
     body,
+  );
+}
+
+export async function getChunkStrategiesForUpload(kbId: string, contentType: string) {
+  const q = new URLSearchParams({ contentType });
+  return http.get<ForUploadResponse>(
+    `/api/v1/knowledge-bases/${kbId}/chunk-strategies/for-upload?${q.toString()}`,
   );
 }

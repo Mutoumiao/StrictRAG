@@ -13,6 +13,7 @@ import type {
   Department,
   DocumentDetail,
   DocumentListItem,
+  ForUploadResponse,
   IngestJobListItem,
   VisibilityLevel,
 } from '@strict-rag/contracts';
@@ -46,7 +47,7 @@ import {
 } from '../meta.services';
 import { loadIngestJobs } from '../jobs.services';
 import { canPublish, canRevertDraft, setDocumentLifecycle } from '../lifecycle.services';
-import { uploadAdminDocument } from '../upload.services';
+import { pickUploadChunkStrategy, planUploadChunkStrategy, uploadAdminDocument } from '../upload.services';
 
 const VISIBILITY_LEVELS: VisibilityLevel[] = [10, 20, 30, 40];
 
@@ -84,6 +85,9 @@ export function DocumentsWorkspace() {
   const [deptOptionsError, setDeptOptionsError] = useState<string | null>(null);
   const [uploadBusy, setUploadBusy] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [uploadPlan, setUploadPlan] = useState<ForUploadResponse | null>(null);
+  const [pickedStrategy, setPickedStrategy] = useState('');
   const [jobs, setJobs] = useState<IngestJobListItem[]>([]);
   const [jobsNote, setJobsNote] = useState<string | null>(null);
   const openIdRef = useRef<string | null>(null);
@@ -183,19 +187,58 @@ export function DocumentsWorkspace() {
     }
   }
 
-  async function onPickFile(file: File | undefined) {
+  async function runUpload(file: File, chunkStrategy: string) {
     const id = readStoredKbId().trim();
-    if (!file || !id || !canUpload) return;
     setUploadBusy(true);
     setUploadMessage(null);
-    const result = await uploadAdminDocument(id, file);
+    const result = await uploadAdminDocument(id, file, chunkStrategy);
     if (result.ok) {
       setUploadMessage('已上传，待审批');
+      setPendingFile(null);
+      setUploadPlan(null);
       await load();
     } else {
       setUploadMessage(result.message);
     }
     setUploadBusy(false);
+  }
+
+  async function onPickFile(file: File | undefined) {
+    const id = readStoredKbId().trim();
+    if (!file || !id || !canUpload) return;
+    setUploadBusy(true);
+    setUploadMessage(null);
+    const contentType = file.type || 'text/plain';
+    const planned = await planUploadChunkStrategy(id, contentType);
+    if (!planned.ok) {
+      setUploadBusy(false);
+      setUploadMessage(planned.message);
+      return;
+    }
+    const picked = pickUploadChunkStrategy(planned.plan);
+    if (planned.plan.requireExplicit) {
+      setPendingFile(file);
+      setUploadPlan(planned.plan);
+      setPickedStrategy(picked.ok ? picked.code : (planned.plan.recommendedCode ?? ''));
+      setUploadBusy(false);
+      return;
+    }
+    if (!picked.ok) {
+      setUploadBusy(false);
+      setUploadMessage(picked.message);
+      return;
+    }
+    await runUpload(file, picked.code);
+  }
+
+  async function onConfirmUpload() {
+    if (!pendingFile || !uploadPlan) return;
+    const picked = pickUploadChunkStrategy(uploadPlan, pickedStrategy);
+    if (!picked.ok) {
+      setUploadMessage(picked.message);
+      return;
+    }
+    await runUpload(pendingFile, picked.code);
   }
 
   async function onLifecycle(lifecycle: 'active' | 'draft') {
@@ -272,6 +315,28 @@ export function DocumentsWorkspace() {
         </div>
       </div>
       {uploadMessage ? <p className="mb-2 text-sm text-muted-foreground">{uploadMessage}</p> : null}
+      {pendingFile && uploadPlan ? (
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
+          <Label htmlFor="upload-chunk-strategy">分片策略</Label>
+          <select
+            id="upload-chunk-strategy"
+            className="flex h-9 rounded-md border border-input bg-card px-3 text-sm"
+            value={pickedStrategy}
+            onChange={(e) => setPickedStrategy(e.target.value)}
+            disabled={uploadBusy}
+          >
+            {uploadPlan.available.map((a) => (
+              <option key={a.code} value={a.code}>
+                {a.name}
+                {a.recommended ? '（recommended）' : ''}
+              </option>
+            ))}
+          </select>
+          <Button type="button" size="sm" disabled={uploadBusy} onClick={() => void onConfirmUpload()}>
+            确认上传
+          </Button>
+        </div>
+      ) : null}
       <p className="mb-4 text-xs text-muted-foreground">
         稀疏就绪是适配层/mock 标志，≠ 生产 ES。
       </p>

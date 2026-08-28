@@ -5,7 +5,14 @@
  * path 仅此处；禁止 services/UI 写 URL。
  */
 
-import type { KbSettings, PatchKbSettingsBody, PlatformBindings, PutPlatformBindingsBody } from '@strict-rag/contracts';
+import type {
+  ChunkStrategyCatalogResponse,
+  KbSettings,
+  PatchKbChunkStrategiesBody,
+  PatchKbSettingsBody,
+  PlatformBindings,
+  PutPlatformBindingsBody,
+} from '@strict-rag/contracts';
 
 import { http } from '@/lib/http';
 
@@ -26,6 +33,19 @@ export async function getKbModelBindings(kbId: string) {
 export async function putKbModelBindings(kbId: string, body: PutPlatformBindingsBody) {
   return http.put<{ bindings: PlatformBindings }, PutPlatformBindingsBody>(
     `/api/v1/knowledge-bases/${kbId}/model-bindings`,
+    body,
+  );
+}
+
+export async function getKbChunkStrategies(kbId: string) {
+  return http.get<ChunkStrategyCatalogResponse>(
+    `/api/v1/knowledge-bases/${kbId}/chunk-strategies`,
+  );
+}
+
+export async function patchKbChunkStrategies(kbId: string, body: PatchKbChunkStrategiesBody) {
+  return http.patch<ChunkStrategyCatalogResponse, PatchKbChunkStrategiesBody>(
+    `/api/v1/knowledge-bases/${kbId}/chunk-strategies`,
     body,
   );
 }

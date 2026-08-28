@@ -9,7 +9,6 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { AskMode, DataClass, KbSettings } from '@strict-rag/contracts';
-import { IMPLEMENTED_CHUNK_STRATEGIES } from '@strict-rag/contracts';
 import { Button } from '@strict-rag/ui/components/ui/button';
 import { Input } from '@strict-rag/ui/components/ui/input';
 import { Label } from '@strict-rag/ui/components/ui/label';
@@ -24,6 +23,7 @@ import {
   saveKbBindings,
   saveKbSettings,
 } from '../services';
+import { ChunkStrategyPanel } from './chunk-strategy-panel';
 
 const ALL_MODES: AskMode[] = ['strict', 'balanced', 'fast'];
 const DATA_CLASSES: DataClass[] = ['internal', 'sensitive'];
@@ -303,13 +303,7 @@ export function SettingsWorkspace() {
             <p className="text-xs text-muted-foreground">写入 KB 允许的 docTypes；空数组清除限制。</p>
           </section>
 
-          <section className="space-y-3 rounded-lg border border-border p-4">
-            <h2 className="text-sm font-semibold">分片策略</h2>
-            <p className="text-sm font-mono">{IMPLEMENTED_CHUNK_STRATEGIES.join(', ')}</p>
-            <p className="text-xs text-muted-foreground">
-              可写策略仅上述已实现码。complete/reindex 才落文档策略；禁止因本页自动切换旧文档。
-            </p>
-          </section>
+          <ChunkStrategyPanel kbId={kbId} canWrite={canWrite} />
 
           <section className="space-y-3 rounded-lg border border-border p-4">
             <h2 className="text-sm font-semibold">KB 模型绑定</h2>

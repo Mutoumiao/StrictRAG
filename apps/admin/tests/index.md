@@ -21,6 +21,7 @@
 | `auth/client-session.test.ts` | admin session 必须与 web key 分轨，失败则两端会话互相覆盖。 | 双端 key 分轨 | `saveClientSession / readClientSession / clearClientSession` | 不写 web session key。 | 现行 |
 | `auth/http-error-fields.test.ts` | ApiHttpError 必须保留 code 与 shouldRefresh，失败则刷新闸丢失字段。 | P0 R5 | `ApiHttpError` | 三参构造直断言字段。 | 现行 |
 | `error-map/map-biz-error.test.ts` | 已知业务码映射后文案必须含 code，失败则运营页看不到可核对错误码。 | P0 R6 | `mapBizError` | 不透出 shouldRefresh。 | 现行 |
+| `kb/upload-strategy.test.ts` | 上传人选必须走 for-upload 结果，禁止写死默认策略码。 | 功能表 §4.5 | `pickUploadChunkStrategy` | 仅 1 个用 autoCode；≥2 须人选或 recommended。 | 现行 |
 | `kb/create-kb-services.test.ts` | 建库用例成功后必须把新库写成当前 KB。 | prds/05-api §2.1 | `createKbAndSelect` | 不写 URL；HTTP 真值在 api。 | 现行 |
 | `kb/create-kb.test.tsx` | 有 kb.create 才显示建库入口；表单预填当前用户并可改。 | prds/05-api §2.1 | `AdminShell · CreateKbControls` | 挂 KB 选择器，不单开二级菜单。真值在 api 建库写入。 | 现行 |
 | `kb/current-kb.test.ts` | 当前 KB 选择必须读写 admin 独立 key，失败则污染 web 或选库丢失。 | 壳 KB 上下文 | `readStoredKbId / writeStoredKbId` | localStorage key。 | 现行 |
@@ -28,6 +29,7 @@
 | `ops/dashboard-workspace.test.tsx` | 数据面板无码须保持 403、有码才加载 summary，失败则指标页对无权限可见。 | B6 UI | `DashboardWorkspace` | 指标真值在 api。 | 现行 |
 | `ops/departments-workspace.test.tsx` | 部门薄页必须按码显隐授权与归属入口，失败则无权限用户看到写操作。 | B5 UI | `DepartmentsWorkspace · grantVisibilityLabel / grantExpiresLabel` | ACL 真值在 api。 | 现行 |
 | `ops/document-lifecycle.test.ts` | 文档生命周期入口闸必须按状态判断，失败则未就绪也可发布。 | complete/reindex 入口 | `canPublish / canRevertDraft` | 不测策略执行。 | 现行 |
+| `ops/chunk-strategy-panel.test.tsx` | 知识库设置分片策略弹窗必须能启用策略并保存 recommended，且声明不自动 reindex。 | 功能表 §4.5 | `ChunkStrategyPanel` | HTTP 真值在 api。 | 现行 |
 | `ops/document-upload.test.ts` | 上传服务必须按 upload-url → PUT → complete 调用，失败则入口顺序错乱。 | 上传入口 | `uploadAdminDocument` | 体积闸真值在 api。 | 现行 |
 | `ops/documents-workspace.test.tsx` | 文档列表薄页必须按码控制详情/保存/部门列，失败则运营交互与权限不符。 | 文档运营 UI | `DocumentsWorkspace · deptLabel / readyColLabel / visibilityLabel` | 部门列展示。 | 现行 |
 | `ops/feedback-comment-escape.test.tsx` | 反馈 comment 含 `<script>` 必须当文本展示，不得当 HTML 解析。 | 剧本 K6 · prds/10-delivery/03-acceptance-scenarios.md | `FeedbackWorkspace` | comment 走 React 文本节点原样可见。 | 现行 |

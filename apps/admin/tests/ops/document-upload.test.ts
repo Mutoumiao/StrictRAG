@@ -10,11 +10,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const requestUploadUrl = vi.fn();
 const putUploadedObject = vi.fn();
 const completeUpload = vi.fn();
+const getChunkStrategiesForUpload = vi.fn();
 
 vi.mock('@/app/(ops)/documents/api', () => ({
   requestUploadUrl: (...a: unknown[]) => requestUploadUrl(...a),
   putUploadedObject: (...a: unknown[]) => putUploadedObject(...a),
   completeUpload: (...a: unknown[]) => completeUpload(...a),
+  getChunkStrategiesForUpload: (...a: unknown[]) => getChunkStrategiesForUpload(...a),
 }));
 
 import { uploadAdminDocument } from '@/app/(ops)/documents/upload.services';
@@ -37,7 +39,7 @@ describe('uploadAdminDocument', () => {
     putUploadedObject.mockResolvedValue({ key: 'k', byteSize: 3, checksumSha256: 'x' });
     completeUpload.mockResolvedValue({ docId: 'd1' });
     const file = new File(['abc'], 'a.txt', { type: 'text/plain' });
-    const r = await uploadAdminDocument('kb1', file);
+    const r = await uploadAdminDocument('kb1', file, 'structure_paragraph');
     expect(r).toEqual({ ok: true, docId: 'd1' });
     expect(requestUploadUrl).toHaveBeenCalledWith('kb1', {
       title: 'a.txt',
