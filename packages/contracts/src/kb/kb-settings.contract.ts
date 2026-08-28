@@ -8,6 +8,23 @@ export type AskMode = z.infer<typeof AskModeSchema>;
 export const DEFAULT_ALLOWED_MODES: AskMode[] = ['strict', 'balanced', 'fast'];
 export const DEFAULT_DEFAULT_MODE: AskMode = 'balanced';
 
+/** GET …/knowledge-bases/:kbId/ask-modes（成员可读；不含 τ / 质量快照） */
+export const AskModesSchema = z
+  .object({
+    allowedModes: z
+      .array(AskModeSchema)
+      .min(1)
+      .refine((arr) => new Set(arr).size === arr.length, {
+        message: 'allowedModes must be unique',
+      }),
+    defaultMode: AskModeSchema,
+  })
+  .strict()
+  .refine((v) => v.allowedModes.includes(v.defaultMode), {
+    message: 'defaultMode must be in allowedModes',
+  });
+export type AskModes = z.infer<typeof AskModesSchema>;
+
 /** KB 语料分级；缺省 / 旧行 = internal。sensitive 入池闸见 complete，≠ 已解禁 */
 export const DataClassSchema = z.enum(['internal', 'sensitive']);
 export type DataClass = z.infer<typeof DataClassSchema>;

@@ -1,13 +1,14 @@
 /**
- * 目标：KB 设置 PATCH 仅白名单且拒阈值字段，GET 必须锁定 rewrite 关闭。
- * 需求：B2
- * 被测：PatchKbSettingsBodySchema · KbSettingsSchema
- * 简介：KB 设置形状与 sessionRewrite 锁定。
+ * 目标：KB 设置 PATCH 仅白名单且拒阈值字段，GET 必须锁定 rewrite 关闭；成员档位口不得夹带 τ。
+ * 需求：B2 · 功能表 §3 问答档位
+ * 被测：PatchKbSettingsBodySchema · KbSettingsSchema · AskModesSchema
+ * 简介：KB 设置形状与 sessionRewrite 锁定；ask-modes 仅 allowedModes/defaultMode。
  */
 
 import { describe, expect, it } from 'vitest';
 
 import {
+  AskModesSchema,
   KbSettingsSchema,
   PatchKbSettingsBodySchema,
 } from '../../src/kb/kb-settings.contract.js';
@@ -152,5 +153,37 @@ describe('KbSettingsSchema', () => {
     });
     expect(r.success).toBe(true);
     if (r.success) expect(r.data.deptAclEnforce).toBe(false);
+  });
+});
+
+describe('AskModesSchema', () => {
+  it('accepts allowedModes + defaultMode', () => {
+    const r = AskModesSchema.safeParse({
+      allowedModes: ['strict', 'balanced'],
+      defaultMode: 'balanced',
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('rejects tauClaim / extra keys / default not in allowed', () => {
+    expect(
+      AskModesSchema.safeParse({
+        allowedModes: ['balanced'],
+        defaultMode: 'balanced',
+        tauClaim: 0.3,
+      }).success,
+    ).toBe(false);
+    expect(
+      AskModesSchema.safeParse({
+        allowedModes: ['balanced'],
+        defaultMode: 'fast',
+      }).success,
+    ).toBe(false);
+    expect(
+      AskModesSchema.safeParse({
+        allowedModes: ['strict', 'strict'],
+        defaultMode: 'strict',
+      }).success,
+    ).toBe(false);
   });
 });

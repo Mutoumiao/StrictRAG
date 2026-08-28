@@ -26,7 +26,7 @@
 | `ingest/chunk-strategy.test.ts` | 分片策略默认码必须已实现，路线图码已知但未实现，未知码不得当已实现。 | B12 | `DEFAULT_CHUNK_STRATEGY · isImplementedChunkStrategy · CHUNK_STRATEGY_CODES` | 策略枚举与未实现边界。 | 现行 |
 | `ingest/chunk-strategy-catalog-contract.test.ts` | 分片策略三层 HTTP 契约必须带 for-upload query 与库启用 PATCH，缺字段或非法族应拒绝。 | 功能表 §4.5 · ADR-053 | `ForUploadQuerySchema · PatchKbChunkStrategiesBodySchema · docFamilyFromContentType` | 最小闭环 DTO；不含平台 CRUD 页。 | 现行 |
 | `ingest/document-contract.test.ts` | 文档 / 知识库 DTO 与完成上传、补丁元数据必须接受合法部门可见级并拒非法值。 | 入库 HTTP | `CreateKbBodySchema · KnowledgeBaseListItemSchema · VisibilityLevelSchema · CompleteUploadBodySchema · PatchDocumentMetaBodySchema · DocumentDetailSchema · DocumentListItemSchema` | 文档 DTO 含列表 docType；PATCH 可写类型。 | 现行 |
-| `kb/settings-contract.test.ts` | KB 设置 PATCH 仅白名单且拒阈值字段，GET 必须锁定 rewrite 关闭。 | B2 | `PatchKbSettingsBodySchema · KbSettingsSchema` | KB 设置形状与 sessionRewrite 锁定。 | 现行 |
+| `kb/settings-contract.test.ts` | KB 设置 PATCH 仅白名单且拒阈值字段，GET 必须锁定 rewrite 关闭；成员档位口不得夹带 τ。 | B2 · 功能表 §3 问答档位 | `PatchKbSettingsBodySchema · KbSettingsSchema · AskModesSchema` | KB 设置形状与 sessionRewrite 锁定；ask-modes 仅 allowedModes/defaultMode。 | 现行 |
 | `system/dashboard-contract.test.ts` | 面板 summary 必须含四项指标，拒绝未知字段。 | B6 | `DashboardSummarySchema` | 面板 summary 形状。 | 现行 |
 | `system/departments-contract.test.ts` | 部门创建 / 补丁 / 用户部门绑定 DTO 必须严格字段且补丁非空。 | B5 | `CreateDepartmentBodySchema · PatchDepartmentBodySchema · PutUserDepartmentsBodySchema` | 部门 DTO 形状。 | 现行 |
 | `system/dept-grants-contract.test.ts` | 跨部门 grant DTO 只接受合法可见级、uuid 与本地时间 expiresAt。 | DEPT_ACL | `CreateDeptCrossGrantBodySchema · ListDeptCrossGrantsQuerySchema` | grant DTO 形状。 | 现行 |
