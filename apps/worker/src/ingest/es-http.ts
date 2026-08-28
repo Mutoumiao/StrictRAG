@@ -61,6 +61,7 @@ export async function ensureSparseIndex(cfg: EsHttpConfig): Promise<void> {
       mappings: {
         properties: {
           chunkId: { type: 'keyword' },
+          tenantId: { type: 'keyword' },
           kbId: { type: 'keyword' },
           docId: { type: 'keyword' },
           sparseText: { type: 'text' },
@@ -76,7 +77,7 @@ export async function ensureSparseIndex(cfg: EsHttpConfig): Promise<void> {
 
 export async function bulkIndexSparse(
   cfg: EsHttpConfig,
-  docs: Array<{ chunkId: string; kbId: string; docId: string; sparseText: string }>,
+  docs: Array<{ chunkId: string; tenantId: string; kbId: string; docId: string; sparseText: string }>,
 ): Promise<{ indexed: number }> {
   if (docs.length === 0) return { indexed: 0 };
   const base = trimUrl(cfg.baseUrl);
@@ -87,6 +88,7 @@ export async function bulkIndexSparse(
     lines.push(
       JSON.stringify({
         chunkId: d.chunkId,
+        tenantId: d.tenantId,
         kbId: d.kbId,
         docId: d.docId,
         sparseText: d.sparseText,

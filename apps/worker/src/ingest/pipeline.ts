@@ -35,7 +35,7 @@ import { embedTextsHttp, mockEmbedVector } from './embed-http.js';
 import { decodeUtf8Text, hasUtf8TextLayer } from './extract-text.js';
 import { extractPdfTextLayer, isPdfObject } from './pdf-text.js';
 import { recordStageEnd, recordStageStart } from './job-ledger.js';
-import { localMongoDocId, upsertDocumentBody } from './mongo-body.js';
+import { localMongoDocId, upsertChunkBodies, upsertDocumentBody } from './mongo-body.js';
 import { deleteObject, readObjectBytes, storeConfigFromEnv } from './object-store.js';
 
 /** 阶段结果：errorCode 供 worker 接 BullMQ retry / Unrecoverable */
@@ -358,6 +358,16 @@ async function runIngestStageCore(
 
       // doc 内简单去重：相同 body 跳过
       const seen = new Set<string>();
+      const chunkBodyRows: Array<{
+        chunkId: string;
+        tenantId: string;
+        kbId: string;
+        docId: string;
+        indexVersion: number;
+        contextPrefix: string | null;
+        text: string;
+        tokenCount: number | null;
+      }> = [];
       let ordinal = 0;
       for (const body of pieces) {
         const norm = body.toLowerCase();
@@ -377,8 +387,22 @@ async function runIngestStageCore(
           bodyText: body,
           contextPrefix: prefix,
           tokenCount: Math.ceil(body.length / 4),
+          mongoBodyId: env.MONGODB_URL.trim() ? id : localMongoDocId(id),
+        });
+        chunkBodyRows.push({
+          chunkId: id,
+          tenantId: doc.tenantId,
+          kbId: doc.kbId,
+          docId: doc.id,
+          indexVersion,
+          contextPrefix: prefix,
+          text: body,
+          tokenCount: Math.ceil(body.length / 4),
         });
         ordinal += 1;
+      }
+      if (env.MONGODB_URL.trim()) {
+        await upsertChunkBodies({ url: env.MONGODB_URL, rows: chunkBodyRows });
       }
 
       if (chunkIds.length === 0) {
@@ -609,6 +633,7 @@ async function runIngestStageCore(
             cfg,
             chunkRows.map((row) => ({
               chunkId: row.id,
+              tenantId: doc.tenantId,
               kbId: doc.kbId,
               docId: doc.id,
               sparseText: sparseTextForChunk(row.contextPrefix, row.bodyText),

@@ -1,6 +1,7 @@
 import { MongoClient } from 'mongodb';
 
 const DOCUMENT_BODIES = 'document_bodies';
+const CHUNK_BODIES = 'chunk_bodies';
 const SERVER_SELECTION_TIMEOUT_MS = 3000;
 
 /**
@@ -53,6 +54,57 @@ export async function upsertDocumentBody(opts: {
       { upsert: true },
     );
     return opts.docId;
+  } finally {
+    await client.close();
+  }
+}
+
+export type ChunkBodyRow = {
+  chunkId: string;
+  tenantId: string;
+  kbId: string;
+  docId: string;
+  indexVersion: number;
+  contextPrefix: string | null;
+  text: string;
+  tokenCount: number | null;
+};
+
+/** chunk 正文写 Mongo（PRD 03-data/02 §3.2 chunk_bodies）；URL 空 → 调用方回退 local:{chunkId} */
+export async function upsertChunkBodies(opts: {
+  url: string;
+  rows: ChunkBodyRow[];
+}): Promise<string[]> {
+  const url = opts.url.trim();
+  if (!url || opts.rows.length === 0) {
+    return opts.rows.map((r) => localMongoDocId(r.chunkId));
+  }
+  const client = mongoClient(url);
+  try {
+    await client.connect();
+    const col = client.db().collection(CHUNK_BODIES);
+    await Promise.all(
+      opts.rows.map((r) =>
+        col.updateOne(
+          { chunkId: r.chunkId },
+          {
+            $set: {
+              chunkId: r.chunkId,
+              tenantId: r.tenantId,
+              kbId: r.kbId,
+              docId: r.docId,
+              indexVersion: r.indexVersion,
+              contextPrefix: r.contextPrefix ?? '',
+              text: r.text,
+              tokenCount: r.tokenCount ?? 0,
+              updatedAt: new Date().toISOString(),
+            },
+          },
+          { upsert: true },
+        ),
+      ),
+    );
+    return opts.rows.map((r) => r.chunkId);
   } finally {
     await client.close();
   }
