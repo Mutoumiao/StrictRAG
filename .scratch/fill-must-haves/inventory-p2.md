@@ -14,7 +14,7 @@
 - **缺**：P2 行在源码里没有对应能力（页 / 路由 / 闸）。
 - **半接线**：有壳或主路径，但缺关键语义（错 HTTP、缺字段、缺运营交互、错 reason）。
 - **齐**：源码可核对该行 P2 语义。PRD 写明本阶段就是壳的（部门、面板薄）标「齐（壳）」。
-- 第一批动手顺序不在本文裁定，见工单「裁定第一批 P2 执行顺序」。
+- 第一批动手顺序见工单「裁定第一批 P2 执行顺序」。第二批见「裁定第二批 P2 执行顺序」。
 
 `docs/module-status/` **已滞后**：仍写 admin 无上传 / 无 docTypes、api 无 KB 绑定 PUT。源码已有上传、settings docTypes、`PUT …/model-bindings`。下文以源码为准。
 
@@ -33,7 +33,7 @@
 
 | 判定 | 主要落点 |
 |------|----------|
-| **缺** | Reindex UI；文档类型标注 UI；评测 HTTP+admin 页；`GET /ask/:requestId`；ingest-report；失败 Webhook；ES 查询强制 `tenantId`；web 档位；web 无库空态；在线编写页；策略三层表与运营 HTTP |
+| **缺** | Reindex UI；文档类型标注 UI；评测 HTTP+admin 页；`GET /ask/:requestId`；ingest-report；失败 Webhook；ES 查询强制 `tenantId`；web 档位；web 无库空态；在线编写页 |
 | **半接线** | `/me/permissions` 走 `/auth/me`；成员无 PUT/`allowedDocIds`；策略仅进程内闸；KB 绑定可碰 judge；对称 ACL / 生效区间 / Mongo 正文；scan 外的 maintenance；Langfuse 无 SDK；web 库选择器/引用点回/建议动作/配额文案 |
 | **齐（含壳）** | 登录 JWT；会话壳+rewrite 关；ask 同步+SSE；空库 200+`kb_not_ready`；成员闸；verify/min 否决/claim_split；硬 rerank 失败不 answered；分片只读；审批闸；反馈 API；用户/角色/部门壳；面板权限；Key 不明文 |
 
@@ -51,8 +51,8 @@
 | §4.3 Reindex | P2 | admin 无 reindex 调用；api `POST …/reindex` 已有 | 缺 | 权限码闲置，列表无按钮 |
 | §4.3 文档类型标注 | P2 | 文档 PATCH 仅部门/可见级；列表无 `docType` | 缺 | 无法标注/校验类型 |
 | §4.2 修改日志可查 | P2 | settings 仅 GET/PATCH，无运营查询面 | 缺 | 谁/何时/旧→新不可查 |
-| §4.5 平台注册表 | P2 | 无 `chunk_strategy_definitions` 表/页 | 缺 | 不能运营扩展策略定义 |
-| §4.5 库启用 | P2 | 无 `kb_chunk_strategies` | 缺 | 不能按库启用多套/recommended |
+| §4.5 平台注册表 | P2 | 有 `chunk_strategy_definitions` 种子表；无运营 CRUD 页（工单「策略三层最小闭环」明确不做） | 齐（种子表） | 运营扩展任意新 code 仍后批 |
+| §4.5 库启用 | P2 | 有 `kb_chunk_strategies` + 设置弹窗启用/recommended（工单「策略三层最小闭环」） | 齐（启用） | paramSchema 动态表单仍后批 |
 | §4.1 黄金集/跑批 UI | P2 底线 | `eval.run` 有码，无 `/eval` href/页 | 缺 | 运营不能维护题、不能入队跑批 |
 | §4.3 在线编写页 | 审批闸 P2；完整体验 P2.x | 无 editor 路由；无 BlockNote | 缺（页）/ P2.x 可后 | 无编写入口；BlockNote 不并进 P2 必做 |
 | §5.2 引用回溯 | P2 | 仅内部 `getAskTraceByRequestId`；无 `GET /ask/:requestId` | 缺 | 不能按权限回溯 evidence_snapshot |
@@ -90,10 +90,10 @@
 | 平台模型绑定 | P2 | purpose 下拉 | 半接线 | 无 rerank 链节点校验；不禁 judge=aux 同模 |
 | 角色授码 | P2 树状；超管锁全码 | 扁平勾选 | 半接线 | 非菜单树；超管仍可点授码 |
 | 文档类型分区 | P2 枚举 CRUD | 逗号字符串 | 半接线 | 无排序/启用/逐条 |
-| 分片策略分区 | P2 弹窗+paramSchema | 只打印已实现码 | 半接线 | 无弹窗、无库启用写入 |
+| 分片策略分区 | P2 弹窗+paramSchema | 弹窗启用 + recommended（工单「策略三层最小闭环」） | 齐（最小弹窗） | 无动态 paramSchema 表单 |
 | KB 消费绑定 | P2 generate/embed/rerank | 仅 embed.primary | 半接线 | 无 generate/rerank、无跟随平台 |
 | 质量只读 | P2 τ+签字包链 | tauClaim / gatePackageId | 半接线 | 无链展示 |
-| 上传 | P2 预签名→审批；策略可选 | upload-url→complete | 半接线 | complete 写死默认策略；上传不标部门/类型 |
+| 上传 | P2 预签名→审批；策略可选 | upload-url→complete；for-upload 人选 | 半接线 | 上传不标部门/类型（策略人选已收） |
 | 状态双轴 | P2 运营标签 | 分列原串 | 半接线 | 未映射「现行可问」等标签 |
 | 生命周期 | P2 四态+生效区间 | 仅 active↔draft | 半接线 | 无废止/替代/归档/区间 |
 | 文档绑定策略 | P2 一篇一策略 | 写死 `structure_paragraph` | 半接线 | 无人选、无审计展示 |
@@ -111,7 +111,7 @@
 | 上传 complete | P2 MIME/checksum | 有体积闸 | 半接线 | 无 MIME 白名单、无 checksum |
 | 审批资源 | P2 列表/详情 | 按文档 approve/reject | 半接线 | 无独立审批工单资源 |
 | 文档 DELETE/supersede | P2 | lifecycle 枚举含 superseded | 半接线 | 无 DELETE、无替代联动 |
-| 分片策略 HTTP | P2 列表/schema/for-upload | 进程内闸 + complete/reindex 400 | 半接线 | 无 catalog HTTP |
+| 分片策略 HTTP | P2 列表/schema/for-upload | catalog / schema / for-upload / PATCH（工单「策略三层最小闭环」） | 齐（最小 HTTP） | 无平台定义 CRUD |
 | 文档类型 GET | P2 | settings 内 docTypes；scope 真过滤 | 半接线 | 无 `GET …/doc-types` |
 | 限流 | P2 分维 | 仅 ask 窗，默认 RPM=0 | 半接线 | complete 无限流维 |
 | 健康检查 | P0/P2 | `/health`、`/ready`、`/metrics` | 半接线 | 不是 `/health/ready`；metrics 裸奔 |
@@ -178,8 +178,8 @@
 
 1. **空库拒答语义**：**已收**（工单「空库拒答对齐 200」：200 + `kb_not_ready`；web 拒答卡）  
 2. **建库闭环**：**已收**（工单「建库闭环」：`initialAdminUserId` + 令牌租户 + 顶栏入口）  
-3. **文档运营余量**：Reindex 人选策略、docType、双轴标签、lifecycle 废止/归档  
-4. **策略三层**：表 + HTTP catalog/for-upload + 设置弹窗 + 上传人选  
+3. **文档运营余量**：**已排入第二批**（工单「文档运营余量最小闭环」，挡住策略三层最小闭环）  
+4. **策略三层**：**已收**（工单「策略三层最小闭环」：表 + catalog/for-upload + 设置启用/recommended + 上传人选 + 参数快照）  
 5. **评测底线**：gold-questions + eval 入队 + admin 薄页（CLI 已有，不算齐）  
 6. **ask 审计与引用**：`GET /ask/:requestId`；web 引用点回  
 7. **web 消费余量**：档位、无库空态、建议动作主按钮、配额文案、反馈类别  

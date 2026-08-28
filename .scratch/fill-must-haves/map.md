@@ -24,10 +24,12 @@ Status: open
 - [裁定第一批 P2 执行顺序](./issues/02-first-p2-execution-order.md) — 按能力切；第一批只做空库拒答对齐 200 与建库闭环（并行前沿，编号先取空库）；第二批 grilling 等这两张都完成。
 - [空库拒答对齐 200](./issues/03-align-kb-not-ready-200.md) — 空库 ask 同步+SSE 改为 200 + `abstained` + `kb_not_ready`；web 走拒答卡；08-06 只留指针。
 - [建库闭环](./issues/04-create-kb-closed-loop.md) — 建库必填首位库管并写入成员；租户令牌覆盖；admin 顶栏入口。
+- [裁定第二批 P2 执行顺序](./issues/05-second-p2-execution-order.md) — 第二批只做策略三层最小闭环 → 文档运营余量最小闭环（真实挡住）；第三批 grilling 等这两张都完成。
+- [策略三层最小闭环](./issues/06-strategy-three-layer-min.md) — 两张表 + catalog/for-upload + 设置启用/recommended + 上传人选 + 参数快照。
 
 ## Not yet specified
 
-- P2 第二批能力块（文档运营 / 策略三层 / 评测 / ask 审计 / web 消费余量 / 检索补钉，及未进 §6 的半接线）由开放工单「裁定第二批 P2 执行顺序」锁，不要在本图正文再拆
+- P2 第三批能力块（评测 / ask 审计 / web 消费余量 / 检索补钉，及未进 §6 与第二批划出的半接线）由开放工单「裁定第三批 P2 执行顺序」锁，不要在本图正文再拆
 - P2 语义收齐后的 **P2.5 二元出口**：L2 归档准出，还是产品书面永久关 rewrite（壳可留，standalone 能力仍须交付）
 - P3a Full 图（CRAG / multi_hop）；硬门在 P2.5 出口
 - P3b 尚未齐的强制检索面：ES 查询期对称、aclPrincipals 全文、敏感解禁、仓库默认开 `DEPT_ACL_ENFORCE`
