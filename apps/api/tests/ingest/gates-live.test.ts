@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 
 import { createApp } from '../../src/app.js';
+import { ensureUserByEmail } from '../../src/services/members.js';
 import { effectiveMaxUploadBytes, getStorage } from '../../src/services/storage.js';
 
 type ApiJson<T = unknown> = {
@@ -31,10 +32,14 @@ async function probeReady(): Promise<boolean> {
 }
 
 async function createKb(app: ReturnType<typeof createApp>, name: string): Promise<string> {
+  const admin = await ensureUserByEmail({
+    email: `live-gate-${name}@local.dev`,
+    tenantId: TENANT,
+  });
   const res = await app.request('/api/v1/knowledge-bases', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ tenantId: TENANT, name }),
+    body: JSON.stringify({ name, initialAdminUserId: admin.id }),
   });
   expect(res.status).toBe(201);
   const body = (await res.json()) as ApiJson<{ id: string }>;

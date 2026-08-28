@@ -26,9 +26,11 @@ node scripts/demo-ingest.mjs
 ```bash
 TENANT=01900000-0000-7000-8000-000000000001
 
+# 先 admin/dev-login，记下 userId 与 token；tenantId 以令牌为准
 curl -sS -X POST http://127.0.0.1:4000/api/v1/knowledge-bases \
   -H 'content-type: application/json' \
-  -d "{\"tenantId\":\"$TENANT\",\"name\":\"demo-kb\"}"
+  -H "authorization: Bearer $TOKEN" \
+  -d "{\"name\":\"demo-kb\",\"initialAdminUserId\":\"$USER_ID\"}"
 
 # 记下 kb id → KB_ID
 # 申请上传 / PUT 对象 / complete / approve / scan / PATCH active

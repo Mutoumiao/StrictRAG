@@ -2,7 +2,8 @@
 
 Type: task
 Label: wayfinder:task
-Status: open
+Status: resolved
+Assignee: grok
 Triage: ready-for-agent
 
 ## Question
@@ -28,4 +29,10 @@ Triage: ready-for-agent
 - 独立「创建知识库」二级菜单
 - 策略三层表、Reindex UI、评测页
 
+## Answer
+
+API `POST /knowledge-bases` 必填 `initialAdminUserId`，事务写入 `kb_members(role=admin)`；`tenantId` 只认令牌（无令牌回落默认租户），忽略 body。用户不存在 404。admin 顶栏 KB 选择器旁有 `kb.create` 才显示「创建知识库」；表单名称 + 首位库管（预填当前用户可改）。契约 `CreateKbBodySchema` 已去掉 `tenantId`。测例：api `tests/kb/create-kb.test.ts`、admin `tests/kb/create-kb.test.tsx`。08-06 只补指针。未做成员 PUT、超管引导、建库向导、独立二级菜单。
+
 ## Comments
+
+- 2026-08-28 认领并执行本工单（第一批第二张）。未开「裁定第二批 P2 执行顺序」。

@@ -2,7 +2,6 @@ import {
   BizCode,
   CompleteUploadBodySchema,
   CreateKbBodySchema,
-  type CreateKbResponse,
   type CompleteUploadResponse,
   type KnowledgeBaseListItem,
   type IngestJobListItem,
@@ -70,15 +69,24 @@ documentRoutes.get('/knowledge-bases', requirePermissionWhenEnforced('kb.list'),
   return ok(c, data);
 });
 
-/** POST /api/v1/knowledge-bases — AUTH_ENFORCE 时需 kb.create */
+/** POST /api/v1/knowledge-bases — AUTH_ENFORCE 时需 kb.create；tenantId 只认令牌 */
 documentRoutes.post('/knowledge-bases', requirePermissionWhenEnforced('kb.create'), async (c) => {
   const parsed = CreateKbBodySchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) {
     return fail(c, BizCode.VALIDATION_ERROR, 'invalid body', 400, parsed.error.flatten());
   }
-  const created = await documentRepo.createKb(parsed.data);
-  const data: CreateKbResponse = created;
-  return ok(c, data, 201);
+  const auth = c.get('auth');
+  const created = await documentRepo.createKb({
+    tenantId: auth?.tenantId ?? DEV_DEFAULT_TENANT,
+    name: parsed.data.name,
+    description: parsed.data.description,
+    initialAdminUserId: parsed.data.initialAdminUserId,
+    createdBy: auth?.userId,
+  });
+  if (!created.ok) {
+    return fail(c, BizCode.NOT_FOUND, 'user not found', 404);
+  }
+  return ok(c, created.kb, 201);
 });
 
 /** GET /api/v1/knowledge-bases/:kbId/documents */

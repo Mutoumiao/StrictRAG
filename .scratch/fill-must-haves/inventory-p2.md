@@ -33,8 +33,8 @@
 
 | 判定 | 主要落点 |
 |------|----------|
-| **缺** | 创建知识库 UI；Reindex UI；文档类型标注 UI；评测 HTTP+admin 页；`GET /ask/:requestId`；ingest-report；失败 Webhook；ES 查询强制 `tenantId`；web 档位；web 无库空态；在线编写页；策略三层表与运营 HTTP |
-| **半接线** | `/me/permissions` 走 `/auth/me`；建库无 `initialAdminUserId`；成员无 PUT/`allowedDocIds`；策略仅进程内闸；KB 绑定可碰 judge；对称 ACL / 生效区间 / Mongo 正文；scan 外的 maintenance；Langfuse 无 SDK；web 库选择器/引用点回/建议动作/配额文案 |
+| **缺** | Reindex UI；文档类型标注 UI；评测 HTTP+admin 页；`GET /ask/:requestId`；ingest-report；失败 Webhook；ES 查询强制 `tenantId`；web 档位；web 无库空态；在线编写页；策略三层表与运营 HTTP |
+| **半接线** | `/me/permissions` 走 `/auth/me`；成员无 PUT/`allowedDocIds`；策略仅进程内闸；KB 绑定可碰 judge；对称 ACL / 生效区间 / Mongo 正文；scan 外的 maintenance；Langfuse 无 SDK；web 库选择器/引用点回/建议动作/配额文案 |
 | **齐（含壳）** | 登录 JWT；会话壳+rewrite 关；ask 同步+SSE；空库 200+`kb_not_ready`；成员闸；verify/min 否决/claim_split；硬 rerank 失败不 answered；分片只读；审批闸；反馈 API；用户/角色/部门壳；面板权限；Key 不明文 |
 
 人签（B10 业务 PASS）按地图 Notes **不是代码缺口**，未列入。
@@ -47,7 +47,7 @@
 |------|----------|---------|------|------------|
 | §3 无可用知识库 | P2 | `apps/web/src/components/ask-panel.tsx`：`kbOptions` 空仍渲染提问表 | 缺 | 无「找管理员开通成员」阻断空态 |
 | §3 问答档位 | P2 | web `ask.ts` options 仅 `stream:true`；面板无 mode | 缺 | 不读 `allowedModes`、不传 `mode` |
-| §4.1 / §4.3 创建知识库 | P2 | admin 无 `POST /knowledge-bases` 入口；catalog 有 `kb.create` | 缺 | 选择器/文档域均无建库 |
+| §4.1 / §4.3 创建知识库 | P2 | admin 顶栏 KB 选择器旁有建库入口（`kb.create`）；`CreateKbBodySchema` 必填 `initialAdminUserId`（工单「建库闭环」） | 齐（入口） | 成员 PUT / 向导配策略仍后批 |
 | §4.3 Reindex | P2 | admin 无 reindex 调用；api `POST …/reindex` 已有 | 缺 | 权限码闲置，列表无按钮 |
 | §4.3 文档类型标注 | P2 | 文档 PATCH 仅部门/可见级；列表无 `docType` | 缺 | 无法标注/校验类型 |
 | §4.2 修改日志可查 | P2 | settings 仅 GET/PATCH，无运营查询面 | 缺 | 谁/何时/旧→新不可查 |
@@ -106,7 +106,7 @@
 |------|------|------|------|------|
 | 空库 ask | P2 | `execute.ts` 200 + `kb_not_ready`（工单「空库拒答对齐 200」） | 齐 | `prds/00–11` 残留 409 表未改（地图禁止用本图改冻结文） |
 | `GET /me/permissions` | P2 | `GET /api/v1/auth/me` 带 permissions | 半接线 | 路径不是 PRD 短名 |
-| 建库 | P2 `initialAdminUserId` | `CreateKbBodySchema` 无该字段 | 半接线 | 不指定首位库管 |
+| 建库 | P2 `initialAdminUserId` | `CreateKbBodySchema` 必填；写入 `kb_members(role=admin)`（工单「建库闭环」） | 齐 | 成员 PUT / `allowedDocIds` 仍后批 |
 | 成员 | P2 GET/PUT/DELETE | 仅 GET/POST/DELETE | 半接线 | 无 PUT；无 `allowedDocIds` |
 | 上传 complete | P2 MIME/checksum | 有体积闸 | 半接线 | 无 MIME 白名单、无 checksum |
 | 审批资源 | P2 列表/详情 | 按文档 approve/reject | 半接线 | 无独立审批工单资源 |
@@ -122,7 +122,7 @@
 | 正文 | P2 Mongo 批取 | PG `body_text` | 半接线 | 未批取 Mongo |
 | 空证据细分 | P2 | `low_retrieval` / `kb_not_ready` | 半接线 | 无 `no_docs_in_scope` |
 | rewrite 误开 | P2 可 400 | 默认关；env 开则真跑 | 半接线 | 未 L2 却开不会 400 |
-| 创建库 tenant | P2 令牌权威 | POST KB 仍可读 body `tenantId` | 半接线 | 未强制令牌覆盖 |
+| 创建库 tenant | P2 令牌权威 | POST 忽略 body `tenantId`，令牌覆盖（无令牌回落默认租户） | 齐 | — |
 | KB 绑定 judge | P2 禁覆盖 judge* | PUT 未禁；generate 可预填 judge | 半接线 | 消费端隔离不完整 |
 | fetch-models | P2 | 无上游代理 | 半接线 | 仅本地清单 |
 | LangGraph | §0 必须采用 | 线性 `run.ts` | 半接线 | 节点在、官方图不在 |
@@ -149,7 +149,7 @@
 
 **web**：登录 JWT；多会话列表；无会话单轮（可省略 sessionId）；历史回看且不当证据；提问输入；docTypes 契约可传 scope；拒答展示；闲聊不挂引用。
 
-**admin**：面板进页+`dashboard.view`（壳）；分片只读点击拉全文；审批通过/驳回；成员邀请/移除；模型供应商 CRUD 且 Key 不明文；用户 CRUD；部门壳；档位 allowedModes/defaultMode；rewrite 锁只读；三角色默认码表；不挂空壳系统设置；上传进审批的主路径存在。
+**admin**：面板进页+`dashboard.view`（壳）；分片只读点击拉全文；审批通过/驳回；成员邀请/移除；顶栏建库（`kb.create`，名称+首位库管）；模型供应商 CRUD 且 Key 不明文；用户 CRUD；部门壳；档位 allowedModes/defaultMode；rewrite 锁只读；三角色默认码表；不挂空壳系统设置；上传进审批的主路径存在。
 
 **api**：options 白名单；ask 同步+SSE 且写 traces；会话仅创建/读取、省略 sessionId 合法、ask **不**隐式建会话；成员闸+检索再断言；mode∈allowedModes；混合路径 dense∥sparse→RRF→硬 rerank；rerank 失败不 answered；合法 draft 必 verify；claim_split 失败整答拒；闲聊不进 verify；分片 GET 无 PATCH body；reindex HTTP；反馈 POST+队列；模型目录；用户/角色/permission-catalog；部门树+grant 壳；Key GET 不明文。
 
@@ -177,7 +177,7 @@
 盘点后能独立成执行块的方向（切法由「裁定第一批 P2 执行顺序」锁）：
 
 1. **空库拒答语义**：**已收**（工单「空库拒答对齐 200」：200 + `kb_not_ready`；web 拒答卡）  
-2. **建库闭环**：`initialAdminUserId` + admin 入口  
+2. **建库闭环**：**已收**（工单「建库闭环」：`initialAdminUserId` + 令牌租户 + 顶栏入口）  
 3. **文档运营余量**：Reindex 人选策略、docType、双轴标签、lifecycle 废止/归档  
 4. **策略三层**：表 + HTTP catalog/for-upload + 设置弹窗 + 上传人选  
 5. **评测底线**：gold-questions + eval 入队 + admin 薄页（CLI 已有，不算齐）  

@@ -61,12 +61,20 @@
 
 ## 阶段口径（S2c + 08-11）
 
-- 已具备：登录 · 壳 · 文档/审批/成员 · **B1–B6 薄页** · **B13 反馈队列**（`/feedback` · 码 `feedback.queue`）  
+- 已具备：登录 · 壳 · 文档/审批/成员 · **B1–B6 薄页** · **B13 反馈队列**（`/feedback` · 码 `feedback.queue`）· 顶栏建库入口（`kb.create`）  
 - 运营 SLA：`docs/ops/feedback-sla.md`（1 工作日处理约定；**非**代码硬闸）  
 - 未做：完整 APM · DEPT_ACL 强制 UI · KB 级模型绑定写 UI 等  
 - 线稿参考 `product.pen`；交付白话见 `prds/12-delivery-guides`（**非**接口 SSOT）  
 - **禁止**把 ask SSE 做成 admin 默认首页（用户端在 web）  
 - **禁止**无 `feedback.queue` 时前端假装可关单（按钮可见 ≠ API 授权）
+
+### Convention: 建库入口
+
+**What**：有 `kb.create` 才在顶栏 KB 选择器旁显示「创建知识库」；表单 = 名称 + 首位库管（预填当前用户、可改）。成功后写入 `last-kb-id`。
+
+**Why**：PRD §2.1 要闭环；禁止独立空壳二级菜单，也禁止在向导里配策略/类型/绑定。
+
+**Related**：api `POST /knowledge-bases`；HTTP 在 `lib/kb-api.ts`，用例在 `lib/kb-create.services.ts`。
 
 ### Convention: 反馈队列（B13）
 

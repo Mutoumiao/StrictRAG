@@ -16,10 +16,11 @@ export const DocumentStatusSchema = z.enum([
 export const ApprovalStatusSchema = z.enum(['none', 'pending', 'approved', 'rejected']);
 export const LifecycleSchema = z.enum(['draft', 'active', 'superseded', 'archived']);
 
+/** POST /knowledge-bases。tenantId 以令牌为准，body 即使带上也会被丢掉。 */
 export const CreateKbBodySchema = z.object({
-  tenantId: z.string().uuid(),
   name: z.string().min(1).max(200),
   description: z.string().max(2000).optional(),
+  initialAdminUserId: z.string().uuid(),
 });
 export type CreateKbBody = z.infer<typeof CreateKbBodySchema>;
 

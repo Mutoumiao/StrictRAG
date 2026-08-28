@@ -10,6 +10,8 @@
 | **Query 必接线** | 定义了 `*QuerySchema` 的 GET **必须**在 route `safeParse`；禁止 Schema 只导出、route 手写 `Number(query)` / 白名单 if 链（契约死代码） |
 | **禁止** | apps 内手写 wire shape；route 直接吐 DB 行当公开 DTO（须映射到 contracts 类型） |
 
+`CreateKbBodySchema`：**必填** `name` + `initialAdminUserId`；**不要**把 `tenantId` 放进 body（令牌覆盖）。
+
 新增接口流程：
 
 1. 在 `packages/contracts/src/<domain>/*.contract.ts` 写 Schema + type（含 Query）  

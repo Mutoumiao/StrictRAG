@@ -15,6 +15,7 @@ import { Label } from '@strict-rag/ui/components/ui/label';
 import { cn } from '@strict-rag/ui/lib/utils';
 
 import { logoutLocal } from '@/auth/services';
+import { CreateKbControls } from '@/components/create-kb-controls';
 import { useAdminAuth } from '@/components/auth-guard';
 import { listKnowledgeBases } from '@/lib/kb-api';
 import { readStoredKbId, writeStoredKbId } from '@/lib/kb-context';
@@ -24,6 +25,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [kbId, setKbId] = useState('');
   const [kbOptions, setKbOptions] = useState<{ id: string; name: string }[]>([]);
+  const canCreateKb = me.permissions.includes('kb.create');
 
   useEffect(() => {
     setKbId(readStoredKbId());
@@ -87,6 +89,19 @@ export function AdminShell({ children }: { children: ReactNode }) {
               ))}
             </datalist>
           </Label>
+          {canCreateKb ? (
+            <CreateKbControls
+              defaultAdminUserId={me.userId}
+              onCreated={(kb) => {
+                setKbId(kb.id);
+                setKbOptions((prev) =>
+                  prev.some((row) => row.id === kb.id)
+                    ? prev
+                    : [{ id: kb.id, name: kb.name }, ...prev],
+                );
+              }}
+            />
+          ) : null}
           <span className="text-xs text-muted-foreground">{me.email ?? me.userId}</span>
           <Button
             type="button"

@@ -1,20 +1,60 @@
-import { documents, formatLocalDateTime, kbMembers, knowledgeBases } from '@strict-rag/db';
+import type { CreateKbResponse, KbMemberRole } from '@strict-rag/contracts';
+import { documents, formatLocalDateTime, kbMembers, knowledgeBases, users } from '@strict-rag/db';
 import { eq } from 'drizzle-orm';
 import { uuidv7 } from 'uuidv7';
 
 import { getDb } from './db.js';
 
+export type CreateKbResult =
+  | { ok: true; kb: CreateKbResponse }
+  | { ok: false; reason: 'user_not_found' };
+
 /** 文档/KB 数据访问（route 禁止散落 SQL） */
 export const documentRepo = {
-  async createKb(input: { tenantId: string; name: string; description?: string }) {
+  async createKb(input: {
+    tenantId: string;
+    name: string;
+    description?: string;
+    initialAdminUserId: string;
+    createdBy?: string;
+  }): Promise<CreateKbResult> {
+    const db = getDb();
+    const [adminUser] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.id, input.initialAdminUserId))
+      .limit(1);
+    if (!adminUser) {
+      return { ok: false, reason: 'user_not_found' };
+    }
+
     const id = uuidv7();
-    await getDb().insert(knowledgeBases).values({
-      id,
-      tenantId: input.tenantId,
-      name: input.name,
-      description: input.description,
+    await db.transaction(async (tx) => {
+      await tx.insert(knowledgeBases).values({
+        id,
+        tenantId: input.tenantId,
+        name: input.name,
+        description: input.description,
+        createdBy: input.createdBy,
+      });
+      await tx.insert(kbMembers).values({
+        id: uuidv7(),
+        tenantId: input.tenantId,
+        kbId: id,
+        userId: input.initialAdminUserId,
+        role: 'admin' satisfies KbMemberRole,
+        createdBy: input.createdBy,
+      });
     });
-    return { id, ...input };
+    return {
+      ok: true,
+      kb: {
+        id,
+        tenantId: input.tenantId,
+        name: input.name,
+        description: input.description,
+      },
+    };
   },
 
   async listKbsByTenant(tenantId: string) {

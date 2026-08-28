@@ -1,7 +1,7 @@
 /**
  * 目标：文档 / 知识库 DTO 与完成上传、补丁元数据必须接受合法部门可见级并拒非法值。
  * 需求：入库 HTTP
- * 被测：KnowledgeBaseListItemSchema · VisibilityLevelSchema · CompleteUploadBodySchema · PatchDocumentMetaBodySchema · DocumentDetailSchema · DocumentListItemSchema
+ * 被测：CreateKbBodySchema · KnowledgeBaseListItemSchema · VisibilityLevelSchema · CompleteUploadBodySchema · PatchDocumentMetaBodySchema · DocumentDetailSchema · DocumentListItemSchema
  * 简介：文档 DTO 与可见级 / 部门字段。
  */
 
@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   CompleteUploadBodySchema,
+  CreateKbBodySchema,
   DocumentDetailSchema,
   DocumentListItemSchema,
   KnowledgeBaseListItemSchema,
@@ -30,6 +31,30 @@ const DETAIL_BASE = {
   tenantId: '01900000-0000-7000-8000-000000000001',
   kbId: '01900000-0000-7000-8000-0000000000aa',
 };
+
+describe('CreateKbBodySchema', () => {
+  const adminUser = '01900000-0000-7000-8000-0000000000a1';
+
+  it('接受名称 + 首位库管，丢掉 body tenantId', () => {
+    const parsed = CreateKbBodySchema.safeParse({
+      tenantId: '01900000-0000-7000-8000-000000000001',
+      name: '演示库',
+      initialAdminUserId: adminUser,
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data).toEqual({ name: '演示库', initialAdminUserId: adminUser });
+    }
+  });
+
+  it('缺 initialAdminUserId 或名称则失败', () => {
+    expect(CreateKbBodySchema.safeParse({ name: '演示库' }).success).toBe(false);
+    expect(CreateKbBodySchema.safeParse({ initialAdminUserId: adminUser }).success).toBe(false);
+    expect(
+      CreateKbBodySchema.safeParse({ name: '演示库', initialAdminUserId: 'not-uuid' }).success,
+    ).toBe(false);
+  });
+});
 
 describe('KnowledgeBaseListItemSchema', () => {
   it('accepts uuid list item with nullable description', () => {

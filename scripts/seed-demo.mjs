@@ -61,19 +61,11 @@ async function main() {
   const auth = { authorization: `Bearer ${token}` };
 
   const kbRes = await api('POST', '/api/v1/knowledge-bases', {
-    body: { tenantId: TENANT, name: `demo-seed-${Date.now()}` },
+    body: { name: `demo-seed-${Date.now()}`, initialAdminUserId: userId },
     headers: auth,
   });
   assertOk('create-kb', kbRes, 201);
   const kbId = kbRes.json.data.id;
-
-  const inv = await api('POST', `/api/v1/knowledge-bases/${kbId}/members`, {
-    body: { userId, role: 'admin' },
-    headers: auth,
-  });
-  if (!inviteOk(inv.status, inv.json)) {
-    assertOk('invite', inv, 200);
-  }
 
   const content = await readFile(FIXTURE);
   const up = await api('POST', `/api/v1/knowledge-bases/${kbId}/documents/upload-url`, {

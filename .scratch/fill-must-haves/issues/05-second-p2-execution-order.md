@@ -2,7 +2,8 @@
 
 Type: grilling
 Label: wayfinder:grilling
-Status: open
+Status: claimed
+Assignee: grok
 Triage: ready-for-human
 Blocked by: 03, 04
 
@@ -28,3 +29,6 @@ Blocked by: 03, 04
 本工单只锁顺序与切边，不写产品代码。决议后把第二批执行工单建为本图子工单。
 
 ## Comments
+
+- 2026-08-28 按图顺序认领本工单。本回合只锁第二批范围、顺序与切边，不写产品代码。
+- Q1：第二批只收运营一条路：文档运营余量 + 策略三层。评测底线、ask 审计与引用、web 消费余量、检索语义补钉留后批。

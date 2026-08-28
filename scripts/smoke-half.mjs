@@ -73,10 +73,14 @@ async function main() {
   if (typeof token !== 'string' || token.length === 0) {
     throw new Error(`dev-login missing accessToken: ${JSON.stringify(login.json)}`);
   }
+  const userId = login.json?.data?.session?.userId;
+  if (typeof userId !== 'string' || userId.length === 0) {
+    throw new Error(`dev-login missing session.userId: ${JSON.stringify(login.json)}`);
+  }
   const auth = { authorization: `Bearer ${token}` };
 
   const kbRes = await api('POST', '/api/v1/knowledge-bases', {
-    body: { tenantId: TENANT, name: `half-smoke-${Date.now()}` },
+    body: { name: `half-smoke-${Date.now()}`, initialAdminUserId: userId },
     headers: auth,
   });
   assertOk('create-kb', kbRes, { expectStatus: 201 });

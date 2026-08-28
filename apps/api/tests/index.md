@@ -102,6 +102,7 @@
 | `ingest/reject-http.test.ts` | admin 驳回后不得入队 scan。 | 剧本 V5 · prds/10-delivery/03-acceptance-scenarios.md · ADR-048 | `POST /documents/:docId/reject` · `POST …/scan` | reject 200 后 scan 403 且不入队；无独立重提 API。 | 现行 |
 | `ingest/sensitive-complete.test.ts` | 敏感文档 complete 必须过审批/密级闸。 | 审批/密级 | `documents sensitive complete` | 敏感 complete。 | 现行 |
 | `kb/ask-mode-doc-types.test.ts` | KB 允许的 mode/docTypes 必须正确解析，非法请求拒绝。 | B2-W | `resolveAskMode / parseDocTypesFromConfig / assertScopeDocTypesAllowed` | B2-W resolveAskMode / docTypes。 | 现行 |
+| `kb/create-kb.test.ts` | 创建知识库必须指定首位库管，且租户只认令牌、不认 body。 | prds/05-api §2.1 | `POST /knowledge-bases` | 写入 kb_members(role=admin)；缺用户 404。≠ 成员 PUT。 | 现行 |
 | `kb/data-class-complete.test.ts` | sensitive 文档 complete 必须过密级闸。 | P3b-SENS | `parseDataClassFromConfig / isSensitiveCompleteBlocked` | P3b-SENS dataClass / complete 闸。 | 现行 |
 | `kb/dept-acl-enforce-resolve.test.ts` | KB deptAclEnforce 覆盖 env，未写时展示与运行时分钉。 | P3b-KBENF | `parseDeptAclEnforceFromConfig / resolveDeptAclEnforce` | P3b-KBENF。 | 现行 |
 | `kb/dept-inherit-down.test.ts` | KB deptInheritDown 覆盖 env，祖先在关闭向下继承时不可见子孙。 | P3b-KBINH | `parseDeptInheritDownFromConfig / resolveDeptInheritDown / filterDocsForDeptAcl` | P3b-KBINH。 | 现行 |

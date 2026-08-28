@@ -89,6 +89,20 @@ async function main() {
   }
   log('ready', ready.json.checks);
 
+  const login = await api('POST', '/api/v1/auth/admin/dev-login', {
+    body: { email: 'demo-ingest@local.dev', roleTemplate: 'super_admin', tenantId: TENANT },
+  });
+  assertOk('dev-login', login, { expectStatus: 201 });
+  const token = login.json?.data?.accessToken;
+  const userId = login.json?.data?.session?.userId;
+  if (typeof token !== 'string' || token.length === 0) {
+    throw new Error(`dev-login missing accessToken: ${JSON.stringify(login.json)}`);
+  }
+  if (typeof userId !== 'string' || userId.length === 0) {
+    throw new Error(`dev-login missing session.userId: ${JSON.stringify(login.json)}`);
+  }
+  const auth = { authorization: `Bearer ${token}` };
+
   const files = (await readdir(FIXTURES_DIR))
     .filter((f) => f.endsWith('.txt'))
     .sort();
@@ -98,7 +112,8 @@ async function main() {
   log(`fixtures: ${files.length} files`);
 
   const kbRes = await api('POST', '/api/v1/knowledge-bases', {
-    body: { tenantId: TENANT, name: `demo-kb-${Date.now()}` },
+    body: { name: `demo-kb-${Date.now()}`, initialAdminUserId: userId },
+    headers: auth,
   });
   assertOk('create-kb', kbRes, { expectStatus: 201 });
   const kbId = kbRes.json.data.id;

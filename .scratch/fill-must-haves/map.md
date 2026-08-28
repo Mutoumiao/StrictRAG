@@ -23,6 +23,7 @@ Status: open
 - [盘点 P2 必须具备缺口](./issues/01-inventory-p2-must-haves.md) — P2 语义主路径大体齐；缺口在建库/Reindex/策略三层/评测 HTTP/引用回溯/空库 409 与 web 档位空态。全文 [inventory-p2.md](./inventory-p2.md)。
 - [裁定第一批 P2 执行顺序](./issues/02-first-p2-execution-order.md) — 按能力切；第一批只做空库拒答对齐 200 与建库闭环（并行前沿，编号先取空库）；第二批 grilling 等这两张都完成。
 - [空库拒答对齐 200](./issues/03-align-kb-not-ready-200.md) — 空库 ask 同步+SSE 改为 200 + `abstained` + `kb_not_ready`；web 走拒答卡；08-06 只留指针。
+- [建库闭环](./issues/04-create-kb-closed-loop.md) — 建库必填首位库管并写入成员；租户令牌覆盖；admin 顶栏入口。
 
 ## Not yet specified
 

@@ -21,6 +21,8 @@
 | `auth/client-session.test.ts` | admin session 必须与 web key 分轨，失败则两端会话互相覆盖。 | 双端 key 分轨 | `saveClientSession / readClientSession / clearClientSession` | 不写 web session key。 | 现行 |
 | `auth/http-error-fields.test.ts` | ApiHttpError 必须保留 code 与 shouldRefresh，失败则刷新闸丢失字段。 | P0 R5 | `ApiHttpError` | 三参构造直断言字段。 | 现行 |
 | `error-map/map-biz-error.test.ts` | 已知业务码映射后文案必须含 code，失败则运营页看不到可核对错误码。 | P0 R6 | `mapBizError` | 不透出 shouldRefresh。 | 现行 |
+| `kb/create-kb-services.test.ts` | 建库用例成功后必须把新库写成当前 KB。 | prds/05-api §2.1 | `createKbAndSelect` | 不写 URL；HTTP 真值在 api。 | 现行 |
+| `kb/create-kb.test.tsx` | 有 kb.create 才显示建库入口；表单预填当前用户并可改。 | prds/05-api §2.1 | `AdminShell · CreateKbControls` | 挂 KB 选择器，不单开二级菜单。真值在 api 建库写入。 | 现行 |
 | `kb/current-kb.test.ts` | 当前 KB 选择必须读写 admin 独立 key，失败则污染 web 或选库丢失。 | 壳 KB 上下文 | `readStoredKbId / writeStoredKbId` | localStorage key。 | 现行 |
 | `ops/approvals-workspace.test.tsx` | 审批页必须按码显隐操作入口，失败则无 decide 仍露出通过/驳回。 | 审批闸 UI | `ApprovalsWorkspace` | 不替代 api 闸测。 | 现行 |
 | `ops/dashboard-workspace.test.tsx` | 数据面板无码须保持 403、有码才加载 summary，失败则指标页对无权限可见。 | B6 UI | `DashboardWorkspace` | 指标真值在 api。 | 现行 |

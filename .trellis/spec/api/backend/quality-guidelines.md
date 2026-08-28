@@ -22,6 +22,7 @@
 | UI ≠ API 授权 | handler **独立验码**；菜单有无改变不了 API |
 | admin 壳 | 根中间件验 **`admin.shell`**；无码 → 403/302→web（ADR-045 经 **051** 修订） |
 | 租户 | JWT 内 tenant_id，禁止只靠 body |
+| 建库 | `POST /knowledge-bases` body **必填** `initialAdminUserId`，写入 `kb_members(role=admin)`；`tenantId` 只认令牌（无令牌时 `DEV_DEFAULT_TENANT`），**忽略** body 租户 |
 
 > 壳准入 **不要**再写 `platform_admin` ∨ KB write/admin。  
 > 权威：`prds/05-api` §1.2 · `prds/09-security` §3.5。工程 PRD §4 旧伪代码若未回写，以本表与安全/API PRD 为准。
