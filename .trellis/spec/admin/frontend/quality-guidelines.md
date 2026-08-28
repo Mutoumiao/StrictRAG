@@ -72,9 +72,17 @@
 
 **What**：知识库设置「分片策略」分区用弹窗启用码 + 各 MIME 族 recommended；上传走 `for-upload` 人选，禁止写死 `structure_paragraph`。改库启用不自动 reindex。
 
-**Why**：ADR-053 三层最小闭环；Reindex 列表按钮仍属下一张工单。
+**Why**：ADR-053 三层最小闭环。
 
 **Related**：api `routes/chunk-strategies.ts`；设置 HTTP 在 `kb/settings/api.ts`，上传 `for-upload` 在 `documents/api.ts`。
+
+### Convention: 文档运营余量
+
+**What**：列表有类型列与双轴运营标签（待审 / 处理中 / 需 OCR / 失败 / 就绪未发布 / 现行可问 / 已替代 / 已归档；原串次要）。Reindex 行展开按钮须 `doc.reindex`，≥2 未选不可提交。PATCH `docType` 须属于该库枚举。lifecycle 含归档/废止；上架仍须 `status=ready`。检索闸不自动升。
+
+**Why**：功能表 §4.3 最小运营面。不做生效区间、DELETE、替代联动、类型分区 CRUD。
+
+**Related**：`documents/api.ts` · `list.services.ts` · `lifecycle.services.ts` · `reindex.services.ts`。
 
 ### Convention: 建库入口
 

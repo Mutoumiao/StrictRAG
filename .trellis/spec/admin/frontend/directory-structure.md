@@ -28,7 +28,7 @@ apps/admin/
       login/page.tsx          # 薄：表单 UI → auth/services
       (ops)/
         layout.tsx
-        documents/            # 文档列表 / 上传入口
+        documents/            # 文档列表 / 上传 / Reindex / 类型标注 / 四态 lifecycle
         approvals/            # 审批
         members/              # KB 成员
         chunks/               # B1 分片只读

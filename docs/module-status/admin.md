@@ -7,13 +7,13 @@
 | 成熟度 | **可演示**（S2c 运营薄壳：文档 / 审批 / 成员 / 分片 / 设置 / 模型 + 用户 / 角色 / 部门 + **数据面板** + **反馈队列**） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT + admin **dev-login**（经 api）· 知识库 = 手工填写 uuid · 菜单 = `clipMenuForShell` 裁剪（catalog 为 SSOT）· API 默认 `http://127.0.0.1:4000` |
 | 关联模块 | API 依赖：`api` 的文档 / 审批 / 成员 / 分片 / 设置 / 模型 / 用户角色 / 部门 / dashboard / **feedback-queue**；菜单与权限码：`admin-catalog`；类型：`contracts`；样式：`ui` |
-| 最近更新 | 2026-08-28（分片策略设置弹窗：启用 + MIME 族 recommended；上传走 for-upload） |
+| 最近更新 | 2026-08-28（文档运营余量：Reindex 人选、类型列、双轴标签、归档/废止） |
 | Spec | `.trellis/spec/admin/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · 审批 / 成员相关 API |
 
 ## 一句话状态
 
-Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 + 分片只读 + 知识库设置 + 模型网关最小集 + 用户 / 角色 / 部门最小集 + 数据面板薄壳 + 反馈队列薄壳** 均已接通；顶栏 KB 选择器旁有建库入口（有 `kb.create` 才显示；名称 + 首位库管预填当前用户可改），库 id 仍可手填，外壳 **`clipMenuForShell`** 只显示已落地路由（**11** 条 ops href），**不是**完整运营台（无 APM 时序 / **≠** 全文隔离 / **≠** ES）。Vitest / RTL 覆盖外壳 / Guard / 审批 / dashboard 403 + **P0 R5/R6** + settings / documents / departments 工作区测 + **建库入口**；**无** feedback 工作区测、**无** E2E。
+Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 四态 lifecycle）+ 审批中心 + 成员管理 + 分片只读 + 知识库设置 + 模型网关最小集 + 用户 / 角色 / 部门最小集 + 数据面板薄壳 + 反馈队列薄壳** 均已接通；顶栏 KB 选择器旁有建库入口（有 `kb.create` 才显示；名称 + 首位库管预填当前用户可改），库 id 仍可手填，外壳 **`clipMenuForShell`** 只显示已落地路由（**11** 条 ops href），**不是**完整运营台（无 APM 时序 / **≠** 全文隔离 / **≠** ES）。Vitest / RTL 覆盖外壳 / Guard / 审批 / dashboard 403 + **P0 R5/R6** + settings / documents / departments 工作区测 + **建库入口**；**无** feedback 工作区测、**无** E2E。
 
 ---
 
@@ -34,8 +34,10 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 - 需要 `dashboard.view`；无码菜单隐藏、直链 **403 态**；**不是** APM / Grafana
 
 ### 文档
-- `/documents`：按知识库拉取文档列表；表格展示部门 / 可见级 / status / approval / lifecycle / **向量 / 稀疏就绪**（有树时部门列显示名，否则 uuid；可见级默认中文标签；可按部门/可见级**本地**筛，不加 GET query；审批操作在审批页进行；稀疏就绪 **≠** 生产 ES）
-- 点行改 `ownerDeptId` / `visibilityLevel`：有 `dept.manage` 用部门下拉，否则 uuid 粘贴；`doc.editor` 裁保存
+- `/documents`：按知识库拉取文档列表；表格展示部门 / 可见级 / **类型** / **运营标签**（待审…现行可问…已归档；原串 `status · lifecycle` 次要）/ **向量 / 稀疏就绪**（有树时部门列显示名，否则 uuid；可见级默认中文标签；可按部门/可见级**本地**筛，不加 GET query；审批操作在审批页进行；稀疏就绪 **≠** 生产 ES）
+- 点行改 `ownerDeptId` / `visibilityLevel` / `docType`：有 `dept.manage` 用部门下拉，否则 uuid 粘贴；类型枚举来自设置 GET（需 `kb.config.write`），否则文本框；`doc.editor` 裁保存
+- 行展开 **Reindex**（`doc.reindex`）：走 `for-upload`；≥2 未选按钮不可提交
+- lifecycle（`doc.lifecycle`）：上架仍须 `status=ready` 且仅 draft；可废止 / 归档。检索闸仍 ready∧active，不自动升
 - `DocumentListItem` 的 `embedReady` / `esReady` **已渲染**为向量/稀疏列（适配层标志，**≠** 生产 ES）
 - 上传走 `for-upload` 人选（仅 1 个自动 complete；≥2 弹出策略下拉）；**不是**写死 `structure_paragraph`
 
@@ -102,8 +104,8 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 | 知识库设置全量项（docTypes 分区 CRUD / paramSchema 动态表单 / 平台策略 CRUD / KB 级 generate·rerank 绑定） | B2 最小 + 策略启用弹窗已落地；全量项仍挂账 |
 | APM / 时序大盘 / 告警 | B6 仅为只读计数摘要，**不是**观测生产向 |
 | 按历史 indexVersion 浏览分片的 UI | ADR-052 明确不做 |
-| Reindex 列表按钮 | 下一张工单「文档运营余量最小闭环」 |
-| 部分 API 封装符号未接线 | `patchPlatformRole` / `getDocument` / `listFeedbackQueue(status)` 等封装已写但当前 UI 未调用 |
+| 生效区间 / DELETE / 替代联动 / 在线编写 / 入库报告 | 文档运营余量最小闭环明确不做 |
+| 部分 API 封装符号未接线 | `patchPlatformRole` / `listFeedbackQueue(status)` 等封装已写但当前 UI 未调用 |
 | 完整运营 IA / 多知识库选择器 | 目前手填 uuid；不是产品级的库管体验 |
 | 生产视觉 / product.pen **像素级**定稿 | 已使用 Soft Bento token + ui 组件；**并非**对 product.pen 的全屏像素还原 |
 
@@ -133,6 +135,7 @@ Next.js 管理端：**登录 + 文档只读列表 + 审批中心 + 成员管理 
 | 外壳 / 菜单裁剪 | `apps/admin/src/components/admin-shell.tsx` → `clipMenuForShell`；href SSOT：`packages/admin-catalog/src/menu-tree.ts` |
 | 建库入口 | `apps/admin/src/components/create-kb-controls.tsx` · `lib/kb-api.ts` `createKnowledgeBase` · `lib/kb-create.services.ts`；测例 `tests/kb/create-kb.test.tsx` |
 | 运营页 | `apps/admin/src/app/(ops)/documents|approvals|members|chunks|kb/settings|models|dashboard|departments|users|roles|feedback/` |
+| 文档运营余量 | `documents/_components/documents-workspace.tsx` · `list.services.ts` `opsLabel` · `reindex.services.ts` · `lifecycle.services.ts`；测例 `tests/ops/document-ops-label.test.ts` · `document-reindex.test.ts` · `documents-workspace.test.tsx` |
 | 反馈 | `app/(ops)/feedback/page.tsx` · `_components/feedback-workspace.tsx` · `api.ts` · `services.ts` |
 | API 封装 | 各 ops 目录 `api.ts` · `lib/http.ts` · `auth/api.ts` |
 | 登录 / 守卫 | `apps/admin/src/app/login/page.tsx` · `components/auth-guard.tsx` |

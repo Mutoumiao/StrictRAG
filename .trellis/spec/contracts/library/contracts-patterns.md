@@ -12,6 +12,8 @@
 
 `CreateKbBodySchema`：**必填** `name` + `initialAdminUserId`；**不要**把 `tenantId` 放进 body（令牌覆盖）。
 
+`PatchDocumentMetaBodySchema`：`ownerDeptId` / `visibilityLevel` / `docType` 至少一个；`docType` 合法码由 api 对照 KB 枚举，schema 只约束非空字符串或 null。`DocumentListItemSchema` 含 `docType`。
+
 分片策略三层 HTTP：`ForUploadQuerySchema` 必带 `contentType`；`PatchKbChunkStrategiesBodySchema.items` 至少一条。写入闸仍是 `IMPLEMENTED_CHUNK_STRATEGIES`，不是 catalog 列表。
 
 新增接口流程：
