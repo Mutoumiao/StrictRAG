@@ -27,10 +27,13 @@ Status: open
 - [裁定第二批 P2 执行顺序](./issues/05-second-p2-execution-order.md) — 第二批只做策略三层最小闭环 → 文档运营余量最小闭环（真实挡住）；第三批 grilling 等这两张都完成。
 - [策略三层最小闭环](./issues/06-strategy-three-layer-min.md) — 两张表 + catalog/for-upload + 设置启用/recommended + 上传人选 + 参数快照。
 - [文档运营余量最小闭环](./issues/07-document-ops-remainder-min.md) — Reindex 人选、类型列+PATCH、双轴运营标签、archived/superseded。
+- [裁定第三批 P2 执行顺序](./issues/08-third-p2-execution-order.md) — 四块全收串行：检索补钉→ask 审计→web 消费→评测；未进 §6 半接线与前批明确不做全划出；LangGraph 硬性标准、源码需重构。
+- [检索语义补钉](./issues/09-retrieval-semantics-patch.md) — ES 查询期 tenantId+kbId、sparse_unavailable、档位 retrieveK 60/10、Mongo chunk_bodies 批取；dense 查询期 WHERE / 生效区间 / 召回扩展划出。
 
 ## Not yet specified
 
-- P2 第三批能力块（评测 / ask 审计 / web 消费余量 / 检索补钉，及未进 §6 与第二批划出的半接线）由开放工单「裁定第三批 P2 执行顺序」锁，不要在本图正文再拆
+- 未进第三批的 P2 半接线：入库报告、失败 Webhook、三平面配额、`/me/permissions` 路径、成员 PUT、在线编写、修改日志、超管引导、末位超管前端提示（Q2 划出，不进第三批执行工单）
+- LangGraph 编排重构：技术栈冻结为 LangGraph.js（硬性标准）；源码现为线性状态机（`apps/api/src/graph/run.ts`），需后续重构为官方 LangGraph.js。不进 P2 执行工单，另起路线
 - P2 语义收齐后的 **P2.5 二元出口**：L2 归档准出，还是产品书面永久关 rewrite（壳可留，standalone 能力仍须交付）
 - P3a Full 图（CRAG / multi_hop）；硬门在 P2.5 出口
 - P3b 尚未齐的强制检索面：ES 查询期对称、aclPrincipals 全文、敏感解禁、仓库默认开 `DEPT_ACL_ENFORCE`

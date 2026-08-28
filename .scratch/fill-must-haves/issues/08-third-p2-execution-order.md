@@ -2,7 +2,8 @@
 
 Type: grilling
 Label: wayfinder:grilling
-Status: open
+Status: resolved
+Assignee: grok
 Triage: ready-for-human
 Blocked by: 06, 07
 
@@ -25,4 +26,28 @@ Blocked by: 06, 07
 
 本工单只锁顺序与切边，不写产品代码。决议后把第三批执行工单建为本图子工单。
 
+## Answer
+
+按端到端能力切（已锁，不重开）。第三批是 P2 收官批，四块全收、串行：
+
+- [检索语义补钉](./09-retrieval-semantics-patch.md) — 开放前沿。ES 查询期 `tenantId` filter、`buildAclFilter`、sparse reason、档位 retrieveK、正文批取 Mongo。
+- [ask 审计与引用](./10-ask-audit-citations.md) — `Blocked by` 检索语义补钉。`GET /ask/:requestId`、web 引用点回。
+- [web 消费余量](./11-web-consumption-remainder.md) — `Blocked by` ask 审计与引用。档位 UI、无库空态、建议动作主按钮、配额文案、反馈类别。
+- [评测底线](./12-eval-floor.md) — `Blocked by` web 消费余量。gold-questions + eval 入队 + admin 薄页 + 结果查询。
+
+本批明确不做：未进 §6 的半接线（入库报告、失败 Webhook、LangGraph、三平面配额、`/me/permissions`、成员 PUT、在线编写、修改日志、超管引导、末位超管前端提示）；前两批执行工单各自「明确不做」（平台策略 CRUD、paramSchema 动态表单、生效区间、DELETE/替代联动、类型分区 CRUD、上传标部门、GET /doc-types、策略审计展示、编辑器草稿等）。B8 / B9 / QUAL-2、人签、P2.5 及更晚。
+
+**LangGraph 硬性标准**：技术栈冻结清单（`prds/01-architecture/02-tech-stack-frozen.md`）要求编排用 LangGraph.js；源码现为线性状态机、未采用官方图，**需后续重构为官方 LangGraph.js**。本工单冻结此项；不进 P2 执行工单，另起路线。已在地图 Not yet specified 标注。
+
+未改产品代码。
+
 ## Comments
+
+- 2026-08-28 按图顺序认领本工单。本回合只锁第三批范围、顺序与切边，不写产品代码。
+- Q1：四块全收，作为 P2 收官批。
+- Q2：未进 §6 的半接线（入库报告、失败 Webhook、LangGraph、三平面配额、`/me/permissions`、成员 PUT、在线编写、修改日志、超管引导、末位超管前端提示）不进本批。
+- Q3：前两批执行工单「明确不做」全部维持。
+- Q4：四块串行：检索语义补钉 → ask 审计与引用 → web 消费余量 → 评测底线，每张 `Blocked by` 前一张。
+- Q5–Q8：四块切边按推荐（做 / 不做见四张子工单正文）。
+- Q9：LangGraph 为硬性标准；源码未采用官方图，已在地图 Not yet specified 与工单 Answer 各标一处，注明后续需重构。
+- 2026-08-28 用户确认落盘：关本工单；建检索语义补钉、ask 审计与引用、web 消费余量、评测底线四张执行工单。
