@@ -1,2 +1,10 @@
 export { executeAsk, type ExecuteAskParams, type ExecuteAskResult, type ExecuteAskDeps } from './execute.js';
-export { saveAskTrace, getAskTraceByRequestId, type SaveAskTraceInput } from './traces.js';
+export {
+  saveAskTrace,
+  getAskTraceByRequestId,
+  toAskAudit,
+  clipEvidencePreview,
+  EVIDENCE_SNAPSHOT_PREVIEW_MAX,
+  type SaveAskTraceInput,
+  type AskTraceAuditSource,
+} from './traces.js';

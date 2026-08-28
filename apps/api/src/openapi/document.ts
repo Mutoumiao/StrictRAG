@@ -3,6 +3,7 @@
  * 不改 route 实现；代表性路径 + 组件引用。
  */
 import {
+  AskAuditResponseSchema,
   AskRequestSchema,
   AskResponseSchema,
   BizCode,
@@ -92,6 +93,7 @@ export function buildOpenApiDocument(): OpenApiDocument {
     ReadyResponse: zodSchema(ReadyResponseSchema),
     AskRequest: zodSchema(AskRequestSchema),
     AskResponse: zodSchema(AskResponseSchema),
+    AskAuditResponse: zodSchema(AskAuditResponseSchema),
     CreateKbBody: zodSchema(CreateKbBodySchema),
     CreateKbResponse: zodSchema(CreateKbResponseSchema),
     UploadUrlBody: zodSchema(UploadUrlBodySchema),
@@ -351,6 +353,57 @@ export function buildOpenApiDocument(): OpenApiDocument {
             },
             '403': {
               description: 'forbidden',
+              content: {
+                'application/json': { schema: ref('ApiFailure') },
+              },
+            },
+          },
+        },
+      },
+      '/api/v1/ask/{requestId}': {
+        get: {
+          operationId: 'getAskAudit',
+          summary: '按 requestId 回溯当时 evidence 快照（非断线重拉）',
+          tags: ['ask'],
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: 'requestId',
+              in: 'path',
+              required: true,
+              schema: { type: 'string' },
+            },
+          ],
+          responses: {
+            '200': {
+              description: 'ApiSuccess AskAuditResponse',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      ok: { type: 'boolean', const: true },
+                      data: ref('AskAuditResponse'),
+                      meta: ref('ApiMeta'),
+                    },
+                  },
+                },
+              },
+            },
+            '401': {
+              description: 'unauthorized',
+              content: {
+                'application/json': { schema: ref('ApiFailure') },
+              },
+            },
+            '403': {
+              description: 'forbidden',
+              content: {
+                'application/json': { schema: ref('ApiFailure') },
+              },
+            },
+            '404': {
+              description: 'ask trace not found',
               content: {
                 'application/json': { schema: ref('ApiFailure') },
               },

@@ -7,7 +7,13 @@ import {
 import { createUIMessageStream, createUIMessageStreamResponse } from 'ai';
 import { Hono } from 'hono';
 
-import { requireKbMember, type AuthVariables, type ResolveKbMember } from '../auth/middleware.js';
+import {
+  evaluateKbMember,
+  requireAuth,
+  requireKbMember,
+  type AuthVariables,
+  type ResolveKbMember,
+} from '../auth/middleware.js';
 import { roleBypassesKbMembership } from '../auth/permissions/resolve.js';
 import { childLogger } from '../logger.js';
 import { fail, ok } from '../lib/response.js';
@@ -20,6 +26,9 @@ import {
 } from '../obs/index.js';
 import {
   executeAsk,
+  getAskTraceByRequestId,
+  toAskAudit,
+  type AskTraceAuditSource,
   type ExecuteAskDeps,
   type ExecuteAskResult,
 } from '../services/ask/index.js';
@@ -37,6 +46,8 @@ import {
   type KbSettingsRepo,
 } from '../services/kb-settings.js';
 
+export type AskTraceLookup = (requestId: string) => Promise<AskTraceAuditSource | null>;
+
 export type AskRouteDeps = {
   resolveKbMember?: ResolveKbMember;
   execute?: typeof executeAsk;
@@ -49,9 +60,12 @@ export type AskRouteDeps = {
   checkRateLimit?: (userId: string, kbId: string) => RateLimitResult;
   /** B2-W：读 KB 设置（mode/docTypes）；测例可注入 memory */
   settingsRepo?: KbSettingsRepo;
+  /** GET /ask/:requestId 回溯；测例可注入 */
+  getTrace?: AskTraceLookup;
 };
 /**
  * POST /api/v1/knowledge-bases/:kbId/ask
+ * GET  /api/v1/ask/:requestId — 权限回溯 evidence_snapshot + graph_trace（非断线重拉）。
  * 同步 JSON + AI SDK UI Message Stream（Accept: text/event-stream 或 options.stream=true）。
  * 始终成员闸；route 仅编排。P2 不推未校验 token，仅 data-status / data-ask-final。
  */
@@ -62,6 +76,23 @@ export function createAskRoutes(deps: AskRouteDeps = {}) {
   const getKb = deps.getKb ?? ((id: string) => documentRepo.getKb(id));
   const settings = deps.settingsRepo ?? kbSettingsRepo;
   const resolveSession = deps.resolveOwnedSession ?? resolveOwnedSessionDefault;
+  const getTrace: AskTraceLookup =
+    deps.getTrace ??
+    (async (requestId) => {
+      const t = await getAskTraceByRequestId(requestId);
+      if (!t) return null;
+      return {
+        requestId: t.requestId,
+        kbId: t.kbId,
+        status: t.status,
+        reason: t.reason,
+        mode: t.mode,
+        latencyMs: t.latencyMs,
+        sessionId: t.sessionId,
+        evidenceSnapshot: t.evidenceSnapshot ?? [],
+        graphTrace: t.graphTrace ?? null,
+      };
+    });
   const checkLimit =
     deps.checkRateLimit ??
     ((userId: string, kbId: string) =>
@@ -249,6 +280,35 @@ export function createAskRoutes(deps: AskRouteDeps = {}) {
     });
 
     return createUIMessageStreamResponse({ stream });
+  });
+
+  /** GET /ask/:requestId — 登录 + 该 trace 的 KB 成员；快照不依赖现网分片 */
+  routes.get('/ask/:requestId', requireAuth(), async (c) => {
+    const requestId = c.req.param('requestId');
+    const auth = c.get('auth');
+    if (!auth) {
+      return fail(c, BizCode.UNAUTHORIZED, 'authentication required', 401);
+    }
+
+    const trace = await getTrace(requestId);
+    if (!trace) {
+      return fail(c, BizCode.NOT_FOUND, 'ask trace not found', 404, { requestId });
+    }
+
+    const memberR = await evaluateKbMember(c, trace.kbId, {
+      resolveKbMember: deps.resolveKbMember,
+    });
+    if (!memberR.ok) {
+      return fail(
+        c,
+        memberR.status === 401 ? BizCode.UNAUTHORIZED : BizCode.FORBIDDEN,
+        memberR.message,
+        memberR.status,
+        'details' in memberR ? memberR.details : undefined,
+      );
+    }
+
+    return ok(c, toAskAudit(trace));
   });
 
   return routes;
