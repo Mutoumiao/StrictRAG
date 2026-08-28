@@ -6,8 +6,14 @@
  * 流式由 useKnowledgeAsk 驱动；会话编排在 sessions.services。
  */
 
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import type { AskResponse, SessionMessage, SessionSummary } from '@strict-rag/contracts';
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import type {
+  AskAuditResponse,
+  AskCitation,
+  AskResponse,
+  SessionMessage,
+  SessionSummary,
+} from '@strict-rag/contracts';
 import {
   Alert,
   AlertDescription,
@@ -22,7 +28,7 @@ import { Textarea } from '@strict-rag/ui/components/ui/textarea';
 import { cn } from '@strict-rag/ui/lib/utils';
 import { useRouter } from 'next/navigation';
 
-import { parseScopeDocTypesInput } from '@/api/ask';
+import { getAskAudit, parseScopeDocTypesInput } from '@/api/ask';
 import { createAskFeedback } from '@/api/feedback';
 import { listKnowledgeBases } from '@/api/knowledge-bases';
 import { logoutLocal } from '@/auth/services';
@@ -404,6 +410,111 @@ function FeedbackBar({ requestId }: { requestId: string }) {
   );
 }
 
+function CitationBlock({
+  requestId,
+  citations,
+}: {
+  requestId: string;
+  citations: AskCitation[];
+}) {
+  const panelId = useId();
+  const inflight = useRef(false);
+  const [audit, setAudit] = useState<AskAuditResponse | null>(null);
+  const [selectedChunkId, setSelectedChunkId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function openChunk(chunkId: string) {
+    let next: string | null = chunkId;
+    setSelectedChunkId((cur) => {
+      next = cur === chunkId ? null : chunkId;
+      return next;
+    });
+    setError(null);
+    if (!next || audit || inflight.current) return;
+    inflight.current = true;
+    setLoading(true);
+    try {
+      setAudit(await getAskAudit(requestId));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '无法加载分片详情');
+    } finally {
+      inflight.current = false;
+      setLoading(false);
+    }
+  }
+
+  const selected = audit?.evidenceSnapshot.find((item) => item.chunkId === selectedChunkId);
+
+  return (
+    <div className="mt-4">
+      <h2 className="m-0 text-[13px] font-semibold text-muted-foreground">
+        引用（服务端返回 · 非会话历史）
+      </h2>
+      <ul className="mt-2 mb-0 list-none pl-0 text-[13px] leading-normal">
+        {citations.map((c) => (
+          <li key={c.chunkId} className="mb-1.5">
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto p-0 font-semibold text-foreground"
+              aria-expanded={selectedChunkId === c.chunkId}
+              aria-controls={panelId}
+              onClick={() => void openChunk(c.chunkId)}
+            >
+              {c.title ?? c.docId.slice(0, 8)}
+            </Button>
+            {c.sectionPath ? ` · ${c.sectionPath}` : null}
+            {c.preview ? (
+              <div className="mt-0.5 text-muted-foreground">{c.preview}</div>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+      {loading ? (
+        <p className="mt-2 mb-0 text-xs text-muted-foreground" role="status">
+          正在加载当时快照…
+        </p>
+      ) : null}
+      {error ? (
+        <p className="mt-2 mb-0 text-xs text-destructive" role="alert">
+          {error}
+        </p>
+      ) : null}
+      {selectedChunkId && !loading && !error ? (
+        <div
+          id={panelId}
+          className="mt-3 rounded-md border border-border bg-card px-3 py-2"
+          role="region"
+          aria-label="分片详情"
+        >
+          <h3 className="m-0 text-[13px] font-semibold">分片详情（当时快照）</h3>
+          {selected ? (
+            <>
+              <p className="mt-1.5 mb-0 text-[13px]">{selected.title ?? selected.docId.slice(0, 8)}</p>
+              {selected.lifecycle ? (
+                <p className="mt-1 mb-0 text-xs text-muted-foreground">
+                  生命周期 {selected.lifecycle}
+                </p>
+              ) : null}
+              {selected.preview ? (
+                <p className="mt-1.5 mb-0 text-[13px] leading-normal text-muted-foreground">
+                  {selected.preview}
+                </p>
+              ) : null}
+              <p className="mt-1.5 mb-0 text-[11px] text-muted-foreground">
+                分片 {selected.chunkId.slice(0, 8)} · 文档 {selected.docId.slice(0, 8)}
+              </p>
+            </>
+          ) : (
+            <p className="mt-1.5 mb-0 text-xs text-muted-foreground">该引用无当时快照。</p>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function AnsweredCard({ data }: { data: AskResponse }) {
   const isChitchat = data.answerKind === 'chitchat' || data.reason === 'chitchat';
   return (
@@ -415,22 +526,11 @@ function AnsweredCard({ data }: { data: AskResponse }) {
         {data.answer || data.userMessage || '（空答案）'}
       </AlertDescription>
       {!isChitchat && data.citations && data.citations.length > 0 ? (
-        <div className="mt-4">
-          <h2 className="m-0 text-[13px] font-semibold text-muted-foreground">
-            引用（服务端返回 · 非会话历史）
-          </h2>
-          <ul className="mt-2 mb-0 list-disc pl-[18px] text-[13px] leading-normal">
-            {data.citations.map((c) => (
-              <li key={c.chunkId} className="mb-1.5">
-                <strong>{c.title ?? c.docId.slice(0, 8)}</strong>
-                {c.sectionPath ? ` · ${c.sectionPath}` : null}
-                {c.preview ? (
-                  <div className="mt-0.5 text-muted-foreground">{c.preview}</div>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        </div>
+        <CitationBlock
+          key={data.requestId}
+          requestId={data.requestId}
+          citations={data.citations}
+        />
       ) : null}
       {isChitchat ? (
         <p className="mt-3 mb-0 text-xs text-muted-foreground">闲聊路径，无知识库引用。</p>

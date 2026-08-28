@@ -18,6 +18,7 @@
 | 文件 | 目标 | 需求锚点 | 被测 | 简介 | 状态 |
 |------|------|----------|------|------|------|
 | `ask/answer-lt-passthrough.test.tsx` | 制度答案含 `a < b` 或 `<工号>` 必须原样可见，不得被剥掉。 | 剧本 K6 · prds/10-delivery/03-acceptance-scenarios.md | `AskPanel`（AnsweredCard） | 答案文本节点原样展示小于号。 | 现行 |
+| `ask/citation-chunk-detail.test.tsx` | answered 引用卡片必须可点回当时分片快照，不得编造引用、不得走现网全文。 | 功能表 §5.2 引用回溯 · prds/05-api §2.9 | `AskPanel`（CitationBlock） | 点击引用调 GET /ask/:requestId；展示 snapshot preview；闲聊无点回。 | 现行 |
 | `ask/abstain-alert.test.tsx` | 拒答以 alert 展示，不得当成普通答案；kb_not_ready 不进系统错误卡。 | P0 R2 · R10 | `AskPanel` | 用 contracts testing 工厂。 | 现行 |
 | `ask/scope-top-level.test.ts` | ask 请求的 scope 必须在顶层，不得进入 options。 | ADR-050 | `buildAskRequestBody · parseScopeDocTypesInput` | 客户端 body 形状。 | 现行 |
 | `ask/stream-ready-no-final.test.ts` | 流式 ready 且无合法 final 时不得卡在 loading，必须落到 error。 | P0 R1 | `useKnowledgeAsk` | 流式三态；非法终态 → error；kb_not_ready final 进 abstained。 | 现行 |

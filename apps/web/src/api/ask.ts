@@ -5,8 +5,10 @@
  * 不自解析 SSE 帧；协议由 AI SDK 消费。
  */
 
-import type { AskRequest, AskResponse, AskSseStatus } from '@strict-rag/contracts';
+import type { AskAuditResponse, AskRequest, AskResponse, AskSseStatus } from '@strict-rag/contracts';
 import { DefaultChatTransport } from 'ai';
+
+import { http } from '@/lib/http';
 
 import {
   clearClientSession,
@@ -56,6 +58,11 @@ export function buildAskRequestBody(input: {
     body.scope = { docTypes };
   }
   return body;
+}
+
+/** GET /ask/:requestId 当时 evidence 快照；非断线重拉、非现网分片全文 */
+export async function getAskAudit(requestId: string) {
+  return http.get<AskAuditResponse>(`/api/v1/ask/${encodeURIComponent(requestId)}`);
 }
 
 function baseURL() {
