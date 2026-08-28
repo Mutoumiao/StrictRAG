@@ -73,8 +73,8 @@ export const CompleteUploadBodySchema = z.object({
   /** 可选：客户端声称的 size；服务端以对象实际大小为准 */
   declaredByteSize: z.number().int().nonnegative().optional(),
   /**
-   * B12 / AA3：分片策略码（须已注册）。
-   * 多策略并存且文档尚无策略时 **必选**（未传 → 400）；已有策略可省略并保留。
+   * 分片策略码（须已实现且在 for-upload available）。
+   * 该 MIME 族仅 1 个可用时可省略（服务端自动）；≥2 未传 → 400。
    */
   chunkStrategy: z.string().min(1).max(64).optional(),
   ownerDeptId: z.string().uuid().nullable().optional(),

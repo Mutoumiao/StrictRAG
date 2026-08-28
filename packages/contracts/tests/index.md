@@ -23,6 +23,7 @@
 | `async/ingest-job.test.ts` | 入库任务 DTO 必须覆盖全阶段，拒绝空 docId 与非法 stage。 | prds/06-async | `IngestJobDataSchema · INGEST_STAGES · INGEST_JOB_DEFAULT_ATTEMPTS` | 入库任务载荷形状与阶段枚举的单一来源。 | 现行 |
 | `ingest/chunk-contract.test.ts` | 分片只读 DTO 列表不得含 body，详情必须含 body，查询 limit 有默认与上限。 | ADR-052 | `ChunkListQuerySchema · ChunkListItemSchema · ChunkDetailSchema · ChunkListResponseSchema` | 分片只读 DTO 形状。 | 现行 |
 | `ingest/chunk-strategy.test.ts` | 分片策略默认码必须已实现，路线图码已知但未实现，未知码不得当已实现。 | B12 | `DEFAULT_CHUNK_STRATEGY · isImplementedChunkStrategy · CHUNK_STRATEGY_CODES` | 策略枚举与未实现边界。 | 现行 |
+| `ingest/chunk-strategy-catalog-contract.test.ts` | 分片策略三层 HTTP 契约必须带 for-upload query 与库启用 PATCH，缺字段或非法族应拒绝。 | 功能表 §4.5 · ADR-053 | `ForUploadQuerySchema · PatchKbChunkStrategiesBodySchema · docFamilyFromContentType` | 最小闭环 DTO；不含平台 CRUD 页。 | 现行 |
 | `ingest/document-contract.test.ts` | 文档 / 知识库 DTO 与完成上传、补丁元数据必须接受合法部门可见级并拒非法值。 | 入库 HTTP | `CreateKbBodySchema · KnowledgeBaseListItemSchema · VisibilityLevelSchema · CompleteUploadBodySchema · PatchDocumentMetaBodySchema · DocumentDetailSchema · DocumentListItemSchema` | 文档 DTO 与可见级 / 部门字段；建库 body 必填首位库管、不收 tenantId。 | 现行 |
 | `kb/settings-contract.test.ts` | KB 设置 PATCH 仅白名单且拒阈值字段，GET 必须锁定 rewrite 关闭。 | B2 | `PatchKbSettingsBodySchema · KbSettingsSchema` | KB 设置形状与 sessionRewrite 锁定。 | 现行 |
 | `system/dashboard-contract.test.ts` | 面板 summary 必须含四项指标，拒绝未知字段。 | B6 | `DashboardSummarySchema` | 面板 summary 形状。 | 现行 |

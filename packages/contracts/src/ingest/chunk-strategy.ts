@@ -35,3 +35,54 @@ export const KNOWN_CHUNK_STRATEGY_CODES = [
   CHUNK_STRATEGY_CODES.FIXED_WINDOW,
   CHUNK_STRATEGY_CODES.HEADING_SECTIONS,
 ] as const satisfies readonly ChunkStrategyCode[];
+
+/** ADR-053 文档族；P2 不含 pdf_scan（OCR 在 P5） */
+export const CHUNK_STRATEGY_DOC_FAMILIES = ['md', 'txt', 'docx', 'pdf_text'] as const;
+export type ChunkStrategyDocFamily = (typeof CHUNK_STRATEGY_DOC_FAMILIES)[number];
+
+export const DEFAULT_CHUNK_STRATEGY_PARAMS = {
+  chunkTokens: 256,
+  chunkOverlap: 32,
+  contextMode: 'l1_llm',
+} as const;
+
+const TEXT_FAMILIES: ChunkStrategyDocFamily[] = ['md', 'txt', 'docx', 'pdf_text'];
+
+/** 平台注册表种子（表权威；本常量只用于迁移/启动种子，禁止当写入闸） */
+export const CHUNK_STRATEGY_PLATFORM_SEED = [
+  {
+    code: CHUNK_STRATEGY_CODES.STRUCTURE_PARAGRAPH,
+    name: '结构段落',
+    docFamilies: TEXT_FAMILIES,
+    paramSchema: { ...DEFAULT_CHUNK_STRATEGY_PARAMS },
+    pipelineId: 'ingest-chunk',
+    implemented: true,
+    system: true,
+  },
+  {
+    code: CHUNK_STRATEGY_CODES.FIXED_WINDOW,
+    name: '固定窗口',
+    docFamilies: TEXT_FAMILIES,
+    paramSchema: { ...DEFAULT_CHUNK_STRATEGY_PARAMS },
+    pipelineId: 'ingest-chunk',
+    implemented: false,
+    system: true,
+  },
+  {
+    code: CHUNK_STRATEGY_CODES.HEADING_SECTIONS,
+    name: '标题分节',
+    docFamilies: ['md'] satisfies ChunkStrategyDocFamily[],
+    paramSchema: { ...DEFAULT_CHUNK_STRATEGY_PARAMS },
+    pipelineId: 'ingest-chunk',
+    implemented: false,
+    system: true,
+  },
+] as const;
+
+export function docFamilyFromContentType(contentType: string): ChunkStrategyDocFamily {
+  const ct = contentType.toLowerCase().split(';')[0]?.trim() ?? '';
+  if (ct === 'text/markdown' || ct === 'text/x-markdown') return 'md';
+  if (ct.includes('wordprocessingml') || ct === 'application/msword') return 'docx';
+  if (ct === 'application/pdf') return 'pdf_text';
+  return 'txt';
+}
