@@ -88,7 +88,9 @@ describe('AskPanel', () => {
 
   it('提交清空输入；error 重试用 lastQuestion', async () => {
     const user = userEvent.setup();
+    listKnowledgeBases.mockResolvedValue([{ id: 'kb-1', tenantId: 't', name: '演示库' }]);
     const { rerender } = render(<AskPanel />);
+    await waitFor(() => expect(screen.getByRole('button', { name: '提问' })).toBeInTheDocument());
 
     await user.type(screen.getByLabelText('知识库 ID'), 'kb-1');
     await user.type(screen.getByLabelText('问题'), '第一次问题');
@@ -157,6 +159,8 @@ describe('AskPanel', () => {
     listKnowledgeBases.mockRejectedValue(new Error('forbidden'));
     render(<AskPanel />);
     await waitFor(() => expect(listKnowledgeBases).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByRole('button', { name: '提问' })).toBeInTheDocument());
+    expect(screen.getByText(/知识库列表加载失败/)).toBeInTheDocument();
     expect(screen.queryByRole('option', { hidden: true })).not.toBeInTheDocument();
     await user.type(screen.getByLabelText('知识库 ID'), 'kb-uuid');
     expect(localStorage.getItem('strict-rag:web:last-kb-id')).toBe('kb-uuid');

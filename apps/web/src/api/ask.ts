@@ -5,10 +5,18 @@
  * 不自解析 SSE 帧；协议由 AI SDK 消费。
  */
 
-import type { AskAuditResponse, AskRequest, AskResponse, AskSseStatus } from '@strict-rag/contracts';
+import {
+  AskModesSchema,
+  type AskAuditResponse,
+  type AskMode,
+  type AskModes,
+  type AskRequest,
+  type AskResponse,
+  type AskSseStatus,
+} from '@strict-rag/contracts';
 import { DefaultChatTransport } from 'ai';
 
-import { http } from '@/lib/http';
+import { ApiHttpError, http } from '@/lib/http';
 
 import {
   clearClientSession,
@@ -27,6 +35,7 @@ export type AskTransportOptions = {
   /** 每次发送时读取 sessionId（可为 null = 单轮） */
   getSessionId: () => string | null;
   getScope?: () => AskRequest['scope'];
+  getMode?: () => AskMode | undefined;
 };
 
 /**
@@ -47,12 +56,16 @@ export function buildAskRequestBody(input: {
   question: string;
   sessionId: string | null;
   scope?: AskRequest['scope'];
+  mode?: AskMode;
 }): AskRequest {
   const body: AskRequest = {
     question: input.question,
     sessionId: input.sessionId,
     options: { stream: true },
   };
+  if (input.mode) {
+    body.options = { ...body.options, mode: input.mode };
+  }
   const docTypes = input.scope?.docTypes?.filter((t) => t.trim().length > 0);
   if (docTypes && docTypes.length > 0) {
     body.scope = { docTypes };
@@ -63,6 +76,37 @@ export function buildAskRequestBody(input: {
 /** GET /ask/:requestId 当时 evidence 快照；非断线重拉、非现网分片全文 */
 export async function getAskAudit(requestId: string) {
   return http.get<AskAuditResponse>(`/api/v1/ask/${encodeURIComponent(requestId)}`);
+}
+
+/** GET /knowledge-bases/:kbId/ask-modes 成员档位；不含 τ */
+export async function getAskModes(kbId: string) {
+  const data = await http.get<AskModes>(
+    `/api/v1/knowledge-bases/${encodeURIComponent(kbId)}/ask-modes`,
+  );
+  return AskModesSchema.parse(data);
+}
+
+function isFailEnvelope(
+  payload: unknown,
+): payload is { ok: false; error: { code: string; message: string } } {
+  if (!payload || typeof payload !== 'object' || !('ok' in payload) || !('error' in payload)) {
+    return false;
+  }
+  if ((payload as { ok: unknown }).ok !== false) return false;
+  const error = (payload as { error: unknown }).error;
+  if (!error || typeof error !== 'object' || !('code' in error) || !('message' in error)) {
+    return false;
+  }
+  return typeof (error as { code: unknown }).code === 'string' &&
+    typeof (error as { message: unknown }).message === 'string';
+}
+
+/** 非 2xx 且为业务失败信封时抛 ApiHttpError（含 429 RATE_LIMITED） */
+export async function throwIfAskFailResponse(res: Response): Promise<void> {
+  if (res.ok) return;
+  const payload: unknown = await res.clone().json().catch(() => null);
+  if (!isFailEnvelope(payload)) return;
+  throw new ApiHttpError(payload.error.code, payload.error.message, res.status);
 }
 
 function baseURL() {
@@ -121,6 +165,7 @@ export function createAskTransport(opts: AskTransportOptions) {
         question,
         sessionId: opts.getSessionId(),
         scope: opts.getScope?.(),
+        mode: opts.getMode?.(),
       });
 
       return {
@@ -130,13 +175,18 @@ export function createAskTransport(opts: AskTransportOptions) {
     },
     fetch: async (input, init) => {
       const first = await fetch(input, init);
-      if (first.status !== 401) return first;
-      const refreshed = await refreshAccessToken();
-      if (!refreshed) return first;
-      const headers = new Headers(init?.headers);
-      const session = readClientSession();
-      if (session) headers.set('authorization', `Bearer ${session.accessToken}`);
-      return fetch(input, { ...init, headers });
+      if (first.status === 401) {
+        const refreshed = await refreshAccessToken();
+        if (!refreshed) return first;
+        const headers = new Headers(init?.headers);
+        const session = readClientSession();
+        if (session) headers.set('authorization', `Bearer ${session.accessToken}`);
+        const retry = await fetch(input, { ...init, headers });
+        await throwIfAskFailResponse(retry);
+        return retry;
+      }
+      await throwIfAskFailResponse(first);
+      return first;
     },
   });
 }

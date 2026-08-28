@@ -18,6 +18,7 @@ export class ApiHttpError extends Error {
   constructor(
     readonly code: string,
     message: string,
+    readonly httpStatus?: number,
   ) {
     super(message);
     this.name = 'ApiHttpError';
@@ -53,7 +54,10 @@ async function ensureRefresh() {
   return refreshPromise;
 }
 
-async function requestOnce<T>(path: string, init: RequestInit = {}): Promise<ApiResponse<T>> {
+async function requestOnce<T>(
+  path: string,
+  init: RequestInit = {},
+): Promise<{ status: number; payload: ApiResponse<T> }> {
   const headers = new Headers(init.headers);
   if (!headers.has('content-type') && init.body) {
     headers.set('content-type', 'application/json');
@@ -63,11 +67,11 @@ async function requestOnce<T>(path: string, init: RequestInit = {}): Promise<Api
     if (session) headers.set('authorization', `Bearer ${session.accessToken}`);
   }
   const res = await fetch(`${resolveBaseURL()}${path}`, { ...init, headers });
-  return (await res.json()) as ApiResponse<T>;
+  return { status: res.status, payload: (await res.json()) as ApiResponse<T> };
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const payload = await requestOnce<T>(path, init);
+  const { status, payload } = await requestOnce<T>(path, init);
   if (payload.ok) return payload.data;
 
   if (
@@ -79,15 +83,16 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     try {
       await ensureRefresh();
       const retry = await requestOnce<T>(path, init);
-      if (retry.ok) return retry.data;
-      throw new ApiHttpError(retry.error.code, retry.error.message);
-    } catch {
+      if (retry.payload.ok) return retry.payload.data;
+      throw new ApiHttpError(retry.payload.error.code, retry.payload.error.message, retry.status);
+    } catch (err) {
+      if (err instanceof ApiHttpError && err.code !== 'UNAUTHORIZED') throw err;
       clearClientSession();
-      throw new ApiHttpError('UNAUTHORIZED', 'session refresh failed');
+      throw new ApiHttpError('UNAUTHORIZED', 'session refresh failed', 401);
     }
   }
 
-  throw new ApiHttpError(payload.error.code, payload.error.message);
+  throw new ApiHttpError(payload.error.code, payload.error.message, status);
 }
 
 export const http = {

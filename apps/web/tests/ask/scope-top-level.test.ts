@@ -34,6 +34,7 @@ describe('buildAskRequestBody', () => {
       sessionId: null,
       options: { stream: true },
     });
+    expect(a.options?.mode).toBeUndefined();
     expect(a.scope).toBeUndefined();
 
     const b = buildAskRequestBody({
@@ -64,5 +65,15 @@ describe('buildAskRequestBody', () => {
       scope: docTypes ? { docTypes } : undefined,
     });
     expect(body.scope?.docTypes).toEqual(['hr', 'finance']);
+  });
+
+  it('有 mode → options.mode，仍不进 scope', () => {
+    const body = buildAskRequestBody({
+      question: 'q',
+      sessionId: null,
+      mode: 'fast',
+    });
+    expect(body.options).toEqual({ stream: true, mode: 'fast' });
+    expect(body.scope).toBeUndefined();
   });
 });

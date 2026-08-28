@@ -9,32 +9,51 @@ import { useChat } from '@ai-sdk/react';
 import {
   AskResponseSchema,
   AskSseStatusSchema,
+  type AskMode,
   type AskRequest,
   type AskResponse,
 } from '@strict-rag/contracts';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { createAskTransport } from '@/api/ask';
+import { ApiHttpError } from '@/lib/http';
 
 export type KnowledgeAskView =
   | { type: 'idle' }
   | { type: 'loading'; phase?: string }
   | { type: 'answered'; data: AskResponse }
   | { type: 'abstained'; data: AskResponse }
-  | { type: 'error'; code: string; message: string };
+  | { type: 'error'; code: string; message: string; httpStatus?: number };
 
 export type UseKnowledgeAskArgs = {
   kbId: string;
   sessionId: string | null;
   /** B11：每次发送时读 scope（ref 挂载，改类型不重建 transport） */
   getScope?: () => AskRequest['scope'];
+  /** 每次发送时读档位；缺省不传 mode（服务端 defaultMode） */
+  getMode?: () => AskMode | undefined;
 };
 
-export function useKnowledgeAsk({ kbId, sessionId, getScope }: UseKnowledgeAskArgs) {
+function errorViewFromUnknown(err: unknown): Extract<KnowledgeAskView, { type: 'error' }> {
+  if (err instanceof ApiHttpError) {
+    return {
+      type: 'error',
+      code: err.code,
+      message: err.message || '请求失败',
+      httpStatus: err.httpStatus,
+    };
+  }
+  const message = err instanceof Error ? err.message : '请求失败';
+  return { type: 'error', code: 'INTERNAL', message: message || '请求失败' };
+}
+
+export function useKnowledgeAsk({ kbId, sessionId, getScope, getMode }: UseKnowledgeAskArgs) {
   const sessionIdRef = useRef(sessionId);
   sessionIdRef.current = sessionId;
   const getScopeRef = useRef(getScope);
   getScopeRef.current = getScope;
+  const getModeRef = useRef(getMode);
+  getModeRef.current = getMode;
 
   const [view, setView] = useState<KnowledgeAskView>({ type: 'idle' });
   const [lastFinal, setLastFinal] = useState<AskResponse | null>(null);
@@ -45,6 +64,7 @@ export function useKnowledgeAsk({ kbId, sessionId, getScope }: UseKnowledgeAskAr
       kbId: kbId.trim(),
       getSessionId: () => sessionIdRef.current,
       getScope: () => getScopeRef.current?.(),
+      getMode: () => getModeRef.current?.(),
     });
   }, [kbId]);
 
@@ -87,11 +107,7 @@ export function useKnowledgeAsk({ kbId, sessionId, getScope }: UseKnowledgeAskAr
       }
     },
     onError: (err) => {
-      setView({
-        type: 'error',
-        code: 'INTERNAL',
-        message: err.message || '请求失败',
-      });
+      setView(errorViewFromUnknown(err));
     },
   });
 
@@ -116,11 +132,7 @@ export function useKnowledgeAsk({ kbId, sessionId, getScope }: UseKnowledgeAskAr
 
   useEffect(() => {
     if (error) {
-      setView({
-        type: 'error',
-        code: 'INTERNAL',
-        message: error.message || '请求失败',
-      });
+      setView(errorViewFromUnknown(error));
     }
   }, [error]);
 

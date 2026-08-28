@@ -7,12 +7,16 @@
  */
 
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react';
-import type {
-  AskAuditResponse,
-  AskCitation,
-  AskResponse,
-  SessionMessage,
-  SessionSummary,
+import {
+  AskModeSchema,
+  type AskAuditResponse,
+  type AskCitation,
+  type AskMode,
+  type AskModes,
+  type AskResponse,
+  type SessionMessage,
+  type SessionSummary,
+  type SuggestedAction,
 } from '@strict-rag/contracts';
 import {
   Alert,
@@ -24,12 +28,13 @@ import { Button } from '@strict-rag/ui/components/ui/button';
 import { Card, CardContent } from '@strict-rag/ui/components/ui/card';
 import { Input } from '@strict-rag/ui/components/ui/input';
 import { Label } from '@strict-rag/ui/components/ui/label';
+import { Select } from '@strict-rag/ui/components/ui/select';
 import { Textarea } from '@strict-rag/ui/components/ui/textarea';
 import { cn } from '@strict-rag/ui/lib/utils';
 import { useRouter } from 'next/navigation';
 
-import { getAskAudit, parseScopeDocTypesInput } from '@/api/ask';
-import { createAskFeedback } from '@/api/feedback';
+import { getAskAudit, getAskModes, parseScopeDocTypesInput } from '@/api/ask';
+import { createAskFeedback, FEEDBACK_CATEGORY } from '@/api/feedback';
 import { listKnowledgeBases } from '@/api/knowledge-bases';
 import { logoutLocal } from '@/auth/services';
 import { useWebAuth } from '@/components/auth-guard';
@@ -42,13 +47,28 @@ import {
 } from '@/services/sessions.services';
 
 const KB_STORAGE = 'strict-rag:web:last-kb-id';
+const KB_ID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const ASK_MODE_LABELS: Record<AskMode, string> = {
+  strict: '严谨',
+  balanced: '均衡',
+  fast: '快速',
+};
 
 export function AskPanel() {
   const { me } = useWebAuth();
   const router = useRouter();
   const [kbId, setKbId] = useState('');
   const [kbOptions, setKbOptions] = useState<{ id: string; name: string }[]>([]);
+  const [kbListStatus, setKbListStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [askModes, setAskModes] = useState<AskModes | null>(null);
+  const [mode, setMode] = useState<AskMode | ''>('');
+  const [modesLoadFailed, setModesLoadFailed] = useState(false);
   const [question, setQuestion] = useState('');
+  const [actionHint, setActionHint] = useState<string | null>(null);
+  const questionRef = useRef<HTMLTextAreaElement>(null);
+  const feedbackActionBusy = useRef(false);
   /** B11：可选文档类型（逗号分隔）；空=不收窄 */
   const [docTypesInput, setDocTypesInput] = useState('');
   /** 最近一次成功发起的提问文案；重试用（提交后会清空输入框） */
@@ -65,18 +85,57 @@ export function AskPanel() {
     return docTypes ? { docTypes } : undefined;
   }, [docTypesInput]);
 
+  const getMode = useCallback(() => (mode === '' ? undefined : mode), [mode]);
+
   const { view, setView, lastFinal, ask, reset, busy } = useKnowledgeAsk({
     kbId,
     sessionId: activeSessionId,
     getScope,
+    getMode,
   });
 
   useEffect(() => {
     setKbId(window.localStorage.getItem(KB_STORAGE) ?? '');
     void listKnowledgeBases()
-      .then((rows) => setKbOptions(rows.map((r) => ({ id: r.id, name: r.name }))))
-      .catch(() => setKbOptions([]));
+      .then((rows) => {
+        setKbOptions(rows.map((r) => ({ id: r.id, name: r.name })));
+        setKbListStatus('ready');
+      })
+      .catch(() => {
+        setKbOptions([]);
+        setKbListStatus('error');
+      });
   }, []);
+
+  useEffect(() => {
+    const id = kbId.trim();
+    if (!id || !KB_ID_RE.test(id)) {
+      setAskModes(null);
+      setMode('');
+      setModesLoadFailed(false);
+      return;
+    }
+    setAskModes(null);
+    setMode('');
+    setModesLoadFailed(false);
+    let cancelled = false;
+    void getAskModes(id)
+      .then((m) => {
+        if (cancelled) return;
+        setAskModes(m);
+        setMode(m.defaultMode);
+        setModesLoadFailed(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAskModes(null);
+        setMode('');
+        setModesLoadFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [kbId]);
 
   const refreshSessions = useCallback(async (id: string) => {
     const result = await loadSessionList(id);
@@ -160,6 +219,7 @@ export function AskPanel() {
     window.localStorage.setItem(KB_STORAGE, id);
     setLastQuestion(q);
     setQuestion('');
+    setActionHint(null);
     await ask(q);
   }
 
@@ -173,6 +233,45 @@ export function AskPanel() {
     if (!q || busy) return;
     void submitQuestion(q);
   }
+
+  function onSuggestedAction(action: SuggestedAction, requestId?: string) {
+    setActionHint(null);
+    if (action.type === 'rephrase' || action.type === 'ask_knowledge') {
+      const q = lastQuestion.trim();
+      if (action.type === 'rephrase' && q) setQuestion(q);
+      questionRef.current?.focus();
+      return;
+    }
+    if (action.type === 'retry_later') {
+      onRetry();
+      return;
+    }
+    if (action.type === 'view_citations') {
+      document.getElementById('ask-citations')?.scrollIntoView({ block: 'nearest' });
+      return;
+    }
+    if (action.type === 'feedback_missing_doc' || action.type === 'feedback') {
+      if (!requestId || feedbackActionBusy.current) return;
+      feedbackActionBusy.current = true;
+      void createAskFeedback(requestId, {
+        category:
+          action.type === 'feedback_missing_doc'
+            ? FEEDBACK_CATEGORY.missingDoc
+            : FEEDBACK_CATEGORY.wrongAnswer,
+      }).then(
+        () => setActionHint('已提交反馈'),
+        (e: unknown) => setActionHint(e instanceof Error ? e.message : '反馈提交失败'),
+      ).finally(() => {
+        feedbackActionBusy.current = false;
+      });
+      return;
+    }
+    if (action.type === 'contact_admin') {
+      setActionHint('请联系本库管理员开通成员或补充资料。');
+    }
+  }
+
+  const showAskForm = kbListStatus === 'error' || kbOptions.length > 0;
 
   function onLogout() {
     logoutLocal();
@@ -269,88 +368,152 @@ export function AskPanel() {
           </Card>
         ) : null}
 
-        <Card>
-          <CardContent className="pt-4">
-            <form onSubmit={onSubmit} className="flex flex-col gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="ask-kb">知识库 ID</Label>
-                <Input
-                  id="ask-kb"
-                  list="web-kb-list"
-                  value={kbId}
-                  onChange={(ev) => {
-                    const v = ev.target.value;
-                    setKbId(v);
-                    window.localStorage.setItem(KB_STORAGE, v.trim());
-                  }}
-                  placeholder="uuid"
-                  required
-                />
-                <datalist id="web-kb-list">
-                  {kbOptions.map((k) => (
-                    <option key={k.id} value={k.id}>
-                      {k.name}
-                    </option>
-                  ))}
-                </datalist>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="ask-doc-types">文档类型（可选）</Label>
-                <Input
-                  id="ask-doc-types"
-                  value={docTypesInput}
-                  onChange={(ev) => setDocTypesInput(ev.target.value)}
-                  placeholder="如 hr, legal；空=不按类型收窄"
-                  autoComplete="off"
-                />
-                <p className="m-0 text-[11px] text-muted-foreground">
-                  多个类型用逗号分隔；仅检索标注了对应类型的文档（ADR-050）。
-                </p>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="ask-q">问题</Label>
-                <Textarea
-                  id="ask-q"
-                  value={question}
-                  onChange={(ev) => setQuestion(ev.target.value)}
-                  rows={3}
-                  required
-                  maxLength={8000}
-                  placeholder="输入要检索的问题…"
-                  className="resize-y"
-                />
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button type="submit" disabled={view.type === 'loading'}>
-                  {view.type === 'loading' ? `处理中（${view.phase ?? '…'}）` : '提问'}
-                </Button>
-                {view.type === 'error' || view.type === 'abstained' ? (
-                  <Button type="button" variant="link" onClick={onRetry}>
-                    重试
+        {kbListStatus === 'loading' ? (
+          <p className="text-sm text-muted-foreground" role="status">
+            正在加载可用知识库…
+          </p>
+        ) : !showAskForm ? (
+          <EmptyKbCard />
+        ) : (
+          <Card>
+            <CardContent className="pt-4">
+              <form onSubmit={onSubmit} className="flex flex-col gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="ask-kb">知识库 ID</Label>
+                  <Input
+                    id="ask-kb"
+                    list="web-kb-list"
+                    value={kbId}
+                    onChange={(ev) => {
+                      const v = ev.target.value;
+                      setKbId(v);
+                      window.localStorage.setItem(KB_STORAGE, v.trim());
+                    }}
+                    placeholder="uuid"
+                    required
+                  />
+                  <datalist id="web-kb-list">
+                    {kbOptions.map((k) => (
+                      <option key={k.id} value={k.id}>
+                        {k.name}
+                      </option>
+                    ))}
+                  </datalist>
+                </div>
+                {askModes ? (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ask-mode">问答档位</Label>
+                    <Select
+                      id="ask-mode"
+                      value={mode}
+                      onChange={(ev) => {
+                        const parsed = AskModeSchema.safeParse(ev.target.value);
+                        if (parsed.success && askModes.allowedModes.includes(parsed.data)) {
+                          setMode(parsed.data);
+                        }
+                      }}
+                    >
+                      {askModes.allowedModes.map((m) => (
+                        <option key={m} value={m}>
+                          {ASK_MODE_LABELS[m]}（{m}）
+                        </option>
+                      ))}
+                    </Select>
+                    <p className="m-0 text-[11px] text-muted-foreground">
+                      选项来自本库允许档位；客户端不可改阈值或检索预算。
+                    </p>
+                  </div>
+                ) : modesLoadFailed ? (
+                  <p className="m-0 text-[11px] text-muted-foreground">
+                    未能读取本库档位，提问将使用服务端默认档。
+                  </p>
+                ) : null}
+                <div className="space-y-1.5">
+                  <Label htmlFor="ask-doc-types">文档类型（可选）</Label>
+                  <Input
+                    id="ask-doc-types"
+                    value={docTypesInput}
+                    onChange={(ev) => setDocTypesInput(ev.target.value)}
+                    placeholder="如 hr, legal；空=不按类型收窄"
+                    autoComplete="off"
+                  />
+                  <p className="m-0 text-[11px] text-muted-foreground">
+                    多个类型用逗号分隔；仅检索标注了对应类型的文档（ADR-050）。
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ask-q">问题</Label>
+                  <Textarea
+                    id="ask-q"
+                    ref={questionRef}
+                    value={question}
+                    onChange={(ev) => setQuestion(ev.target.value)}
+                    rows={3}
+                    required
+                    maxLength={8000}
+                    placeholder="输入要检索的问题…"
+                    className="resize-y"
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button type="submit" disabled={view.type === 'loading'}>
+                    {view.type === 'loading' ? `处理中（${view.phase ?? '…'}）` : '提问'}
                   </Button>
+                  {view.type === 'error' || view.type === 'abstained' ? (
+                    <Button type="button" variant="link" onClick={onRetry}>
+                      重试
+                    </Button>
+                  ) : null}
+                  {activeSessionId ? (
+                    <span className="text-[11px] text-muted-foreground">
+                      会话 {activeSessionId.slice(0, 8)}…
+                    </span>
+                  ) : null}
+                </div>
+                {kbListStatus === 'error' ? (
+                  <p className="m-0 text-xs text-destructive">
+                    知识库列表加载失败，可粘贴知识库 ID 继续提问。
+                  </p>
                 ) : null}
-                {activeSessionId ? (
-                  <span className="text-[11px] text-muted-foreground">
-                    会话 {activeSessionId.slice(0, 8)}…
-                  </span>
+                {actionHint ? (
+                  <p className="m-0 text-xs text-muted-foreground">{actionHint}</p>
                 ) : null}
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+              </form>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="mt-5">
           {view.type === 'loading' ? (
-            <p className="text-sm text-muted-foreground">正在检索与校验…</p>
+            <p className="text-sm text-muted-foreground" role="status">
+              正在检索与校验…
+            </p>
           ) : null}
-          {view.type === 'answered' ? <AnsweredCard data={view.data} /> : null}
-          {view.type === 'abstained' ? <AbstainedCard data={view.data} /> : null}
+          {view.type === 'answered' ? (
+            <AnsweredCard data={view.data} onSuggestedAction={onSuggestedAction} />
+          ) : null}
+          {view.type === 'abstained' ? (
+            <AbstainedCard data={view.data} onSuggestedAction={onSuggestedAction} />
+          ) : null}
           {view.type === 'error' ? (
-            <ErrorCard code={view.code} message={view.message} />
+            <ErrorCard code={view.code} message={view.message} httpStatus={view.httpStatus} />
           ) : null}
         </div>
       </div>
     </div>
+  );
+}
+
+function EmptyKbCard() {
+  return (
+    <Card>
+      <CardContent className="pt-6">
+        <h2 className="m-0 text-base font-semibold">暂无可用知识库</h2>
+        <p className="mt-2 mb-0 text-sm text-muted-foreground">
+          你还不是任何知识库的成员，无法提问。请找管理员开通成员。
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -367,39 +530,49 @@ function FeedbackBar({ requestId }: { requestId: string }) {
   const [state, setState] = useState<'idle' | 'sending' | 'ok' | 'err'>('idle');
   const [msg, setMsg] = useState<string | null>(null);
 
-  async function send(rating: 'up' | 'down') {
+  async function send(body: { rating?: 'up' | 'down'; category?: string }) {
     setState('sending');
     setMsg(null);
     try {
-      await createAskFeedback(requestId, { rating });
+      await createAskFeedback(requestId, body);
       setState('ok');
-      setMsg(rating === 'up' ? '已提交：有帮助' : '已提交：无帮助');
+      if (body.category === FEEDBACK_CATEGORY.missingDoc) setMsg('已提交：缺文档');
+      else if (body.category === FEEDBACK_CATEGORY.wrongAnswer) setMsg('已提交：报错');
+      else setMsg(body.rating === 'up' ? '已提交：有帮助' : '已提交：无帮助');
     } catch (e) {
       setState('err');
       setMsg(e instanceof Error ? e.message : '提交失败');
     }
   }
 
+  const disabled = state === 'sending' || state === 'ok';
+
   return (
     <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-3">
       <span className="text-xs text-muted-foreground">本次回答反馈</span>
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        disabled={state === 'sending' || state === 'ok'}
-        onClick={() => void send('up')}
-      >
+      <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={() => void send({ rating: 'up' })}>
         有帮助
+      </Button>
+      <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={() => void send({ rating: 'down' })}>
+        无帮助
       </Button>
       <Button
         type="button"
         size="sm"
         variant="outline"
-        disabled={state === 'sending' || state === 'ok'}
-        onClick={() => void send('down')}
+        disabled={disabled}
+        onClick={() => void send({ category: FEEDBACK_CATEGORY.wrongAnswer, rating: 'down' })}
       >
-        无帮助
+        报错
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        disabled={disabled}
+        onClick={() => void send({ category: FEEDBACK_CATEGORY.missingDoc })}
+      >
+        缺文档
       </Button>
       {msg ? (
         <span className={cn('text-xs', state === 'err' ? 'text-destructive' : 'text-muted-foreground')}>
@@ -447,7 +620,7 @@ function CitationBlock({
   const selected = audit?.evidenceSnapshot.find((item) => item.chunkId === selectedChunkId);
 
   return (
-    <div className="mt-4">
+    <div className="mt-4" id="ask-citations">
       <h2 className="m-0 text-[13px] font-semibold text-muted-foreground">
         引用（服务端返回 · 非会话历史）
       </h2>
@@ -515,7 +688,40 @@ function CitationBlock({
   );
 }
 
-function AnsweredCard({ data }: { data: AskResponse }) {
+function SuggestedActionBar({
+  actions,
+  requestId,
+  onSuggestedAction,
+}: {
+  actions: SuggestedAction[];
+  requestId?: string;
+  onSuggestedAction: (action: SuggestedAction, requestId?: string) => void;
+}) {
+  if (actions.length === 0) return null;
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2">
+      {actions.map((a, i) => (
+        <Button
+          key={`${a.type}-${a.label}`}
+          type="button"
+          size="sm"
+          variant={i === 0 ? 'default' : 'outline'}
+          onClick={() => onSuggestedAction(a, requestId)}
+        >
+          {a.label}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
+function AnsweredCard({
+  data,
+  onSuggestedAction,
+}: {
+  data: AskResponse;
+  onSuggestedAction: (action: SuggestedAction, requestId?: string) => void;
+}) {
   const isChitchat = data.answerKind === 'chitchat' || data.reason === 'chitchat';
   return (
     <Alert variant="success">
@@ -535,17 +741,30 @@ function AnsweredCard({ data }: { data: AskResponse }) {
       {isChitchat ? (
         <p className="mt-3 mb-0 text-xs text-muted-foreground">闲聊路径，无知识库引用。</p>
       ) : null}
+      <SuggestedActionBar
+        actions={data.suggestedActions ?? []}
+        requestId={data.requestId}
+        onSuggestedAction={onSuggestedAction}
+      />
       {data.latencyMs != null ? (
         <p className="mt-3 mb-0 text-[11px] text-muted-foreground">
           {data.latencyMs} ms · {data.requestId}
         </p>
       ) : null}
-      {data.requestId ? <FeedbackBar requestId={data.requestId} /> : null}
+      {data.requestId ? (
+        <FeedbackBar key={`feedback-${data.requestId}`} requestId={data.requestId} />
+      ) : null}
     </Alert>
   );
 }
 
-function AbstainedCard({ data }: { data: AskResponse }) {
+function AbstainedCard({
+  data,
+  onSuggestedAction,
+}: {
+  data: AskResponse;
+  onSuggestedAction: (action: SuggestedAction, requestId?: string) => void;
+}) {
   return (
     <Alert variant="abstain">
       <Badge variant="abstain" className="bg-transparent px-0">
@@ -557,13 +776,13 @@ function AbstainedCard({ data }: { data: AskResponse }) {
       <p className="mt-2 mb-0 text-xs text-muted-foreground">
         这是业务结果，不是系统崩溃。可调整问题表述或补充入库后重试。
       </p>
-      {data.requestId ? <FeedbackBar requestId={data.requestId} /> : null}
-      {data.suggestedActions && data.suggestedActions.length > 0 ? (
-        <ul className="mt-3 mb-0 list-disc pl-[18px] text-[13px]">
-          {data.suggestedActions.map((a) => (
-            <li key={`${a.type}-${a.label}`}>{a.label}</li>
-          ))}
-        </ul>
+      <SuggestedActionBar
+        actions={data.suggestedActions ?? []}
+        requestId={data.requestId}
+        onSuggestedAction={onSuggestedAction}
+      />
+      {data.requestId ? (
+        <FeedbackBar key={`feedback-${data.requestId}`} requestId={data.requestId} />
       ) : null}
     </Alert>
   );
@@ -578,22 +797,27 @@ function ErrorCard({
   message: string;
   httpStatus?: number;
 }) {
+  const isQuota = code === 'RATE_LIMITED' || httpStatus === 429;
   const isForbidden = code === 'FORBIDDEN' || httpStatus === 403;
   const isAuth = code === 'UNAUTHORIZED' || httpStatus === 401;
-  const title = isForbidden
-    ? '无权限访问该知识库'
-    : isAuth
-      ? '登录已失效'
-      : '请求失败';
+  const title = isQuota
+    ? '提问次数已达上限'
+    : isForbidden
+      ? '无权限访问该知识库'
+      : isAuth
+        ? '登录已失效'
+        : '请求失败';
   return (
     <Alert variant="destructive">
       <AlertTitle className="text-destructive">
-        系统错误 · {code}
+        {isQuota ? '配额已用尽' : '系统错误'} · {code}
         {httpStatus != null ? ` · HTTP ${httpStatus}` : ''}
       </AlertTitle>
       <p className="mt-3 mb-0 text-[15px] font-semibold">{title}</p>
       <AlertDescription className="mt-1.5 text-[13px] text-muted-foreground">
-        {message}
+        {isQuota
+          ? `当前提问配额已用尽，请稍后再试。${message}`
+          : message}
       </AlertDescription>
     </Alert>
   );

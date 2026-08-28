@@ -45,6 +45,7 @@ vi.mock('@/api/ask', () => ({
 
 import { createAskTransport } from '@/api/ask';
 import { useKnowledgeAsk } from '@/hooks/use-knowledge-ask';
+import { ApiHttpError } from '@/lib/http';
 
 describe('useKnowledgeAsk', () => {
   beforeEach(() => {
@@ -66,6 +67,13 @@ describe('useKnowledgeAsk', () => {
     expect(createAskTransport).toHaveBeenCalled();
     const arg = vi.mocked(createAskTransport).mock.calls[0]?.[0];
     expect(arg?.getScope?.()).toEqual({ docTypes: ['hr'] });
+  });
+
+  it('把 getMode 传给 createAskTransport', () => {
+    const getMode = () => 'fast' as const;
+    renderHook(() => useKnowledgeAsk({ kbId: 'kb-1', sessionId: null, getMode }));
+    const arg = vi.mocked(createAskTransport).mock.calls[0]?.[0];
+    expect(arg?.getMode?.()).toBe('fast');
   });
 
   it('合法 final → answered / abstained', async () => {
@@ -117,6 +125,19 @@ describe('useKnowledgeAsk', () => {
       });
     });
     expect(result.current.view).toEqual({ type: 'error', code: 'BUDGET', message: '超时' });
+  });
+
+  it('onError 保留 RATE_LIMITED 与 HTTP 429', async () => {
+    const { result } = renderHook(() => useKnowledgeAsk({ kbId: 'kb-1', sessionId: null }));
+    await act(async () => {
+      chat.onError?.(new ApiHttpError('RATE_LIMITED', 'ask rate limit exceeded', 429));
+    });
+    expect(result.current.view).toEqual({
+      type: 'error',
+      code: 'RATE_LIMITED',
+      message: 'ask rate limit exceeded',
+      httpStatus: 429,
+    });
   });
 
   it('R1: ready 仍 loading → 错误兜底；有 final 后 ready 不覆盖', async () => {
