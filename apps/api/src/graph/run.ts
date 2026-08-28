@@ -7,7 +7,13 @@ import {
   type RetrieveDeps,
   type RetrieveResult,
 } from '../services/retrieve/index.js';
-import { budgetForMode, tryChargeLlm, tryChargeRetrieve, type GraphBudget } from './budget.js';
+import {
+  budgetForMode,
+  retrieveBudgetForMode,
+  tryChargeLlm,
+  tryChargeRetrieve,
+  type GraphBudget,
+} from './budget.js';
 import {
   parseClaimSplitOutput,
   parseGenerateOutput,
@@ -51,12 +57,16 @@ export type GraphChat = (
 export type GraphDeps = {
   /** 注入检索（单测 mock）；默认走 runRetrieve + retrieveDeps */
   retrieve?: (input: {
+    tenantId: string;
     kbId: string;
     question: string;
     membership: AskGraphInput['membership'];
     /** 开 DEPT_ACL_ENFORCE 时算归属；缺省 = 无归属 */
     userId?: string;
     scope?: AskGraphInput['scope'];
+    /** 服务端按 mode 预算；禁止客户端透传 */
+    retrieveK?: number;
+    rerankTopN?: number;
     preferredDocIds?: readonly string[];
   }) => Promise<RetrieveResult>;
   retrieveDeps?: RetrieveDeps;
@@ -293,12 +303,16 @@ export async function runAskGraph(
     const externalBackref = isExplicitExternalBackref(state.rawQuestion);
     // ponytail: 库外回溯丢掉 preferred，防测/旁路仍传入
     const preferredDocIds = externalBackref ? undefined : state.preferredDocIds;
+    const retrieveBudget = retrieveBudgetForMode(state.mode);
     const retrieveInput = {
+      tenantId: state.tenantId,
       kbId: state.kbId,
       question: state.question,
       membership: state.membership,
       userId: state.userId,
       scope: state.scope,
+      retrieveK: retrieveBudget.retrieveK,
+      rerankTopN: retrieveBudget.rerankTopN,
       preferredDocIds,
     };
     if (deps.retrieve) {

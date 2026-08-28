@@ -176,6 +176,7 @@ export async function executeAsk(
     {
       requestId: params.requestId,
       question: params.body.question,
+      tenantId: params.tenantId,
       kbId: params.kbId,
       membership: params.membership,
       userId: params.userId,

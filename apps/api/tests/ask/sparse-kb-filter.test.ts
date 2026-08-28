@@ -2,8 +2,8 @@
  * 目标：共享索引查询必须按 kbId term 过滤，外库 chunk 不得进入 evidence。
  * 需求：prds/10-delivery/03-acceptance-scenarios.md 剧本 O1
  * 被测：searchSparseEs query filter · runRetrieve http sparse 按 corpus byId 丢外库
- * 简介：默认 mock ES。只锁 kbId term filter；must 的问句不夹带其他 kb。
- * ≠ 生产多租户独立索引；≠ tenantId 门禁（O4 缺实现）。
+ * 简介：默认 mock ES。只锁 tenantId + kbId term filter；must 的问句不夹带其他 kb。
+ * ≠ 生产多租户独立索引；tenantId 查询期强制（共享索引安全隔离）。
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -67,14 +67,14 @@ describe('O1 shared-index kbId filter', () => {
     const question = '年假政策天数';
     await searchSparseEs(
       { baseUrl: 'http://es:9200', index: 'strict_rag_dev' },
-      { kbId: KB_A, question, size: 10 },
+      { tenantId: 'tenant-a', kbId: KB_A, question, size: 10 },
     );
 
     expect(capturedBody).toEqual(
       expect.objectContaining({
         query: {
           bool: {
-            filter: [{ term: { kbId: KB_A } }],
+            filter: [{ term: { tenantId: 'tenant-a' } }, { term: { kbId: KB_A } }],
             must: [{ match: { sparseText: question } }],
           },
         },
@@ -91,6 +91,7 @@ describe('O1 shared-index kbId filter', () => {
     });
     const r = await runRetrieve(
       {
+        tenantId: 'tenant-a',
         kbId: KB_A,
         question: 'annual leave policy days',
         membership: 'member',
@@ -98,6 +99,7 @@ describe('O1 shared-index kbId filter', () => {
       },
       retrieveDeps([local], {
         sparseSearch: async (input) => {
+          expect(input.tenantId).toBe('tenant-a');
           expect(input.kbId).toBe(KB_A);
           return ['c-kb-b-foreign', 'c-kb-a'];
         },

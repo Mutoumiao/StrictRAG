@@ -64,7 +64,12 @@ describe('embed only in retrieve', () => {
     const corpus = [chunk(CHUNK, BODY, { docId: DOC }), chunk('c2', '办公室wifi密码贴在墙上')];
     const embed = vi.fn(async (texts: string[]) => texts.map((t) => mockEmbedVector(t, dims)));
     const d = retrieveDeps(corpus, { embed });
-    const input = { kbId: 'kb1', question: QUESTION, membership: 'member' as const };
+    const input = {
+      tenantId: 'tenant-1',
+      kbId: 'kb1',
+      question: QUESTION,
+      membership: 'member' as const,
+    };
 
     const r1 = await runRetrieve(input, d);
     const r2 = await runRetrieve(input, d);
@@ -118,7 +123,7 @@ describe('embed only in retrieve', () => {
       return texts.map((t) => mockEmbedVector(t, dims));
     });
     const r = await runRetrieve(
-      { kbId: 'kb1', question: QUESTION, membership: 'member' },
+      { tenantId: 'tenant-1', kbId: 'kb1', question: QUESTION, membership: 'member' },
       retrieveDeps(corpus, { embed }),
     );
     expect(r.ok).toBe(true);

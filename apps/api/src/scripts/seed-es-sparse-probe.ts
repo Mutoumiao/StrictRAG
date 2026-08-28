@@ -7,6 +7,10 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { documents } from '@strict-rag/db';
+import { eq } from 'drizzle-orm';
+
+import { getDb } from '../services/db.js';
 import { loadCorpusFromDb } from '../services/retrieve/corpus.js';
 import {
   bulkIndexSparse,
@@ -46,10 +50,22 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  const [firstDoc] = await getDb()
+    .select({ tenantId: documents.tenantId })
+    .from(documents)
+    .where(eq(documents.kbId, kbId))
+    .limit(1);
+  if (!firstDoc) {
+    console.error(JSON.stringify({ ok: false, reason: 'no_document_tenant', kbId }));
+    process.exit(1);
+  }
+  const tenantId = firstDoc.tenantId;
+
   const docs = corpus
     .filter((c) => c.text.length > 0)
     .map((c) => ({
       chunkId: c.chunkId,
+      tenantId,
       kbId,
       docId: c.docId,
       sparseText: c.text,
@@ -63,7 +79,7 @@ async function main(): Promise<void> {
   });
 
   const sampleQ = docs[0]!.sparseText.slice(0, 80) || 'test';
-  const hits = await searchSparseEs(cfg, { kbId, question: sampleQ, size: 5 });
+  const hits = await searchSparseEs(cfg, { tenantId, kbId, question: sampleQ, size: 5 });
 
   console.log(
     JSON.stringify(

@@ -30,6 +30,7 @@ export type GraphClaim = {
 export type AskGraphInput = {
   requestId: string;
   question: string;
+  tenantId: string;
   kbId: string;
   membership: MembershipSlot;
   userId?: string;
@@ -46,6 +47,7 @@ export type AskGraphInput = {
 export type AskGraphState = {
   requestId: string;
   question: string;
+  tenantId: string;
   kbId: string;
   membership: MembershipSlot;
   userId?: string;
@@ -129,6 +131,7 @@ export function initState(input: AskGraphInput): AskGraphState {
   return {
     requestId: input.requestId,
     question: input.question,
+    tenantId: input.tenantId,
     kbId: input.kbId,
     membership: input.membership,
     userId: input.userId,

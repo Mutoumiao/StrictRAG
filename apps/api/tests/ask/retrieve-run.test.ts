@@ -72,6 +72,7 @@ describe('runRetrieve dual gate via corpus', () => {
   it('rejects non-member (depth slot)', async () => {
     const r = await runRetrieve(
       {
+        tenantId: 'tenant-1',
         kbId: 'kb1',
         question: 'leave policy',
         membership: 'none',
@@ -83,7 +84,7 @@ describe('runRetrieve dual gate via corpus', () => {
 
   it('kb_not_ready when corpus empty (no ready∧active)', async () => {
     const r = await runRetrieve(
-      { kbId: 'kb1', question: 'anything', membership: 'member' },
+      { tenantId: 'tenant-1', kbId: 'kb1', question: 'anything', membership: 'member' },
       deps([]),
     );
     expect(r).toMatchObject({ ok: false, reason: 'kb_not_ready' });
@@ -97,6 +98,7 @@ describe('runRetrieve dual gate via corpus', () => {
     ];
     const r = await runRetrieve(
       {
+        tenantId: 'tenant-1',
         kbId: 'kb1',
         question: 'annual leave policy days',
         membership: 'member',
@@ -119,6 +121,7 @@ describe('runRetrieve dual gate via corpus', () => {
     let seen: string | undefined;
     const r = await runRetrieve(
       {
+        tenantId: 'tenant-1',
         kbId: 'kb1',
         question: 'leave policy',
         membership: 'member',
@@ -138,6 +141,7 @@ describe('runRetrieve dual gate via corpus', () => {
   it('super_admin same path as member (no doc-acl terms)', async () => {
     const r = await runRetrieve(
       {
+        tenantId: 'tenant-1',
         kbId: 'kb1',
         question: 'leave',
         membership: 'super_admin',
@@ -155,6 +159,7 @@ describe('runRetrieve dual gate via corpus', () => {
     try {
       const r = await runRetrieve(
         {
+          tenantId: 'tenant-1',
           kbId: 'kb1',
           question: 'leave policy',
           membership: 'super_admin',
@@ -179,6 +184,7 @@ describe('runRetrieve dual gate via corpus', () => {
     let seen: boolean | undefined;
     const r = await runRetrieve(
       {
+        tenantId: 'tenant-1',
         kbId: 'kb1',
         question: 'leave policy',
         membership: 'super_admin',
@@ -199,6 +205,7 @@ describe('runRetrieve dual gate via corpus', () => {
     let seen: boolean | undefined;
     const r = await runRetrieve(
       {
+        tenantId: 'tenant-1',
         kbId: 'kb1',
         question: 'leave policy',
         membership: 'member',
@@ -216,7 +223,7 @@ describe('runRetrieve dual gate via corpus', () => {
 
   it('low_retrieval when no text/embedding match', async () => {
     const r = await runRetrieve(
-      { kbId: 'kb1', question: 'zzzznotfound', membership: 'member' },
+      { tenantId: 'tenant-1', kbId: 'kb1', question: 'zzzznotfound', membership: 'member' },
       deps([
         {
           chunkId: 'c1',
@@ -231,7 +238,7 @@ describe('runRetrieve dual gate via corpus', () => {
 
   it('embed failure → low_retrieval (not silent empty)', async () => {
     const r = await runRetrieve(
-      { kbId: 'kb1', question: 'leave', membership: 'member' },
+      { tenantId: 'tenant-1', kbId: 'kb1', question: 'leave', membership: 'member' },
       deps([chunk('c1', 'leave policy')], {
         embed: async () => {
           throw new GatewayError('timeout', 'embed down', 'embed');
@@ -243,7 +250,7 @@ describe('runRetrieve dual gate via corpus', () => {
 
   it('rerank failure → rerank_unavailable (no RRF answered)', async () => {
     const r = await runRetrieve(
-      { kbId: 'kb1', question: 'leave policy', membership: 'member' },
+      { tenantId: 'tenant-1', kbId: 'kb1', question: 'leave policy', membership: 'member' },
       deps([chunk('c1', 'leave policy')], {
         rerank: async () => {
           throw new GatewayError('exhausted', 'rerank chain dead', 'rerank');
@@ -255,7 +262,7 @@ describe('runRetrieve dual gate via corpus', () => {
 
   it('http es mode without sparseSearch → internal_guard (no mock fallback)', async () => {
     const r = await runRetrieve(
-      { kbId: 'kb1', question: 'leave', membership: 'member' },
+      { tenantId: 'tenant-1', kbId: 'kb1', question: 'leave', membership: 'member' },
       deps([chunk('c1', 'leave')], { esMode: 'http' }),
     );
     expect(r).toMatchObject({ ok: false, reason: 'internal_guard' });
@@ -268,6 +275,7 @@ describe('runRetrieve dual gate via corpus', () => {
     ];
     const r = await runRetrieve(
       {
+        tenantId: 'tenant-1',
         kbId: 'kb1',
         question: 'annual leave policy',
         membership: 'member',
@@ -286,9 +294,9 @@ describe('runRetrieve dual gate via corpus', () => {
     }
   });
 
-  it('http sparseSearch throw → internal_guard (no mock fallback)', async () => {
+  it('http sparseSearch throw → sparse_unavailable (no mock fallback)', async () => {
     const r = await runRetrieve(
-      { kbId: 'kb1', question: 'leave', membership: 'member' },
+      { tenantId: 'tenant-1', kbId: 'kb1', question: 'leave', membership: 'member' },
       deps([chunk('c1', 'leave')], {
         esMode: 'http',
         sparseSearch: async () => {
@@ -296,7 +304,7 @@ describe('runRetrieve dual gate via corpus', () => {
         },
       }),
     );
-    expect(r).toMatchObject({ ok: false, reason: 'internal_guard' });
+    expect(r).toMatchObject({ ok: false, reason: 'sparse_unavailable' });
   });
 });
 
@@ -350,6 +358,7 @@ describe('runRetrieve preferredDocIds', () => {
       return passages.slice(0, topN).map((_, index) => ({ index, score: 1 - index * 0.01 }));
     };
     const base = {
+      tenantId: 'tenant-1',
       kbId: 'kb1',
       question: 'annual leave policy days',
       membership: 'member' as const,
@@ -380,6 +389,7 @@ describe('runRetrieve preferredDocIds', () => {
       return passages.slice(0, topN).map((_, index) => ({ index, score: 1 }));
     };
     const base = {
+      tenantId: 'tenant-1',
       kbId: 'kb1',
       question: 'leave policy',
       membership: 'member' as const,
@@ -405,7 +415,7 @@ describe('dual gate is caller corpus responsibility', () => {
     // 模拟闸后只剩 active
     const gated = [chunk('ok', 'active leave policy', { lifecycle: 'active' })];
     const r = await runRetrieve(
-      { kbId: 'kb1', question: 'leave', membership: 'member' },
+      { tenantId: 'tenant-1', kbId: 'kb1', question: 'leave', membership: 'member' },
       deps(gated),
     );
     expect(r.ok).toBe(true);

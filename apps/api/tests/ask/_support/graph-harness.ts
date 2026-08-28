@@ -19,6 +19,7 @@ export const HIST_A = 'A会话里的餐补机密原文XYZ';
 export const baseInput = (over: Partial<AskGraphInput> = {}): AskGraphInput => ({
   requestId: 'req-1',
   question: '年假有多少天？',
+  tenantId: 'tenant-1',
   kbId: 'kb-1',
   membership: 'member',
   tauClaim: 0.5,

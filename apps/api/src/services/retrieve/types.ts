@@ -37,6 +37,7 @@ export type EvidenceCandidate = {
 };
 
 export type RetrieveInput = {
+  tenantId: string;
   kbId: string;
   question: string;
   membership: MembershipSlot;
@@ -82,10 +83,14 @@ export type CorpusLoader = (input: {
 
 /** http 模式 sparse：返回有序 chunkId；失败应抛错（禁止静默空） */
 export type SparseSearcher = (input: {
+  tenantId: string;
   kbId: string;
   question: string;
   size: number;
 }) => Promise<string[]>;
+
+/** 融合后批取正文；chunkId → 权威切片（contextPrefix + "\n" + text）。失败应抛错 */
+export type ChunkBodyLoader = (chunkIds: readonly string[]) => Promise<Map<string, string>>;
 
 export type RetrieveDeps = {
   loadCorpus: CorpusLoader;
@@ -97,4 +102,9 @@ export type RetrieveDeps = {
    * 缺省且 esMode=http → internal_guard（禁止回落 mock）。
    */
   sparseSearch?: SparseSearcher;
+  /**
+   * 融合后批取权威正文（Mongo）。缺省 = 演示回退 PG body_text；
+   * 注入后不得再回退 PG（权威分裂禁止）。
+   */
+  loadBodies?: ChunkBodyLoader;
 };

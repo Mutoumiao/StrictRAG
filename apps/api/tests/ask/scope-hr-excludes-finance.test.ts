@@ -85,6 +85,7 @@ describe('X3 hr scope excludes finance evidence', () => {
   it('无 scope 时混库仍可召回 finance（夹具可泄漏，证明过滤不是空转）', async () => {
     const r = await runRetrieve(
       {
+        tenantId: 'tenant-1',
         kbId: 'kb1',
         question: '年假有多少天',
         membership: 'member',
@@ -101,6 +102,7 @@ describe('X3 hr scope excludes finance evidence', () => {
   it('runRetrieve：hr scope 混库语料 evidence 不得含 finance', async () => {
     const r = await runRetrieve(
       {
+        tenantId: 'tenant-1',
         kbId: 'kb1',
         question: '年假有多少天',
         membership: 'member',

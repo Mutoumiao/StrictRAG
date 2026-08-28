@@ -15,6 +15,7 @@ import {
 } from '../kb-settings.js';
 import { loadCorpusFromDb } from './corpus.js';
 import { EsSparseError, esConfigFromEnv, searchSparseEs } from './es-sparse.js';
+import { batchLoadChunkBodies } from './mongo-body.js';
 import { rrfFuse } from './rrf.js';
 import { cosine, rankByScore, sparseOverlapScore } from './scoring.js';
 import type {
@@ -137,17 +138,18 @@ export async function runRetrieve(
   if (deps.esMode === 'http') {
     try {
       sparseRanked = await deps.sparseSearch!({
+        tenantId: input.tenantId,
         kbId: input.kbId,
         question: input.question,
         size: retrieveK,
       });
-      // 仅保留语料内 id（ACL/闸门以 PG corpus 为准）
+      // 仅保留语料内 id（status/lifecycle/indexVersion 闸门以 PG corpus 为准）
       sparseRanked = sparseRanked.filter((id) => byId.has(id)).slice(0, retrieveK);
     } catch (err) {
-      // ponytail: any sparse failure is loud guard — never fall back to mock token overlap
+      // sparse 失败 loud guard：reason 落 sparse_unavailable，禁止并入模糊 internal / 回落 mock
       const kind = err instanceof EsSparseError ? err.kind : 'error';
       const msg = err instanceof Error ? err.message : String(err);
-      return fail('internal_guard', `ES sparse failed (${kind}): ${msg}`);
+      return fail('sparse_unavailable', `ES sparse failed (${kind}): ${msg}`);
     }
   } else {
     const sparseScored = corpus
@@ -187,7 +189,24 @@ export async function runRetrieve(
     })
     .filter((x): x is { chunk: CorpusChunk; rrf: (typeof fused)[0] } => x != null);
 
-  const passages = candidates.map((c) => c.chunk.text);
+  // 融合后批取权威正文（Mongo）；未注入则演示回退 PG body_text（单点取）。
+  // 注入后禁止回退 PG（权威分裂），缺块 fail-closed。
+  let bodyById: Map<string, string> | undefined;
+  if (deps.loadBodies) {
+    try {
+      bodyById = await deps.loadBodies(candidates.map((c) => c.chunk.chunkId));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return fail('internal_guard', `chunk body batch failed: ${msg}`);
+    }
+    const missing = candidates.find((c) => bodyById!.get(c.chunk.chunkId) === undefined);
+    if (missing) {
+      return fail('internal_guard', `authoritative body missing for ${missing.chunk.chunkId}`);
+    }
+  }
+  const passages = candidates.map((c) =>
+    bodyById ? bodyById.get(c.chunk.chunkId)! : c.chunk.text,
+  );
   let rerankHits: { index: number; score: number }[];
   try {
     rerankHits = await deps.rerank(input.question, passages, Math.min(rerankTopN, passages.length));
@@ -215,12 +234,13 @@ export async function runRetrieve(
     const cand = candidates[hit.index];
     if (!cand) continue;
     const { chunk } = cand;
+    const evidenceText = bodyById?.get(chunk.chunkId) ?? chunk.text;
     evidence.push({
       chunkId: chunk.chunkId,
       docId: chunk.docId,
       title: chunk.title,
-      text: chunk.text,
-      preview: chunk.preview ?? chunk.text.slice(0, 200),
+      text: evidenceText,
+      preview: chunk.preview ?? evidenceText.slice(0, 200),
       lifecycle: chunk.lifecycle,
       score: hit.score,
       ranks: {
@@ -262,6 +282,9 @@ export function createDefaultRetrieveDeps(gateway: GatewayClient): RetrieveDeps 
       esMode === 'http' && esCfg
         ? (input) => searchSparseEs(esCfg, input)
         : undefined,
+    loadBodies: env.MONGODB_URL.trim()
+      ? (chunkIds) => batchLoadChunkBodies({ url: env.MONGODB_URL, chunkIds })
+      : undefined,
   };
 }
 

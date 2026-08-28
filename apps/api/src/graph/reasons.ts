@@ -57,6 +57,11 @@ export function reasonPresentation(reason: AskReason): {
         userMessage: '检索精排服务暂不可用，为避免不准确回答已停止作答。',
         suggestedActions: [{ type: 'retry_later', label: '稍后重试' }],
       };
+    case 'sparse_unavailable':
+      return {
+        userMessage: '全文检索服务暂不可用，为避免遗漏资料已停止作答。',
+        suggestedActions: [{ type: 'retry_later', label: '稍后重试' }],
+      };
     case 'claim_split_failed':
       return {
         userMessage: '无法完成答案校验准备，已拒绝作答。',

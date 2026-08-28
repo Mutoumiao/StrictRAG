@@ -11,10 +11,24 @@ export type EsSparseConfig = {
 };
 
 export type EsSparseSearchInput = {
+  tenantId: string;
   kbId: string;
   question: string;
   size: number;
 };
+
+/**
+ * 检索期 ACL 对称 filter（ES 查询共用，禁止两路各写）。
+ * P2 在 ES 查询期强制 tenantId + kbId（共享索引安全隔离，不得事后交 PG）。
+ * status/lifecycle/indexVersion 闸门由 PG corpus（loadCorpusFromDb）对称承载；
+ * 生产级 ES 索引字段与 IK/Router 属 B8 分层，不在本窗。
+ */
+export function buildAclFilter(input: {
+  tenantId: string;
+  kbId: string;
+}): Array<{ term: { tenantId: string } | { kbId: string } }> {
+  return [{ term: { tenantId: input.tenantId } }, { term: { kbId: input.kbId } }];
+}
 
 export class EsSparseError extends Error {
   constructor(
@@ -51,6 +65,7 @@ export async function ensureSparseIndex(cfg: EsSparseConfig): Promise<void> {
       mappings: {
         properties: {
           chunkId: { type: 'keyword' },
+          tenantId: { type: 'keyword' },
           kbId: { type: 'keyword' },
           docId: { type: 'keyword' },
           sparseText: { type: 'text' },
@@ -88,7 +103,7 @@ export async function searchSparseEs(
         size,
         query: {
           bool: {
-            filter: [{ term: { kbId: input.kbId } }],
+            filter: buildAclFilter(input),
             must: [{ match: { sparseText: input.question } }],
           },
         },
@@ -132,7 +147,7 @@ export async function searchSparseEs(
 /** bulk 索引文档；每项 _id=chunkId */
 export async function bulkIndexSparse(
   cfg: EsSparseConfig,
-  docs: Array<{ chunkId: string; kbId: string; docId: string; sparseText: string }>,
+  docs: Array<{ chunkId: string; tenantId: string; kbId: string; docId: string; sparseText: string }>,
 ): Promise<{ indexed: number }> {
   if (docs.length === 0) return { indexed: 0 };
   const base = trimUrl(cfg.baseUrl);
@@ -143,6 +158,7 @@ export async function bulkIndexSparse(
     lines.push(
       JSON.stringify({
         chunkId: d.chunkId,
+        tenantId: d.tenantId,
         kbId: d.kbId,
         docId: d.docId,
         sparseText: d.sparseText,

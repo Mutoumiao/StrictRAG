@@ -18,6 +18,21 @@ export function budgetForMode(mode: AskMode): GraphBudget {
   }
 }
 
+/** ADR-032 / 功能表 §5.4 档位检索预算（客户端不可覆盖） */
+export function retrieveBudgetForMode(mode: AskMode): {
+  retrieveK: number;
+  rerankTopN: number;
+} {
+  switch (mode) {
+    case 'fast':
+      return { retrieveK: 60, rerankTopN: 10 };
+    case 'balanced':
+    case 'strict':
+    default:
+      return { retrieveK: 150, rerankTopN: 20 };
+  }
+}
+
 /** 尝试占用 1 次 retrieve；不足则 false */
 export function tryChargeRetrieve(used: number, max: number): boolean {
   return used < max;

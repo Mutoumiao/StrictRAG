@@ -8,6 +8,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  buildAclFilter,
   EsSparseError,
   esConfigFromEnv,
   searchSparseEs,
@@ -30,6 +31,15 @@ describe('esConfigFromEnv', () => {
   });
 });
 
+describe('buildAclFilter', () => {
+  it('强制 tenantId + kbId（共享索引安全隔离）', () => {
+    expect(buildAclFilter({ tenantId: 't-1', kbId: 'kb-1' })).toEqual([
+      { term: { tenantId: 't-1' } },
+      { term: { kbId: 'kb-1' } },
+    ]);
+  });
+});
+
 describe('searchSparseEs', () => {
   it('returns ordered chunkIds from hits', async () => {
     vi.stubGlobal(
@@ -48,7 +58,7 @@ describe('searchSparseEs', () => {
     );
     const ids = await searchSparseEs(
       { baseUrl: 'http://es:9200', index: 'strict_rag_dev' },
-      { kbId: 'kb1', question: 'leave', size: 10 },
+      { tenantId: 'tenant-1', kbId: 'kb1', question: 'leave', size: 10 },
     );
     expect(ids).toEqual(['c1', 'c2']);
   });
@@ -65,7 +75,7 @@ describe('searchSparseEs', () => {
     await expect(
       searchSparseEs(
         { baseUrl: 'http://es:9200', index: 'ix' },
-        { kbId: 'k', question: 'q', size: 5 },
+        { tenantId: 't', kbId: 'k', question: 'q', size: 5 },
       ),
     ).rejects.toBeInstanceOf(EsSparseError);
   });
