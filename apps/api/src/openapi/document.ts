@@ -4,6 +4,7 @@
  */
 import {
   AskAuditResponseSchema,
+  AskModesSchema,
   AskRequestSchema,
   AskResponseSchema,
   BizCode,
@@ -94,6 +95,7 @@ export function buildOpenApiDocument(): OpenApiDocument {
     AskRequest: zodSchema(AskRequestSchema),
     AskResponse: zodSchema(AskResponseSchema),
     AskAuditResponse: zodSchema(AskAuditResponseSchema),
+    AskModes: zodSchema(AskModesSchema),
     CreateKbBody: zodSchema(CreateKbBodySchema),
     CreateKbResponse: zodSchema(CreateKbResponseSchema),
     UploadUrlBody: zodSchema(UploadUrlBodySchema),
@@ -304,6 +306,57 @@ export function buildOpenApiDocument(): OpenApiDocument {
                     },
                   },
                 },
+              },
+            },
+          },
+        },
+      },
+      '/api/v1/knowledge-bases/{kbId}/ask-modes': {
+        get: {
+          operationId: 'getAskModes',
+          summary: '成员读取库允许的问答档位（不含 τ / 质量快照）',
+          tags: ['ask'],
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: 'kbId',
+              in: 'path',
+              required: true,
+              schema: { type: 'string', format: 'uuid' },
+            },
+          ],
+          responses: {
+            '200': {
+              description: 'ApiSuccess AskModes',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      ok: { type: 'boolean', const: true },
+                      data: ref('AskModes'),
+                      meta: ref('ApiMeta'),
+                    },
+                  },
+                },
+              },
+            },
+            '401': {
+              description: 'unauthorized',
+              content: {
+                'application/json': { schema: ref('ApiFailure') },
+              },
+            },
+            '403': {
+              description: 'forbidden',
+              content: {
+                'application/json': { schema: ref('ApiFailure') },
+              },
+            },
+            '404': {
+              description: 'knowledge base not found',
+              content: {
+                'application/json': { schema: ref('ApiFailure') },
               },
             },
           },

@@ -1,4 +1,5 @@
 import {
+  AskModesSchema,
   AskRequestSchema,
   AskResponseSchema,
   BizCode,
@@ -65,6 +66,7 @@ export type AskRouteDeps = {
 };
 /**
  * POST /api/v1/knowledge-bases/:kbId/ask
+ * GET  /api/v1/knowledge-bases/:kbId/ask-modes — 成员读 allowedModes/defaultMode（不含 τ）。
  * GET  /api/v1/ask/:requestId — 权限回溯 evidence_snapshot + graph_trace（非断线重拉）。
  * 同步 JSON + AI SDK UI Message Stream（Accept: text/event-stream 或 options.stream=true）。
  * 始终成员闸；route 仅编排。P2 不推未校验 token，仅 data-status / data-ask-final。
@@ -99,6 +101,23 @@ export function createAskRoutes(deps: AskRouteDeps = {}) {
       checkFixedWindowRateLimit(askRateLimitKey(userId, kbId), {
         limit: env.ASK_RATE_LIMIT_RPM,
       }));
+
+  /** GET /knowledge-bases/:kbId/ask-modes — 成员可读档位；禁止经此口暴露 τ */
+  routes.get('/knowledge-bases/:kbId/ask-modes', memberMw, async (c) => {
+    const kbId = c.req.param('kbId');
+    const kb = await getKb(kbId);
+    if (!kb) {
+      return fail(c, BizCode.NOT_FOUND, 'knowledge base not found', 404);
+    }
+    let settingsRow: Awaited<ReturnType<KbSettingsRepo['get']>> = null;
+    try {
+      settingsRow = await settings.get(kbId);
+    } catch {
+      settingsRow = null;
+    }
+    const modes = parseModesFromConfig(settingsRow?.configJson ?? {});
+    return ok(c, AskModesSchema.parse(modes));
+  });
 
   routes.post('/knowledge-bases/:kbId/ask', memberMw, async (c) => {
     const kbId = c.req.param('kbId');

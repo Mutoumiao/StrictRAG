@@ -44,7 +44,7 @@ export function parseModesFromConfig(config: Record<string, unknown> | null | un
   const rawAllowed = config?.allowedModes;
   let allowedModes = DEFAULT_ALLOWED_MODES.slice() as AskMode[];
   if (Array.isArray(rawAllowed)) {
-    const parsed = rawAllowed.filter(isAskMode);
+    const parsed = [...new Set(rawAllowed.filter(isAskMode))];
     if (parsed.length > 0) allowedModes = parsed;
   }
   const rawDefault = config?.defaultMode;
