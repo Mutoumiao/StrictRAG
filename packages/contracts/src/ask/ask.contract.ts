@@ -99,3 +99,50 @@ export const AskSseErrorSchema = z.object({
   reason: AskReasonSchema.optional(),
 });
 export type AskSseError = z.infer<typeof AskSseErrorSchema>;
+
+/**
+ * GET /ask/:requestId 审计回溯。
+ * 当时 evidence 快照（preview 截断）+ graph_trace；**不是**断线重拉 AskResponse。
+ * 禁止夹带正文 text/body。
+ */
+export const EVIDENCE_SNAPSHOT_PREVIEW_MAX = 200;
+
+export const EvidenceSnapshotItemSchema = z
+  .object({
+    chunkId: z.string().uuid(),
+    docId: z.string().uuid(),
+    lifecycle: z.string().optional(),
+    preview: z.string().max(EVIDENCE_SNAPSHOT_PREVIEW_MAX).optional(),
+    title: z.string().optional(),
+  })
+  .strict();
+
+export type EvidenceSnapshotItem = z.infer<typeof EvidenceSnapshotItemSchema>;
+
+/** 审计口只放图计数/路由标签，禁止任意 JSON 夹带正文 */
+export const AskGraphTraceSchema = z
+  .object({
+    llmCalls: z.number().optional(),
+    retrieveCalls: z.number().optional(),
+    route_source: z.string().optional(),
+    routeLabel: z.string().optional(),
+  })
+  .strict();
+
+export type AskGraphTrace = z.infer<typeof AskGraphTraceSchema>;
+
+export const AskAuditResponseSchema = z
+  .object({
+    requestId: z.string().min(1),
+    kbId: z.string().uuid(),
+    status: AskStatusSchema,
+    reason: AskReasonSchema,
+    mode: z.enum(['fast', 'balanced', 'strict']).optional(),
+    latencyMs: z.number().int().nonnegative().optional(),
+    sessionId: z.string().uuid().nullable().optional(),
+    evidenceSnapshot: z.array(EvidenceSnapshotItemSchema),
+    graphTrace: AskGraphTraceSchema.nullable(),
+  })
+  .strict();
+
+export type AskAuditResponse = z.infer<typeof AskAuditResponseSchema>;
