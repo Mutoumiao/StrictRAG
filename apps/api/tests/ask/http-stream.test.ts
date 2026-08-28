@@ -1,8 +1,8 @@
 /**
- * 目标：同步与 SSE 终态字段必须一致；execute 抛错仍要给出 final。
+ * 目标：同步与 SSE 终态字段必须一致；空库走 200 拒答；execute 抛错仍要给出 final。
  * 需求：prds/05-api
  * 被测：POST /knowledge-bases/:kbId/ask sync / SSE
- * 简介：同步与流式终态一致；execute 抛错仍须给出 final。
+ * 简介：同步与流式终态一致；kb_not_ready 为 200 拒答信封；execute 抛错仍须给出 final。
  */
 
 import { Hono } from 'hono';
@@ -147,46 +147,103 @@ describe('POST ask sync + SSE', () => {
     expect(body.data.requestId).toBeTruthy();
   });
 
-  it('kb_not_ready → 409', async () => {
+  it('kb_not_ready → 200 拒答信封（同步 + SSE）', async () => {
+    const { executeAsk } = await import('../../src/services/ask/execute.js');
     const { userId, accessToken } = await token(['web_consumer']);
     const app = buildApp({
       members: new Set([userId]),
-      execute: fixedExecute({
-        httpStatus: 409,
-        response: {
-          requestId: 'r1',
-          status: 'abstained',
-          answer: '',
-          reason: 'kb_not_ready',
-          citations: [],
-          suggestedActions: [],
-          mode: 'balanced',
-        },
-        graph: {
-          requestId: 'r1',
-          status: 'abstained',
-          answer: '',
-          reason: 'kb_not_ready',
-          citations: [],
-          suggestedActions: [],
-          mode: 'balanced',
-          rewriteUsed: false,
-          sessionDeepened: false,
-          evidence_snapshot: [],
-        },
-      }),
+      execute: (params) =>
+        executeAsk(params as Parameters<typeof executeAsk>[0], {
+          skipTrace: true,
+          graphDeps: {
+            retrieve: async () => ({
+              ok: false,
+              reason: 'kb_not_ready',
+              message: 'no ready∧active documents in kb',
+            }),
+            chat: async () => {
+              throw new Error('should not generate when kb_not_ready');
+            },
+          },
+        }),
     });
-    const res = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
+
+    const syncRes = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
       method: 'POST',
       headers: {
         authorization: `Bearer ${accessToken}`,
         'content-type': 'application/json',
       },
-      body: JSON.stringify({ question: '年假' }),
+      body: JSON.stringify({ question: '年假', options: { stream: false } }),
     });
-    expect(res.status).toBe(409);
-    const body = (await res.json()) as { error: { code: string } };
-    expect(body.error.code).toBe('KB_NOT_READY');
+    expect(syncRes.status).toBe(200);
+    const syncBody = (await syncRes.json()) as {
+      ok: boolean;
+      data: {
+        status: string;
+        reason: string;
+        answer: string;
+        userMessage?: string;
+        suggestedActions: { type: string; label: string }[];
+      };
+      error?: { code: string };
+    };
+    expect(syncBody.ok).toBe(true);
+    expect(syncBody.error).toBeUndefined();
+    expect(syncBody.data.status).toBe('abstained');
+    expect(syncBody.data.reason).toBe('kb_not_ready');
+    expect(syncBody.data.answer).toBe('');
+    expect(syncBody.data.userMessage).toBe(
+      '知识库尚无可用文档，请稍后再试或联系管理员。',
+    );
+    expect(syncBody.data.suggestedActions).toEqual(
+      expect.arrayContaining([{ type: 'contact_admin', label: '联系管理员' }]),
+    );
+
+    const sseRes = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+        accept: 'text/event-stream',
+      },
+      body: JSON.stringify({ question: '年假', options: { stream: true } }),
+    });
+    expect(sseRes.status).toBe(200);
+    const text = await sseRes.text();
+    const dataLines = text
+      .split('\n')
+      .filter((l) => l.startsWith('data: '))
+      .map((l) => l.slice(6));
+    const chunks = dataLines
+      .map((d) => {
+        try {
+          return JSON.parse(d) as Record<string, unknown>;
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean) as Record<string, unknown>[];
+
+    const statusError = chunks.find((o) => {
+      if (o.type !== 'data-status' || typeof o.data !== 'object' || o.data === null) {
+        return false;
+      }
+      const data = o.data as { phase?: string; code?: string };
+      return data.phase === 'error' && data.code === 'KB_NOT_READY';
+    });
+    expect(statusError).toBeUndefined();
+
+    const finalChunk = chunks.find((o) => o.type === 'data-ask-final');
+    expect(finalChunk).toBeTruthy();
+    const finalPayload = finalChunk!.data as {
+      status: string;
+      reason: string;
+      userMessage?: string;
+    };
+    expect(finalPayload.status).toBe('abstained');
+    expect(finalPayload.reason).toBe('kb_not_ready');
+    expect(finalPayload.userMessage).toBe(syncBody.data.userMessage);
   });
 
   it('UI Message Stream data-ask-final ≡ sync critical fields', async () => {

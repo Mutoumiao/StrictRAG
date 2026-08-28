@@ -16,7 +16,7 @@
 | E3 | 删除/archived：ES/Mongo/PG 对齐 | 源码为准 | 单测 | 部分测 | db | packages/db/tests/retrieve/ready-active-gate.test.ts（`lifecycle=archived` 不可检） | 无删除 API；无 archived 后 ES/Mongo/PG 三存对齐；api corpus 夹具未覆盖 archived |
 | E4 | 跨 doc 近重复：指标可见；pending_review 可人工处理 | 源码为准 | 单测 | 缺实现 | worker | 源码仅 chunk 内 `seen` 正文去重（apps/worker/src/ingest/pipeline.ts）；无跨 doc / 无 `pending_review` / 无抑制指标 | 跨 doc 近重复、指标、人工 pending_review 均未做 |
 | E5 | L1 故障 → L0 回退仍 ready | P2必签 | 单测 | 缺实现 | worker | 无 contextualize / L1 LLM prefix；chunk 写死模板 `contextPrefix`（`${title} / section`） | 无 L1 故障注入、无 L0 回退仍 ready |
-| E6 | 无 active 文档时 ask → 409 `KB_NOT_READY` | P2必签 | 注入 | 已测 | api | apps/api/tests/ask/http-stream.test.ts（`kb_not_ready → 409`，`error.code=KB_NOT_READY`）；apps/api/tests/ask/retrieve-run.test.ts（空 corpus / 无 ready∧active → `kb_not_ready`） | — |
+| E6 | 无 active 文档时 ask → 200 `status=abstained` `reason=kb_not_ready` | P2必签 | 注入 | 已测 | api | apps/api/tests/ask/http-stream.test.ts（`kb_not_ready → 200` 拒答信封，同步+SSE；`KB_NOT_READY` 不进 `error.code`）；apps/api/tests/ask/retrieve-run.test.ts（空 corpus / 无 ready∧active → `kb_not_ready`） | — |
 
 ## 剧本 L · 入库末段双就绪与清单冻结（P2必签 · ADR-038）
 

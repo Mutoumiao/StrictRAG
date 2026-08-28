@@ -45,7 +45,7 @@ import {
 | `INTERNAL` | 500 | `BizCode.INTERNAL` | |
 | `UPSTREAM_TIMEOUT` | 500 | `BizCode.UPSTREAM_TIMEOUT` | 全局请求超时；`fail` 联合类型无独立 504 |
 | `SERVICE_UNAVAILABLE` | 503 | `BizCode.SERVICE_UNAVAILABLE` | |
-| `KB_NOT_READY` | 409 | `BizCode.KB_NOT_READY` | ask 前置 |
+| `KB_NOT_READY` | 409 | `BizCode.KB_NOT_READY` | 保留短名；**ask 主路径不用**。空库 = 200 + `reason=kb_not_ready` |
 | `SESSION_REWRITE_DISABLED` | 400 | `BizCode.SESSION_REWRITE_DISABLED` | ADR-047 |
 | `RATE_LIMITED` | 429 | `BizCode.RATE_LIMITED` | |
 | `INVALID_CREDENTIALS` | 401 | `BizCode.INVALID_CREDENTIALS` | 登录域；须在 §4 可检索或并入 UNAUTHORIZED 叙事 |
@@ -100,7 +100,7 @@ ask 业务拒答 reason（`model_abstained` 等）走 **业务响应**，不要�
 | 无权限 / 非成员 | 403 | `FORBIDDEN` |
 | 资源不存在 | 404 | `NOT_FOUND` |
 | 参数非法 | 400 | `VALIDATION_ERROR` |
-| 状态冲突 / KB 未就绪 | 409 | `CONFLICT` / `KB_NOT_READY` |
+| 状态冲突 | 409 | `CONFLICT` |
 | 上传/体超限 | 413 | `PAYLOAD_TOO_LARGE` |
 | 限流 | 429 | `RATE_LIMITED` |
 | 未捕获异常 | 500 | `INTERNAL` |

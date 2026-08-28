@@ -118,6 +118,25 @@ describe('AskPanel', () => {
     expect(screen.queryByText(/系统错误/)).not.toBeInTheDocument();
   });
 
+  it('kb_not_ready 走拒答卡，不进系统错误', () => {
+    hookState.view = {
+      type: 'abstained',
+      data: makeAbstainedFinal({
+        reason: 'kb_not_ready',
+        userMessage: '知识库尚无可用文档，请稍后再试或联系管理员。',
+        suggestedActions: [{ type: 'contact_admin', label: '联系管理员' }],
+      }),
+    };
+    render(<AskPanel />);
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent(/拒答/);
+    expect(alert).toHaveTextContent(/kb_not_ready/);
+    expect(alert).toHaveTextContent(/知识库尚无可用文档/);
+    expect(alert).toHaveTextContent(/联系管理员/);
+    expect(alert.className).toMatch(/abstain/);
+    expect(screen.queryByText(/系统错误/)).not.toBeInTheDocument();
+  });
+
   it('知识库 datalist 有可见库，选择后写入 last-kb-id', async () => {
     const user = userEvent.setup();
     listKnowledgeBases.mockResolvedValue([

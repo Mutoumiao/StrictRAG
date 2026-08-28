@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（S2 用户端薄壳） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT（经 api）· `NEXT_PUBLIC_API_BASE_URL` 默认 `http://127.0.0.1:4000` · 问答 = AI SDK UI Message Stream · rewrite = **服务端强制关**（本包无开关控件）· 知识库 = 手工填写 id |
 | 关联模块 | ask 流 / 会话 / 反馈提交：`api`；类型：`contracts`；样式 / 组件：`ui` |
-| 最近更新 | 2026-08-13（B11 doc_type scope UI；B13 FeedbackBar；反向审计补鉴权端点 / 编排层 / 401 自动刷新） |
+| 最近更新 | 2026-08-28（空库 `kb_not_ready` 走拒答卡，不进系统错误） |
 | Spec | `.trellis/spec/web/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · ask 流相关 API |
 
@@ -31,6 +31,7 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列�
 - 流式输出：`@ai-sdk/react` 的 `useChat` + `DefaultChatTransport`；服务端使用 AI SDK UI Message Stream 协议
 - 进度展示：`data-status`（瞬时状态）；终态：`data-ask-final` 经 `AskResponseSchema.safeParse` 校验通过后，才进入 answered / abstained 状态；**不**手写 SSE 分帧逻辑
 - 三种结果态：`answered`（已回答）/ `abstained`（已拒答）/ 错误；引用列表仅在 answered 且非闲聊（chitchat）路径下展示
+- 空库 `reason=kb_not_ready`：走拒答 `Alert variant="abstain"`（展示 `userMessage` / 建议动作列表），**不**进系统错误卡（`tests/ask/abstain-alert.test.tsx` · `tests/ask/stream-ready-no-final.test.ts`）；**无**建议动作主按钮体系
 - 拒答 / 错误时的"重试"：基于 `lastQuestion` 实现（提交后清空输入框不会导致重试按钮失效）
 - **流结束但无 final 的兜底**：`useChat` 的 `status==='ready'` 且仍处于 `loading` 时，报错"流式响应未包含有效终态"（`use-knowledge-ask.ts`；有回归测试）
 
@@ -91,7 +92,7 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列�
 | ask 流 | `src/hooks/use-knowledge-ask.ts`（含 ready 无 final 兜底 + getScope）· `src/api/ask.ts`（`parseScopeDocTypesInput` / `buildAskRequestBody`）· `ask-panel.tsx`（`lastQuestion`） |
 | B11 测 | `tests/ask/scope-top-level.test.ts` · `tests/ask/stream-ready-no-final.test.ts` getScope |
 | 会话 / 反馈 | `src/api/sessions.ts` · `src/services/sessions.services.ts` · `src/api/feedback.ts` · `ask-panel` FeedbackBar |
-| 前端测试 | `vitest.config.ts` · `src/test/` · `tests/ask/stream-ready-no-final.test.ts`（R1）· `tests/ask/abstain-alert.test.tsx`（R2）· `tests/auth/client-session.test.ts`（R4）· `tests/error-map/map-biz-error.test.ts`（R3）· `tests/sessions/session-shell.test.ts` · fixtures → `@strict-rag/contracts/testing` |
+| 前端测试 | `vitest.config.ts` · `src/test/` · `tests/ask/stream-ready-no-final.test.ts`（R1 · kb_not_ready final）· `tests/ask/abstain-alert.test.tsx`（R2 · kb_not_ready 拒答卡）· `tests/auth/client-session.test.ts`（R4）· `tests/error-map/map-biz-error.test.ts`（R3）· `tests/sessions/session-shell.test.ts` · fixtures → `@strict-rag/contracts/testing` |
 | P0 清单 | `docs/testing/p0-redlines.md`（本包 R1–R4 · 协作 R10） |
 | 命令 | `pnpm --filter @strict-rag/web test`（`package.json` → `vitest run`） |
 | 传输层 | `src/lib/http.ts`（**尚无**单测） |

@@ -78,12 +78,19 @@
 
 | 路径 | 行为 |
 |------|------|
-| 成功 | status → finalize + `data-ask-final` |
-| `httpStatus===409`（kb_not_ready） | data-status error + **仍写** data-ask-final（abstained） |
+| 成功 / 业务拒答（含 `kb_not_ready`） | status → finalize + `data-ask-final`（HTTP 200；空库 **不是** `phase=error`） |
 | execute 抛错 | **必须** data-status `phase=error` + data-ask-final（`status=abstained` · `reason=internal_guard` · `answer=''` · `citations=[]`）；**禁止**只写 status 无 final（客户端会卡 loading） |
-| 同步非流 | 仍 `ok/fail` 信封；409 → `BizCode.KB_NOT_READY` |
+| 同步非流 | 仍 `ok/fail` 信封；图内拒答（含空库 `kb_not_ready`）走 **200** `ok` + `AskResponse`；`KB_NOT_READY` **不得**作 ask 主路径 `error.code` |
 
 > **Gotcha**：`createUIMessageStream` 的 `execute` 内 catch **不能**只 `writer.write(data-status error)` 就 return——只订阅 final 的客户端会永久 loading。终态用 `internal_guard` 拒答 shape，**不是** answered。
+
+> **Gotcha（空库）**：无 `lifecycle=active` ∧ `status=ready` 文档是 **业务拒答**，不是冲突失败。同步与 SSE 都是 HTTP **200** + `status=abstained` + `reason=kb_not_ready`。**禁止** `error.code=KB_NOT_READY`、**禁止** SSE `phase=error`。`BizCode.KB_NOT_READY` 只保留 PRD §4 短名。测：`tests/ask/http-stream.test.ts`。
+
+#### Wrong vs Correct：空库 ask HTTP
+
+**Wrong**：`executeAsk` 对 `kb_not_ready` 返回 409；route `fail(KB_NOT_READY)`；SSE 写 `phase=error`。客户端进系统错误卡。
+
+**Correct**：图 finalize 后一律 `httpStatus: 200`；同步 `ok(AskResponse)`；流 `data-status phase=finalize` + `data-ask-final`。`userMessage` / `suggestedActions`（可含 `contact_admin`）来自 `reasonPresentation`。
 
 > **流协议 SSOT（X-07 · ADR-058 · DEC-X2）**：**实现 + 本文 + contracts** 为准（AI SDK UI Message Stream：`data-status` / `data-ask-final`）。  
 > PRD `prds/05-api` §2.7 历史 event 名 `phase/token/error/final` 已由 **ADR-058** 修订为「语义映射到 UI Message parts」；**禁止**再实现旧 `event: final` 自研解析器。
@@ -100,7 +107,7 @@ routes/ask.ts
 
 | 符号 | 位置 | 职责 |
 |------|------|------|
-| `executeAsk(params, deps?)` | `services/ask/execute.ts` | 业务入口；HTTP 200/409 决策 |
+| `executeAsk(params, deps?)` | `services/ask/execute.ts` | 业务入口；图结果一律 HTTP 200 |
 | `runAskGraph(input, deps)` | `graph/run.ts` | 状态机；产出 `AskGraphResult` |
 | `runRetrieve(...)` | `services/retrieve` | ready∧active · RRF · rerank |
 | `getGateway()` / `getGatewayForTenant` | `services/gateway` | env 单例；ask 主路径 tenant + platform + **KB** 绑定 |
@@ -112,8 +119,7 @@ routes/ask.ts
 | graph / reason | HTTP | 响应 status |
 |----------------|------|-------------|
 | `verified` / `chitchat` | 200 | `answered` |
-| 业务拒答（空证据、min 否决、rerank 挂等） | 200 | `abstained` + `reason` |
-| KB 未就绪等 | 409 | failure 信封 / 映射见 execute |
+| 业务拒答（空证据、min 否决、rerank 挂、**空库 `kb_not_ready`** 等） | 200 | `abstained` + `reason` |
 | 非成员 | 403 | 中间件 |
 | body 非法 / options 夹带未知字段 | 400 | `VALIDATION_ERROR` |
 | session 不存在或不属于本人 | 404 | `NOT_FOUND` |
@@ -190,7 +196,7 @@ route
 |----------|----------------------|--------------|------|
 | `verified` | `answered` | 200 | 唯一 knowledge answered 出口 |
 | `chitchat` | `answered` | 200 | `answerKind=chitchat`；**无** citations 校验环 |
-| 其余 `AskReason` 枚举值 | `abstained` | 200（业务拒答）或 409（`kb_not_ready` 经 execute） | `answer===''` · `citations=[]` |
+| 其余 `AskReason` 枚举值（含 `kb_not_ready`） | `abstained` | 200 | `answer===''` · `citations=[]`；空库文案见 `reasonPresentation` |
 | （中间件） | — | 403/400/404/429 | 未进图 |
 
 `finalize()` 源码规则：`answered` **仅当** `reason === 'verified' || reason === 'chitchat'`；其余一律清 draft、空 answer。

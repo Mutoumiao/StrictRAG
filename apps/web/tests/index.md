@@ -18,9 +18,9 @@
 | 文件 | 目标 | 需求锚点 | 被测 | 简介 | 状态 |
 |------|------|----------|------|------|------|
 | `ask/answer-lt-passthrough.test.tsx` | 制度答案含 `a < b` 或 `<工号>` 必须原样可见，不得被剥掉。 | 剧本 K6 · prds/10-delivery/03-acceptance-scenarios.md | `AskPanel`（AnsweredCard） | 答案文本节点原样展示小于号。 | 现行 |
-| `ask/abstain-alert.test.tsx` | 拒答以 alert 展示，不得当成普通答案。 | P0 R2 · R10 | `AskPanel` | 用 contracts testing 工厂。 | 现行 |
+| `ask/abstain-alert.test.tsx` | 拒答以 alert 展示，不得当成普通答案；kb_not_ready 不进系统错误卡。 | P0 R2 · R10 | `AskPanel` | 用 contracts testing 工厂。 | 现行 |
 | `ask/scope-top-level.test.ts` | ask 请求的 scope 必须在顶层，不得进入 options。 | ADR-050 | `buildAskRequestBody · parseScopeDocTypesInput` | 客户端 body 形状。 | 现行 |
-| `ask/stream-ready-no-final.test.ts` | 流式 ready 且无合法 final 时不得卡在 loading，必须落到 error。 | P0 R1 | `useKnowledgeAsk` | 流式三态；非法终态 → error。 | 现行 |
+| `ask/stream-ready-no-final.test.ts` | 流式 ready 且无合法 final 时不得卡在 loading，必须落到 error。 | P0 R1 | `useKnowledgeAsk` | 流式三态；非法终态 → error；kb_not_ready final 进 abstained。 | 现行 |
 | `auth/client-session.test.ts` | clear、坏 JSON 或无 token 时读 session 必须为 null。 | P0 R4 | `readClientSession · clearClientSession · saveClientSession` | 不测 expires 产品闸（DEC-1）。 | 现行 |
 | `error-map/map-biz-error.test.ts` | 已知业务码必须保留 code 与 message。 | P0 R3 | `mapBizError` | 纯文案映射。 | 现行 |
 | `sessions/session-shell.test.ts` | 会话壳服务调用形状正确，失败可映射且历史不得当 evidence。 | sessions API | `loadSessionList · refreshAfterAskFinal` | 非 evidence。 | 现行 |

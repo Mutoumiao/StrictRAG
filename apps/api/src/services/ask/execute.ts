@@ -33,8 +33,8 @@ export type ExecuteAskParams = {
 };
 
 export type ExecuteAskResult = {
-  /** 业务 HTTP：kb_not_ready → 409；其余 200 */
-  httpStatus: 200 | 409;
+  /** 业务 HTTP：空库 `kb_not_ready` 与其它拒答一样走 200 */
+  httpStatus: 200;
   response: AskResponse;
   graph: AskGraphResult;
 };
@@ -269,11 +269,6 @@ export async function executeAsk(
     },
     'ask execute done',
   );
-
-  // 空库：409 优先于 200+kb_not_ready（API 冻结）
-  if (graph.reason === 'kb_not_ready') {
-    return { httpStatus: 409, response, graph };
-  }
 
   return { httpStatus: 200, response, graph };
 }

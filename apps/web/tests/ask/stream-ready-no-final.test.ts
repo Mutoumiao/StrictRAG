@@ -81,6 +81,28 @@ describe('useKnowledgeAsk', () => {
     expect(result.current.view.type).toBe('abstained');
   });
 
+  it('kb_not_ready final 进 abstained，不被系统错误占住', async () => {
+    const { result } = renderHook(() => useKnowledgeAsk({ kbId: 'kb-1', sessionId: null }));
+    const kbNotReady = makeAbstainedFinal({
+      reason: 'kb_not_ready',
+      userMessage: '知识库尚无可用文档，请稍后再试或联系管理员。',
+      suggestedActions: [{ type: 'contact_admin', label: '联系管理员' }],
+    });
+    await act(async () => {
+      chat.onData?.({
+        type: 'data-status',
+        data: { phase: 'error', code: 'KB_NOT_READY', message: 'empty kb' },
+      });
+    });
+    await act(async () => {
+      chat.onData?.({ type: 'data-ask-final', data: kbNotReady });
+    });
+    expect(result.current.view).toMatchObject({
+      type: 'abstained',
+      data: { reason: 'kb_not_ready' },
+    });
+  });
+
   it('非法 final / status error → error', async () => {
     const { result } = renderHook(() => useKnowledgeAsk({ kbId: 'kb-1', sessionId: null }));
     await act(async () => {

@@ -13,7 +13,7 @@ export const BizCode = {
   RULE_VIOLATION: 'RULE_VIOLATION',
   /** ADR-039 上传超限 */
   PAYLOAD_TOO_LARGE: 'PAYLOAD_TOO_LARGE',
-  /** 无 active+ready 文档（ask 前置 409） */
+  /** 保留 PRD §4 短名；ask 主路径空库走 200 + reason=kb_not_ready，不用本码作 error.code */
   KB_NOT_READY: 'KB_NOT_READY',
   /** rewrite 未准出却要求 rewrite 路径（ADR-047） */
   SESSION_REWRITE_DISABLED: 'SESSION_REWRITE_DISABLED',

@@ -9,7 +9,7 @@
 | options | 只传白名单：stream / debug / mode / locale |
 | scope | 产品检索 scope（如 `docTypes`）放在 **请求顶层** `scope`，**禁止**塞进 `options`（ADR-050） |
 | 流式终态 | **只信 `data-ask-final`**（`AskResponseSchema.safeParse` 通过后才更新 answered/abstained） |
-| 流式进度 | `data-status`（transient）仅驱动 loading phase；`phase=error` 可进错误态 |
+| 流式进度 | `data-status`（transient）仅驱动 loading phase；`phase=error` 可进错误态。**空库 `kb_not_ready` 是业务拒答**，走 `data-ask-final` abstained，禁止当系统错误卡 |
 | 流结束无 final | `useChat` `status==='ready'` 且 `view` 仍为 `loading` → **必须**落 error（禁止永卡 loading / 提问 disabled） |
 | 重试 | 提交后会清空输入框 → **必须**保留 `lastQuestion`（或等价）；`onRetry` **禁止**只读已空的 `question` |
 | 禁止 | 自写 SSE 分帧；用 text-delta / 中间事件覆盖终态答案 |

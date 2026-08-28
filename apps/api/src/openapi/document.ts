@@ -355,12 +355,6 @@ export function buildOpenApiDocument(): OpenApiDocument {
                 'application/json': { schema: ref('ApiFailure') },
               },
             },
-            '409': {
-              description: 'KB_NOT_READY 等',
-              content: {
-                'application/json': { schema: ref('ApiFailure') },
-              },
-            },
           },
         },
       },

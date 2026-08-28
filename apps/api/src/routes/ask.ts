@@ -206,24 +206,6 @@ export function createAskRoutes(deps: AskRouteDeps = {}) {
 
           const finalBody = AskResponseSchema.parse(result.response);
 
-          if (result.httpStatus === 409) {
-            writer.write({
-              type: 'data-status',
-              data: {
-                phase: 'error',
-                code: BizCode.KB_NOT_READY,
-                message: 'knowledge base has no ready and active documents',
-              },
-              transient: true,
-            });
-            writer.write({
-              type: 'data-ask-final',
-              id: 'ask-final',
-              data: finalBody,
-            });
-            return;
-          }
-
           // 拒答不得把未校验 token 当答案：P2 不推 text-delta 伪流式，仅 data-ask-final
           writer.write({
             type: 'data-status',
@@ -277,16 +259,6 @@ function respondAsk(
   result: ExecuteAskResult,
   log: ReturnType<typeof childLogger>,
 ) {
-  if (result.httpStatus === 409) {
-    log.info({ reason: result.response.reason }, 'ask kb_not_ready');
-    return fail(
-      c,
-      BizCode.KB_NOT_READY,
-      'knowledge base has no ready and active documents',
-      409,
-      { reason: result.response.reason, requestId: result.response.requestId },
-    );
-  }
   const body: AskResponse = AskResponseSchema.parse(result.response);
   log.info(
     { status: body.status, reason: body.reason, latencyMs: body.latencyMs },
