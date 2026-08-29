@@ -35,8 +35,13 @@ packages/contracts/
       member.contract.ts
     kb/
       kb-settings.contract.ts   # B2 设置 GET data / PATCH body（ADR-054）
+    eval/
+      l1-matrix.ts          # 2×2 纯函数（api CLI + worker 共用）
+      gold.contract.ts      # gold-questions CRUD DTO
+      eval-run.contract.ts  # eval/runs DTO
     async/
       queues.ts
+      eval-job.ts           # sr-eval job payload
 ```
 
 ## 组织约定

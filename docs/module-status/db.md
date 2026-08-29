@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（schema + client + 检索谓词底座；**无**业务服务层） |
 | 默认依赖模式 | 需要调用方提供 `DATABASE_URL`；时间列使用本地格式字符串（见 ORM PRD） |
 | 关联模块 | `api` 与 `worker` 共用 client / schema；检索闸门谓词被 api retrieve 复用 |
-| 最近更新 | 2026-08-28（`chunk_strategy_definitions` + `kb_chunk_strategies`，migration `0009`） |
+| 最近更新 | 2026-08-29（`gold_questions` + `eval_runs.status/job_id`，migration `0010`） |
 | Spec | `.trellis/spec/db/backend/` |
 | PRD | `prds/03-data` · `prds/02-engineering/02-orm-drizzle.md` |
 
@@ -40,11 +40,12 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 
 ### Schema · ask（S2）
 - `ask_sessions` · `ask_traces`（含 evidence 快照类型）· `ask_feedback`
-- **B10-followup / P2.5-L2P**：`eval_runs`（L1 `golden_2x2` / L2 `session_multiturn`；L2 `signoff_eligible` 恒 0；migration `0006_b10_eval_runs`）
+- **B10-followup / P2.5-L2P / P2 底线**：`eval_runs`（L1 `golden_2x2` / L2 `session_multiturn`；L2 signoff_eligible 恒 0；migration `0006_b10_eval_runs` + `0010_eval_floor` 增 status / jobId / errorMessage 列）
+- **gold_questions**：运营题面（caseKey 每库唯一；migration `0010_eval_floor`）
 - schema 单测：`tests/ask/ask-schema.test.ts`
 
-### Migrations（journal 10 条，idx 0–9）
-- `0000_phase0_schema_meta` → `0009_chunk_strategy_layers`（`drizzle/meta/_journal.json`）
+### Migrations（journal 11 条，idx 0–10）
+- `0000_phase0_schema_meta` → `0010_eval_floor`（`drizzle/meta/_journal.json`）
 - 脚本：`db:generate` / `db:migrate` / `db:studio`（运维产品化流水线 **不**在本包宣称）
 
 ### 查询谓词
@@ -87,7 +88,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 |------|------|
 | 导出 | `packages/db/src/index.ts` · `schema/index.ts` |
 | 知识库表 | `packages/db/src/schema/kb/*`（`documents.ts` · `chunk-embeddings.ts` · `ingest-jobs.ts`） |
-| 问答 / 评测表 | `packages/db/src/schema/ask/*` · `eval-runs.ts` · migration `drizzle/0006_b10_eval_runs.sql` |
+| 问答 / 评测表 | `packages/db/src/schema/ask/*` · `eval-runs.ts` · `gold-questions.ts` · migration `drizzle/0006_b10_eval_runs.sql` · `0010_eval_floor.sql` |
 | 平台 / 部门 | `schema/system/platform-roles.ts` · `departments.ts` |
 | 检索闸门 | `packages/db/src/query/retrieval-gate.ts` · `tests/retrieve/ready-active-gate.test.ts`（导航 `packages/db/tests/index.md`） |
 | Client | `packages/db/src/client.ts` · `time.ts` |

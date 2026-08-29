@@ -39,6 +39,7 @@ apps/admin/
         departments/          # B5 部门组织壳
         dashboard/            # B6 数据面板薄壳
         feedback/             # B13 反馈队列
+        eval/                 # P2 评测底线：黄金集维护 + 入队 + 看 2×2
 ```
 
 每个 `(ops)/<module>/` 典型文件（colocation）：

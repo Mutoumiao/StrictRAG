@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（支撑 P0/P1 入库 + S2 问答/会话/反馈/成员 + B1–B6 运营契约 + **B12 策略码 / ingest job**；**非**全量 OpenAPI） |
 | 默认依赖模式 | 纯库；无运行时开关 |
 | 关联模块 | 被 `api` · `worker` · `web` · `admin` 消费；是全仓错误码、响应信封、队列名与 **可写分片策略集** 的唯一来源 |
-| 最近更新 | 2026-08-28（`AskModesSchema`：成员档位口；strict；default ∈ allowed；禁 τ） |
+| 最近更新 | 2026-08-29（gold-questions / eval-run DTO · `QUEUE_NAMES.EVAL` · L1 矩阵纯函数） |
 | Spec | `.trellis/spec/contracts/library/` |
 | PRD | `prds/05-api` · 各域契约与 PRD 短名对齐 |
 
@@ -25,8 +25,10 @@
 ### 系统 / 鉴权 / 异步
 - health / ready 响应 schema（`system/health.contract`）
 - session 鉴权契约：AuthMe / TokenPair（`auth/session.contract`）
-- 队列名 SSOT：`QUEUE_NAMES.PROBE` · `INGEST`（`async/queues.ts`；BullMQ 禁 `:`）
+- 队列名 SSOT：`QUEUE_NAMES.PROBE` · `INGEST` · sr-eval（`async/queues.ts`；BullMQ 禁 `:`）
 - **入库 job payload（08-12）**：`IngestJobDataSchema`（`docId` · `kbId` · `tenantId` · `stage` ∈ scan/parse/chunk/embed/es_index · 可选 `indexVersion` / `requestId` / `attemptHint`）；默认 `INGEST_JOB_DEFAULT_ATTEMPTS=3` · `INGEST_JOB_BACKOFF_MS=2000`（`async/ingest-job.ts`，经 `async/queues` 再导出）
+- **评测 job payload**：`EvalJobDataSchema`（`tenantId`/`kbId`/`runId`/`userId`/`retrieveMode` · 可选 `maxCases`）；`EVAL_JOB_NAME=golden_2x2` · `EVAL_JOB_DEFAULT_ATTEMPTS=1`
+- **黄金集 / run DTO**：`eval/gold.contract.ts` · `eval/eval-run.contract.ts`；2×2 纯函数 `eval/l1-matrix.ts`
 
 ### 入库 + 分片策略（B12）
 - 文档 body 及列表 / 详情 / 审批 / 扫描等成功响应的 data 形状（`ingest/document.contract`）；列表项含 `docType`；`PatchDocumentMetaBodySchema` 可写 `ownerDeptId` / `visibilityLevel` / `docType`

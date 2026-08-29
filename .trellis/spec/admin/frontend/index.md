@@ -8,6 +8,7 @@
 ## Pre-Development Checklist
 
 - [ ] 是否管理端能力（KB/成员/文档/审批/反馈队列/评测）而非用户 ask 主路径？  
+- [ ] 评测页是否只经本模块 `api.ts`、验 `eval.run`、**禁止**把覆盖率当签字 PASS？  
 - [ ] 权限码 / 菜单是否来自 `@strict-rag/admin-catalog`（含 `feedback.queue`）？  
 - [ ] API 类型是否来自 `@strict-rag/contracts`？默认不建平行 wire `types.ts`？  
 - [ ] UI 是否优先 `@strict-rag/ui`（`cn` / 子路径组件 / Soft Bento token）？禁止大面积内联 style？  

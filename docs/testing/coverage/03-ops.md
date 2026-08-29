@@ -10,7 +10,7 @@
 
 | ID | 期望摘要 | 阶段 | 形态 | 覆盖 | 主包 | 证据 | 缺口 |
 |----|----------|------|------|------|------|------|------|
-| C1 | 黄金集 1:1、seed 固定，产出 2×2 | 签字剧；工程 seed 可测 | 单测+注入 | 部分测 | api | apps/api/tests/eval/l1-matrix.test.ts · apps/api/tests/eval/l1-cli.test.ts · fixtures/l1/gold.yaml | 已断言 A–D 格、error 出格、coverage=A/(A+B)、mock 时 `signoffEligible=false`、gold≥30+30。缺：live 固定 seed 真跑 2×2 数字、业务题面人审。 |
+| C1 | 黄金集 1:1、seed 固定，产出 2×2 | 签字剧；工程 seed 可测 | 单测+注入 | 部分测 | api · worker | apps/api/tests/eval/l1-matrix.test.ts · apps/api/tests/eval/l1-cli.test.ts · apps/api/tests/eval/http-eval-runs.test.ts · apps/worker/tests/eval/run-l1-batch.test.ts · fixtures/l1/gold.yaml | 已断言 A–D 格、error 出格、coverage=A/(A+B)、mock 时 `signoffEligible=false`、gold≥30+30、HTTP 入队。缺：live 固定 seed 真跑 2×2 数字、业务题面人审。 |
 | C2 | τ 扫描得 tau* | 签字剧 | UAT | 缺实现 | api | packages/db/src/schema/ask/eval-runs.ts（`run_type` 枚举含 `tau_sweep`） | 仅 schema 字面量；无扫描 runner、无 tau* 报告。 |
 | C3 | Judge 校准产出 AUROC 报告 | 签字剧 | UAT | 缺实现 | api | apps/api/src/eval/adr046-snapshot.ts（`judgeAurocMin` 硬门数字） | 门槛常量在快照，无校准集 runner、无 AUROC 计算/报告。 |
 | C4 | 有 expectedDocIds 时算 Hit@k | 签字剧 | 单测 | 缺实现 | api | fixtures/l1/gold.yaml · apps/api/src/scripts/run-l1-golden.ts（只加载字段） | gold 带 `expectedDocIds`；runner 报告无 Hit@k，测例不断言命中率。 |

@@ -4,16 +4,16 @@
 |------|------|
 | 路径 | `apps/admin` |
 | 端口 | 3006 |
-| 成熟度 | **可演示**（S2c 运营薄壳：文档 / 审批 / 成员 / 分片 / 设置 / 模型 + 用户 / 角色 / 部门 + **数据面板** + **反馈队列**） |
+| 成熟度 | **可演示**（S2c 运营薄壳：文档 / 审批 / 成员 / 分片 / 设置 / 模型 + 用户 / 角色 / 部门 + **数据面板** + **反馈队列** + **评测底线**） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT + admin **dev-login**（经 api）· 知识库 = 手工填写 uuid · 菜单 = `clipMenuForShell` 裁剪（catalog 为 SSOT）· API 默认 `http://127.0.0.1:4000` |
-| 关联模块 | API 依赖：`api` 的文档 / 审批 / 成员 / 分片 / 设置 / 模型 / 用户角色 / 部门 / dashboard / **feedback-queue**；菜单与权限码：`admin-catalog`；类型：`contracts`；样式：`ui` |
-| 最近更新 | 2026-08-28（文档运营余量：Reindex 人选、类型列、双轴标签、归档/废止） |
+| 关联模块 | API 依赖：`api` 的文档 / 审批 / 成员 / 分片 / 设置 / 模型 / 用户角色 / 部门 / dashboard / **feedback-queue** / **gold-questions · eval/runs**；菜单与权限码：`admin-catalog`；类型：`contracts`；样式：`ui` |
+| 最近更新 | 2026-08-29（评测薄页：黄金集维护 + 入队 + 看 2×2；≠ 签字包） |
 | Spec | `.trellis/spec/admin/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · 审批 / 成员相关 API |
 
 ## 一句话状态
 
-Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 四态 lifecycle）+ 审批中心 + 成员管理 + 分片只读 + 知识库设置 + 模型网关最小集 + 用户 / 角色 / 部门最小集 + 数据面板薄壳 + 反馈队列薄壳** 均已接通；顶栏 KB 选择器旁有建库入口（有 `kb.create` 才显示；名称 + 首位库管预填当前用户可改），库 id 仍可手填，外壳 **`clipMenuForShell`** 只显示已落地路由（**11** 条 ops href），**不是**完整运营台（无 APM 时序 / **≠** 全文隔离 / **≠** ES）。Vitest / RTL 覆盖外壳 / Guard / 审批 / dashboard 403 + **P0 R5/R6** + settings / documents / departments 工作区测 + **建库入口**；**无** feedback 工作区测、**无** E2E。
+Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 四态 lifecycle）+ 审批中心 + 成员管理 + 分片只读 + 知识库设置 + 模型网关最小集 + 用户 / 角色 / 部门最小集 + 数据面板薄壳 + 反馈队列薄壳 + 评测底线薄壳** 均已接通；顶栏 KB 选择器旁有建库入口（有 `kb.create` 才显示；名称 + 首位库管预填当前用户可改），库 id 仍可手填，外壳 **`clipMenuForShell`** 只显示已落地路由（**12** 条 ops href），**不是**完整运营台（无 APM 时序 / **≠** 全文隔离 / **≠** ES / **≠** 评测签字包）。Vitest / RTL 覆盖外壳 / Guard / 审批 / dashboard 403 + **P0 R5/R6** + settings / documents / departments / **eval** 工作区测 + **建库入口**；**无** E2E。
 
 ---
 
@@ -26,7 +26,7 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 
 ### 运营外壳（S2c · B7 菜单裁剪）
 - `AdminShell`：消费 `clipMenuForShell`（**没有**本地 href 白名单）；已落地 href SSOT = `admin-catalog` 的 `ADMIN_IMPLEMENTED_HREFS`
-- 当前落地 **十一条** ops 路由：`/dashboard` · `/documents` · `/approvals` · `/members` · `/chunks` · `/kb/settings` · `/models` · `/users` · `/roles` · `/departments` · **`/feedback`**
+- 当前落地 **十二条** ops 路由：`/dashboard` · `/documents` · `/approvals` · `/members` · `/chunks` · `/kb/settings` · `/models` · `/users` · `/roles` · `/departments` · **`/feedback`** · **`/eval`**
 - 知识库手填 id，localStorage `strict-rag:admin:last-kb-id`；有 `kb.create` 时顶栏显示「创建知识库」（名称 + 首位库管，预填当前用户可改），成功后写入当前 KB。**不是**独立二级菜单，**不是**建库向导
 
 ### 数据面板（B6 薄壳）
@@ -82,12 +82,17 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 - `/feedback`：运营队列列表；可 **dismiss / linked_doc** 改状态（**非只读**）
 - 始终需要 `feedback.queue`；无码菜单隐藏、直链依赖 API 403
 - 分层：`page → services → api.ts` → `GET …/feedback-queue` · `PATCH /api/v1/feedback/:id`
-- **无** 专用 RTL 工作区测试
+- **无** 专用 RTL 工作区测试（comment 转义测除外）
+
+### 评测底线
+- `/eval`：黄金集增删 + 「跑一批」入队 + 列出 2×2；需要 `eval.run`
+- 分层：`page → services → api.ts`；**不**在浏览器跑 L1；**不是**签字包 / 看板增强 / 反馈回流
+- RTL：`tests/ops/eval-workspace.test.tsx`
 
 ### 工程
 - 传输层：`lib/http.ts`（Bearer + 单飞 refresh）；错误映射：`lib/map-biz-error.ts`；知识库偏好：`lib/kb-context.ts`
 - 身份：`auth/api.ts` · `auth/client-session.ts`（会话存取 + 变更事件）· `auth/services.ts`（loginWithDev / logoutLocal）
-- 模块私有 API：`app/(ops)/{dashboard,documents,approvals,members,chunks,kb/settings,models,users,roles,departments,feedback}/api.ts`（**没有** 集中 `lib/admin-api.ts`）
+- 模块私有 API：`app/(ops)/{dashboard,documents,approvals,members,chunks,kb/settings,models,users,roles,departments,feedback,eval}/api.ts`（**没有** 集中 `lib/admin-api.ts`）
 - 类型 `@strict-rag/contracts`；菜单 / 权限码 `@strict-rag/admin-catalog`
 - 样式：Tailwind v4 + ui 主题；构建 `next build --webpack`
 - **单元 / 组件测试**：外壳 / Guard / 审批 / dashboard + **P0 R5/R6** + `tests/kb/current-kb.test.ts`（admin KB key 不与 web 混写）+ `tests/kb/create-kb.test.tsx`（`kb.create` 入口）+ `tests/auth/client-session.test.ts`（admin session 与 web 隔离）。测例在 `tests/<能力>/`；导航 `apps/admin/tests/index.md`；HOW：`.trellis/spec/guides/testing.md`

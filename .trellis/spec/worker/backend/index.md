@@ -11,6 +11,7 @@
 - [ ] 是否与 api 共用 `@strict-rag/db`？  
 - [ ] 队列 payload 是否有 contracts/Zod？  
 - [ ] 是否避免在 worker 实现 HTTP API？  
+- [ ] 改 eval 消费者时是否只跑 L1 golden、写 `eval_runs`、**禁止** import api / 宣称签字 PASS？  
 - [ ] 改 scan 时是否读 [quality-guidelines](./quality-guidelines.md) 启动闸（X-01/X-02）？  
 - [ ] chunk 是否尊重 `IMPLEMENTED` 策略（X-03），未另造注册表？  
 - [ ] 改重试/入队/chunk/embed 时是否读 [ingest-idempotency](./ingest-idempotency.md)（X-04）？  

@@ -38,6 +38,8 @@ packages/db/
         ask-sessions.ts
         ask-traces.ts
         ask-feedback.ts
+        eval-runs.ts
+        gold-questions.ts     # P2 评测底线题面
         eval-runs.ts        # B10-followup 工程
 ```
 

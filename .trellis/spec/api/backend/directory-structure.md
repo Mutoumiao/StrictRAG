@@ -39,6 +39,7 @@ apps/api/
       platform-users-roles.ts # B4（写路径 invalidateRoleCache）
       departments.ts         # B5
       dashboard.ts           # B6 数据面板只读 summary
+      eval.ts                # P2 评测底线：gold-questions + eval/runs 入队 + 内口 execute-ask
     openapi/                 # ARCH-P2-1：OpenAPI 3.1 文档 + Scalar HTML（dev/test 默认开）
       document.ts            # buildOpenApiDocument · components 自 contracts Zod toJSONSchema
       routes.ts              # GET /api/v1/openapi.json · /api/v1/docs · OPENAPI_DOCS_ENABLED

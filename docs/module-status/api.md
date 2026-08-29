@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（已包含：P0/P1 入库 + S2 最小问答 + B1–B6 最小运营 API + B10 L1 工程 seed + B12 策略闸 + B13 反馈 API；演示依赖 mock ES / 通常走 mock Gateway；L1 **≠** 业务签字门禁） |
 | 默认依赖模式 | 检索：`RETRIEVE_ES_MODE=mock`（默认 mock ES；`http` 须 `ELASTICSEARCH_URL`）；鉴权：临时双 JWT，`AUTH_ENFORCE` **默认 `false`**；rewrite：`SESSION_REWRITE_ENABLED` **默认 false**（图边已落；dogfood 可开；**≠** 准出）；对象存储：默认 `local`（`STORAGE_MODE=s3` 走 RustFS / S3 兼容）；Gateway：`GATEWAY_MODE=''`（空按 `GATEWAY_BASE_URL` 推断，缺 URL 走 mock）；上传上限 `INGEST_MAX_FILE_BYTES=52_428_800`（50 MiB）/ 天花板 `INGEST_MAX_FILE_BYTES_CEILING=209_715_200`（200 MiB）；`LANGFUSE_ENABLED=false`；`OBS_MEMORY_TRACE=true`。**B3-W/B2-W**：ask 读取 platform 绑定 + **KB scope 绑定覆盖（只读 list，无 PUT KB 绑定 HTTP）**；**B4-W**：每请求从 DB `user_roles` hydrate；`DEPT_ACL_ENFORCE` **默认 `false`**（开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤且列表项带部门字段；`DEPT_INHERIT_DOWN` 默认 true；KB `deptInheritDown` 可覆盖 env；KB `deptAclEnforce` 可覆盖 env，未写跟 env，GET 未写回读 false；设置页可勾选，未改不写回；ES 查询期已强制 tenantId+kbId（共享索引安全隔离），部门/ACL principals 查询期对称仍无）；`MONGODB_URL` 空（非空时检索融合后批取 Mongo `chunk_bodies` 权威正文，缺块 fail-closed）；`ASK_RATE_LIMIT_RPM=0`；L1 CLI 需显式指定 `L1_KB_ID`（可选 `L1_PERSIST_EVAL`） |
 | 关联模块 | 入库演示还需要 `worker` + PostgreSQL + Redis；契约 `@strict-rag/contracts`（含 `IMPLEMENTED_CHUNK_STRATEGIES` / `IngestJobData`）；schema `@strict-rag/db`（含 `eval_runs`）；L1 gold / RACI 在仓根 `fixtures/l1/`；L2 题面草案在 `fixtures/l2/` |
-| 最近更新 | 2026-08-28（成员 `GET …/ask-modes` 只回 allowedModes/defaultMode；≠ settings、≠ τ） |
+| 最近更新 | 2026-08-29（评测底线：gold-questions CRUD + eval/runs 入队 + 内口 execute-ask；≠ 签字 PASS） |
 | Spec | `.trellis/spec/api/backend/`（含 [dashboard](../../.trellis/spec/api/backend/dashboard.md) · [l1-eval](../../.trellis/spec/api/backend/l1-eval.md) · [l2-eval](../../.trellis/spec/api/backend/l2-eval.md) · [l3-metrics](../../.trellis/spec/api/backend/l3-metrics.md)） |
 | PRD | `prds/05-api` · `04-pipelines` · `08-quality` · `09-security` |
 
@@ -113,12 +113,13 @@
 
 ### 评测 L1 工程 seed（B10 · 部分 · ≠ 业务签字）
 - 仓根 `fixtures/l1/gold.yaml`：**≥60 题**（answerable 30 + 不可答类 30）；扩展名 yaml、**内容为 JSON**（零 yaml 依赖）；逻辑 `expectedDocIds` 见 `fixtures/l1/README.md`；业务题面 RACI → `fixtures/l1/RACI.md`
-- 纯函数 `apps/api/src/eval/l1-matrix.ts`：2×2（A–D）+ `coverage=A/(A+B)`（分母 0→null）；`outcome=error` **不计格**，只增 `errorCount`；单测 `tests/eval/l1-matrix.test.ts`
+- 纯函数现下沉 `@strict-rag/contracts` `eval/l1-matrix.ts`（api `eval/l1-matrix.ts` 再导出）：2×2（A–D）+ `coverage=A/(A+B)`（分母 0→null）；`outcome=error` **不计格**，只增 `errorCount`；单测 `tests/eval/l1-matrix.test.ts`
 - CLI `apps/api/src/scripts/run-l1-golden.ts`：串行 **`executeAsk` + `skipTrace: true`**（可注入 `execute` / `graphDeps`）→ 仓根 `artifacts/l1-last-run.{json,md}` + **`l1-gate-snapshot.json`**（**gitignore**）；报告含 **`retrieve_mode` / `mode`** + **`answerableCount` / `unanswerableClassCount`** + **`signoffEligible`**（`live` ∧ 两类各≥30；截断/mock=false）+ ADR-046 `gateSnapshot`/`gateVerdict`
 - 签字 live profile（OPS-1）：`docs/ops/live-retrieve-profile.md`；探针 `src/scripts/seed-es-sparse-probe.ts`（PG→ES bulk）
 - 跑法：`L1_KB_ID=<uuid> pnpm --filter @strict-rag/api exec tsx src/scripts/run-l1-golden.ts`（可选 `L1_MAX_CASES` 等；见 `apps/api/README.md`）
 - CI 范围：矩阵纯测 + mock 注入测 + es-sparse 单元测；**默认不**在 CI 跑真 LLM / 真 ES 全量；样例文 `fixtures/l1/sample-report.md`（非 live 签字数字）
-- **边界**：**禁止**把 `retrieve_mode=mock` 或 coverage=0 / 全 `internal_guard` 写入业务签字页；`eval_runs` 可 `L1_PERSIST_EVAL=1` 写入（db migration 0006）；无 worker-eval；**L3 打点+告警部分（无自动熔断 / 无面板 / ≠准出）**；**签字真跑数字** 2026-08-14 live ×2 已落（B10-followup）；ADR-046 快照绑定已落（`eval/adr046-snapshot.ts`）；业务 PASS 仍须人签（本跑 `businessPass=false`）
+- **P2 评测底线 HTTP**：`GET/POST/PATCH/DELETE …/gold-questions` · `POST/GET …/eval/runs`（`eval.run`）；空题集入队 400；只入队 `sr-eval`；`POST /internal/eval/execute-ask` 口令闸 + `skipTrace`（`routes/eval.ts` · `tests/eval/http-gold-questions.test.ts` · `http-eval-runs.test.ts`）
+- **边界**：**禁止**把 `retrieve_mode=mock` 或 coverage=0 / 全 `internal_guard` 写入业务签字页；`eval_runs` 可 CLI `L1_PERSIST_EVAL=1` 或 HTTP 入队后由 worker 回写（migration `0006` + `0010` status/job_id）；**无** τ 扫描 / 校准 / 在线抽样 / 通用 jobs 查询口；**L3 打点+告警部分（无自动熔断 / 无面板 / ≠准出）**；**签字真跑数字** 2026-08-14 live ×2 已落（B10-followup）；ADR-046 快照绑定已落（`eval/adr046-snapshot.ts`）；业务 PASS 仍须人签（本跑 `businessPass=false`）
 
 ### 评测 L2 题面 + 工程 runner + 可选 persist（P2.5-L2 / P2.5-L2R / P2.5-L2P · 部分 · ≠ 准出）
 - 仓根 `fixtures/l2/gold.yaml`：**18 条**多轮剧本（≥15）；`run_type=session_multiturn`；`signoffEligible=false`；扩展名 yaml、**内容为 JSON**；9 类各至少 1 条（含 `session_isolation` / J2x）
@@ -201,6 +202,7 @@
 | Gateway 运行时 / 检索 | `apps/api/src/services/gateway/`（`getGatewayForTenant` · `bindings.ts` · `resolve.ts`）· `services/retrieve/`（`corpus.ts` · `es-sparse.ts`（`buildAclFilter`）· `mongo-body.ts` · `filterDocsForRetrieve`） |
 | 观测 | `apps/api/src/obs/` |
 | L1 工程 seed / followup 工程 | `fixtures/l1/gold.yaml` · `RACI.md` · `README.md` · `apps/api/src/eval/l1-matrix.ts` · `eval/adr046-snapshot.ts` · `scripts/run-l1-golden.ts` · `scripts/seed-es-sparse-probe.ts` · `packages/db/src/schema/ask/eval-runs.ts` · `docs/ops/live-retrieve-profile.md` · `turbo.json`（`L1_*` / `L1_PERSIST_EVAL`） |
+| P2 评测底线 HTTP | `apps/api/src/routes/eval.ts` · `services/gold-questions.ts` · `services/eval-runs.ts` · `tests/eval/http-gold-questions.test.ts` · `tests/eval/http-eval-runs.test.ts` |
 | L2 题面 + 工程 runner | `fixtures/l2/gold.yaml` · `README.md` · `RACI.md` · `sample-report.md` · `corpus/` · `apps/api/src/eval/l2-gold.ts` · `l2-fingerprint.ts` · `tests/eval/l2-gold.test.ts` · `scripts/run-l2-golden.ts` · `tests/eval/l2-cli.test.ts` · `turbo.json`（`L2_*`） |
 | 环境变量默认值 | `apps/api/src/env.ts`（`RETRIEVE_ES_MODE=mock` · `AUTH_ENFORCE=false` · `SESSION_REWRITE_ENABLED=false`）；L1 CLI 另读 `L1_KB_ID` 等（**非** `env.ts` Zod 必填） |
 | 单测 | `apps/api/tests/<能力>/`；导航 `apps/api/tests/index.md`；HOW：`.trellis/spec/guides/testing.md` |

@@ -25,6 +25,7 @@
 - [ ] 触及按需加深 / `sessionDeepened` / `documentBackref` / `externalBackref` / `backReference` 时是否读 [ask-pipeline](./ask-pipeline.md)（session 加深 + document 加码 + external 抑制已落；四态派生已落；禁 intent LLM / 默认改窗）？
 - [ ] 密钥是否仅服务端 env（JWT 禁止 prod 默认 dev-only）？  
 - [ ] 触及 L1 评测时是否读 [l1-eval](./l1-eval.md)（`skipTrace` · error 出格 · mock 禁签字 · turbo `L1_*`）？  
+- [ ] `gold-questions` / `eval/runs` 是否 `eval.run` + 只入队？内口是否口令闸且 `skipTrace`？**禁止**请求线程跑完 L1 / 把 mock 当签字？  
 - [ ] 触及 L2 题面/runner 时是否读 [l2-eval](./l2-eval.md)（图边/CLI/persist 落地 ≠ 准出；**禁止**默认开 rewrite / 把 runner 或 persist 当准出）？  
 - [ ] 是否误把 L2 persist / `evalRunId` 写成准出或算出 `signoffEligible=true`？  
 - [ ] 触及 L3 打点/告警时是否读 [l3-metrics](./l3-metrics.md)（打点+告警+主题投诉已计 + L2 过期闩 ≠ 准出 / ≠ 熔断；**禁止**按计数或告警改默认；**禁止**每问查 `eval_runs`）？  
@@ -60,7 +61,7 @@
 | [platform-users-roles](./platform-users-roles.md) | **B4 用户/角色** · `user.manage` / `role.perm.manage` · 最后超管 · codes ⊆ catalog |
 | [departments](./departments.md) | **B5 部门壳** · grant 可存可配 · 过滤默认关（开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤；可关继承；grant 子树不读 inheritDown） · **≠** 全文隔离 |
 | [dashboard](./dashboard.md) | **B6 数据面板薄壳** · `dashboard.view` · 只读 summary ≤5 · **≠** APM |
-| [l1-eval](./l1-eval.md) | **B10** L1 工程 seed + eval_runs · OPS-1 `retrieve_mode` · **≠** 业务签字真跑 |
+| [l1-eval](./l1-eval.md) | **B10** L1 工程 seed + eval_runs · **P2 底线** gold-questions / `eval/runs` 入队 · OPS-1 `retrieve_mode` · **≠** 业务签字真跑 |
 | [l2-eval](./l2-eval.md) | **P2.5-L2/L2R/L2P** 多轮题面 + 工程 runner + 可选 persist · **≠** 准出 / **≠** 默认开 rewrite |
 | [l3-metrics](./l3-metrics.md) | **P2.5-L3/L3A/L3F/L2S** 多轮护栏打点+告警+主题投诉已计 + L2 过期闩 · **≠** 准出 / **≠** 自动熔断 / **≠** 面板 |
 

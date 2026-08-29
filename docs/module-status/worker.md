@@ -7,7 +7,7 @@
 | 成熟度 | **可联调**（P1 入库状态机；**仅** development/test + mock 栈可起；**staging/production 当前无合法扫描配置**） |
 | 默认依赖模式 | `APP_ENV=development` · 启动探针 `WORKER_PROBE_ON_START=true` · 扫描 = `mock_clean` · 向量 = `mock`（dims=8，枚举 `mock\|fail`）· ES 索引 = `mock`（枚举 `mock\|fail\|http`，**默认 mock**；`http` 须 `ELASTICSEARCH_URL`）· 对象存储 = 默认本地目录；`STORAGE_MODE=s3` 走 RustFS（S3 兼容） · `S3_BUCKET=strict-rag` · Mongo URL 空则 `mongoDocId=local:` · `INGEST_MIN_EXTRACTED_CHARS=40` · **可运行叠加** `.env.operable.example`（http/s3/mongo；**不**改 Zod 默认） |
 | 关联模块 | 由 `api` 入队触发；写库走 `@strict-rag/db`；队列名 / job payload / 可执行策略集来自 `@strict-rag/contracts`；运行需要 Redis + PostgreSQL |
-| 最近更新 | 2026-08-28（chunk 正文写 Mongo `chunk_bodies`；ES bulk 写 `tenantId` 字段） |
+| 最近更新 | 2026-08-29（`sr-eval` 消费者跑 L1 golden；写 `eval_runs`；≠ 签字 PASS） |
 | Spec | `.trellis/spec/worker/backend/` |
 | PRD | `prds/06-async` · `prds/04-pipelines/01-offline-ingest.md` |
 
@@ -21,7 +21,7 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 
 ### 进程与队列
 - Worker 进程入口：仅 BullMQ consumer + 信号退出（**无**业务 HTTP / listen）
-- 队列名来自 contracts：`sr-probe` · `sr-ingest`（`apps/worker/src/queues.ts` · `packages/contracts/src/async/queues.ts`）
+- 队列名来自 contracts：`sr-probe` · `sr-ingest` · **`sr-eval`**（`apps/worker/src/queues.ts` · `packages/contracts/src/async/queues.ts`）
 - `WORKER_PROBE_ON_START=true`（默认）时启动即向 `sr-probe` 入队 `noop` 探针 job（`reason='worker_start_probe'`），验证 Redis / 队列可用
 - 默认 job：`attempts=3` · exponential backoff 2000ms（`INGEST_JOB_*` · `index.ts`）
 - 启动：Redis PING；失败 `process.exit(1)`；优雅停机分阶段 close Worker / Queue / Redis / DB
@@ -43,6 +43,11 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 - **embed**：mock 伪向量 dims=8 · `model=mock-embed`；缺 embedding 行才补写（幂等 skip）
 - **es_index**：默认 `mockEsStore`；`INGEST_ES_MODE=http` 时 `ensureSparseIndex` + bulk（写 `tenantId`/`kbId`/`docId`/`chunkId`/`sparseText`）+ 按 doc 对账（映射对齐 api `es-sparse`）；要求 `embedReady`；双就绪 → `status=ready` **且 `lifecycle='draft'`**（**不是** `active`；默认检索闸 `ready∧active` 仍拦，须运营升 lifecycle）
 - 对象路径：`{STORAGE_LOCAL_DIR}/{S3_BUCKET}/{objectKey}`
+
+### 评测消费者（P2 底线）
+- `sr-eval` concurrency=1：读 `gold_questions` → 串行 `runL1Batch` → 回写 `eval_runs`（`eval/consumer.ts`）
+- 默认 execute：HTTP `POST /api/v1/internal/eval/execute-ask`（`EVAL_ASK_BASE_URL` + `EVAL_INTERNAL_TOKEN`）；空 token 记 error
+- **禁止** import `apps/api`；**禁止** mock 覆盖率当签字 PASS；无 τ 扫描 / 在线抽样
 
 ### 幂等 / 重试（X-04 最小）
 - `idempotency.ts`：带 `indexVersion` + 有 manifest → **resume_embed，禁重分块**；有 version 无 manifest → `NO_MANIFEST`

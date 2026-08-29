@@ -31,7 +31,7 @@ getRoleTemplate(code: string): RoleTemplate | undefined
 // menu-tree.ts
 MENU_TREE: readonly MenuNode[]
 ADMIN_IMPLEMENTED_HREFS: ReadonlySet<string>  // 已落地 admin 路由；新页须先 page 再登记
-// 当前含：/dashboard /documents /approvals /members /chunks /kb/settings /models /users /roles /departments
+// 当前含：/dashboard /documents /approvals /members /chunks /kb/settings /feedback /eval /models /users /roles /departments
 filterMenuByCodes(tree, codes: ReadonlySet<string>): MenuNode[]
 clipMenuForShell(codes, tree?=MENU_TREE, implemented?=ADMIN_IMPLEMENTED_HREFS): MenuNode[]
 collectMenuHrefs(nodes): string[]  // 测试/调试

@@ -31,7 +31,8 @@
 
 - Trigger：新增 CLI 入口、env 键、跨层（fixture → script → `executeAsk` → graph）、可执行错误矩阵。
 - 目标：串行批跑黄金题，产出 **mode 标注** 的 2×2 矩阵与覆盖率；CI 只钉 **纯函数 + mock 注入**，不跑 live LLM。
-- 非目标：B6 看板、worker-eval 队列、L2/L3；题面已扩≥30+30，**live 真跑数字**仍见 B10-followup 余量。
+- 非目标：B6 看板增强、L2/L3 准出、τ 扫描、在线抽样；题面已扩≥30+30，**live 真跑数字**仍见 B10-followup 余量。  
+- **P2 底线（本窗已接）**：`gold-questions` CRUD + `POST eval/runs` 入队 `sr-eval`；worker 串行跑 L1；`GET eval/runs/:runId` 回读。CLI 仍直调 `executeAsk`。
 
 ### 2. Signatures
 
@@ -296,7 +297,8 @@ for (const c of cases) {
 - Fixture 说明：`fixtures/l1/README.md` · 跑法：`apps/api/README.md`  
 - IS：`docs/module-status/api.md` · backlog B10 挂账 `08-06-project-backlog`  
 - 已做（工程）：`eval_runs` 表 + `persistEvalRun` / `L1_PERSIST_EVAL` · gold≥60 · OPS-1 `retrieve_mode`/`signoffEligible` · B10-RACI `fixtures/l1/RACI.md`  
-- 未做：业务人签 · worker-eval · L2 准出 · L3 自动熔断；L2 题面 + runner + 可选 persist（≠ 准出）→ [l2-eval](./l2-eval.md)  
+- **P2 底线 HTTP**：`routes/eval.ts` · `eval.run` · 空题集 400 · 入队不跑完；内口 `POST /internal/eval/execute-ask`（`x-eval-internal-token`，`skipTrace`）；矩阵函数在 `@strict-rag/contracts`  
+- 未做：业务人签 · τ 扫描 / 校准 / 在线抽样 · GET `/jobs/:id` 通用账本 · 反馈回流黄金集；L2 题面 + runner + 可选 persist（≠ 准出）→ [l2-eval](./l2-eval.md)  
 - ADR-046 快照：`runL1Golden` 写 `l1-gate-snapshot.json` 并挂 `gateSnapshot`/`gateVerdict`；默认不代签 → `signedPackage=false`；coverage=0 / 全 `internal_guard` → `businessPass=false`  
 - 签字禁令：`signoffEligible=true` = `retrieve_mode=live` **且** 两类各≥30；**≠** 自动业务 PASS；coverage=0 / 全 `internal_guard`（无真实 Gateway）**禁止**当成绩单；人审仍禁「仅 env Gateway 绿灯」（见 live profile §4.5）  
 
