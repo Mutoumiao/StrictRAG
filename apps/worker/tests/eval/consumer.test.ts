@@ -11,6 +11,8 @@ import { uuidv7 } from 'uuidv7';
 import { handleEvalJob } from '../../src/eval/consumer.js';
 import type { EvalPersist } from '../../src/eval/persist.js';
 import type { L1BatchReport } from '../../src/eval/run-l1-batch.js';
+import type { L2BatchReport } from '../../src/eval/run-l2-batch.js';
+import type { L2Case } from '@strict-rag/contracts';
 
 const KB = '01900000-0000-7000-8000-0000000000aa';
 const TENANT = '01900000-0000-7000-8000-000000000001';
@@ -25,16 +27,18 @@ function job(runId: string) {
   };
 }
 
-function memoryPersist(opts: { gold: boolean }): EvalPersist & {
+function memoryPersist(opts: { gold: boolean; l2?: L2Case[] }): EvalPersist & {
   status: string;
   saved: L1BatchReport | null;
+  savedL2: L2BatchReport | null;
   failed?: string;
 } {
   const state: {
     status: string;
     saved: L1BatchReport | null;
+    savedL2: L2BatchReport | null;
     failed?: string;
-  } = { status: 'queued', saved: null };
+  } = { status: 'queued', saved: null, savedL2: null };
   return {
     get status() {
       return state.status;
@@ -42,12 +46,18 @@ function memoryPersist(opts: { gold: boolean }): EvalPersist & {
     get saved() {
       return state.saved;
     },
+    get savedL2() {
+      return state.savedL2;
+    },
     get failed() {
       return state.failed;
     },
     async loadGold() {
       if (!opts.gold) return [];
       return [{ caseKey: 'g1', question: '住宿？', type: 'answerable' as const }];
+    },
+    async loadL2Cases() {
+      return opts.l2 ?? [];
     },
     async markRunning() {
       state.status = 'running';
@@ -59,6 +69,10 @@ function memoryPersist(opts: { gold: boolean }): EvalPersist & {
     async saveReport(_id, report) {
       state.status = 'succeeded';
       state.saved = report;
+    },
+    async saveL2Report(_id, report) {
+      state.status = 'succeeded';
+      state.savedL2 = report;
     },
   };
 }
@@ -87,5 +101,45 @@ describe('handleEvalJob', () => {
   it('非法 payload 不写库', async () => {
     const r = await handleEvalJob({ kbId: 'nope' });
     expect(r).toEqual({ ok: false, error: 'invalid eval job payload' });
+  });
+
+  it('session_multiturn 跑 L2 并 saveL2Report', async () => {
+    const runId = uuidv7();
+    const persist = memoryPersist({
+      gold: false,
+      l2: [
+        {
+          id: 'l2-near-001',
+          type: 'near_coref',
+          turns: [
+            { role: 'user', text: '住宿？', session: 'same' },
+            { role: 'user', text: '那餐补呢', session: 'same' },
+          ],
+          expected: {
+            themePersist: true,
+            historyInEvidence: false,
+            rewriteUsed: false,
+            accept: ['answered'],
+          },
+          rubric: 'r',
+        },
+      ],
+    });
+    const r = await handleEvalJob(
+      { ...job(runId), runType: 'session_multiturn' },
+      {
+        persist,
+        executeL2For: () => async () => ({
+          outcome: 'answered',
+          rewriteUsed: false,
+          evidenceTexts: ['条款'],
+          answer: '按制度',
+        }),
+      },
+    );
+    expect(r).toEqual({ ok: true, caseCount: 1 });
+    expect(persist.status).toBe('succeeded');
+    expect(persist.savedL2?.run_type).toBe('session_multiturn');
+    expect(persist.savedL2?.signoffEligible).toBe(false);
   });
 });

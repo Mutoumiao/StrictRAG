@@ -58,6 +58,8 @@ const EnvSchema = z
     EVAL_ASK_BASE_URL: z.string().optional().default('http://127.0.0.1:4000'),
     /** 与 api EVAL_INTERNAL_TOKEN 相同；空则 HTTP 执行器不可用（单测注入 execute） */
     EVAL_INTERNAL_TOKEN: z.string().optional().default(''),
+    /** L2 题面路径；空则仓根 fixtures/l2/gold.yaml */
+    EVAL_L2_GOLD_PATH: z.string().optional().default(''),
   })
   .superRefine((data, ctx) => {
     if (data.TAU_CLAIM_LEGACY !== undefined && data.TAU_CLAIM_LEGACY !== data.TAU_CLAIM) {

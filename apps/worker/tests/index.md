@@ -10,7 +10,7 @@
 |------|------|----------|
 | `ingest/` | 扫描→解析→分片→向量→稀疏索引 | `prds/04-pipelines/01-offline-ingest.md` |
 | `env/` | 启动闸、可运行环境 | X-01/X-02 · DEC-SCAN |
-| `eval/` | 评测消费者 L1 批跑 | `prds/06-async` eval.run |
+| `eval/` | 评测消费者 L1 / L2 批跑 | `prds/06-async` eval.run |
 
 ## 测例
 
@@ -25,6 +25,7 @@
 | `eval/consumer.test.ts` | eval 消费者须写 running→succeeded，空题集 failed。 | prds/06-async eval.run · 功能表 §5.2 | `handleEvalJob` | 注入 persist/execute；不打 live。 | 现行 |
 | `eval/execute-ask-http.test.ts` | worker 调 api 内口必须带口令；失败不得假装 answered。 | prds/06-async eval.run | `createEvalHttpExecute` | mock fetch；空 token 记 error。 | 现行 |
 | `eval/run-l1-batch.test.ts` | worker L1 批跑必须串行入 2×2，error 出格。 | prds/08-quality §2 | `runL1Batch` | 注入 execute；≠ 签字 PASS。 | 现行 |
+| `eval/run-l2-batch.test.ts` | worker L2 批跑必须串行多轮窗，泄漏计零容忍，mock 不得 signoffEligible。 | prds/08-quality §6.2 · 功能表 §10.2 | `runL2Batch` | 注入 executeTurn；≠ 准出 PASS。 | 现行 |
 | `ingest/embed-es-serial.test.ts` | embed 与稀疏索引串行就绪，禁并行假完成。 | X-03 · prds/04-pipelines | `pipeline 串行就绪` | embedReady 与 esReady 须同时为 1。 | 现行 |
 | `ingest/embed-http.test.ts` | embed HTTP 客户端须按 Gateway 契约取向量。 | prds/07-models | `embedTextsHttp · mockEmbedVector` | mock 维数稳定；POST /embeddings；空 baseUrl 失败。 | 现行 |
 | `ingest/es-http.test.ts` | 稀疏索引 HTTP 配置与对账不得静默错配。 | OPS-1 | `esHttpConfigFromEnv · sparseTextForChunk · reconcileIndexed` | 空 URL 为 null；chunk 文本拼接；missing/orphan。 | 现行 |
