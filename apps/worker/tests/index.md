@@ -10,6 +10,7 @@
 |------|------|----------|
 | `ingest/` | 扫描→解析→分片→向量→稀疏索引 | `prds/04-pipelines/01-offline-ingest.md` |
 | `env/` | 启动闸、可运行环境 | X-01/X-02 · DEC-SCAN |
+| `eval/` | 评测消费者 L1 批跑 | `prds/06-async` eval.run |
 
 ## 测例
 
@@ -21,6 +22,9 @@
 | `ingest/chunk-strategy-loud-fail.test.ts` | 已实现策略可切；未实现不得静默改走段落切。 | X-03 · B12 | `splitByChunkStrategy` | structure_paragraph 可切；fixed_window 报 UNSUPPORTED_CHUNK_STRATEGY。 | 现行 |
 | `ingest/doc-lock.test.ts` | 同文档入库互斥，忙则 DOC_LOCK_BUSY。 | X-04 | `tryAcquireDocLock · releaseDocLock · withDocLock · createIoredisDocLock` | Redis SET NX EX；Lua 按 token 释放；非 Redlock。 | 现行 |
 | `ingest/dual-ready-index.test.ts` | 未 ready∧active 不得进 mock ES 索引。 | 质量红线双就绪（入库期；R7 主锚仍在 api corpus） | `mockEsStore 双就绪` | mock ES 对账缺块失败；集合一致才 ok；文档间不污染。 | 现行 |
+| `eval/consumer.test.ts` | eval 消费者须写 running→succeeded，空题集 failed。 | prds/06-async eval.run · 功能表 §5.2 | `handleEvalJob` | 注入 persist/execute；不打 live。 | 现行 |
+| `eval/execute-ask-http.test.ts` | worker 调 api 内口必须带口令；失败不得假装 answered。 | prds/06-async eval.run | `createEvalHttpExecute` | mock fetch；空 token 记 error。 | 现行 |
+| `eval/run-l1-batch.test.ts` | worker L1 批跑必须串行入 2×2，error 出格。 | prds/08-quality §2 | `runL1Batch` | 注入 execute；≠ 签字 PASS。 | 现行 |
 | `ingest/embed-es-serial.test.ts` | embed 与稀疏索引串行就绪，禁并行假完成。 | X-03 · prds/04-pipelines | `pipeline 串行就绪` | embedReady 与 esReady 须同时为 1。 | 现行 |
 | `ingest/embed-http.test.ts` | embed HTTP 客户端须按 Gateway 契约取向量。 | prds/07-models | `embedTextsHttp · mockEmbedVector` | mock 维数稳定；POST /embeddings；空 baseUrl 失败。 | 现行 |
 | `ingest/es-http.test.ts` | 稀疏索引 HTTP 配置与对账不得静默错配。 | OPS-1 | `esHttpConfigFromEnv · sparseTextForChunk · reconcileIndexed` | 空 URL 为 null；chunk 文本拼接；missing/orphan。 | 现行 |
@@ -32,7 +36,7 @@
 | `ingest/mock-clean-stage-chain.test.ts` | mock_clean 须从 scanning 走到双就绪 ready。 | 剧本 M3 · prds/10-delivery/03-acceptance-scenarios.md · ADR-039 | `runIngestStage` | 默认 mock ES；≠ 生产扫描 / ≠ 真杀毒。 | 现行 |
 | `ingest/object-store.test.ts` | 本地对象存储可读 utf8 与原始字节，缺 key 不得抛。 | STORAGE · prds/03-data | `readObjectText · readObjectBytes · storeConfigFromEnv` | 本地目录读写；s3 模式映射。 | 现行 |
 | `ingest/pdf-text.test.ts` | PDF 文本层可抽取；扫描件无文本层须返回空。 | prds/04-pipelines/01-offline-ingest.md | `isPdfObject · extractPdfTextLayer` | 本地 mini PDF fixture 抽 Tj 文本；无算子返回 null。 | 现行 |
-| `ingest/queue-names.test.ts` | 入库与探测队列名常量不得漂移。 | prds/06-async | `QUEUE_NAMES` | 暴露 sr-probe / sr-ingest。 | 现行 |
+| `ingest/queue-names.test.ts` | 入库、探测与评测队列名常量不得漂移。 | prds/06-async | `QUEUE_NAMES` | 暴露 sr-probe / sr-ingest / sr-eval。 | 现行 |
 | `ingest/scan-runtime-block.test.ts` | 扫描模式运行时拦截与启动策略一致。 | X-02 | `isScanModeRuntimeBlocked（pipeline 接线）` | on 运行时拦截不得当 clean。 | 现行 |
 | `ingest/scan-startup-policy.test.ts` | 扫描模式启动闸与运行时拦截一致；on 未接引擎须失败。 | X-01/X-02 | `checkScanModeStartupPolicy · isScanModeRuntimeBlocked` | development 允许 mock；任意 APP_ENV 下 on 拒绝；staging/production 禁止 mock/off。 | 现行 |
 | `ingest/split-paragraphs.test.ts` | 段落切分过滤过短文本。 | prds/04-pipelines/01-offline-ingest.md | `splitParagraphs` | 按空行切段并丢掉过短片段。 | 现行 |

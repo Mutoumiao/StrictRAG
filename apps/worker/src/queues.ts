@@ -1,5 +1,6 @@
 import {
   QUEUE_NAMES as SHARED_QUEUE_NAMES,
+  type EvalJobData,
   type IngestJobData,
   type IngestStage,
 } from '@strict-rag/contracts';
@@ -14,7 +15,7 @@ export type ProbeJobData = {
   enqueuedAt: string;
 };
 
-export type { IngestJobData, IngestStage };
+export type { EvalJobData, IngestJobData, IngestStage };
 
 /**
  * 入库 job payload 类型见 `@strict-rag/contracts` `IngestJobData`。

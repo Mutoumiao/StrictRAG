@@ -12,12 +12,14 @@ import { Redis } from 'ioredis';
 
 import { closeDb } from './db.js';
 import { env } from './env.js';
+import { handleEvalJob } from './eval/consumer.js';
 import { assertIngestBullOutcome } from './ingest/bull-outcome.js';
 import { createIoredisDocLock, withDocLock } from './ingest/doc-lock.js';
 import { runIngestStage } from './ingest/pipeline.js';
 import { logger } from './logger.js';
 import {
   QUEUE_NAMES,
+  type EvalJobData,
   type IngestJobData,
   type ProbeJobData,
 } from './queues.js';
@@ -107,6 +109,30 @@ async function main() {
     logger.error({ jobId: job?.id, err }, 'ingest job failed');
   });
 
+  const evalWorker = new Worker<EvalJobData>(
+    QUEUE_NAMES.EVAL,
+    async (job) => {
+      logger.info({ jobId: job.id, data: job.data }, 'eval job started');
+      const result = await handleEvalJob(job.data);
+      if (!result.ok) {
+        throw new Error(result.error);
+      }
+      return result;
+    },
+    {
+      connection,
+      concurrency: 1,
+    },
+  );
+
+  evalWorker.on('completed', (job) => {
+    logger.info({ jobId: job.id }, 'eval job completed');
+  });
+
+  evalWorker.on('failed', (job, err) => {
+    logger.error({ jobId: job?.id, err }, 'eval job failed');
+  });
+
   if (env.WORKER_PROBE_ON_START) {
     const queue = new Queue<ProbeJobData>(QUEUE_NAMES.PROBE, { connection });
     const job = await queue.add(
@@ -123,7 +149,7 @@ async function main() {
 
   logger.info(
     {
-      queues: [QUEUE_NAMES.PROBE, QUEUE_NAMES.INGEST],
+      queues: [QUEUE_NAMES.PROBE, QUEUE_NAMES.INGEST, QUEUE_NAMES.EVAL],
       scanMode: env.INGEST_SCAN_MODE,
       esMode: env.INGEST_ES_MODE,
       embedMode: env.INGEST_EMBED_MODE,
@@ -142,7 +168,7 @@ async function main() {
     shuttingDown = true;
     logger.info({ signal }, 'shutting down worker');
     try {
-      await Promise.all([probeWorker.close(), ingestWorker.close()]);
+      await Promise.all([probeWorker.close(), ingestWorker.close(), evalWorker.close()]);
       await ingestQueue.close();
       redisForQueue.disconnect();
       (connection as unknown as Redis).disconnect();

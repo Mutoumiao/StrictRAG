@@ -54,6 +54,10 @@ const EnvSchema = z
     S3_BUCKET: z.string().default('strict-rag'),
     /** 空=parse 仍写 mongoDocId=local:；有值才写真 Mongo */
     MONGODB_URL: z.string().optional().default(''),
+    /** worker 调 api 同步 ask 的基址；评测消费者用 */
+    EVAL_ASK_BASE_URL: z.string().optional().default('http://127.0.0.1:4000'),
+    /** 与 api EVAL_INTERNAL_TOKEN 相同；空则 HTTP 执行器不可用（单测注入 execute） */
+    EVAL_INTERNAL_TOKEN: z.string().optional().default(''),
   })
   .superRefine((data, ctx) => {
     if (data.TAU_CLAIM_LEGACY !== undefined && data.TAU_CLAIM_LEGACY !== data.TAU_CLAIM) {
