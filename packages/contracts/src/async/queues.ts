@@ -5,6 +5,7 @@
 export const QUEUE_NAMES = {
   PROBE: 'sr-probe',
   INGEST: 'sr-ingest',
+  EVAL: 'sr-eval',
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
@@ -17,3 +18,10 @@ export {
   type IngestJobData,
   type IngestStage,
 } from './ingest-job.js';
+
+export {
+  EVAL_JOB_DEFAULT_ATTEMPTS,
+  EVAL_JOB_NAME,
+  EvalJobDataSchema,
+  type EvalJobData,
+} from './eval-job.js';
