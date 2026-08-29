@@ -57,9 +57,10 @@ export async function removeGoldQuestion(
 
 export async function startEvalRun(
   kbId: string,
+  runType: 'golden_2x2' | 'session_multiturn' = 'golden_2x2',
 ): Promise<{ ok: true; queued: CreateEvalRunResponse } | { ok: false; message: string }> {
   try {
-    const queued = await enqueueEvalRun(kbId, {});
+    const queued = await enqueueEvalRun(kbId, runType === 'golden_2x2' ? {} : { runType });
     return { ok: true, queued };
   } catch (err) {
     return { ok: false, message: mapBizError(err) };

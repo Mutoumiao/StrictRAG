@@ -1,9 +1,9 @@
 'use client';
 
 /**
- * 评测底线薄页：维护黄金集、入队跑批、看 2×2。
+ * 评测底线薄页：维护黄金集、入队 L1/L2、看账本。
  * 无 eval.run 码 → 提示；API 仍 403。
- * 不是签字包 / 看板增强 / 反馈回流黄金集。
+ * 不是签字包 / 看板增强 / 反馈回流黄金集 / 准出 PASS。
  */
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
@@ -125,17 +125,17 @@ export function EvalWorkspace() {
     await load();
   }
 
-  async function onRun() {
+  async function onRun(runType: 'golden_2x2' | 'session_multiturn' = 'golden_2x2') {
     if (!kbId) return;
     setBusy(true);
     setFlash(null);
-    const r = await startEvalRun(kbId);
+    const r = await startEvalRun(kbId, runType);
     setBusy(false);
     if (!r.ok) {
       setFlash(r.message);
       return;
     }
-    setFlash(`已入队 ${r.queued.runId.slice(0, 8)}…`);
+    setFlash(`已入队 ${runType === 'session_multiturn' ? 'L2 ' : ''}${r.queued.runId.slice(0, 8)}…`);
     await load();
   }
 
@@ -163,7 +163,7 @@ export function EvalWorkspace() {
       <header>
         <h1 className="m-0 text-lg font-semibold">评测</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          KB：{kbId || '（顶部填写）'} · 维护黄金集并入队 L1 跑批。不是签字包，mock 数字不能当 PASS。
+          KB：{kbId || '（顶部填写）'} · 维护黄金集并入队 L1；L2 用仓内题面入队。不是签字包，工程可签字 ≠ 准出 PASS。
         </p>
       </header>
 
@@ -177,9 +177,25 @@ export function EvalWorkspace() {
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="m-0 text-base font-medium">黄金集</h2>
-          <Button type="button" size="sm" disabled={busy || !kbId || questions.length === 0} onClick={() => void onRun()}>
-            跑一批
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              disabled={busy || !kbId || questions.length === 0}
+              onClick={() => void onRun()}
+            >
+              跑一批
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={busy || !kbId}
+              onClick={() => void onRun('session_multiturn')}
+            >
+              跑 L2
+            </Button>
+          </div>
         </div>
 
         <form className="space-y-3 rounded-md border border-border p-3" onSubmit={(e) => void onAdd(e)}>
@@ -272,13 +288,14 @@ export function EvalWorkspace() {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-mono text-xs">{run.runId.slice(0, 8)}…</span>
                 <span className="text-xs text-muted-foreground">
-                  {run.status} · {run.retrieveMode}
+                  {run.runType} · {run.status} · {run.retrieveMode}
                 </span>
               </div>
               <p className="mt-1 mb-0 text-muted-foreground">
-                A{run.matrix.A} B{run.matrix.B} C{run.matrix.C} D{run.matrix.D} · 覆盖
-                {coverageLabel(run.coverage)} · {run.caseCount} 题
-                {run.signoffEligible ? ' · 工程可签字（仍须人签）' : ''}
+                {run.runType === 'session_multiturn'
+                  ? `pass ${run.passCount ?? '—'} · fail ${run.failCount ?? '—'} · 零容忍 ${run.zeroToleranceHits ?? '—'} · ${run.caseCount} 题`
+                  : `A${run.matrix.A} B${run.matrix.B} C${run.matrix.C} D${run.matrix.D} · 覆盖${coverageLabel(run.coverage)} · ${run.caseCount} 题`}
+                {run.signoffEligible ? ' · 工程可签字（仍须人签，≠准出）' : ''}
               </p>
               <Button
                 type="button"

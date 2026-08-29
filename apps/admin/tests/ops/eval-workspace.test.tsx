@@ -98,6 +98,9 @@ describe('EvalWorkspace', () => {
     render(<EvalWorkspace />);
     expect(await screen.findByText('住宿标准？')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '跑一批' }));
-    expect(startEvalRun).toHaveBeenCalledWith(KB);
+    expect(startEvalRun).toHaveBeenCalledWith(KB, 'golden_2x2');
+
+    await user.click(screen.getByRole('button', { name: '跑 L2' }));
+    expect(startEvalRun).toHaveBeenCalledWith(KB, 'session_multiturn');
   });
 });
