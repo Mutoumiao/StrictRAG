@@ -48,7 +48,9 @@ describe('eval run contract', () => {
   it('queued create body may be empty; extra keys fail', () => {
     expect(CreateEvalRunBodySchema.safeParse({}).success).toBe(true);
     expect(CreateEvalRunBodySchema.safeParse({ maxCases: 3 }).success).toBe(true);
+    expect(CreateEvalRunBodySchema.safeParse({ runType: 'session_multiturn' }).success).toBe(true);
     expect(CreateEvalRunBodySchema.safeParse({ tauClaim: 0.2 }).success).toBe(false);
+    expect(CreateEvalRunBodySchema.safeParse({ runType: 'tau_scan' }).success).toBe(false);
   });
 
   it('run DTO requires matrix and forbids unknown fields', () => {

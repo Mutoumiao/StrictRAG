@@ -1,7 +1,5 @@
 import { z } from 'zod';
 
-import { GoldTypeSchema } from './gold.contract.js';
-
 export const EvalRunStatusSchema = z.enum(['queued', 'running', 'succeeded', 'failed']);
 export type EvalRunStatus = z.infer<typeof EvalRunStatusSchema>;
 
@@ -20,9 +18,10 @@ export type L1MatrixDto = z.infer<typeof L1MatrixDtoSchema>;
 export const EvalRunCaseRowSchema = z
   .object({
     id: z.string().min(1),
-    type: GoldTypeSchema,
-    outcome: z.enum(['answered', 'abstained', 'error']),
-    cell: z.enum(['A', 'B', 'C', 'D']).nullable(),
+    type: z.string().min(1),
+    outcome: z.enum(['answered', 'abstained', 'error', 'pass', 'fail']),
+    cell: z.enum(['A', 'B', 'C', 'D']).nullable().optional(),
+    verdict: z.enum(['pass', 'fail', 'error']).optional(),
     reason: z.string().optional(),
     errorMessage: z.string().optional(),
   })
@@ -41,6 +40,9 @@ export const EvalRunSchema = z
     matrix: L1MatrixDtoSchema,
     coverage: z.number().nullable(),
     errorCount: z.number().int().nonnegative(),
+    passCount: z.number().int().nonnegative().optional(),
+    failCount: z.number().int().nonnegative().optional(),
+    zeroToleranceHits: z.number().int().nonnegative().optional(),
     ranAt: z.string(),
     jobId: z.string().nullable().optional(),
     errorMessage: z.string().nullable().optional(),
@@ -50,8 +52,12 @@ export const EvalRunSchema = z
   .strict();
 export type EvalRun = z.infer<typeof EvalRunSchema>;
 
+export const EvalRunTypeSchema = z.enum(['golden_2x2', 'session_multiturn']);
+export type EvalRunType = z.infer<typeof EvalRunTypeSchema>;
+
 export const CreateEvalRunBodySchema = z
   .object({
+    runType: EvalRunTypeSchema.optional(),
     maxCases: z.number().int().positive().max(500).optional(),
     notes: z.string().max(1000).optional(),
   })

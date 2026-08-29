@@ -13,6 +13,8 @@ export * from './ingest/chunk-strategy.contract.js';
 export * from './ingest/ingest-job.contract.js';
 export * from './async/queues.js';
 export * from './eval/l1-matrix.js';
+export * from './eval/l2-gold.js';
+export * from './eval/l2-matrix.js';
 export * from './eval/gold.contract.js';
 export * from './eval/eval-run.contract.js';
 export * from './auth/session.contract.js';

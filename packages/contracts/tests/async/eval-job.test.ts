@@ -2,7 +2,7 @@
  * 目标：评测 job payload 必须带 tenant/kb/run，拒绝缺字段与非法 retrieveMode。
  * 需求：prds/06-async eval.run
  * 被测：EvalJobDataSchema · QUEUE_NAMES.EVAL · EVAL_JOB_NAME
- * 简介：api 入队与 worker 消费同一形状；只跑 golden_2x2。
+ * 简介：api 入队与 worker 消费同一形状；默认 L1，可带 session_multiturn。
  */
 
 import { describe, expect, it } from 'vitest';
@@ -25,6 +25,10 @@ describe('EvalJobDataSchema', () => {
 
   it('accepts golden payload and rejects extra keys', () => {
     expect(EvalJobDataSchema.parse(valid).runId).toBe(valid.runId);
+    expect(EvalJobDataSchema.parse(valid).runType).toBe('golden_2x2');
+    expect(
+      EvalJobDataSchema.parse({ ...valid, runType: 'session_multiturn' }).runType,
+    ).toBe('session_multiturn');
     expect(EvalJobDataSchema.safeParse({ ...valid, tauClaim: 0.4 }).success).toBe(false);
   });
 

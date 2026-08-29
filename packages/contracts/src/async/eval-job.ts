@@ -2,9 +2,11 @@ import { z } from 'zod';
 
 import { EvalRetrieveModeSchema } from '../eval/eval-run.contract.js';
 
+import { EvalRunTypeSchema } from '../eval/eval-run.contract.js';
+
 /**
  * BullMQ eval.run job payload（api 入队 + worker 消费 SSOT）。
- * 本底线只跑 L1 golden_2x2；τ 扫描 / 校准 / 在线抽样不进本 payload。
+ * runType 默认 L1 golden_2x2；L2 为 session_multiturn。τ 扫描 / 校准 / 在线抽样不进本 payload。
  */
 export const EvalJobDataSchema = z
   .object({
@@ -13,6 +15,7 @@ export const EvalJobDataSchema = z
     runId: z.string().uuid(),
     userId: z.string().uuid(),
     retrieveMode: EvalRetrieveModeSchema,
+    runType: EvalRunTypeSchema.default('golden_2x2'),
     requestId: z.string().min(1).optional(),
     maxCases: z.number().int().positive().max(500).optional(),
   })
