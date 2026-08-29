@@ -79,7 +79,7 @@ export function createKbSettingsRoutes(deps?: {
 | 只读区 | 形状 |
 |--------|------|
 | `qualitySnapshot` | `{ tauClaim, gatePackageId?, effectiveAt? }`；τ ← `env.TAU_CLAIM` |
-| `sessionRewrite` | **固定** `{ enabledDefault: false, locked: true }` |
+| `sessionRewrite` | **固定** `{ enabledDefault: false, locked: true }`；写 `enabledDefault=true` 且无合格 L2 归档 → `SESSION_REWRITE_DISABLED`；有归档本窗仍锁只读 |
 
 **持久化**：`name`/`description` → 列；modes / `docTypes` / `dataClass` / `deptInheritDown` / `deptAclEnforce` → `knowledge_bases.config_json`。无 migration。  
 运行时：`parseDeptInheritDownFromConfig` 仅认字面 true/false；未写 → `isDeptInheritDown()`。GET 回读未写仍展示 true。admin 设置页可勾选；**未改不得带该键**。  

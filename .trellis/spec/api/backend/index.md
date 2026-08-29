@@ -26,8 +26,9 @@
 - [ ] 密钥是否仅服务端 env（JWT 禁止 prod 默认 dev-only）？  
 - [ ] 触及 L1 评测时是否读 [l1-eval](./l1-eval.md)（`skipTrace` · error 出格 · mock 禁签字 · turbo `L1_*`）？  
 - [ ] `gold-questions` / `eval/runs` 是否 `eval.run` + 只入队？内口是否口令闸且 `skipTrace`？**禁止**请求线程跑完 L1 / 把 mock 当签字？  
-- [ ] 触及 L2 题面/runner 时是否读 [l2-eval](./l2-eval.md)（图边/CLI/persist 落地 ≠ 准出；**禁止**默认开 rewrite / 把 runner 或 persist 当准出）？  
-- [ ] 是否误把 L2 persist / `evalRunId` 写成准出或算出 `signoffEligible=true`？  
+- [ ] 触及 L2 题面/runner 时是否读 [l2-eval](./l2-eval.md)（HTTP 入队 + worker 窗 + 工程公式 ≠ 准出；**禁止**默认开 rewrite / 把 runner 或 persist 当准出）？  
+- [ ] 是否误把 L2 persist / `evalRunId` / 工程 `signoffEligible=true` 写成准出 PASS？  
+- [ ] 无合格 L2 归档时写产品默认开 rewrite 是否 400 `SESSION_REWRITE_DISABLED`（dogfood env 旁路保留）？  
 - [ ] 触及 L3 打点/告警时是否读 [l3-metrics](./l3-metrics.md)（打点+告警+主题投诉已计 + L2 过期闩 ≠ 准出 / ≠ 熔断；**禁止**按计数或告警改默认；**禁止**每问查 `eval_runs`）？  
 - [ ] 新测例是否按 [testing](../../guides/testing.md) 落 `tests/<能力>/` 并更新 `tests/index.md`（禁止再同域镜像）？  
 

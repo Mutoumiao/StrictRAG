@@ -16,10 +16,11 @@ apps/worker/
     db.ts
     queues.ts                # QUEUE_NAMES · IngestJobData · EvalJobData
     eval/
-      consumer.ts            # sr-eval：load gold_questions → 串行 execute → 写 eval_runs
+      consumer.ts            # sr-eval：L1 gold_questions 或 L2 fixtures → 串行 execute → 写 eval_runs
       run-l1-batch.ts        # 2×2 批跑纯循环（矩阵在 contracts）
-      execute-ask-http.ts    # POST api /internal/eval/execute-ask
-      persist.ts             # gold_questions / eval_runs
+      run-l2-batch.ts        # 多轮窗批跑（机械分在 contracts）
+      execute-ask-http.ts    # POST api /internal/eval/execute-ask（L1/L2）
+      persist.ts             # gold_questions / fixtures/l2 / eval_runs
     scan-mode-policy.ts      # X-01/X-02 启动矩阵纯函数
     ingest/
       pipeline.ts            # 状态机 scan→parse→chunk→embed→es_index

@@ -3,8 +3,8 @@
 > 路径：`apps/api/src/eval/l2-gold.ts` · `apps/api/src/scripts/run-l2-golden.ts` · 仓根 `fixtures/l2/`  
 > 产品语义：`prds/08-quality/02-evaluation-and-gates.md` §6.2 · 剧本 **J-P2.5**  
 > 任务：`08-15-p25-l2-gold-min`（题面）· `08-16-p25-l2-runner-min`（runner）· `08-16-p25-l2-persist-min`（账本）  
-> **本窗状态**：题面草案 + 纯函数加载 + **工程 runner** + **可选 persist** 已落地；**无** 准出、**无** 人签。  
-> 图边 `session_load`/`rewrite` 已由 **P2.5-RW** 落地，**默认仍关**（dogfood 可开）。**runner / persist / 图边落地 ≠ L2 准出**。
+> **本窗状态**：题面草案 + 纯函数加载 + **工程 runner** + **HTTP 入队 `session_multiturn`** + worker 多轮窗 + admin `/eval` 入队/回读；`signoffEligible` 为工程公式（live ∧ 九类齐 ∧ 零容忍机械项=0 ∧ ≥15；mock 必 false）。**仍无** 准出、**无** 人签。  
+> 图边 `session_load`/`rewrite` 已由 **P2.5-RW** 落地，**默认仍关**（dogfood 可开）。**无合格归档不得写产品默认开**。**runner / persist / 图边 / HTTP 入队 ≠ L2 准出**。
 
 ---
 
@@ -24,7 +24,7 @@
 
 - Trigger：改 L2 gold 形状、类型枚举、加载不变量、fixtures/l2 文档、批跑 CLI。
 - 目标：可版本化的多轮剧本账本 + 纯校验 + 可注入的串行 runner + 可选 `eval_runs` persist。
-- **非目标**：把 persist 当准出、算出 `signoffEligible=true`、ADR-046、主题 LLM judge、把 rewrite **默认**打开、宣称准出。
+- **非目标**：把 persist / 工程 `signoffEligible=true` 当准出 PASS、ADR-046、主题 LLM judge、把仓库 rewrite **默认**打开、宣称准出、L2 剧本 CRUD 进 `gold_questions`。
 
 ---
 
@@ -47,7 +47,8 @@
 批跑 **必须** `skipTrace: true`；窗用 `clipSessionWindow` 注入 `loadSessionWindow`，**不**读 `ask_traces`。  
 **禁止**把加载器塞进 `run-l1-golden.ts`；**禁止**把 runner / persist / `l2Fingerprint` 当准出。
 
-`persistEval === true` 或（未显式 false 且 `L2_PERSIST_EVAL` 为 `1`/`true`）才写库；默认关。写完文件报告后再 persist；失败上抛（CLI exit 1）。`signoffEligible` **字面量 false**（含 live）。  
+`persistEval === true` 或（未显式 false 且 `L2_PERSIST_EVAL` 为 `1`/`true`）才写库；默认关。写完文件报告后再 persist；失败上抛（CLI exit 1）。`signoffEligible` = `computeL2SignoffEligible`（live ∧ 九类齐 ∧ 零容忍机械项=0 ∧ ≥15）；**仍 ≠ 人签 / ≠ 准出**。  
+HTTP：`POST …/eval/runs` `{ runType: 'session_multiturn' }` 入队 `sr-eval`（不读 `gold_questions`）；worker 进程内窗 + 内口 `execute-ask`（可带 `sessionId`/`sessionWindow`）。  
 persist 的 `reportJson` **可带** `l2Fingerprint`（当前 `rewriteSystemPrompt()` + 注入 `rewriteModelId`，默认 `''`）供 L2 过期告警比对；**有指纹 ≠ 准出**。旧行缺指纹视为无法比对，不抛错。
 
 ---
@@ -97,7 +98,7 @@ runner **只机械钉**「先前用户轮全文不得出现在末轮 `evidence_s
 | `no_session` 却 `session=same` | `L2GoldLoadError` |
 
 CLI 退出码：`0` 写出报告（含 fail/error 题）；`2` 缺 `L2_KB_ID` / 非法 `L2_MAX_CASES` / gold 加载失败；`1` 意外（含 persist 失败）。  
-报告 `signoffEligible` **字面量 false**（含 `retrieve_mode=live`）。可选 `evalRunId`（persist 后回填）。**禁止** `businessPass` / `signedPackage` / 把 persist 当准出。
+报告 `signoffEligible` 走工程公式（含 live 仍须九类齐、零泄漏、≥15）。可选 `evalRunId`（persist 后回填）。**禁止** `businessPass` / `signedPackage` / 把 persist 或工程绿当准出。
 
 ---
 
@@ -119,7 +120,7 @@ CLI 退出码：`0` 写出报告（含 fail/error 题）；`2` 缺 `L2_KB_ID` / 
 |------|------|
 | mock / 未跑数字进签字或准出页 | 双轨；sample-report 必须 `n/a（模板）` |
 | 未准出把默认改为 `SESSION_REWRITE_ENABLED=true` | 图边 ≠ 准出；phase-scaffold 禁止默认 true |
-| 把 runner / persist / `l2Fingerprint` 当 L2 准出 / 算出 `signoffEligible=true` | 本窗 signoffEligible 字面量 false；有账本 / 有指纹 ≠ 准出 |
+| 把 runner / persist / `l2Fingerprint` / 工程 `signoffEligible=true` 当 L2 准出 | 工程公式 ≠ 人签；有账本 / 有指纹 ≠ 准出 |
 | 调用 L1 `persistEvalRun` 吞 L2 报告 | 会写死 `golden_2x2` + 伪造 matrix |
 | ADR-046 / 主题 judge | 对齐 L1 也曾拆 follow-up |
 | 把 L2 case 塞进 `fixtures/l1/gold.yaml` | 账本必须分列 |
