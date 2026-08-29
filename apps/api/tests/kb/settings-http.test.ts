@@ -29,7 +29,10 @@ async function token(roles: string[], userId = uuidv7()) {
   return { userId, accessToken: pair.accessToken };
 }
 
-function buildApp(memberUserIds: Set<string> = new Set()) {
+function buildApp(
+  memberUserIds: Set<string> = new Set(),
+  opts: { hasL2Archive?: boolean } = {},
+) {
   const repo = createMemoryKbSettingsRepo([
     {
       id: KB,
@@ -51,6 +54,7 @@ function buildApp(memberUserIds: Set<string> = new Set()) {
         effectiveAt: null,
       }),
       resolveKbMember: async (userId, kbId) => kbId === KB && memberUserIds.has(userId),
+      hasQualifyingL2Archive: async () => opts.hasL2Archive === true,
     }),
   );
   return app;
@@ -287,6 +291,24 @@ describe('kb settings routes (ADR-054 / B2)', () => {
       body: JSON.stringify({ sessionRewriteEnabledDefault: true }),
     });
     expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: { code: string } };
+    expect(body.error.code).toBe('SESSION_REWRITE_DISABLED');
+  });
+
+  it('有合格 L2 归档仍不可写 rewrite 开关（本窗只读）', async () => {
+    const { userId, accessToken } = await token(['kb_admin']);
+    const app = buildApp(new Set([userId]), { hasL2Archive: true });
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/settings`, {
+      method: 'PATCH',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ sessionRewrite: { enabledDefault: true, locked: false } }),
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: { code: string } };
+    expect(body.error.code).toBe('VALIDATION_ERROR');
   });
 
   it('PATCH defaultMode ∉ allowedModes → 400', async () => {

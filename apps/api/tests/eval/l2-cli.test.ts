@@ -1,8 +1,8 @@
 /**
- * 目标：L2 CLI 注入可跑且 signoffEligible 恒为 false。
+ * 目标：L2 CLI 注入可跑；signoffEligible 走工程公式，mock 必 false。
  * 需求：P2.5-L2
  * 被测：runL2Golden / parseL2CliEnv
- * 简介：注入可跑，且准出资格恒为否。
+ * 简介：注入可跑；工程可签字 ≠ 准出 PASS。
  */
 
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -404,7 +404,7 @@ describe('runL2Golden (injected execute)', () => {
     expect(report.cases[0]?.failReasons).toContain('rewriteUsed');
   });
 
-  it('8 real gold + stub → caseCount≥15; signoffEligible false even if live', async () => {
+  it('8 real gold + stub live → caseCount≥15; 工程 signoffEligible true 仍无 businessPass', async () => {
     const dir = tmp();
     const report = await runL2Golden({
       goldPath: defaultL2GoldPath(),
@@ -417,14 +417,15 @@ describe('runL2Golden (injected execute)', () => {
     expect(report.caseCount).toBeGreaterThanOrEqual(15);
     expect(report.run_type).toBe('session_multiturn');
     expect(report.retrieve_mode).toBe('live');
-    expect(report.signoffEligible).toBe(false);
+    expect(report.signoffEligible).toBe(true);
+    expect(report.zeroToleranceHits).toBe(0);
     expect(report).not.toHaveProperty('businessPass');
     expect(report).not.toHaveProperty('signedPackage');
 
     const json = JSON.parse(
       readFileSync(path.join(dir, 'out', 'l2-last-run.json'), 'utf8'),
     ) as L2Report;
-    expect(json.signoffEligible).toBe(false);
+    expect(json.signoffEligible).toBe(true);
     expect(json.caseCount).toBe(report.caseCount);
     const md = readFileSync(path.join(dir, 'out', 'l2-last-run.md'), 'utf8');
     expect(md).toContain('session_multiturn');
@@ -513,10 +514,15 @@ describe('buildL2EvalRunInsert / persist gate', () => {
     expect(evalRunDbRanAt(report.ranAt)).toBe(row.ranAt);
   });
 
-  it('live report still maps signoffEligible to 0', () => {
+  it('live report still maps signoffEligible to 0 unless report says true', () => {
     const row = buildL2EvalRunInsert(sampleReport({ retrieve_mode: 'live', mode: 'live' }), {});
     expect(row.signoffEligible).toBe('0');
     expect(row.runType).toBe('session_multiturn');
+    const on = buildL2EvalRunInsert(
+      sampleReport({ retrieve_mode: 'live', mode: 'live', signoffEligible: true }),
+      {},
+    );
+    expect(on.signoffEligible).toBe('1');
   });
 
   it('reportJson.l2Fingerprint matches current prompt+empty model; signoff stays 0', () => {
@@ -642,7 +648,7 @@ describe('buildL2EvalRunInsert / persist gate', () => {
     expect(report.evalRunId).toBeUndefined();
   });
 
-  it('real gold + persist mock + esMode http → signoffEligible still false', async () => {
+  it('real gold + persist mock + esMode http → 工程 signoffEligible true 仍 ≠ 准出', async () => {
     const dir = tmp();
     const persist = vi.fn(async () => 'live-persist-id');
     const report = await runL2Golden({
@@ -655,7 +661,7 @@ describe('buildL2EvalRunInsert / persist gate', () => {
       execute: async () => answered({ rewriteUsed: true }),
     });
     expect(report.retrieve_mode).toBe('live');
-    expect(report.signoffEligible).toBe(false);
+    expect(report.signoffEligible).toBe(true);
     expect(report.evalRunId).toBe('live-persist-id');
     expect(persist).toHaveBeenCalledOnce();
   });

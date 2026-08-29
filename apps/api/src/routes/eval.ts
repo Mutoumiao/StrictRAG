@@ -12,6 +12,7 @@ import {
   type CreateEvalRunResponse,
   type EvalJobData,
   type GoldQuestion,
+  type L2GoldFile,
 } from '@strict-rag/contracts';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -32,6 +33,7 @@ import {
   type EvalRunRepo,
 } from '../services/eval-runs.js';
 import { executeAsk } from '../services/ask/index.js';
+import { defaultL2GoldPath, loadL2Gold } from '../eval/l2-gold.js';
 import {
   goldQuestionRepo,
   type GoldQuestionRow,
@@ -47,6 +49,18 @@ const InternalExecuteBodySchema = z
     tenantId: z.string().uuid(),
     userId: z.string().uuid(),
     question: z.string().min(1).max(8000),
+    sessionId: z.string().uuid().optional(),
+    sessionWindow: z
+      .array(
+        z
+          .object({
+            role: z.enum(['user', 'assistant']),
+            content: z.string().max(20000),
+          })
+          .strict(),
+      )
+      .max(32)
+      .optional(),
   })
   .strict();
 
@@ -59,6 +73,7 @@ export type EvalRouteDeps = {
   internalToken?: () => string;
   execute?: typeof executeAsk;
   retrieveEsMode?: () => string;
+  loadL2GoldFile?: () => L2GoldFile;
 };
 
 function toGoldDto(row: GoldQuestionRow): GoldQuestion {
@@ -229,9 +244,22 @@ export function createEvalRoutes(deps: EvalRouteDeps = {}) {
     if (!parsed.success) {
       return fail(c, BizCode.VALIDATION_ERROR, 'invalid eval run body', 400, parsed.error.flatten());
     }
-    const n = await gold.countByKb(kbId);
-    if (n === 0) {
-      return fail(c, BizCode.VALIDATION_ERROR, 'no gold questions in this knowledge base', 400);
+    const runType = parsed.data.runType ?? 'golden_2x2';
+    if (runType === 'golden_2x2') {
+      const n = await gold.countByKb(kbId);
+      if (n === 0) {
+        return fail(c, BizCode.VALIDATION_ERROR, 'no gold questions in this knowledge base', 400);
+      }
+    } else {
+      try {
+        const file = (deps.loadL2GoldFile ?? (() => loadL2Gold(defaultL2GoldPath())))();
+        if (file.cases.length === 0) {
+          return fail(c, BizCode.VALIDATION_ERROR, 'L2 gold file has no cases', 400);
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'cannot load L2 gold';
+        return fail(c, BizCode.VALIDATION_ERROR, message, 400);
+      }
     }
     const auth = c.get('auth');
     if (!auth) return fail(c, BizCode.UNAUTHORIZED, 'authentication required', 401);
@@ -240,6 +268,7 @@ export function createEvalRoutes(deps: EvalRouteDeps = {}) {
       tenantId: kb.tenantId,
       kbId,
       retrieveMode,
+      runType,
       notes: parsed.data.notes,
       createdBy: auth.userId,
     });
@@ -249,6 +278,7 @@ export function createEvalRoutes(deps: EvalRouteDeps = {}) {
       runId: queued.id,
       userId: auth.userId,
       retrieveMode,
+      runType,
       requestId: c.get('requestId'),
       maxCases: parsed.data.maxCases,
     });
@@ -275,6 +305,13 @@ export function createEvalRoutes(deps: EvalRouteDeps = {}) {
     if (!parsed.success) {
       return fail(c, BizCode.VALIDATION_ERROR, 'invalid execute-ask body', 400, parsed.error.flatten());
     }
+    const sessionId = parsed.data.sessionId;
+    const body: {
+      question: string;
+      options: { stream: false };
+      sessionId?: string;
+    } = { question: parsed.data.question, options: { stream: false } };
+    if (sessionId) body.sessionId = sessionId;
     const result = await runAsk(
       {
         requestId: uuidv7(),
@@ -282,13 +319,19 @@ export function createEvalRoutes(deps: EvalRouteDeps = {}) {
         tenantId: parsed.data.tenantId,
         userId: parsed.data.userId,
         membership: 'member',
-        body: { question: parsed.data.question, options: { stream: false } },
+        body,
       },
-      { skipTrace: true },
+      {
+        skipTrace: true,
+        evalSessionWindow: sessionId ? (parsed.data.sessionWindow ?? []) : undefined,
+      },
     );
     return ok(c, {
       status: result.graph.status,
       reason: result.graph.reason,
+      rewriteUsed: result.graph.rewriteUsed ?? false,
+      evidenceTexts: (result.graph.evidence_snapshot ?? []).map((e) => e.text ?? ''),
+      answer: result.graph.answer || result.graph.userMessage || '',
     });
   });
 

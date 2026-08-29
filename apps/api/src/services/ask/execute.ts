@@ -48,6 +48,8 @@ export type ExecuteAskDeps = {
   skipDefaultTracer?: boolean;
   /** 单测注入内存仓；生产默认 PG */
   sessions?: SessionsRepo;
+  /** 评测内口注入近窗；有值则覆盖 loadSessionWindow，不替换 chat */
+  evalSessionWindow?: ReadonlyArray<{ role: 'user' | 'assistant'; content: string }>;
 };
 
 function toEvidenceSnapshot(graph: AskGraphResult): EvidenceSnapshotItem[] {
@@ -144,6 +146,12 @@ export async function executeAsk(
 
   const repo = deps.sessions ?? sessionsRepo;
   graphDeps.rewriteEnabled ??= env.SESSION_REWRITE_ENABLED;
+  if (deps.evalSessionWindow && params.body.sessionId) {
+    graphDeps.loadSessionWindow = async () =>
+      clipSessionWindow(deps.evalSessionWindow ?? [], {
+        deepened: isExplicitSessionBackref(params.body.question),
+      });
+  }
   if (graphDeps.rewriteEnabled && params.body.sessionId && !graphDeps.loadSessionWindow) {
     graphDeps.loadSessionWindow = async (input) => {
       const messages = await repo.listMessages({

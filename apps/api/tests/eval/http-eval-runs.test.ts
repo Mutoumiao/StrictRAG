@@ -62,13 +62,13 @@ function memoryRuns(): EvalRunRepo & { rows: EvalRunRow[]; jobs: EvalJobData[] }
   return {
     rows,
     jobs,
-    async createQueued({ tenantId, kbId, retrieveMode, notes }) {
+    async createQueued({ tenantId, kbId, retrieveMode, runType = 'golden_2x2', notes }) {
       const row: EvalRunRow = {
         id: uuidv7(),
         kbId,
         tenantId,
         status: 'queued',
-        runType: 'golden_2x2',
+        runType,
         retrieveMode,
         signoffEligible: false,
         caseCount: 0,
@@ -92,6 +92,9 @@ function memoryRuns(): EvalRunRepo & { rows: EvalRunRow[]; jobs: EvalJobData[] }
     },
     async listByKb({ kbId }) {
       return rows.filter((r) => r.kbId === kbId);
+    },
+    async hasQualifyingL2Archive() {
+      return false;
     },
   };
 }
@@ -236,5 +239,112 @@ describe('eval runs HTTP', () => {
       }),
     });
     expect(off.status).toBe(503);
+  });
+
+  it('POST session_multiturn 不依赖 gold_questions；空 L2 题面 400', async () => {
+    const { userId, accessToken } = await token(['kb_admin']);
+    const runs = memoryRuns();
+    const enqueued: EvalJobData[] = [];
+    const app = buildApp({
+      members: new Set([userId]),
+      gold: memoryGold(),
+      evalRuns: runs,
+      loadL2GoldFile: () => ({
+        version: 1,
+        run_type: 'session_multiturn',
+        description: 't',
+        signoffEligible: false,
+        cases: [
+          {
+            id: 'l2-near-001',
+            type: 'near_coref',
+            turns: [
+              { role: 'user', text: '住宿？', session: 'same' },
+              { role: 'user', text: '那餐补呢', session: 'same' },
+            ],
+            expected: {
+              themePersist: true,
+              historyInEvidence: false,
+              rewriteUsed: false,
+              accept: ['answered'],
+            },
+            rubric: 'r',
+          },
+        ],
+      }),
+      enqueue: async (data) => {
+        enqueued.push(data);
+        return 'job-l2';
+      },
+      retrieveEsMode: () => 'mock',
+    });
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/eval/runs`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ runType: 'session_multiturn' }),
+    });
+    expect(res.status).toBe(200);
+    expect(enqueued[0]?.runType).toBe('session_multiturn');
+    expect(runs.rows[0]?.runType).toBe('session_multiturn');
+
+    const empty = buildApp({
+      members: new Set([userId]),
+      gold: memoryGold(),
+      evalRuns: memoryRuns(),
+      loadL2GoldFile: () => {
+        throw new Error('cannot read gold file');
+      },
+      enqueue: async () => 'x',
+    });
+    const bad = await empty.request(`/api/v1/knowledge-bases/${KB}/eval/runs`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ runType: 'session_multiturn' }),
+    });
+    expect(bad.status).toBe(400);
+  });
+
+  it('internal execute-ask 可带 sessionWindow 且回 rewriteUsed', async () => {
+    let seenWindow: unknown;
+    const app = buildApp({
+      gold: memoryGold(),
+      evalRuns: memoryRuns(),
+      enqueue: async () => 'j',
+      internalToken: () => 'secret-eval',
+      execute: async (params, deps) => {
+        seenWindow = deps?.evalSessionWindow;
+        return {
+          httpStatus: 200,
+          graph: {
+            status: 'answered',
+            reason: 'verified',
+            rewriteUsed: true,
+            evidence_snapshot: [{ text: '条款' }],
+            answer: '按制度',
+          },
+        } as ExecuteAskResult;
+      },
+    });
+    const sid = uuidv7();
+    const res = await app.request('/api/v1/internal/eval/execute-ask', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-eval-internal-token': 'secret-eval' },
+      body: JSON.stringify({
+        kbId: KB,
+        tenantId: TENANT,
+        userId: uuidv7(),
+        question: '那餐补呢',
+        sessionId: sid,
+        sessionWindow: [{ role: 'user', content: '住宿？' }],
+      }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { rewriteUsed?: boolean; evidenceTexts?: string[]; answer?: string };
+    };
+    expect(body.data.rewriteUsed).toBe(true);
+    expect(body.data.evidenceTexts).toEqual(['条款']);
+    expect(body.data.answer).toBe('按制度');
+    expect(seenWindow).toEqual([{ role: 'user', content: '住宿？' }]);
   });
 });

@@ -16,6 +16,7 @@ import {
 import { env } from '../env.js';
 import { fail, ok } from '../lib/response.js';
 import { childLogger } from '../logger.js';
+import { evalRunRepo } from '../services/eval-runs.js';
 import {
   buildKbSettingsView,
   kbSettingsRepo,
@@ -34,7 +35,19 @@ export type KbSettingsRouteDeps = {
   /** 质量 snapshot 注入；默认 env.TAU_CLAIM */
   qualitySnapshot?: () => QualitySnapshot;
   resolveKbMember?: ResolveKbMember;
+  hasQualifyingL2Archive?: (kbId: string) => Promise<boolean>;
 };
+
+function wantsRewriteDefaultOn(raw: unknown): boolean {
+  if (!raw || typeof raw !== 'object') return false;
+  const row = raw as Record<string, unknown>;
+  if (row.sessionRewriteEnabledDefault === true) return true;
+  const sr = row.sessionRewrite;
+  if (sr && typeof sr === 'object' && (sr as { enabledDefault?: unknown }).enabledDefault === true) {
+    return true;
+  }
+  return false;
+}
 
 function defaultQuality(): QualitySnapshot {
   return {
@@ -53,6 +66,8 @@ export function createKbSettingsRoutes(
 ): Hono<{ Variables: AuthVariables }> {
   const repo = deps.repo ?? kbSettingsRepo;
   const qualityOf = deps.qualitySnapshot ?? defaultQuality;
+  const hasArchive =
+    deps.hasQualifyingL2Archive ?? ((id: string) => evalRunRepo.hasQualifyingL2Archive(id));
   const routes = new Hono<{ Variables: AuthVariables }>();
   const write = requirePermission('kb.config.write', {
     resolveKbMember: deps.resolveKbMember,
@@ -73,6 +88,18 @@ export function createKbSettingsRoutes(
   routes.patch('/knowledge-bases/:kbId/settings', write, async (c) => {
     const kbId = c.req.param('kbId');
     const raw = await c.req.json().catch(() => ({}));
+    if (wantsRewriteDefaultOn(raw)) {
+      const archived = await hasArchive(kbId);
+      if (!archived) {
+        return fail(
+          c,
+          BizCode.SESSION_REWRITE_DISABLED,
+          'session rewrite default stays off until a qualifying L2 archive exists',
+          400,
+        );
+      }
+      return fail(c, BizCode.VALIDATION_ERROR, 'session rewrite switch stays locked', 400);
+    }
     const parsed = PatchKbSettingsBodySchema.safeParse(raw);
     if (!parsed.success) {
       return fail(c, BizCode.VALIDATION_ERROR, 'invalid body', 400, parsed.error.flatten());

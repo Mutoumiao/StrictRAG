@@ -1,7 +1,7 @@
 /**
  * L2 多轮黄金集批跑 CLI：串行 executeAsk(skipTrace) + 进程内窗 → 末轮机械分。
  * 默认入口：pnpm --filter @strict-rag/api exec tsx src/scripts/run-l2-golden.ts
- * 工程绿 ≠ L2 准出；signoffEligible 恒 false。
+ * 工程绿 ≠ L2 准出；signoffEligible 为工程公式，仍 ≠ 人签。
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -10,15 +10,16 @@ import { fileURLToPath } from 'node:url';
 import { evalRuns } from '@strict-rag/db';
 import { uuidv7 } from 'uuidv7';
 
-import { l2RewriteFingerprint } from '../eval/l2-fingerprint.js';
 import {
-  defaultL2GoldPath,
-  loadL2Gold,
-  L2GoldLoadError,
-  type L2Accept,
-  type L2SessionRef,
+  acceptHit,
+  computeL2SignoffEligible,
+  historyLeaked,
+  nextSessionId,
   type L2Type,
-} from '../eval/l2-gold.js';
+} from '@strict-rag/contracts';
+
+import { l2RewriteFingerprint } from '../eval/l2-fingerprint.js';
+import { defaultL2GoldPath, loadL2Gold, L2GoldLoadError } from '../eval/l2-gold.js';
 
 import { env } from '../env.js';
 import { chatFromGateway, type GraphDeps } from '../graph/index.js';
@@ -59,7 +60,7 @@ export type L2CaseRow = {
 
 export type L2Report = {
   run_type: 'session_multiturn';
-  signoffEligible: false;
+  signoffEligible: boolean;
   evalRunId?: string;
   retrieve_mode: 'mock' | 'live' | 'unknown';
   mode: L2Report['retrieve_mode'];
@@ -106,26 +107,7 @@ export type L2CliParse =
 const DEV_TENANT_ID = '01900000-0000-7000-8000-000000000001';
 const DEV_USER_ID = '01900000-0000-7000-8000-0000000000e1';
 
-export function nextSessionId(
-  ref: L2SessionRef,
-  prev: string | null,
-  mint: () => string,
-): string | undefined {
-  if (ref === 'none') return undefined;
-  if (ref === 'new' || !prev) return mint();
-  return prev;
-}
-
-export function acceptHit(accept: readonly L2Accept[], status: string, reason?: string): boolean {
-  return accept.some((a) => a === status || a === reason);
-}
-
-export function historyLeaked(
-  evidenceTexts: readonly string[],
-  priorUserTexts: readonly string[],
-): boolean {
-  return priorUserTexts.some((q) => q && evidenceTexts.some((t) => t.includes(q)));
-}
+export { acceptHit, historyLeaked, nextSessionId };
 
 export function parseL2CliEnv(source: NodeJS.ProcessEnv = process.env): L2CliParse {
   const kbId = source.L2_KB_ID;
@@ -158,7 +140,7 @@ export function buildL2EvalRunInsert(
     kbId: report.kbId,
     runType: 'session_multiturn',
     retrieveMode: report.retrieve_mode,
-    signoffEligible: '0',
+    signoffEligible: report.signoffEligible ? '1' : '0',
     goldPath: opts.goldPath ?? null,
     caseCount: report.caseCount,
     matrixA: 0,
@@ -351,8 +333,12 @@ export async function runL2Golden(opts: RunL2Options): Promise<L2Report> {
   const mode = resolveEvalMode(opts.esMode);
   const report: L2Report = {
     run_type: 'session_multiturn',
-    // ponytail: 字面量；live retrieve 也不得算出 true
-    signoffEligible: false,
+    signoffEligible: computeL2SignoffEligible({
+      retrieveMode: mode,
+      cases,
+      caseCount: rows.length,
+      zeroToleranceHits,
+    }),
     retrieve_mode: mode,
     mode,
     rewriteEnabled,
@@ -406,7 +392,7 @@ async function main(): Promise<void> {
         {
           run_type: report.run_type,
           retrieve_mode: report.retrieve_mode,
-          signoffEligible: false,
+          signoffEligible: report.signoffEligible,
           evalRunId: report.evalRunId ?? null,
           rewriteEnabled: report.rewriteEnabled,
           caseCount: report.caseCount,

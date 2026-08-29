@@ -3,6 +3,7 @@ import {
   type EvalRun,
   type EvalRunCaseRow,
   type EvalRunStatus,
+  type EvalRunType,
   type L1MatrixDto,
 } from '@strict-rag/contracts';
 import { evalRuns, formatLocalDateTime } from '@strict-rag/db';
@@ -27,6 +28,9 @@ export type EvalRunRow = {
   jobId: string | null;
   errorMessage: string | null;
   notes: string | null;
+  passCount?: number;
+  failCount?: number;
+  zeroToleranceHits?: number;
   cases?: EvalRunCaseRow[];
 };
 
@@ -35,12 +39,14 @@ export type EvalRunRepo = {
     tenantId: string;
     kbId: string;
     retrieveMode: EvalRetrieveMode;
+    runType?: EvalRunType;
     notes?: string;
     createdBy?: string;
   }): Promise<EvalRunRow>;
   setJobId(runId: string, jobId: string | null): Promise<void>;
   getByKbAndId(kbId: string, runId: string): Promise<EvalRunRow | null>;
   listByKb(input: { kbId: string; limit: number; offset: number }): Promise<EvalRunRow[]>;
+  hasQualifyingL2Archive(kbId: string): Promise<boolean>;
 };
 
 function asStatus(raw: string | null | undefined): EvalRunStatus {
@@ -53,6 +59,24 @@ function asMode(raw: string): EvalRetrieveMode {
   return 'unknown';
 }
 
+function l2StatsFromReport(report: unknown): {
+  passCount?: number;
+  failCount?: number;
+  zeroToleranceHits?: number;
+} {
+  if (!report || typeof report !== 'object') return {};
+  const row = report as Record<string, unknown>;
+  const out: {
+    passCount?: number;
+    failCount?: number;
+    zeroToleranceHits?: number;
+  } = {};
+  if (typeof row.passCount === 'number') out.passCount = row.passCount;
+  if (typeof row.failCount === 'number') out.failCount = row.failCount;
+  if (typeof row.zeroToleranceHits === 'number') out.zeroToleranceHits = row.zeroToleranceHits;
+  return out;
+}
+
 function casesFromReport(report: unknown): EvalRunCaseRow[] | undefined {
   if (!report || typeof report !== 'object') return undefined;
   const cases = (report as { cases?: unknown }).cases;
@@ -61,22 +85,32 @@ function casesFromReport(report: unknown): EvalRunCaseRow[] | undefined {
   for (const item of cases) {
     if (!item || typeof item !== 'object') continue;
     const row = item as Record<string, unknown>;
-    if (typeof row.id !== 'string' || typeof row.type !== 'string' || typeof row.outcome !== 'string') {
-      continue;
+    if (typeof row.id !== 'string' || typeof row.type !== 'string') continue;
+    const verdict =
+      row.verdict === 'pass' || row.verdict === 'fail' || row.verdict === 'error'
+        ? row.verdict
+        : undefined;
+    let outcome: EvalRunCaseRow['outcome'] | null = null;
+    if (
+      row.outcome === 'answered' ||
+      row.outcome === 'abstained' ||
+      row.outcome === 'error' ||
+      row.outcome === 'pass' ||
+      row.outcome === 'fail'
+    ) {
+      outcome = row.outcome;
+    } else if (verdict) {
+      outcome = verdict;
     }
-    if (row.type !== 'answerable' && row.type !== 'unanswerable' && row.type !== 'false_premise') {
-      continue;
-    }
-    if (row.outcome !== 'answered' && row.outcome !== 'abstained' && row.outcome !== 'error') {
-      continue;
-    }
+    if (!outcome) continue;
     const cell =
-      row.cell === 'A' || row.cell === 'B' || row.cell === 'C' || row.cell === 'D' ? row.cell : null;
+      row.cell === 'A' || row.cell === 'B' || row.cell === 'C' || row.cell === 'D' ? row.cell : undefined;
     out.push({
       id: row.id,
       type: row.type,
-      outcome: row.outcome,
+      outcome,
       cell,
+      verdict,
       reason: typeof row.reason === 'string' ? row.reason : undefined,
       errorMessage: typeof row.errorMessage === 'string' ? row.errorMessage : undefined,
     });
@@ -106,6 +140,7 @@ function mapRow(r: typeof evalRuns.$inferSelect, withCases: boolean): EvalRunRow
     jobId: r.jobId ?? null,
     errorMessage: r.errorMessage ?? null,
     notes: r.notes ?? null,
+    ...l2StatsFromReport(r.reportJson),
     cases: withCases ? casesFromReport(r.reportJson) : undefined,
   };
 }
@@ -122,6 +157,9 @@ export function toEvalRunDto(row: EvalRunRow, includeCases: boolean): EvalRun {
     matrix: row.matrix,
     coverage: row.coverage,
     errorCount: row.errorCount,
+    passCount: row.passCount,
+    failCount: row.failCount,
+    zeroToleranceHits: row.zeroToleranceHits,
     ranAt: row.ranAt,
     jobId: row.jobId,
     errorMessage: row.errorMessage,
@@ -137,7 +175,7 @@ export function resolveRetrieveMode(esMode: string | undefined): EvalRetrieveMod
 }
 
 export const evalRunRepo: EvalRunRepo = {
-  async createQueued({ tenantId, kbId, retrieveMode, notes, createdBy }) {
+  async createQueued({ tenantId, kbId, retrieveMode, runType = 'golden_2x2', notes, createdBy }) {
     const id = uuidv7();
     const now = formatLocalDateTime();
     const [row] = await getDb()
@@ -146,7 +184,7 @@ export const evalRunRepo: EvalRunRepo = {
         id,
         tenantId,
         kbId,
-        runType: 'golden_2x2',
+        runType,
         retrieveMode,
         signoffEligible: '0',
         caseCount: 0,
@@ -195,5 +233,20 @@ export const evalRunRepo: EvalRunRepo = {
       .limit(limit)
       .offset(offset);
     return rows.map((r) => mapRow(r, false));
+  },
+
+  async hasQualifyingL2Archive(kbId) {
+    const rows = await getDb()
+      .select({ id: evalRuns.id, signoffEligible: evalRuns.signoffEligible })
+      .from(evalRuns)
+      .where(
+        and(
+          eq(evalRuns.kbId, kbId),
+          eq(evalRuns.runType, 'session_multiturn'),
+          eq(evalRuns.status, 'succeeded'),
+        ),
+      )
+      .limit(20);
+    return rows.some((r) => r.signoffEligible === '1' || r.signoffEligible === 'true');
   },
 };
