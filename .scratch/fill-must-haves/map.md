@@ -13,7 +13,7 @@ Status: open
 - 每轮先读：本图、`docs/agents/issue-tracker.md`、`docs/agents/domain.md`、功能表、相关包的 `docs/module-status/`。写代码前读 `.trellis/spec/` 对应包。执行完成后跑 skill `update-module-status`。
 - **覆盖「只做决策」**：工单可以动手补缺口，不只锁决策。
 - **本图是执行面**：缺口只在 `.scratch/fill-must-haves/` 工单上做完。`.trellis/tasks/08-06-project-backlog/` 只留指针和勾选。同一缺口禁止再 `task.py create` 平行实现任务。这只覆盖本图，不改全仓其它流程。
-- 顺序：先收仍未达 P2 必须具备语义的行，再开 P2.5；P3a 仍等 P2.5 二元出口（L2 归档准出或书面永久关 rewrite）；P3b 可在 P2 后并行，但不抽走 P2 余量。
+- 顺序：本图 P2 语义已收官（第三批）；下一步 P2.5 出口走 **L2 归档准出**（不走永久关）。剩余 P2 半接线留雾、不挡出口。P3a 仍等该出口（工程路径是 L2 归档底线；人签不进本图）。P3b 可在 P2 后并行，但不抽走 P2.5 出口。
 - 人签（B10 业务 PASS）不是代码缺口，不进本图执行工单。
 - 引用工单用标题，不要只写编号。一回合只解决一张工单（research 除外）。
 - 开放工单不列在本图正文，用 `.scratch/fill-must-haves/issues/` 扫描：未 `resolved`、无未完成的 `Blocked by`、`Status` 不是 `claimed`。
@@ -32,15 +32,19 @@ Status: open
 - [ask 审计与引用](./issues/10-ask-audit-citations.md) — `GET /ask/:requestId` 成员闸回读当时 evidence_snapshot + graph_trace；web 引用点回快照；断线重拉 / 审计管理台 / Langfuse SDK 划出。
 - [web 消费余量](./issues/11-web-consumption-remainder.md) — 档位读 ask-modes 并传 mode；无库空态阻断；建议动作主按钮；429 配额文案；反馈报错/缺文档。库选择器只列成员库 / 在线编写划出。
 - [评测底线](./issues/12-eval-floor.md) — gold-questions CRUD + admin `/eval`；`POST eval/runs` 入队 `sr-eval`；worker 跑 L1；GET 回读 2×2。回流黄金集 / 签字包 / 看板 / 多模型 fallback / 在线抽样划出。
+- [裁定 P2 收官后下一步](./issues/13-after-p2-close-order.md) — 第三批即 P2 语义收官；出口走 L2 归档准出；下一张只做 L2 归档底线。剩余 P2 半接线留雾；人签 / 默认开 rewrite / 永久关不进执行。
+- [L2 归档底线](./issues/14-l2-archive-floor.md) — HTTP 入队 session_multiturn + worker 多轮窗 + admin 跑 L2；工程 signoffEligible；未归档禁止默认开 rewrite。准出人签 / 默认开 / 连续追问 UI 划出。
 
 ## Not yet specified
 
-- LangGraph 编排重构：技术栈冻结为 LangGraph.js（硬性标准）；源码现为线性状态机（`apps/api/src/graph/run.ts`），需后续重构为官方 LangGraph.js。不进 P2 执行工单，另起路线
-- P3a Full 图（CRAG / multi_hop）；硬门在 P2.5 出口
+- 剩余 P2 半接线（不挡 P2.5）：入库报告、失败 Webhook、三平面配额、`/me/permissions` 路径、成员 PUT、修改日志、超管引导、末位超管前端提示、在线编写（完整体验 P2.x）
+- P2.5 出口之后：web 连续追问消费（含 `coref_unresolved` 主按钮）、L3 自动熔断；面板属 P4
+- LangGraph 编排重构：技术栈冻结为 LangGraph.js（硬性标准）；源码现为线性状态机（`apps/api/src/graph/run.ts`），需后续重构为官方 LangGraph.js。另起路线
+- P3a Full 图（CRAG / multi_hop）；硬门在 L2 归档准出（工程路径是 L2 归档底线；人签不进本图）
 - P3b 尚未齐的强制检索面：ES 查询期对称、aclPrincipals 全文、敏感解禁、仓库默认开 `DEPT_ACL_ENFORCE`
 - P4：L1 门禁包签字与再认证、多模型 fallback、双轨看板、数据面板增强
 - P5：OCR 开闸、容量、熔断生产调优、在线抽样常态化、CoVe / 超长异步
-- 基础设施缺口的切入时机：B8 / B9 / QUAL-2（不挡 P2 语义，但最终产品仍须收）
+- 基础设施缺口的切入时机：B8 / B9 / QUAL-2（不挡更早语义，但最终产品仍须收）
 
 ## Out of scope
 
