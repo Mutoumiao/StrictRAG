@@ -56,6 +56,12 @@ export const MENU_TREE: readonly MenuNode[] = [
         href: '/feedback',
         permission: 'feedback.queue',
       },
+      {
+        id: 'eval',
+        label: '评测',
+        href: '/eval',
+        permission: 'eval.run',
+      },
     ],
   },
   {
@@ -97,6 +103,7 @@ export const ADMIN_IMPLEMENTED_HREFS: ReadonlySet<string> = new Set([
   '/chunks',
   '/kb/settings',
   '/feedback',
+  '/eval',
   '/models',
   '/users',
   '/roles',

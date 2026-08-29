@@ -84,9 +84,10 @@ describe('clipMenuForShell', () => {
         '/chunks',
         '/kb/settings',
         '/feedback',
+        '/eval',
       ]),
     );
-    expect(hrefs).toHaveLength(6);
+    expect(hrefs).toHaveLength(7);
     expect(hrefs).not.toContain('/models');
     expect(hrefs).not.toContain('/dashboard');
   });

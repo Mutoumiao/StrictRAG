@@ -106,9 +106,9 @@ export const PERMISSION_DEFINITIONS = [
   },
   {
     code: 'eval.run',
-    kind: 'action',
+    kind: 'page+action',
     scope: 'kb',
-    description: '评测',
+    description: '黄金集维护与评测跑批',
   },
   {
     code: 'model.gateway.manage',
