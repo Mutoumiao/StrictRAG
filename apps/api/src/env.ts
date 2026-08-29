@@ -122,6 +122,11 @@ const EnvSchema = z
      */
     ASK_RATE_LIMIT_RPM: z.coerce.number().int().min(0).default(0),
     /**
+     * worker → api 评测 execute-ask 共享口令。空 = 内口关闭（HTTP 503）。
+     * 须与 worker EVAL_INTERNAL_TOKEN 相同；禁止进 web/admin。
+     */
+    EVAL_INTERNAL_TOKEN: z.string().optional().default(''),
+    /**
      * Langfuse 开关。true 时打 mock export 日志；未配密钥仍可 ask。
      * 真 SDK 接线不阻塞本切片。
      */

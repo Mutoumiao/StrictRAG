@@ -132,6 +132,9 @@ export function buildEvalRunInsert(
     errorCount: report.errorCount,
     // 报告 artifact 仍用 ISO；写库列走本地串（db guidelines）
     ranAt: evalRunDbRanAt(report.ranAt),
+    status: 'succeeded',
+    jobId: null,
+    errorMessage: null,
     reportJson: report,
     notes: opts.notes ?? null,
   };

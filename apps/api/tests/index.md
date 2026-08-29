@@ -82,6 +82,8 @@
 | `env/ready-hard-deps.test.ts` | GET /ready 在 PG 或 Redis 不可用时必须 503 且 ready 为 false。 | 剧本 H3 · prds/10-delivery/03-acceptance-scenarios.md | `GET /ready · runReadyChecks（postgres/redis 硬依赖）` | mock createDb 抛错或 ioredis ping 失败 → 503；不停本机 PG。 | 现行 |
 | `env/ready-soft-gateway.test.ts` | Gateway 不可用时 GET /ready 仍 200，不得因软依赖否决。 | 剧本 H4 · prds/10-delivery/03-acceptance-scenarios.md · ADR-028 | `GET /ready · checkGateway` | PG/Redis mock 为 up、Gateway fetch 失败时 checks.gateway 为 down 且 ready 为 true。 | 现行 |
 | `eval/adr046-snapshot.test.ts` | 评测快照绑定硬门不得松于试点。 | ADR-046 | `evaluateAdr046Bind / bindQualitySnapshotToEval` | 评测快照绑定硬门。 | 现行 |
+| `eval/http-eval-runs.test.ts` | POST eval/runs 只入队；空题集拒绝；GET 回读；内口靠口令。 | prds/05-api §2.8 · 功能表 §5.2 | `POST/GET …/eval/runs · POST /internal/eval/execute-ask` | 请求线程不跑 L1。 | 现行 |
+| `eval/http-gold-questions.test.ts` | 有 eval.run 才能维护黄金集；重复题号冲突。 | prds/05-api §2.8 · 功能表 §4.1 | `GET/POST/PATCH/DELETE …/gold-questions` | 运营题面落库；不是 CLI seed。 | 现行 |
 | `eval/l1-cli.test.ts` | L1 CLI 注入路径可跑且 skipTrace，不打 live。 | B10 | `runL1Golden / loadGold / writeL1Report` | 注入路径可跑且跳过落库 trace，不打 live。 | 现行 |
 | `eval/l1-matrix.test.ts` | L1 2×2 纯函数累计与覆盖计算正确，且不得当作签字。 | B10 | `cellFor / accumulate / coverage / computeSignoffEligible` | ≠ 签字；error 出格。 | 现行 |
 | `eval/l2-cli.test.ts` | L2 CLI 注入可跑且 signoffEligible 恒为 false。 | P2.5-L2 | `runL2Golden / parseL2CliEnv` | 注入可跑，且准出资格恒为否。 | 现行 |

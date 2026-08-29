@@ -33,6 +33,7 @@ import { departmentsRoutes } from './routes/departments.js';
 import { deptGrantsRoutes } from './routes/dept-grants.js';
 import { platformUsersRolesRoutes } from './routes/platform-users-roles.js';
 import { sessionRoutes } from './routes/sessions.js';
+import { evalRoutes } from './routes/eval.js';
 import { createOpenApiRoutes } from './openapi/routes.js';
 
 /** requestId → secureHeaders → timeout → bodyLimit → auth → adminWriteAudit → routes → notFound/onError */
@@ -93,6 +94,7 @@ export function createApp() {
   app.route('/api/v1', dashboardRoutes);
   app.route('/api/v1', sessionRoutes);
   app.route('/api/v1', feedbackRoutes);
+  app.route('/api/v1', evalRoutes);
   app.route('/api/v1', askRoutes);
 
   app.notFound((c) => fail(c, BizCode.NOT_FOUND, '资源不存在', 404));

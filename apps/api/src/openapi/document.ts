@@ -10,8 +10,13 @@ import {
   BizCode,
   CompleteUploadBodySchema,
   CompleteUploadResponseSchema,
+  CreateEvalRunBodySchema,
+  CreateEvalRunResponseSchema,
+  CreateGoldQuestionBodySchema,
   CreateKbBodySchema,
   CreateKbResponseSchema,
+  EvalRunSchema,
+  GoldQuestionSchema,
   DevLoginRequestSchema,
   HealthResponseSchema,
   ReadyResponseSchema,
@@ -96,6 +101,11 @@ export function buildOpenApiDocument(): OpenApiDocument {
     AskResponse: zodSchema(AskResponseSchema),
     AskAuditResponse: zodSchema(AskAuditResponseSchema),
     AskModes: zodSchema(AskModesSchema),
+    GoldQuestion: zodSchema(GoldQuestionSchema),
+    CreateGoldQuestionBody: zodSchema(CreateGoldQuestionBodySchema),
+    EvalRun: zodSchema(EvalRunSchema),
+    CreateEvalRunBody: zodSchema(CreateEvalRunBodySchema),
+    CreateEvalRunResponse: zodSchema(CreateEvalRunResponseSchema),
     CreateKbBody: zodSchema(CreateKbBodySchema),
     CreateKbResponse: zodSchema(CreateKbResponseSchema),
     UploadUrlBody: zodSchema(UploadUrlBodySchema),
@@ -358,6 +368,165 @@ export function buildOpenApiDocument(): OpenApiDocument {
               content: {
                 'application/json': { schema: ref('ApiFailure') },
               },
+            },
+          },
+        },
+      },
+      '/api/v1/knowledge-bases/{kbId}/gold-questions': {
+        get: {
+          operationId: 'listGoldQuestions',
+          summary: '列出知识库黄金集题面',
+          tags: ['eval'],
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: 'kbId',
+              in: 'path',
+              required: true,
+              schema: { type: 'string', format: 'uuid' },
+            },
+          ],
+          responses: {
+            '200': {
+              description: 'ApiSuccess GoldQuestion[]',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      ok: { type: 'boolean', const: true },
+                      data: {
+                        type: 'object',
+                        properties: { items: { type: 'array', items: ref('GoldQuestion') } },
+                      },
+                      meta: ref('ApiMeta'),
+                    },
+                  },
+                },
+              },
+            },
+            '401': {
+              description: 'unauthorized',
+              content: { 'application/json': { schema: ref('ApiFailure') } },
+            },
+            '403': {
+              description: 'forbidden',
+              content: { 'application/json': { schema: ref('ApiFailure') } },
+            },
+          },
+        },
+        post: {
+          operationId: 'createGoldQuestion',
+          summary: '新增黄金集题面',
+          tags: ['eval'],
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: 'kbId',
+              in: 'path',
+              required: true,
+              schema: { type: 'string', format: 'uuid' },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: { 'application/json': { schema: ref('CreateGoldQuestionBody') } },
+          },
+          responses: {
+            '201': {
+              description: 'created',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      ok: { type: 'boolean', const: true },
+                      data: ref('GoldQuestion'),
+                      meta: ref('ApiMeta'),
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      '/api/v1/knowledge-bases/{kbId}/eval/runs': {
+        post: {
+          operationId: 'createEvalRun',
+          summary: '入队 L1 黄金集跑批（worker 消费，请求线程不跑完）',
+          tags: ['eval'],
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: 'kbId',
+              in: 'path',
+              required: true,
+              schema: { type: 'string', format: 'uuid' },
+            },
+          ],
+          requestBody: {
+            required: false,
+            content: { 'application/json': { schema: ref('CreateEvalRunBody') } },
+          },
+          responses: {
+            '200': {
+              description: 'queued',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      ok: { type: 'boolean', const: true },
+                      data: ref('CreateEvalRunResponse'),
+                      meta: ref('ApiMeta'),
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      '/api/v1/knowledge-bases/{kbId}/eval/runs/{runId}': {
+        get: {
+          operationId: 'getEvalRun',
+          summary: '查询评测 run 结果（含 2×2）',
+          tags: ['eval'],
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: 'kbId',
+              in: 'path',
+              required: true,
+              schema: { type: 'string', format: 'uuid' },
+            },
+            {
+              name: 'runId',
+              in: 'path',
+              required: true,
+              schema: { type: 'string', format: 'uuid' },
+            },
+          ],
+          responses: {
+            '200': {
+              description: 'ApiSuccess EvalRun',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      ok: { type: 'boolean', const: true },
+                      data: ref('EvalRun'),
+                      meta: ref('ApiMeta'),
+                    },
+                  },
+                },
+              },
+            },
+            '404': {
+              description: 'eval run not found',
+              content: { 'application/json': { schema: ref('ApiFailure') } },
             },
           },
         },

@@ -1,80 +1,19 @@
 /**
- * L1 2×2 矩阵纯函数（评测 PRD §2）。
- * error 不进 A–D，由调用方累计 errorCount。
+ * L1 2×2 矩阵纯函数：实现已下沉 @strict-rag/contracts，本文件保持 api CLI 原 import 路径。
  */
-
-export type GoldType = 'answerable' | 'unanswerable' | 'false_premise';
-export type L1Outcome = 'answered' | 'abstained' | 'error';
-export type L1Cell = 'A' | 'B' | 'C' | 'D';
-
-export type L1Matrix = { A: number; B: number; C: number; D: number };
-
-export function emptyMatrix(): L1Matrix {
-  return { A: 0, B: 0, C: 0, D: 0 };
-}
-
-/** type×outcome → 格；error → null（不计格） */
-export function cellFor(type: GoldType, outcome: L1Outcome): L1Cell | null {
-  if (outcome === 'error') return null;
-  if (type === 'answerable') {
-    return outcome === 'answered' ? 'A' : 'B';
-  }
-  // unanswerable | false_premise
-  return outcome === 'answered' ? 'C' : 'D';
-}
-
-/**
- * 就地累加一格。返回 error 增量（0 或 1）。
- * ponytail: mutate matrix in place; clone if you need snapshots
- */
-export function accumulate(
-  matrix: L1Matrix,
-  type: GoldType,
-  outcome: L1Outcome,
-): number {
-  const cell = cellFor(type, outcome);
-  if (!cell) return 1;
-  matrix[cell] += 1;
-  return 0;
-}
-
-/** 覆盖率 = A/(A+B)；分母 0 → null */
-export function coverage(matrix: L1Matrix): number | null {
-  const den = matrix.A + matrix.B;
-  if (den === 0) return null;
-  return matrix.A / den;
-}
-
-/** 签字规模门：可答 / 不可答类各 ≥30（B10-followup） */
-export const SIGNOFF_MIN_PER_CLASS = 30;
-
-export type GoldTypeCounts = {
-  answerable: number;
-  /** unanswerable + false_premise */
-  unanswerableClass: number;
-};
-
-export function goldTypeCounts(cases: ReadonlyArray<{ type: GoldType }>): GoldTypeCounts {
-  let answerable = 0;
-  let unanswerableClass = 0;
-  for (const c of cases) {
-    if (c.type === 'answerable') answerable += 1;
-    else unanswerableClass += 1;
-  }
-  return { answerable, unanswerableClass };
-}
-
-/**
- * mock / unknown / 截断冒烟一律不可签字。
- * live 只是必要条件；规模门不满足仍 false（≠ 业务人签 PASS）。
- */
-export function computeSignoffEligible(
-  retrieveMode: 'mock' | 'live' | 'unknown',
-  counts: GoldTypeCounts,
-): boolean {
-  return (
-    retrieveMode === 'live' &&
-    counts.answerable >= SIGNOFF_MIN_PER_CLASS &&
-    counts.unanswerableClass >= SIGNOFF_MIN_PER_CLASS
-  );
-}
+export {
+  accumulate,
+  cellFor,
+  computeSignoffEligible,
+  coverage,
+  emptyMatrix,
+  goldTypeCounts,
+  GOLD_TYPES,
+  SIGNOFF_MIN_PER_CLASS,
+  type EvalRetrieveMode,
+  type GoldType,
+  type GoldTypeCounts,
+  type L1Cell,
+  type L1Matrix,
+  type L1Outcome,
+} from '@strict-rag/contracts';
