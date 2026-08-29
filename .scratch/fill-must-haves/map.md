@@ -31,12 +31,11 @@ Status: open
 - [检索语义补钉](./issues/09-retrieval-semantics-patch.md) — ES 查询期 tenantId+kbId、sparse_unavailable、档位 retrieveK 60/10、Mongo chunk_bodies 批取；dense 查询期 WHERE / 生效区间 / 召回扩展划出。
 - [ask 审计与引用](./issues/10-ask-audit-citations.md) — `GET /ask/:requestId` 成员闸回读当时 evidence_snapshot + graph_trace；web 引用点回快照；断线重拉 / 审计管理台 / Langfuse SDK 划出。
 - [web 消费余量](./issues/11-web-consumption-remainder.md) — 档位读 ask-modes 并传 mode；无库空态阻断；建议动作主按钮；429 配额文案；反馈报错/缺文档。库选择器只列成员库 / 在线编写划出。
+- [评测底线](./issues/12-eval-floor.md) — gold-questions CRUD + admin `/eval`；`POST eval/runs` 入队 `sr-eval`；worker 跑 L1；GET 回读 2×2。回流黄金集 / 签字包 / 看板 / 多模型 fallback / 在线抽样划出。
 
 ## Not yet specified
 
-- 未进第三批的 P2 半接线：入库报告、失败 Webhook、三平面配额、`/me/permissions` 路径、成员 PUT、在线编写、修改日志、超管引导、末位超管前端提示（Q2 划出，不进第三批执行工单）
 - LangGraph 编排重构：技术栈冻结为 LangGraph.js（硬性标准）；源码现为线性状态机（`apps/api/src/graph/run.ts`），需后续重构为官方 LangGraph.js。不进 P2 执行工单，另起路线
-- P2 语义收齐后的 **P2.5 二元出口**：L2 归档准出，还是产品书面永久关 rewrite（壳可留，standalone 能力仍须交付）
 - P3a Full 图（CRAG / multi_hop）；硬门在 P2.5 出口
 - P3b 尚未齐的强制检索面：ES 查询期对称、aclPrincipals 全文、敏感解禁、仓库默认开 `DEPT_ACL_ENFORCE`
 - P4：L1 门禁包签字与再认证、多模型 fallback、双轨看板、数据面板增强
