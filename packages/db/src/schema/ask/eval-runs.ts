@@ -25,6 +25,11 @@ export const evalRuns = pgTable('eval_runs', {
   coverage: real('coverage'),
   errorCount: integer('error_count').notNull().default(0),
   ranAt: text('ran_at').notNull(),
+  /** queued | running | succeeded | failed；CLI 直写默认 succeeded */
+  status: text('status').notNull().default('succeeded'),
+  /** BullMQ job id（HTTP 入队）；CLI 可空 */
+  jobId: text('job_id'),
+  errorMessage: text('error_message'),
   /** 完整 L1Report 快照 */
   reportJson: jsonb('report_json'),
   notes: text('notes'),

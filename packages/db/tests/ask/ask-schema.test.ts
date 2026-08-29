@@ -1,7 +1,7 @@
 /**
  * 目标：ask_sessions / traces / feedback / eval_runs 必须可导出且含会话与证据快照列。
  * 需求：prds/03-data
- * 被测：users · kbMembers · askSessions · askTraces · askFeedback · evalRuns
+ * 被测：users · kbMembers · askSessions · askTraces · askFeedback · evalRuns · goldQuestions
  * 简介：核对 Phase 2 ask 表导出与关键列。
  */
 
@@ -12,6 +12,7 @@ import {
   askSessions,
   askTraces,
   evalRuns,
+  goldQuestions,
   kbMembers,
   users,
 } from '../../src/schema/index.js';
@@ -36,5 +37,15 @@ describe('phase2 ask schema exports', () => {
     expect(evalRuns.retrieveMode).toBeDefined();
     expect(evalRuns.matrixA).toBeDefined();
     expect(evalRuns.reportJson).toBeDefined();
+    expect(evalRuns.status).toBeDefined();
+    expect(evalRuns.jobId).toBeDefined();
+  });
+
+  it('gold_questions has stable case_key and type columns', () => {
+    expect(goldQuestions).toBeDefined();
+    expect(goldQuestions.caseKey).toBeDefined();
+    expect(goldQuestions.question).toBeDefined();
+    expect(goldQuestions.type).toBeDefined();
+    expect(goldQuestions.expectedDocIds).toBeDefined();
   });
 });

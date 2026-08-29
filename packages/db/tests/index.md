@@ -19,7 +19,7 @@
 | 文件 | 目标 | 需求锚点 | 被测 | 简介 | 状态 |
 |------|------|----------|------|------|------|
 | `acl/dept-grants-schema.test.ts` | 跨部门 grant 表必须暴露授权列，形状与 user+dept 唯一约束字段对齐。 | DEPT_ACL | `deptCrossGrants` | 核对 grant 列名与形状。 | 现行 |
-| `ask/ask-schema.test.ts` | ask_sessions / traces / feedback / eval_runs 必须可导出且含会话与证据快照列。 | prds/03-data | `users · kbMembers · askSessions · askTraces · askFeedback · evalRuns` | 核对 Phase 2 ask 表导出与关键列。 | 现行 |
+| `ask/ask-schema.test.ts` | ask_sessions / traces / feedback / eval_runs / gold_questions 必须可导出且含会话、证据快照与题面列。 | prds/03-data | `users · kbMembers · askSessions · askTraces · askFeedback · evalRuns · goldQuestions` | 核对 Phase 2 ask 表导出与关键列。 | 现行 |
 | `env/local-datetime.test.ts` | 写库时间必须是本地 yyyy-MM-dd HH:mm:ss 格式串，失败则 ORM 时间契约不成立。 | prds/02-engineering/02-orm-drizzle.md | `formatLocalDateTime` | 断言输出形状为本地日期时间串。 | 现行 |
 | `ingest/documents-schema.test.ts` | 文档表必须含部门与可见级列，且 id / 时间列策略不变。 | P3b-META | `documents` | 核对 ownerDeptId / visibilityLevel 及本地时间、uuid；强制未接。 | 现行 |
 | `ingest/chunk-strategy-schema.test.ts` | 分片策略三层表必须暴露平台定义与库启用列。 | 功能表 §4.5 · ADR-053 | `chunkStrategyDefinitions · kbChunkStrategies` | 核对 code / docFamilies / recommendedFamilies。 | 现行 |
