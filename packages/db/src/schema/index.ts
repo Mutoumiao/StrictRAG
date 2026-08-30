@@ -13,6 +13,7 @@ export { chunks } from './kb/chunks.js';
 export { chunkManifests } from './kb/chunk-manifests.js';
 export { chunkEmbeddings } from './kb/chunk-embeddings.js';
 export { ingestJobs } from './kb/ingest-jobs.js';
+export { ingestReports } from './kb/ingest-reports.js';
 export { kbMembers } from './kb/kb-members.js';
 export { chunkStrategyDefinitions } from './kb/chunk-strategy-definitions.js';
 export { kbChunkStrategies } from './kb/kb-chunk-strategies.js';
