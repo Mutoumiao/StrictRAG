@@ -71,8 +71,10 @@ curl -sS -X POST http://127.0.0.1:4000/api/v1/auth/admin/dev-login \
 
 | 方法 | 路径 | 权限 |
 |------|------|------|
+| GET | `/api/v1/me/permissions` | 登录；有效码与 `/auth/me` 同源 |
 | GET | `/api/v1/knowledge-bases/:kbId/members` | `member.manage` + 成员 |
 | POST | `/api/v1/knowledge-bases/:kbId/members` | 同上；body: `{ userId? \| email?, role? }` |
+| PUT | `/api/v1/knowledge-bases/:kbId/members/:userId` | 同上；body: `{ role }` |
 | DELETE | `/api/v1/knowledge-bases/:kbId/members/:userId` | 同上 |
 
 ```bash

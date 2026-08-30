@@ -1,9 +1,11 @@
 import {
   BizCode,
   InviteMemberBodySchema,
+  UpdateMemberBodySchema,
   type InviteMemberResponse,
   type KbMember,
   type RemoveMemberResponse,
+  type UpdateMemberResponse,
 } from '@strict-rag/contracts';
 import { Hono } from 'hono';
 
@@ -94,6 +96,29 @@ export function createMemberRoutes(deps: MemberRouteDeps = {}): Hono<{ Variables
       role: result.role as InviteMemberResponse['role'],
     };
     return ok(c, data, 201);
+  });
+
+  /** PUT /api/v1/knowledge-bases/:kbId/members/:userId — 只改 role */
+  routes.put('/knowledge-bases/:kbId/members/:userId', manage, async (c) => {
+    const kbId = c.req.param('kbId');
+    const userId = c.req.param('userId');
+    const parsed = UpdateMemberBodySchema.safeParse(await c.req.json().catch(() => ({})));
+    if (!parsed.success) {
+      return fail(c, BizCode.VALIDATION_ERROR, 'invalid body', 400, parsed.error.flatten());
+    }
+
+    const kb = await getKb(kbId);
+    if (!kb) {
+      return fail(c, BizCode.NOT_FOUND, 'knowledge base not found', 404);
+    }
+
+    const result = await members.updateRole(kbId, userId, parsed.data.role);
+    if (!result.ok) {
+      return fail(c, BizCode.NOT_FOUND, 'member not found', 404);
+    }
+
+    const data: UpdateMemberResponse = { kbId, userId, role: result.role };
+    return ok(c, data);
   });
 
   /** DELETE /api/v1/knowledge-bases/:kbId/members/:userId */

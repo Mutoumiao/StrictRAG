@@ -20,7 +20,7 @@ import { requestTimeoutMiddleware } from './middleware/timeout.js';
 import { metricsSnapshot } from './obs/index.js';
 import { runReadyChecks } from './ready/checks.js';
 import { askRoutes } from './routes/ask.js';
-import { authRoutes } from './routes/auth.js';
+import { authRoutes, meRoutes } from './routes/auth.js';
 import { chunkRoutes } from './routes/chunks.js';
 import { chunkStrategyRoutes } from './routes/chunk-strategies.js';
 import { documentRoutes } from './routes/documents/index.js';
@@ -82,6 +82,7 @@ export function createApp() {
   app.route('/', createOpenApiRoutes());
 
   app.route('/api/v1/auth', authRoutes);
+  app.route('/api/v1/me', meRoutes);
   app.route('/api/v1', documentRoutes);
   app.route('/api/v1', chunkStrategyRoutes);
   app.route('/api/v1', chunkRoutes);

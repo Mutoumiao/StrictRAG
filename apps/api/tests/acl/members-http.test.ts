@@ -158,4 +158,75 @@ describe('members CRUD success (memory repo)', () => {
     });
     expect(res.status).toBe(403);
   });
+
+  it('PUT 只改 role；非法 body 400；缺成员 404', async () => {
+    const { userId, accessToken } = await token(['kb_admin']);
+    const repo = createMemoryMembersRepo();
+    const targetId = uuidv7();
+    repo.seedUser({ id: targetId, email: 'role@test.local' });
+    const { app } = buildApp({ members: new Set([userId]), repo });
+
+    const invite = await app.request(`/api/v1/knowledge-bases/${KB}/members`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ userId: targetId, role: 'read' }),
+    });
+    expect(invite.status).toBe(201);
+
+    const put = await app.request(`/api/v1/knowledge-bases/${KB}/members/${targetId}`, {
+      method: 'PUT',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ role: 'admin' }),
+    });
+    expect(put.status).toBe(200);
+    const putBody = (await put.json()) as { data: { userId: string; role: string } };
+    expect(putBody.data.userId).toBe(targetId);
+    expect(putBody.data.role).toBe('admin');
+
+    const list = await app.request(`/api/v1/knowledge-bases/${KB}/members`, {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    const listed = (await list.json()) as { data: { userId: string; role: string }[] };
+    expect(listed.data.find((r) => r.userId === targetId)?.role).toBe('admin');
+
+    const extra = await app.request(`/api/v1/knowledge-bases/${KB}/members/${targetId}`, {
+      method: 'PUT',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ role: 'write', allowedDocIds: ['x'] }),
+    });
+    expect(extra.status).toBe(400);
+
+    const missing = await app.request(`/api/v1/knowledge-bases/${KB}/members/${uuidv7()}`, {
+      method: 'PUT',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ role: 'write' }),
+    });
+    expect(missing.status).toBe(404);
+  });
+
+  it('PUT 无 member.manage → 403', async () => {
+    const { userId, accessToken } = await token(['doc_operator']);
+    const { app } = buildApp({ members: new Set([userId]) });
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/members/${uuidv7()}`, {
+      method: 'PUT',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ role: 'write' }),
+    });
+    expect(res.status).toBe(403);
+  });
 });

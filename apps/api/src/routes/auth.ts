@@ -3,6 +3,7 @@ import {
   DevLoginRequestSchema,
   TokenRefreshRequestSchema,
   type AuthMeResponse,
+  type MePermissionsResponse,
   type TokenPairResponse,
 } from '@strict-rag/contracts';
 import { Hono } from 'hono';
@@ -25,11 +26,13 @@ import { DEV_DEFAULT_TENANT, ensureUserByEmail } from '../services/members.js';
  * - dev-login：仅 development/test；主体 upsert 到 users
  * - refresh：无感续期 + rotation
  * - me：当前主体 + 有效码
+ * - GET /api/v1/me/permissions：有效码与 /auth/me 同源（角色并集）
  *
  * Better Auth 上线后：/api/auth/* 由 BA 接管登录；
  * 本文件的 refresh/me 可改为 BA session 适配或逐步下线 dev-login。
  */
 export const authRoutes = new Hono<{ Variables: AuthVariables }>();
+export const meRoutes = new Hono<{ Variables: AuthVariables }>();
 
 authRoutes.post('/admin/dev-login', async (c) => {
   if (env.APP_ENV !== 'development' && env.APP_ENV !== 'test') {
@@ -162,5 +165,16 @@ authRoutes.get('/me', requireAuth(), async (c) => {
     email: auth.email,
     permissions: [...effective],
   };
+  return ok(c, data);
+});
+
+/** GET /api/v1/me/permissions — 有效码与 /auth/me 同源 */
+meRoutes.get('/permissions', requireAuth(), async (c) => {
+  const auth = c.get('auth');
+  const effective = c.get('effectiveCodes');
+  if (!auth) {
+    return fail(c, BizCode.UNAUTHORIZED, 'unauthorized', 401);
+  }
+  const data: MePermissionsResponse = { permissions: [...effective] };
   return ok(c, data);
 });

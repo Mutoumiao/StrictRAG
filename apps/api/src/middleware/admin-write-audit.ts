@@ -23,7 +23,7 @@ export function shouldAuditAdminWrite(method: string, path: string): boolean {
   if (path.startsWith('/api/v1/auth/')) return false;
   if (/\/knowledge-bases\/[^/]+\/ask\/?$/.test(path)) return false;
 
-  // 成员 invite / remove
+  // 成员 invite / 改角色 / remove
   if (/\/knowledge-bases\/[^/]+\/members(\/[^/]+)?\/?$/.test(path)) return true;
   // 审批
   if (/\/documents\/[^/]+\/(approve|reject)\/?$/.test(path)) return true;

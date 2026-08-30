@@ -33,7 +33,8 @@
 | `acl/documents-dept-filter.test.ts` | 文档列表必须套部门过滤。 | DEPT_ACL | `documents list dept filter` | 文档列表部门过滤。 | 现行 |
 | `acl/kb-member-gate.test.ts` | 无 KB 成员必须 403，授权以码为准。 | 以码为准 | `requireKbMember / requirePermission` | 无成员 403。 | 现行 |
 | `acl/kb-scope-cache.test.ts` | KB 成员查找在同一请求内复用缓存。 | ARCH-P1b-1 | `lookupKbMembership / membershipCacheKey` | KB 成员查找请求内缓存。 | 现行 |
-| `acl/members-http.test.ts` | 成员 CRUD HTTP 按成员码授权。 | 成员码 | `createMemberRoutes` | 成员 CRUD HTTP。 | 现行 |
+| `acl/me-permissions.test.ts` | GET /me/permissions 必须回角色并集有效码，且与 /auth/me 同源。 | prds/05-api §2.11 · 功能表 §5.1 · 剧本 Y1 | `GET /api/v1/me/permissions` | 超管含 admin.shell / dashboard.view / role.perm.manage；不废 /auth/me。 | 现行 |
+| `acl/members-http.test.ts` | 成员 CRUD HTTP 按成员码授权。 | 成员码 | `createMemberRoutes` | 成员 CRUD HTTP（含 PUT 只改 role）。 | 现行 |
 | `acl/permission-resolve.test.ts` | 有效权限码 = 模板 ∪ grants − denies。 | ADR-051 | `resolveEffectiveCodes / canAccessKbScoped` | 有效码求值。 | 现行 |
 | `acl/platform-users-roles.test.ts` | 平台用户角色写路径必须失效缓存。 | B4 | `platform-users-roles routes` | 写路径 invalidate 缓存。 | 现行 |
 | `acl/retrieve-dept-acl.test.ts` | 检索期按部门 ACL 过滤可见文档。 | DEPT_ACL | `filterDocsForDeptAcl` | 默认 enforce 关。 | 现行 |

@@ -32,6 +32,11 @@ export type MembersRepo = {
     | { ok: false; reason: 'conflict'; userId: string }
     | { ok: false; reason: 'user_not_found' }
   >;
+  updateRole(
+    kbId: string,
+    userId: string,
+    role: KbMemberRole,
+  ): Promise<{ ok: true; role: KbMemberRole } | { ok: false; reason: 'not_found' }>;
   remove(kbId: string, userId: string): Promise<boolean>;
 };
 
@@ -147,6 +152,22 @@ export const membersRepo: MembersRepo & {
     return { ok: true, userId, role: input.role };
   },
 
+  async updateRole(
+    kbId: string,
+    userId: string,
+    role: KbMemberRole,
+  ): Promise<{ ok: true; role: KbMemberRole } | { ok: false; reason: 'not_found' }> {
+    const updated = await getDb()
+      .update(kbMembers)
+      .set({ role })
+      .where(and(eq(kbMembers.kbId, kbId), eq(kbMembers.userId, userId)))
+      .returning({ id: kbMembers.id });
+    if (updated.length === 0) {
+      return { ok: false, reason: 'not_found' };
+    }
+    return { ok: true, role };
+  },
+
   async remove(kbId: string, userId: string): Promise<boolean> {
     const deleted = await getDb()
       .delete(kbMembers)
@@ -216,6 +237,12 @@ export function createMemoryMembersRepo(): MembersRepo & {
         createdAt: new Date().toISOString(),
       });
       return { ok: true, userId, role: input.role };
+    },
+    async updateRole(kbId, userId, role) {
+      const row = membership.get(key(kbId, userId));
+      if (!row) return { ok: false, reason: 'not_found' };
+      membership.set(key(kbId, userId), { ...row, role });
+      return { ok: true, role };
     },
     async remove(kbId, userId) {
       return membership.delete(key(kbId, userId));
