@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（已包含：P0/P1 入库 + S2 最小问答 + B1–B6 最小运营 API + B10 L1 工程 seed + B12 策略闸 + B13 反馈 API；演示依赖 mock ES / 通常走 mock Gateway；L1 **≠** 业务签字门禁） |
 | 默认依赖模式 | 检索：`RETRIEVE_ES_MODE=mock`（默认 mock ES；`http` 须 `ELASTICSEARCH_URL`）；鉴权：临时双 JWT，`AUTH_ENFORCE` **默认 `false`**；rewrite：`SESSION_REWRITE_ENABLED` **默认 false**（图边已落；dogfood 可开；**≠** 准出）；对象存储：默认 `local`（`STORAGE_MODE=s3` 走 RustFS / S3 兼容）；Gateway：`GATEWAY_MODE=''`（空按 `GATEWAY_BASE_URL` 推断，缺 URL 走 mock）；上传上限 `INGEST_MAX_FILE_BYTES=52_428_800`（50 MiB）/ 天花板 `INGEST_MAX_FILE_BYTES_CEILING=209_715_200`（200 MiB）；`LANGFUSE_ENABLED=false`；`OBS_MEMORY_TRACE=true`。**B3-W/B2-W**：ask 读取 platform 绑定 + **KB scope 绑定覆盖（只读 list，无 PUT KB 绑定 HTTP）**；**B4-W**：每请求从 DB `user_roles` hydrate；`DEPT_ACL_ENFORCE` **默认 `false`**（开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤且列表项带部门字段；`DEPT_INHERIT_DOWN` 默认 true；KB `deptInheritDown` 可覆盖 env；KB `deptAclEnforce` 可覆盖 env，未写跟 env，GET 未写回读 false；设置页可勾选，未改不写回；ES 查询期已强制 tenantId+kbId（共享索引安全隔离），部门/ACL principals 查询期对称仍无）；`MONGODB_URL` 空（非空时检索融合后批取 Mongo `chunk_bodies` 权威正文，缺块 fail-closed）；`ASK_RATE_LIMIT_RPM=0`；L1 CLI 需显式指定 `L1_KB_ID`（可选 `L1_PERSIST_EVAL`） |
 | 关联模块 | 入库演示还需要 `worker` + PostgreSQL + Redis；契约 `@strict-rag/contracts`（含 `IMPLEMENTED_CHUNK_STRATEGIES` / `IngestJobData`）；schema `@strict-rag/db`（含 `eval_runs`）；L1 gold / RACI 在仓根 `fixtures/l1/`；L2 题面草案在 `fixtures/l2/` |
-| 最近更新 | 2026-08-30（L3 进程内熔断：coref/topic/l2_stale 闩后关 rewrite 路径；rewrite_dogfood 不熔；≠ 写 env / ≠ 面板 / ≠ 准出） |
+| 最近更新 | 2026-08-30（GET /me/permissions 与 /auth/me 同源；成员 PUT 只改 role；≠ allowedDocIds） |
 | Spec | `.trellis/spec/api/backend/`（含 [dashboard](../../.trellis/spec/api/backend/dashboard.md) · [l1-eval](../../.trellis/spec/api/backend/l1-eval.md) · [l2-eval](../../.trellis/spec/api/backend/l2-eval.md) · [l3-metrics](../../.trellis/spec/api/backend/l3-metrics.md)） |
 | PRD | `prds/05-api` · `04-pipelines` · `08-quality` · `09-security` |
 
@@ -28,10 +28,10 @@
 - **ARCH-P1a documents 域目录试点**：`routes/documents/`（`index.ts` 导出 `documentRoutes` · `mappers.ts` 纯映射）；`app.ts` 挂载方式不变。**≠** 其它域全量搬家 · **≠** URL / 契约变更
 
 ### 鉴权与权限
-- 双 JWT（access token + refresh token）、dev-login 开发登录、`GET /api/v1/auth/me`（当前主体 + 有效权限码）、`AUTH_ENFORCE` 总开关（默认关闭）
+- 双 JWT（access token + refresh token）、dev-login 开发登录、`GET /api/v1/auth/me`（当前主体 + 有效权限码）、`GET /api/v1/me/permissions`（有效码与 `/auth/me` 同源，角色并集）、`AUTH_ENFORCE` 总开关（默认关闭）
 - 知识库成员校验、权限码求值（对接 admin-catalog）
 - **ARCH-P1b-1 KB 作用域组合**：`auth/kb-scope.ts` 在请求内缓存成员信息；`requireKbScope` 组合入口；`evaluateKbMember` / `checkPermission({ kbId })` 供 handler 使用；feedback 不做私有 assert；**默认 AUTH_ENFORCE 仍关**
-- 成员路由最小集：列表 / 邀请 / 删除；**暂不支持**修改成员角色（PUT / `allowedDocIds` 未做）。建库会写入首位库管 `role=admin`
+- 成员路由：列表 / 邀请 / **PUT 改 role** / 删除；始终 `member.manage` + KB 成员闸。**无** `allowedDocIds`。建库会写入首位库管 `role=admin`
 
 ### 入库（P1）+ 分片策略闸（B12）
 - `POST /knowledge-bases` 创建知识库（`kb.create`；`AUTH_ENFORCE` 关时仍 WhenEnforced）：body **必填** `initialAdminUserId`，事务写入 `kb_members(role=admin)`；`tenantId` **只认令牌**（无令牌回落默认租户，忽略 body）；用户不存在 404；文档上传（`upload-url` + `PUT /api/v1/internal/objects` local 落体）、complete 体积闸门、`POST …/documents/:docId/approve` / `POST …/documents/:docId/reject` 审批族（`approval.decide`）、审批通过后才能 scan 入队的闸门；lifecycle 四态（上架 `active` 仍须 `status=ready`）/ reindex / 列表详情
@@ -147,6 +147,7 @@
 | 审计管理台 | 无搜索 / 过滤 / 导出；Langfuse 仍 mock 日志 |
 | 完整 ACL / 部门强制隔离 | 开关有、默认关；开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤且带列；可关继承（env + KB 覆盖 + 设置页勾选，未改不写回）；ES 查询期已强制 tenantId+kbId，部门/ACL principals 查询期对称仍无 / **无** 默认开 |
 | 生产 IdP | 仍是临时双 JWT；**B4-W** 已读 `user_roles` hydrate（≠ Better Auth / 密码登录） |
+| 成员 `allowedDocIds` / 检索 ACL 闸 | PUT 只改 `role`；`GET /me/permissions` 无 `byKb` |
 
 ### 其他包的 UI / 产品面挂账（非本包义务）
 
@@ -198,7 +199,7 @@
 | 知识库设置 | `apps/api/src/routes/kb-settings.ts` · `services/kb-settings.ts` · `tests/kb/settings-http.test.ts` |
 | 模型网关 B3 | `apps/api/src/routes/model-gateway.ts` · `services/model-gateway.ts` · `tests/gateway/bindings-http.test.ts` |
 | 数据面板 B6 | `apps/api/src/routes/dashboard.ts` · `services/dashboard.ts` · `tests/ops/dashboard-http.test.ts` |
-| 鉴权 / 成员 | `apps/api/src/auth/` · `routes/members.ts` |
+| 鉴权 / 成员 | `apps/api/src/auth/` · `routes/auth.ts` `meRoutes` · `routes/members.ts` · `tests/acl/me-permissions.test.ts` · `tests/acl/members-http.test.ts` |
 | Gateway 运行时 / 检索 | `apps/api/src/services/gateway/`（`getGatewayForTenant` · `bindings.ts` · `resolve.ts`）· `services/retrieve/`（`corpus.ts` · `es-sparse.ts`（`buildAclFilter`）· `mongo-body.ts` · `filterDocsForRetrieve`） |
 | 观测 | `apps/api/src/obs/` · `obs/metrics.ts` `isL3RewriteFused` · `tests/obs/l3-rewrite-fuse.test.ts` |
 | L1 工程 seed / followup 工程 | `fixtures/l1/gold.yaml` · `RACI.md` · `README.md` · `apps/api/src/eval/l1-matrix.ts` · `eval/adr046-snapshot.ts` · `scripts/run-l1-golden.ts` · `scripts/seed-es-sparse-probe.ts` · `packages/db/src/schema/ask/eval-runs.ts` · `docs/ops/live-retrieve-profile.md` · `turbo.json`（`L1_*` / `L1_PERSIST_EVAL`） |

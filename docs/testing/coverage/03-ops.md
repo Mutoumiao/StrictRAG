@@ -155,7 +155,7 @@ P2 必签。无 `SUPER_ADMIN_*` 空库启动路径；无启动失败测。
 | AD2 | 缺 SUPER_ADMIN_* 且无超管启动 → 启动失败 | P2必签 | 单测 | 缺实现 | api | apps/api/src/env.ts | 无该启动失败闸。 |
 | AD3 | 已有超管再启动 → 不用 env 重置密码；码仍补齐 | P2必签 | 单测 | 部分测 | api | apps/api/tests/acl/system-roles-skip-reseed.test.ts | 已有 isSystem 则不再 insert。**补码 / SUPER_ADMIN 启动闸未做** → QUAL-SUPER-BOOT |
 | AD4 | 超管建角色：树勾选 doc.* 等保存 → 200；审计 | P2必签 | 单测 | 已测 | api | apps/api/tests/acl/platform-users-roles.test.ts（POST 合法码 201；未知码 400）· apps/api/tests/obs/admin-write-audit.test.ts（`/admin/roles` 写应审计） | 审计为中间件命中，非本 POST 日志体。 |
-| AD5 | 超管建平台用户并绑该角色；用户登录 admin 后 `/me/permissions` = 角色并集 | P2必签 | 单测 | 部分测 | api | apps/api/tests/acl/platform-users-roles.test.ts（POST 用户 + 绑角色 201，列表含 `roleCodes`） | 无登录后 `/me/permissions` = 并集测。 |
+| AD5 | 超管建平台用户并绑该角色；用户登录 admin 后 `/me/permissions` = 角色并集 | P2必签 | 单测 | 部分测 | api | apps/api/tests/acl/platform-users-roles.test.ts（POST 用户 + 绑角色 201，列表含 `roleCodes`）；apps/api/tests/acl/me-permissions.test.ts（`GET /me/permissions` = 模板并集，与 `/auth/me` 同源） | 无「建用户 + 绑自定义角色后登录」链路；现测是模板角色并集。 |
 | AD6 | 无 `user.manage` 调用户 API → 403 | P2必签 | 单测 | 已测 | api | apps/api/tests/acl/platform-users-roles.test.ts（kb_admin GET users → 403/`user.manage`） | — |
 | AD7 | 禁用唯一超管 / 剥超管角色至 0 → 400 | P2必签 | 单测 | 已测 | api | apps/api/tests/acl/platform-users-roles.test.ts（唯一 active 超管 disable/剥角色 → 400/`last active super_admin`） | — |
 | AD8 | 角色绑 catalog 外 code → 400 | P2必签 | 单测+契约 | 已测 | api | apps/api/tests/acl/platform-users-roles.test.ts（`not.a.real.code` → 400/`invalid`）· packages/contracts/tests/system/platform-users-roles-contract.test.ts | — |

@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（支撑 P0/P1 入库 + S2 问答/会话/反馈/成员 + B1–B6 运营契约 + **B12 策略码 / ingest job**；**非**全量 OpenAPI） |
 | 默认依赖模式 | 纯库；无运行时开关 |
 | 关联模块 | 被 `api` · `worker` · `web` · `admin` 消费；是全仓错误码、响应信封、队列名与 **可写分片策略集** 的唯一来源 |
-| 最近更新 | 2026-08-29（eval-run 可 session_multiturn · L2 题面解析与工程公式） |
+| 最近更新 | 2026-08-30（MePermissions + 成员 PUT `{ role }`；≠ allowedDocIds） |
 | Spec | `.trellis/spec/contracts/library/` |
 | PRD | `prds/05-api` · 各域契约与 PRD 短名对齐 |
 
@@ -24,7 +24,7 @@
 
 ### 系统 / 鉴权 / 异步
 - health / ready 响应 schema（`system/health.contract`）
-- session 鉴权契约：AuthMe / TokenPair（`auth/session.contract`）
+- session 鉴权契约：AuthMe / TokenPair / **MePermissions**（`auth/session.contract`；`GET /me/permissions` 只含 `permissions`）
 - 队列名 SSOT：`QUEUE_NAMES.PROBE` · `INGEST` · sr-eval（`async/queues.ts`；BullMQ 禁 `:`）
 - **入库 job payload（08-12）**：`IngestJobDataSchema`（`docId` · `kbId` · `tenantId` · `stage` ∈ scan/parse/chunk/embed/es_index · 可选 `indexVersion` / `requestId` / `attemptHint`）；默认 `INGEST_JOB_DEFAULT_ATTEMPTS=3` · `INGEST_JOB_BACKOFF_MS=2000`（`async/ingest-job.ts`，经 `async/queues` 再导出）
 - **评测 job payload**：`EvalJobDataSchema`（`tenantId`/`kbId`/`runId`/`userId`/`retrieveMode` · 可选 `maxCases`）；`EVAL_JOB_NAME=golden_2x2` · `EVAL_JOB_DEFAULT_ATTEMPTS=1`
@@ -51,7 +51,7 @@
 - **`AskScopeSchema`**：顶层 `docTypes`（≤32 个、每个 1–64 字），**禁止**塞进 options（B11）
 - 会话外壳 + 列表包装 + `SessionListQuerySchema`（`ask/session.contract`）
 - 反馈 + 队列列表包装 + `FeedbackQueueQuerySchema`（`ask/feedback.contract`）
-- KB 成员 + 邀请 / 移除（`ask/member.contract`）
+- KB 成员 + 邀请 / **改角色 PUT** / 移除（`ask/member.contract`；PUT body 只 `{ role }`，`.strict()` 拒 `allowedDocIds`）
 - 契约单测：`tests/ask/contract.test.ts` 等
 
 ### 测试辅助（仅 Vitest）
@@ -115,6 +115,7 @@
 | 策略 SSOT | `src/ingest/chunk-strategy.ts` · `tests/ingest/chunk-strategy.test.ts` |
 | 入库 job | `src/async/ingest-job.ts` · `tests/async/ingest-job.test.ts` · `async/queues.ts` |
 | 业务错误码 | `src/common/biz-code.ts` |
+| 鉴权 / 成员 DTO | `src/auth/session.contract.ts` `MePermissionsResponseSchema` · `src/ask/member.contract.ts` `UpdateMemberBodySchema` |
 | ask fixtures | `src/ask/fixtures.ts` · `tests/ask/fixtures.test.ts`（R10） |
 | ask 档位 DTO | `src/kb/kb-settings.contract.ts` `AskModesSchema` · `tests/kb/settings-contract.test.ts` |
 | ask 审计 DTO | `src/ask/ask.contract.ts` `AskAuditResponseSchema` · `tests/ask/audit-contract.test.ts` |

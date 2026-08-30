@@ -38,7 +38,9 @@
 | `POST` | `/api/v1/auth/admin/token/refresh` | 无 | body: refreshToken |
 | `POST` | `/api/v1/auth/web/token/refresh` | 无 | body: refreshToken |
 | `GET` | `/api/v1/auth/me` | `requireAuth()` | 返回主体 + 有效码列表 |
+| `GET` | `/api/v1/me/permissions` | `requireAuth()` | 有效码与 `/auth/me` **同源**（角色并集）；保留 `/auth/me` |
 | `GET/POST` | `/api/v1/knowledge-bases/:kbId/members` | `requirePermission('member.manage')` | 列表/邀请；**始终**验码+成员 |
+| `PUT` | `/api/v1/knowledge-bases/:kbId/members/:userId` | 同上 | body **只** `{ role }`；改库内角色 |
 | `DELETE` | `/api/v1/knowledge-bases/:kbId/members/:userId` | 同上 | 移除成员 |
 
 业务路由（示例）：
@@ -228,6 +230,18 @@ Refresh JWT：`sub` · `sid` · `app` · `jti`（落库/内存状态，用于 ro
 |------|------|
 | `userId` · `sessionId` · `app` · `roles` · `permissions` · `email?` · `tenantId?` | 同语义 |
 
+**GET /me/permissions `data`（`MePermissionsResponse`）**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `permissions` | string[] | 与 `/auth/me.permissions` **同源**（角色并集）。本批不返回 `byKb` / `allowedDocIds` |
+
+**PUT members/:userId body**
+
+| 字段 | 类型 | 约束 |
+|------|------|------|
+| `role` | `read` \| `write` \| `admin` | `.strict()`；禁止 `allowedDocIds` |
+
 #### Environment
 
 | Key | 默认 | 约束 |
@@ -256,7 +270,9 @@ Refresh JWT：`sub` · `sid` · `app` · `jti`（落库/内存状态，用于 ro
 | body 不符合 Zod | 400 | `VALIDATION_ERROR` | invalid body |
 | 非 development 调 dev-login | 404 | `NOT_FOUND` | not available |
 | web_consumer 调 admin dev-login | 403 | `FORBIDDEN` | web_consumer cannot login admin |
-| 无/坏 Bearer 调 requireAuth 或 /me | 401 | `UNAUTHORIZED` | access token required/invalid |
+| 无/坏 Bearer 调 requireAuth、`/auth/me` 或 `/me/permissions` | 401 | `UNAUTHORIZED` | access token required/invalid |
+| PUT 成员 body 非 `{ role }` | 400 | `VALIDATION_ERROR` | invalid body |
+| PUT 成员目标不在该 KB | 404 | `NOT_FOUND` | member not found |
 | refresh 无效/过期/未知 jti | 401 | `UNAUTHORIZED` | refresh token … |
 | refresh **replay**（used 后再用） | 401 | `UNAUTHORIZED` | refresh token replay；**整 session 吊销** |
 | 缺权限码 | 403 | `FORBIDDEN` | `missing permission: {code}` |
@@ -271,6 +287,8 @@ Refresh JWT：`sub` · `sid` · `app` · `jti`（落库/内存状态，用于 ro
 | 类 | 场景 |
 |----|------|
 | **Good** | admin dev-login → `super_admin` → 含 `admin.shell` + 全码；refresh 得新 access；旧 refresh 再刷 → 401 + session 吊销 |
+| **Good** | `GET /me/permissions` 与 `/auth/me.permissions` 同集；超管含 `admin.shell` |
+| **Good** | PUT members `{ role: admin }` → 200；额外 `allowedDocIds` → 400 |
 | **Good** | `doc_operator` 有 `doc.upload`、无 `approval.decide` |
 | **Good** | `web_consumer` 无 `admin.shell`；admin Guard 拒绝 |
 | **Base** | `AUTH_ENFORCE=false`：入库路由仍可无 Bearer 演示 |
@@ -287,7 +305,9 @@ Refresh JWT：`sub` · `sid` · `app` · `jti`（落库/内存状态，用于 ro
 | `tests/auth/token-service.test.ts` | issue+verify；refresh 轮换 access 不同；replay 抛 `AuthIdentityError`；app 错配拒绝 |
 | `tests/auth/role-hydrate.test.ts` | B4-W DB 覆盖 JWT、缓存/invalidate、bootstrap、timeout→claims、成员 403 回归 |
 | `tests/auth/enforce-401.test.ts` | QUAL-1（已归档）：`vi.stubEnv` enforce=true 无 Bearer → 401 UNAUTHORIZED；默认仍关；unstub 还原 |
-| 路由（建议补） | dev-login 400 体；/me 无 token 401；refresh replay 401 |
+| `tests/acl/me-permissions.test.ts` | 无 token 401；超管含 `admin.shell` / `dashboard.view` / `role.perm.manage`；与 `/auth/me` 同源 |
+| `tests/acl/members-http.test.ts` | PUT 只改 role；额外字段 400；缺成员 404；无码 403 |
+| 路由（建议补） | dev-login 400 体；refresh replay 401 |
 | 前端（建议补） | http 在 `UNAUTHORIZED` 时只并发一次 refresh |
 
 ### 7. Wrong vs Correct
@@ -350,6 +370,14 @@ if (!hasPermission(c.get('effectiveCodes'), 'approval.decide')) {
 
 ---
 
+## Design Decision: GET /me/permissions 与 /auth/me 同源
+
+**Context**：PRD §1 示意 `{ platformCodes, byKb, templates }`；功能表与本图 grilling 锁「角色并集」，且有效码与 `/auth/me` 同源。
+
+**Decision**：`GET /api/v1/me/permissions` 的 `data.permissions` = 同一 `effectiveCodes`（角色并集）。**保留** `/auth/me`；本批不改 web/admin `fetchAuthMe`。不返回 `byKb` / `allowedDocIds`。
+
+---
+
 ## Design Decision: 有效码 = 角色绑码并集（非 role 放行）
 
 **Context**：参考项目用 `roles.includes`；PRD ADR-051 要求以码为准。
@@ -393,7 +421,8 @@ apps/api/src/auth/
   kb-scope.ts              # ARCH-P1b-1 成员缓存纯函数
   middleware.ts            # attachAuth · require* · requireKbScope · evaluateKbMember
   types.ts
-apps/api/src/routes/auth.ts
+apps/api/src/routes/auth.ts          # authRoutes + meRoutes（GET /me/permissions）
+apps/api/src/routes/members.ts       # GET/POST/PUT/DELETE
 apps/admin/src/auth/{client-session,api}.ts
 apps/admin/src/lib/http.ts
 apps/admin/src/components/auth-guard.tsx

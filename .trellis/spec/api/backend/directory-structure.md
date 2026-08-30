@@ -24,12 +24,12 @@ apps/api/
       budget.ts · reasons.ts · tracer.ts
       # ask 图测例在 tests/ask/（min-veto / verify-required / rewrite-* 等）
     routes/
-      auth.ts                # dev-login · refresh · me · bootstrap ensureUserRoleCodes
+      auth.ts                # dev-login · refresh · /auth/me · export meRoutes（GET /me/permissions）· bootstrap ensureUserRoleCodes
       documents/             # ARCH-P1a 试点：按域目录（P1 入库 + B12 complete/reindex 闸 + P3b-META PATCH + complete 可写部门）
         index.ts             # export documentRoutes · PATCH 部门/可见级/docType · complete/reindex · lifecycle 四态 · GET 列表 enforce 时同滤
         mappers.ts           # toListItem / toDetail 纯函数
       chunks.ts              # B1 分片只读 list/detail（ADR-052）
-      members.ts             # 成员 list/invite/delete
+      members.ts             # 成员 list/invite/PUT role/delete
       ask.ts                 # POST …/ask 同步 + AI SDK UI Message Stream（B2-W mode/docTypes）
       sessions.ts            # 会话壳（rewrite 默认关；图边在 graph/run.ts）
       feedback.ts            # B13：POST/PATCH 用 evaluateKbMember / checkPermission({ kbId })

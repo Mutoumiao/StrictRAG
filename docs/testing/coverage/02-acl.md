@@ -65,7 +65,7 @@
 
 | ID | 期望摘要 | 阶段 | 形态 | 覆盖 | 主包 | 证据 | 缺口 |
 |----|----------|------|------|------|------|------|------|
-| Y1 | `GET /me/permissions`（超管）含全量或 `*`；含 `admin.shell`、`dashboard.view`、`role.perm.manage` | P2必签 | 单测 | 部分测 | api | apps/api/tests/acl/permission-resolve.test.ts（超管含 `admin.shell` / `role.perm.manage`）；apps/api/tests/acl/platform-users-roles.test.ts（permission-catalog 含 `admin.shell` / `role.perm.manage`）；apps/api/src/routes/auth.ts（`GET /auth/me` 回 `permissions`） | 无 `GET /me/permissions`；无 `/auth/me` 超管全码 HTTP（含 `dashboard.view`） |
+| Y1 | `GET /me/permissions`（超管）含全量或 `*`；含 `admin.shell`、`dashboard.view`、`role.perm.manage` | P2必签 | 单测 | 已测 | api | apps/api/tests/acl/me-permissions.test.ts（超管含 `admin.shell` / `dashboard.view` / `role.perm.manage`，且与 `/auth/me` 同源） | — |
 | Y2 | doc_operator 上传 complete → 200 进 pending；不自动 scan | P2必签 | 单测 | 部分测 | api | apps/api/tests/ingest/approval-scan.test.ts（pending 不可入队 scan）；apps/api/tests/ingest/gates-live.test.ts（未批 scan → FORBIDDEN）；packages/admin-catalog/src/role-templates.ts（doc_operator 有 `doc.upload` 无 `approval.decide`） | 无 doc_operator complete 200 + `approval_status=pending` 的角色 HTTP |
 | Y3 | 同上用户调审批通过 → 403（无 `approval.decide`） | P2必签 | 单测 | 部分测 | api | 同 B1-8：permission-resolve + catalog-clip + approvals-workspace | 同 B1-8：approve HTTP 默认不 enforce |
 | Y4 | kb_admin 审批通过 → 200；随后可 scan | P2必签 | 单测 | 已测 | api | apps/api/tests/ingest/approve-then-scan.test.ts | kb_admin approve 200 后 scan 200 且 enqueue stage=scan。不测禁自审（V3） |
