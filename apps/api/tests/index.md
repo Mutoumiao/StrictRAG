@@ -107,6 +107,8 @@
 | `ingest/document-validation.test.ts` | 文档写入校验拒绝非法字段。 | 入库 HTTP | `documents validation` | 文档写入校验。 | 现行 |
 | `ingest/gates-live.test.ts` | live 闸组合在真实 handler 下拒绝未审批 complete。 | complete 闸 | `createApp document gates` | 无 Docker / not ready 时 skip。 | 现行 |
 | `ingest/jobs-query.test.ts` | 入库任务列表项映射保持查询契约。 | prds/06-async | `toIngestJobListItem` | 入队在 api，消费在 worker。 | 现行 |
+| `ingest/ingest-report-http.test.ts` | 库级 GET ingest-report 须成员可读、空列表 200、缺库 404。 | prds/05-api GET ingest-report · 功能表 §5.2 | `GET /knowledge-bases/:kbId/ingest-report` | 只回已落库行；不是 doc 级路径。 | 现行 |
+| `ingest/ingest-report-map.test.ts` | 入库报告行映射不得把 null 对账填成 0 装齐。 | 功能表 §5.2 | `toIngestReportItem` | 查询契约；落库在 worker。 | 现行 |
 | `ingest/reindex-strategy.test.ts` | reindex / complete 按库可用策略计数：仅 1 个可自动，未实现 400。 | B12 · 功能表 §4.5 | `documents reindex / complete` | 未实现 400；选择规则走 available。 | 现行 |
 | `ingest/reject-http.test.ts` | admin 驳回后不得入队 scan。 | 剧本 V5 · prds/10-delivery/03-acceptance-scenarios.md · ADR-048 | `POST /documents/:docId/reject` · `POST …/scan` | reject 200 后 scan 403 且不入队；无独立重提 API。 | 现行 |
 | `ingest/sensitive-complete.test.ts` | 敏感文档 complete 必须过审批/密级闸。 | 审批/密级 | `documents sensitive complete` | 敏感 complete。 | 现行 |

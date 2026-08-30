@@ -1,0 +1,72 @@
+import type { IngestReportItem } from '@strict-rag/contracts';
+import { ingestReports } from '@strict-rag/db';
+import { desc, eq } from 'drizzle-orm';
+
+import { getDb } from './db.js';
+
+export function toIngestReportItem(row: {
+  id: string;
+  kbId: string;
+  docId: string;
+  indexVersion: number;
+  chunkCount: number;
+  internalDropped: number;
+  dualReady: number;
+  embedReady: number;
+  esReady: number;
+  reconcileOk: number | null;
+  reconcileMissing: number | null;
+  reconcileOrphan: number | null;
+  createdAt: string | null;
+}): IngestReportItem {
+  const reconcile =
+    row.reconcileOk == null
+      ? null
+      : {
+          ok: row.reconcileOk === 1,
+          missingCount: row.reconcileMissing ?? 0,
+          orphanCount: row.reconcileOrphan ?? 0,
+        };
+  return {
+    id: row.id,
+    kbId: row.kbId,
+    docId: row.docId,
+    indexVersion: row.indexVersion,
+    chunkCount: row.chunkCount,
+    internalDropped: row.internalDropped,
+    dualReady: row.dualReady === 1,
+    embedReady: row.embedReady === 1,
+    esReady: row.esReady === 1,
+    reconcile,
+    createdAt: row.createdAt,
+  };
+}
+
+export type IngestReportRepo = {
+  listByKb(kbId: string): Promise<IngestReportItem[]>;
+};
+
+export const ingestReportsRepo: IngestReportRepo = {
+  async listByKb(kbId) {
+    const rows = await getDb()
+      .select({
+        id: ingestReports.id,
+        kbId: ingestReports.kbId,
+        docId: ingestReports.docId,
+        indexVersion: ingestReports.indexVersion,
+        chunkCount: ingestReports.chunkCount,
+        internalDropped: ingestReports.internalDropped,
+        dualReady: ingestReports.dualReady,
+        embedReady: ingestReports.embedReady,
+        esReady: ingestReports.esReady,
+        reconcileOk: ingestReports.reconcileOk,
+        reconcileMissing: ingestReports.reconcileMissing,
+        reconcileOrphan: ingestReports.reconcileOrphan,
+        createdAt: ingestReports.createdAt,
+      })
+      .from(ingestReports)
+      .where(eq(ingestReports.kbId, kbId))
+      .orderBy(desc(ingestReports.createdAt));
+    return rows.map(toIngestReportItem);
+  },
+};
