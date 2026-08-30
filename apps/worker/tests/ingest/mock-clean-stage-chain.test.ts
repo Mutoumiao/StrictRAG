@@ -10,6 +10,7 @@ import {
   chunkManifests,
   chunks,
   documents,
+  ingestReports,
 } from '@strict-rag/db';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -45,6 +46,7 @@ type MemState = {
   chunks: Array<Record<string, unknown>>;
   manifests: Array<Record<string, unknown>>;
   embeddings: Array<Record<string, unknown>>;
+  reports: Array<Record<string, unknown>>;
 };
 
 const workerEnv = {
@@ -82,6 +84,7 @@ function createMemDb(state: MemState) {
           if (table === chunkManifests) return asRows(state.manifests);
           if (table === chunkEmbeddings) return asRows(state.embeddings);
           if (table === chunks) return asRows(state.chunks);
+          if (table === ingestReports) return asRows(state.reports);
           return asRows([]);
         },
       }),
@@ -90,6 +93,9 @@ function createMemDb(state: MemState) {
       set: (patch: Record<string, unknown>) => ({
         where: async () => {
           if (table === documents) Object.assign(state.doc, patch);
+          if (table === ingestReports && state.reports[0]) {
+            Object.assign(state.reports[0], patch);
+          }
         },
       }),
     }),
@@ -98,6 +104,7 @@ function createMemDb(state: MemState) {
         if (table === chunks) state.chunks.push(row);
         else if (table === chunkManifests) state.manifests.push(row);
         else if (table === chunkEmbeddings) state.embeddings.push(row);
+        else if (table === ingestReports) state.reports.push(row);
       },
     }),
   };
@@ -173,6 +180,7 @@ describe('剧本 M3 · mock_clean 阶段链（≠ 生产扫描 / ≠ 真杀毒�
       chunks: [],
       manifests: [],
       embeddings: [],
+      reports: [],
     };
     harness.state = state;
     harness.db = createMemDb(state);
@@ -210,6 +218,13 @@ describe('剧本 M3 · mock_clean 阶段链（≠ 生产扫描 / ≠ 真杀毒�
     expect(harness.state!.manifests).toHaveLength(1);
     expect((harness.state!.manifests[0] as { frozen: number }).frozen).toBe(1);
     expect(harness.state!.chunks.length).toBeGreaterThan(0);
+    expect(harness.state!.reports).toHaveLength(1);
+    expect(harness.state!.reports[0]).toMatchObject({
+      dualReady: 1,
+      embedReady: 1,
+      esReady: 1,
+      reconcileOk: 1,
+    });
     expect(workerEnv.INGEST_ES_MODE).toBe('mock');
     expect(workerEnv.INGEST_SCAN_MODE).toBe('mock_clean');
     expect(harness.deletedKeys).toEqual([]);

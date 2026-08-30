@@ -34,6 +34,7 @@ import { mockEsStore } from './es-store.js';
 import { embedTextsHttp, mockEmbedVector } from './embed-http.js';
 import { decodeUtf8Text, hasUtf8TextLayer } from './extract-text.js';
 import { extractPdfTextLayer, isPdfObject } from './pdf-text.js';
+import { persistIngestReport } from './ingest-report.js';
 import { recordStageEnd, recordStageStart } from './job-ledger.js';
 import { localMongoDocId, upsertChunkBodies, upsertDocumentBody } from './mongo-body.js';
 import { deleteObject, readObjectBytes, storeConfigFromEnv } from './object-store.js';
@@ -369,9 +370,13 @@ async function runIngestStageCore(
         tokenCount: number | null;
       }> = [];
       let ordinal = 0;
+      let internalDropped = 0;
       for (const body of pieces) {
         const norm = body.toLowerCase();
-        if (seen.has(norm)) continue;
+        if (seen.has(norm)) {
+          internalDropped += 1;
+          continue;
+        }
         seen.add(norm);
         const id = uuidv7();
         chunkIds.push(id);
@@ -411,6 +416,18 @@ async function runIngestStageCore(
           errorCode: 'EMPTY_CHUNKS',
           errorMessage: 'all chunks deduped away',
         });
+        await persistIngestReport(db, {
+          tenantId: doc.tenantId,
+          kbId: doc.kbId,
+          docId: doc.id,
+          indexVersion,
+          chunkCount: 0,
+          internalDropped,
+          dualReady: false,
+          embedReady: false,
+          esReady: false,
+          reconcile: null,
+        });
         return failStage('EMPTY_CHUNKS');
       }
 
@@ -429,6 +446,18 @@ async function runIngestStageCore(
         indexVersion,
         embedReady: 0,
         esReady: 0,
+      });
+      await persistIngestReport(db, {
+        tenantId: doc.tenantId,
+        kbId: doc.kbId,
+        docId: doc.id,
+        indexVersion,
+        chunkCount: chunkIds.length,
+        internalDropped,
+        dualReady: false,
+        embedReady: false,
+        esReady: false,
+        reconcile: null,
       });
       log.info({ indexVersion, chunkCount: chunkIds.length }, 'manifest frozen');
       return { next: enqueueNext(data, 'embed', indexVersion) };
@@ -665,6 +694,18 @@ async function runIngestStageCore(
           errorMessage: JSON.stringify(report),
           esReady: 0,
         });
+        await persistIngestReport(db, {
+          tenantId: doc.tenantId,
+          kbId: doc.kbId,
+          docId: doc.id,
+          indexVersion,
+          chunkCount: manifest.chunkIds.length,
+          internalDropped: 0,
+          dualReady: false,
+          embedReady: doc.embedReady === 1,
+          esReady: false,
+          reconcile: report,
+        });
         return failStage('ES_RECONCILE_FAILED');
       }
 
@@ -677,6 +718,18 @@ async function runIngestStageCore(
         errorCode: null,
         errorMessage: null,
       });
+      await persistIngestReport(db, {
+        tenantId: doc.tenantId,
+        kbId: doc.kbId,
+        docId: doc.id,
+        indexVersion,
+        chunkCount: manifest.chunkIds.length,
+        internalDropped: 0,
+        dualReady: true,
+        embedReady: true,
+        esReady: true,
+        reconcile: report,
+      });
       log.info(
         {
           indexVersion,
@@ -685,10 +738,15 @@ async function runIngestStageCore(
             docId: doc.id,
             kbId: doc.kbId,
             indexVersion,
-            chunkIds: manifest.chunkIds,
+            chunkCount: manifest.chunkIds.length,
             embedReady: true,
             esReady: true,
-            reconcile: report,
+            dualReady: true,
+            reconcile: {
+              ok: report.ok,
+              missingCount: report.missing.length,
+              orphanCount: report.orphan.length,
+            },
           },
         },
         'dual-ready → status=ready lifecycle=draft',
