@@ -28,6 +28,7 @@ apps/api/
       documents/             # ARCH-P1a 试点：按域目录（P1 入库 + B12 complete/reindex 闸 + P3b-META PATCH + complete 可写部门）
         index.ts             # export documentRoutes · PATCH 部门/可见级/docType · complete/reindex · lifecycle 四态 · GET 列表 enforce 时同滤
         mappers.ts           # toListItem / toDetail 纯函数
+      ingest-report.ts       # GET …/ingest-report（库级已落库行；doc.view WhenEnforced + 成员闸）
       chunks.ts              # B1 分片只读 list/detail（ADR-052）
       members.ts             # 成员 list/invite/PUT role/delete
       ask.ts                 # POST …/ask 同步 + AI SDK UI Message Stream（B2-W mode/docTypes）

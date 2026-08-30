@@ -6,13 +6,13 @@
 | 成熟度 | **可联调**（schema + client + 检索谓词底座；**无**业务服务层） |
 | 默认依赖模式 | 需要调用方提供 `DATABASE_URL`；时间列使用本地格式字符串（见 ORM PRD） |
 | 关联模块 | `api` 与 `worker` 共用 client / schema；检索闸门谓词被 api retrieve 复用 |
-| 最近更新 | 2026-08-29（`gold_questions` + `eval_runs.status/job_id`，migration `0010`） |
+| 最近更新 | 2026-08-30（`ingest_reports`，migration `0011`；doc+indexVersion 唯一） |
 | Spec | `.trellis/spec/db/backend/` |
 | PRD | `prds/03-data` · `prds/02-engineering/02-orm-drizzle.md` |
 
 ## 一句话状态
 
-Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库任务表 / 成员**、**问答会话 / 轨迹 / 反馈 / eval_runs**、**模型供应商 / 绑定**、**平台角色（codes_json）/ 用户角色** 以及 **部门 / 用户部门** 表均已落地；并提供默认检索双闸谓词（`ready ∧ active`）。**不等于**生产级迁移运维全集、完整任务账本/锁、或权限三表终态。
+Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库任务表 / 入库报告表 / 成员**、**问答会话 / 轨迹 / 反馈 / eval_runs**、**模型供应商 / 绑定**、**平台角色（codes_json）/ 用户角色** 以及 **部门 / 用户部门** 表均已落地；并提供默认检索双闸谓词（`ready ∧ active`）。**不等于**生产级迁移运维全集、完整任务账本/锁、或权限三表终态。
 
 ---
 
@@ -35,6 +35,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 - `knowledge_bases` · `documents`（含 **`chunkStrategy` / `chunkStrategyParams`** · **P3b-META** `owner_dept_id` / `visibility_level` 默认 20；**强制未接**）· `chunks` · `chunk_manifests`
 - `chunk_embeddings`：**`embedding` 列为 jsonb `number[]`**（演示 mock 向量；**不是** native pgvector/`vector` 列）
 - `ingest_jobs`：schema 已有；**worker** `job-ledger` 按阶段边界最小写（**非**本包服务层；无查询 API；同 doc 锁在 worker Redis 侧）
+- `ingest_reports`：doc+indexVersion 唯一；事实列 chunkCount / internalDropped / 双就绪 / 对账计数（migration `0011_ingest_reports`）；**无** 跨 doc / Hit@k 列
 - `kb_members`
 - **ADR-053**：`chunk_strategy_definitions` · `kb_chunk_strategies`（migration `0009_chunk_strategy_layers`）
 
@@ -44,8 +45,8 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 - **gold_questions**：运营题面（caseKey 每库唯一；migration `0010_eval_floor`）
 - schema 单测：`tests/ask/ask-schema.test.ts`
 
-### Migrations（journal 11 条，idx 0–10）
-- `0000_phase0_schema_meta` → `0010_eval_floor`（`drizzle/meta/_journal.json`）
+### Migrations（journal 12 条，idx 0–11）
+- `0000_phase0_schema_meta` → `0011_ingest_reports`（`drizzle/meta/_journal.json`）
 - 脚本：`db:generate` / `db:migrate` / `db:studio`（运维产品化流水线 **不**在本包宣称）
 
 ### 查询谓词
@@ -87,7 +88,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 | 类型 | 指针 |
 |------|------|
 | 导出 | `packages/db/src/index.ts` · `schema/index.ts` |
-| 知识库表 | `packages/db/src/schema/kb/*`（`documents.ts` · `chunk-embeddings.ts` · `ingest-jobs.ts`） |
+| 知识库表 | `packages/db/src/schema/kb/*`（`documents.ts` · `chunk-embeddings.ts` · `ingest-jobs.ts` · `ingest-reports.ts`） |
 | 问答 / 评测表 | `packages/db/src/schema/ask/*` · `eval-runs.ts` · `gold-questions.ts` · migration `drizzle/0006_b10_eval_runs.sql` · `0010_eval_floor.sql` |
 | 平台 / 部门 | `schema/system/platform-roles.ts` · `departments.ts` |
 | 检索闸门 | `packages/db/src/query/retrieval-gate.ts` · `tests/retrieve/ready-active-gate.test.ts`（导航 `packages/db/tests/index.md`） |

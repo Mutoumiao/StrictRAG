@@ -84,6 +84,14 @@
 
 **Related**：`documents/api.ts` · `list.services.ts` · `lifecycle.services.ts` · `reindex.services.ts`。
 
+### Convention: 入库报告入口
+
+**What**：文档行展开区紧挨「入库阶段」展示本行入库报告。库级 `GET …/ingest-report` 后按 `docId` 过滤。无行显示「暂无入库报告」。只写真事（分片数 / 文档内 dropped / 双就绪 / 对账）；不造跨 doc / Hit@k。
+
+**Why**：功能表 §4.3 文档页入口；HTTP 真值在 api。
+
+**Related**：`documents/api.ts` `listIngestReports` · `report.services.ts`；api `routes/ingest-report.ts`。
+
 ### Convention: 末位超管前端提示
 
 **What**：用户页按当前列表判定「唯一 active 且 `roleCodes` 含 `super_admin`」。该行「禁用」不可点；改角色时 `super_admin` 勾选不可点，保存若会让在职超管数为 0 则拦住。行上出说明。判定是体验裁剪，**不是**权限引擎；api `RULE_VIOLATION` 闸不改、不放宽。

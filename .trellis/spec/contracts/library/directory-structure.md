@@ -25,6 +25,7 @@ packages/contracts/
     ingest/
       document.contract.ts
       chunk.contract.ts       # B1 分片 list/detail（ADR-052）
+      ingest-report.contract.ts  # 库级 GET ingest-report 列表项
     ask/
       index.ts
       ask.contract.ts       # AskRequest/Response · options/scope strict

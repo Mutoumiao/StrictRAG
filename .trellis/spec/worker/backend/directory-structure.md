@@ -26,6 +26,7 @@ apps/worker/
       pipeline.ts            # 状态机 scan→parse→chunk→embed→es_index
       idempotency.ts         # X-04 幂等纯函数
       job-ledger.ts          # ingest_jobs 阶段账本（最小）
+      ingest-report.ts       # 入库报告最小落库（doc+indexVersion；非阻断）
       doc-lock.ts            # 同 doc Redis SET NX 锁（最小；非 Redlock）
       es-store.ts            # mock ES（进程内 Map）
       # 入库测例在 tests/ingest/

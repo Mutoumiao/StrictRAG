@@ -32,6 +32,7 @@ packages/db/
         chunk-manifests.ts
         kb-members.ts
         ingest-jobs.ts
+        ingest-reports.ts      # 入库报告最小行（doc+indexVersion）
         chunk-strategy-definitions.ts  # ADR-053 平台注册表
         kb-chunk-strategies.ts         # ADR-053 库启用
       ask/
