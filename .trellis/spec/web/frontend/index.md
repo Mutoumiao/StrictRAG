@@ -1,7 +1,7 @@
 # @strict-rag/web · 用户端前端
 
 > 路径：`apps/web` · 目标端口 **3005**  
-> 现状：**S2 最小 ask UI**（登录 · 会话壳 · KB 原生下拉只列本次 GET 可见库 · AI SDK 流 / 同步 · 三态）+ **B13** 答案旁反馈提交（`createAskFeedback`）+ **coref_unresolved** 拒答卡消费（主按钮回填不重发）；**无**完整多轮 rewrite、**无**对外宣传连续追问。
+> 现状：**S2 最小 ask UI**（登录 · 会话壳 · KB 关闭列表只列本次 GET 可见库 · AI SDK 流 / 同步 · 三态）+ **B13** 答案旁反馈提交（`createAskFeedback`）+ **coref_unresolved** 拒答卡消费（主按钮回填不重发）；**无**完整多轮 rewrite、**无**对外宣传连续追问。
 
 ---
 
@@ -19,7 +19,7 @@
 - [ ] 反馈是否走 `src/api/feedback.ts` → `POST /api/v1/ask/:requestId/feedback`（类型来自 contracts）？  
 - [ ] 引用点回是否走 `getAskAudit` → `GET /api/v1/ask/:requestId` 当时快照（禁止现网 `chunk.view` 全文、禁止前端补编）？  
 - [ ] 档位是否读 `GET …/ask-modes` 的 `allowedModes`/`defaultMode` 并传 `options.mode`（禁止直改 τ / retrieveK）？  
-- [ ] 知识库是否原生下拉只列本次 GET 可见行（展示名、值为 id；禁止粘贴 uuid；脏缓存不采用、不自动选第一项）？  
+- [ ] 知识库是否用 ui `ClosedSelect` 只列本次 GET 可见行（展示名、值为 id；禁止粘贴 uuid；脏缓存不采用、不自动选第一项）？  
 - [ ] 无可用库是否阻断提问并引导找管理员开通成员（列表失败走错误+重试，不给输入、不说开通成员）？  
 - [ ] 拒答 `suggestedActions` 是否出主按钮（换问法 / 重试 / 缺文档 / 联系管理员）？  
 - [ ] `coref_unresolved` 是否走拒答卡（abstain，非系统红）？主按钮「用完整问题重述」是否回填 `lastQuestion`、聚焦输入、**禁止**自动重发弱指代？界面是否禁止「已支持连续追问 / 已准出」类宣传？  

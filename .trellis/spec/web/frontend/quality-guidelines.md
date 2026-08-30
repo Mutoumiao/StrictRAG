@@ -7,7 +7,8 @@
 | 拒答可见 | 失败 reason / userMessage 映射用户文案；禁止伪装成成功答案 |
 | citations | 仅展示服务端返回的合法 id；不可前端「补编」引用；点回走 `GET /ask/:requestId` **当时快照**（preview 截断），禁止当 `chunk.view` 现网全文 |
 | options | 只传白名单：stream / debug / mode / locale；`mode` 来自 `GET …/ask-modes` 的 allowedModes（禁止直改 τ / retrieveK） |
-| 知识库切换 | 原生 `<select>`：选项仅本次 `GET /knowledge-bases` 行；展示库名、值为 id；禁止粘贴 uuid / combobox。`localStorage` 脏 id 不采用、不自动选第一项 |
+| 知识库切换 | ui `ClosedSelect`：选项仅本次 `GET /knowledge-bases` 行；展示库名、值为 id；禁止粘贴 uuid / combobox / 原生 `<select>`。`localStorage` 脏 id 不采用、不自动选第一项 |
+| 问答档位 | 同一 `ClosedSelect`：选项来自 `ask-modes` 的 `allowedModes`；禁止原生外壳 |
 | 无可用库 | 列表成功且为空 → 阻断提问，文案「找管理员开通成员」；列表失败 → 加载失败 + 重试，不给输入、文案不说开通成员 |
 | 建议动作 | 拒答 `suggestedActions` 出主按钮（首项 default）；按 type 换问法 / 重试 / 缺文档 / 联系管理员；禁止只做无动作列表 |
 | 指代失败 | `reason=coref_unresolved` **必须**走拒答卡（abstain，非系统红）；主按钮「用完整问题重述」= 聚焦输入 + 回填 `lastQuestion`，**禁止**自动 `ask` 弱指代；该 reason 下隐藏表单旁「重试」（避免原句再发）；禁止展示「已支持连续追问 / 已准出 / 多轮已启用」或把 `rewriteUsed` 当卖点 |

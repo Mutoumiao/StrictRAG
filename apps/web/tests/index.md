@@ -22,9 +22,9 @@
 | `ask/abstain-alert.test.tsx` | 拒答以 alert 展示，不得当成普通答案；kb_not_ready 不进系统错误卡。 | P0 R2 · R10 | `AskPanel` | 用 contracts testing 工厂。 | 现行 |
 | `ask/scope-top-level.test.ts` | ask 请求的 scope 必须在顶层，不得进入 options。 | ADR-050 | `buildAskRequestBody · parseScopeDocTypesInput` | 客户端 body 形状；可带 options.mode。 | 现行 |
 | `ask/stream-ready-no-final.test.ts` | 流式 ready 且无合法 final 时不得卡在 loading，必须落到 error。 | P0 R1 | `useKnowledgeAsk` | 流式三态；非法终态 → error；kb_not_ready final 进 abstained；getMode；429 码保留。 | 现行 |
-| `ask/ask-mode.test.tsx` | 问答档位必须读库 allowedModes/defaultMode 并传 mode，客户端不可改阈值。 | 功能表 §3 问答档位 | `AskPanel` 档位下拉 · `buildAskRequestBody` | 下拉只列允许档；默认 defaultMode。 | 现行 |
+| `ask/ask-mode.test.tsx` | 问答档位必须读库 allowedModes/defaultMode 并传 mode，客户端不可改阈值。 | 功能表 §3 问答档位 | `AskPanel` 档位关闭列表 · `buildAskRequestBody` | 关闭列表只列允许档；默认 defaultMode。 | 现行 |
 | `ask/empty-kb.test.tsx` | 无可用知识库时必须阻断提问，引导找管理员开通成员。 | 功能表 §3 无可用知识库 | `AskPanel` 空态 | 列表成功且为空则无提问表、无选择器。 | 现行 |
-| `ask/kb-picker-members-only.test.tsx` | 知识库切换只能选本次可见库，禁止粘贴任意 uuid；列表失败不得当开通成员空态。 | 功能表 §3 知识库切换 | `AskPanel` 知识库原生下拉 | 只能选 GET 返回的 id；脏缓存不提问；失败可重试且文案与空态可区分。 | 现行 |
+| `ask/kb-picker-members-only.test.tsx` | 知识库切换只能选本次可见库，禁止粘贴任意 uuid；列表失败不得当开通成员空态。 | 功能表 §3 知识库切换 | `AskPanel` 知识库关闭列表 | 只能选 GET 返回的 id；脏缓存不提问；失败可重试且文案与空态可区分。 | 现行 |
 | `ask/suggested-actions.test.tsx` | 拒答建议动作必须按 reason 出主按钮，而不是只做列表文案。 | 功能表 §3 建议动作 | `AskPanel` SuggestedActionBar | 首项主按钮；换问法回填；缺文档提交类别。 | 现行 |
 | `ask/coref-unresolved.test.tsx` | 指代失败必须按业务拒答展示和操作，不得当系统崩溃，也不得写成连续追问卖点。 | 功能表 §3 建议动作 / 连续追问 rewrite · prds/04-pipelines/02-online-ask-langgraph.md §2.1 | `AskPanel` AbstainedCard SuggestedActionBar | coref_unresolved 拒答卡 + 主按钮回填不重发；无宣传文案。 | 现行 |
 | `ask/quota-429.test.tsx` | ask 429 RATE_LIMITED 必须出配额文案，不得装成已回答。 | 功能表 §3 配额/限流触顶 | `throwIfAskFailResponse` · ErrorCard | 解析失败信封；错误卡提问次数已达上限。 | 现行 |

@@ -8,7 +8,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { makeAbstainedFinal, makeAnsweredFinal } from '@/test/fixtures/ask';
-import { render, screen, userEvent, waitFor } from '@/test/test-utils';
+import { pickClosedOption, render, screen, userEvent, waitFor } from '@/test/test-utils';
 
 const askMock = vi.fn(async () => undefined);
 const resetMock = vi.fn();
@@ -92,7 +92,7 @@ describe('AskPanel', () => {
     const { rerender } = render(<AskPanel />);
     await waitFor(() => expect(screen.getByRole('button', { name: '提问' })).toBeInTheDocument());
 
-    await user.selectOptions(await screen.findByLabelText('知识库'), 'kb-1');
+    await pickClosedOption(user, '知识库', '演示库');
     await user.type(screen.getByLabelText('问题'), '第一次问题');
     await user.click(screen.getByRole('button', { name: '提问' }));
     await waitFor(() => expect(askMock).toHaveBeenCalledWith('第一次问题'));

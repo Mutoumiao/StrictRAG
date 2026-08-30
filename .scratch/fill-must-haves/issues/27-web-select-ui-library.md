@@ -2,7 +2,7 @@
 
 Type: task
 Label: wayfinder:task
-Status: claimed
+Status: resolved
 Assignee: grok
 Triage: ready-for-agent
 Blocked by: 26
@@ -31,3 +31,16 @@ Blocked by: 26
 收工：skill `update-module-status`；`.trellis/tasks/08-06-project-backlog/` 只补指针，禁止 `task.py create`。
 
 写代码前读 `.trellis/spec/` 对应包（web、ui）。
+
+## Answer
+
+web `AskPanel` 知识库与问答档位都改用 `@strict-rag/ui` `ClosedSelect`（与 admin 顶栏同一组件）。过滤 / 空态开通成员 / 失败重试无输入 / 脏缓存不采用 / 不能提问 的已锁语义未改。测例改点触发器 + 选项，断言点保持。未改 GET、Ask 成员闸、admin 顶栏。
+
+测例：`apps/web/tests/ask/kb-picker-members-only.test.tsx` · `ask-mode.test.tsx`。未 `task.py create`。
+
+证据：`apps/web/src/components/ask-panel.tsx`。
+
+## Comments
+
+- 2026-08-30 按图顺序认领本工单。开放前沿即本张；把 web 知识库 / 档位原生下拉换成 `ClosedSelect`，不改已锁过滤语义。
+- 2026-08-30 收工：关本工单；建 [裁定 web 下拉换 ui 关闭列表后下一步](./28-after-web-select-order.md)。未 `task.py create`。

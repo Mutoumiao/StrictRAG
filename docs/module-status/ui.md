@@ -21,7 +21,7 @@
 - `class-variance-authority` 变体：Button 含 `destructive`；Badge / Alert 含 `abstain` 与 `destructive` 分离变体
 - 可聚焦控件使用 `forwardRef`：Button · Input · Label · Textarea · Select · ClosedSelect · Table 系列 · Card 系列（Badge / Alert 是无 ref 的纯展示块）
 - Select：基于**原生** `<select>` 封装，不依赖 Radix（遗留；**新下拉禁止再用**）
-- ClosedSelect：关闭列表（展示文案、值为 id；不能输入、不能搜）；不是 combobox、不是原生 `<select>`。admin 顶栏已用
+- ClosedSelect：关闭列表（展示文案、值为 id；不能输入、不能搜）；不是 combobox、不是原生 `<select>`。admin 顶栏与 web 知识库/档位已用
 
 ## 明确未做 / 边界
 

@@ -1,7 +1,7 @@
 /**
  * 目标：知识库切换只能选本次可见库，禁止粘贴任意 uuid；列表失败不得当开通成员空态。
  * 需求：功能表 §3 知识库切换 · 工单「库选择器只列成员库」
- * 被测：AskPanel 知识库原生下拉
+ * 被测：AskPanel 知识库关闭列表
  * 简介：只能选 GET 返回的 id；脏缓存不提问；失败可重试且文案与空态可区分。
  */
 
@@ -114,24 +114,27 @@ describe('AskPanel 库选择器只列成员库', () => {
       expect(screen.getByLabelText('知识库')).toBeInTheDocument();
     });
     expect(screen.queryByText('知识库列表加载失败')).not.toBeInTheDocument();
-    expect(screen.getByRole('option', { name: '甲库' })).toHaveValue(KB_A.id);
+    await user.click(screen.getByLabelText('知识库'));
+    expect(screen.getByRole('option', { name: '甲库' })).toBeInTheDocument();
   });
 
   it('只能选本次列表返回的 id，无自由输入', async () => {
     const user = userEvent.setup();
     listKnowledgeBases.mockResolvedValue([KB_A, KB_B]);
     render(<AskPanel />);
-    const select = await screen.findByLabelText('知识库');
-    expect(select.tagName).toBe('SELECT');
+    const trigger = await screen.findByLabelText('知识库');
+    expect(trigger.tagName).toBe('BUTTON');
+    expect(document.querySelector('select')).toBeNull();
     expect(screen.queryByLabelText('知识库 ID')).not.toBeInTheDocument();
     expect(screen.queryByPlaceholderText('uuid')).not.toBeInTheDocument();
-    expect(screen.getByRole('option', { name: '甲库' })).toHaveValue(KB_A.id);
-    expect(screen.getByRole('option', { name: '乙库' })).toHaveValue(KB_B.id);
-    expect(screen.queryByRole('option', { name: GHOST_ID })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '提问' })).toBeDisabled();
 
-    await user.selectOptions(select, KB_B.id);
-    expect(select).toHaveValue(KB_B.id);
+    await user.click(trigger);
+    expect(screen.getByRole('option', { name: '甲库' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: '乙库' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: GHOST_ID })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('option', { name: '乙库' }));
+    expect(screen.getByLabelText('知识库')).toHaveTextContent('乙库');
     expect(screen.getByRole('button', { name: '提问' })).toBeEnabled();
     expect(localStorage.getItem(KB_STORAGE)).toBe(KB_B.id);
   });
@@ -141,10 +144,9 @@ describe('AskPanel 库选择器只列成员库', () => {
     localStorage.setItem(KB_STORAGE, GHOST_ID);
     listKnowledgeBases.mockResolvedValue([KB_A, KB_B]);
     render(<AskPanel />);
-    const select = await screen.findByLabelText('知识库');
-    expect(select).toHaveValue('');
-    expect(select).not.toHaveValue(KB_A.id);
-    expect(select).not.toHaveValue(GHOST_ID);
+    const trigger = await screen.findByLabelText('知识库');
+    expect(trigger).toHaveTextContent('请选择知识库');
+    expect(trigger).not.toHaveTextContent('甲库');
     expect(getAskModesMock).not.toHaveBeenCalledWith(GHOST_ID);
     expect(screen.getByRole('button', { name: '提问' })).toBeDisabled();
 

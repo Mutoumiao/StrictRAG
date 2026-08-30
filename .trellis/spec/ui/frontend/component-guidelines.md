@@ -106,7 +106,7 @@ import { Alert, AlertTitle, AlertDescription } from '@strict-rag/ui/components/u
 | variant | 优先 `cva`；依赖 `catalog:` |
 | ref | 可聚焦控件 **forwardRef** |
 | Select | 首版 **native** + 统一 class（遗留；**新下拉禁止再用**） |
-| ClosedSelect | 关闭列表：展示文案、值为 id；不能输入、不能搜。不是 combobox、不是原生 `<select>`。admin 顶栏已用；web 回改另张 |
+| ClosedSelect | 关闭列表：展示文案、值为 id；不能输入、不能搜。不是 combobox、不是原生 `<select>`。admin 顶栏与 web 知识库/档位已用 |
 | Button default | **primary**（品牌蓝），非 zinc 前景色块 |
 | 增组件 | 改 `package.json#exports` + 本表；按需，勿一次铺全集 |
 

@@ -5,15 +5,15 @@
 | 路径 | `apps/web` |
 | 端口 | 3005 |
 | 成熟度 | **可演示**（S2 用户端薄壳） |
-| 默认依赖模式 | 鉴权 = 临时双 JWT（经 api）· `NEXT_PUBLIC_API_BASE_URL` 默认 `http://127.0.0.1:4000` · 问答 = AI SDK UI Message Stream · rewrite = **服务端强制关**（本包无开关控件）· 知识库 = 原生下拉消费 `GET /knowledge-bases` 可见行（**无**自由粘贴） |
+| 默认依赖模式 | 鉴权 = 临时双 JWT（经 api）· `NEXT_PUBLIC_API_BASE_URL` 默认 `http://127.0.0.1:4000` · 问答 = AI SDK UI Message Stream · rewrite = **服务端强制关**（本包无开关控件）· 知识库 = ui `ClosedSelect` 消费 `GET /knowledge-bases` 可见行（**无**自由粘贴） |
 | 关联模块 | ask 流 / 会话 / 反馈提交：`api`；类型：`contracts`；样式 / 组件：`ui` |
-| 最近更新 | 2026-08-30（知识库原生下拉只列本次 GET 可见库；空态开通成员；列表失败重试无输入） |
+| 最近更新 | 2026-08-30（知识库/档位换 ui `ClosedSelect`；过滤/空态/失败/脏缓存语义不变） |
 | Spec | `.trellis/spec/web/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · ask 流相关 API |
 
 ## 一句话状态
 
-Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列表 / 历史回放 + B13 答后反馈（赞/踩/报错/缺文档）+ 档位下拉 + 知识库原生下拉（只列本次 GET 可见库）+ 无库空态 + 拒答主按钮 + 429 配额文案 + `coref_unresolved` 拒答卡（主按钮回填不重发）** 已接通；**不是**完整产品 IA，**没有**对外宣传连续追问 / rewrite（服务端仍强制关）。包内配有 Vitest / RTL **P0 红线测试**（R1–R4 / R10；**不是** E2E、**不是** L1 黄金集评测）。
+Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列表 / 历史回放 + B13 答后反馈（赞/踩/报错/缺文档）+ 档位/知识库关闭列表（只列本次 GET 可见库）+ 无库空态 + 拒答主按钮 + 429 配额文案 + `coref_unresolved` 拒答卡（主按钮回填不重发）** 已接通；**不是**完整产品 IA，**没有**对外宣传连续追问 / rewrite（服务端仍强制关）。包内配有 Vitest / RTL **P0 红线测试**（R1–R4 / R10；**不是** E2E、**不是** L1 黄金集评测）。
 
 ---
 
@@ -27,8 +27,8 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列�
 - 存储 key **仅** `strict-rag:web:client-session`（与 admin 端隔离；有测试覆盖）；写/清时 dispatch 会话变更事件 `strict-rag-web-client-session-changed`（`sessionChangedEventName`）
 
 ### 问答 UI（S2-#8）
-- 选择知识库：原生 `<select>` 只列本次 `GET /knowledge-bases` 可见行（展示名、值为 id；`ask-panel`）；`localStorage` `strict-rag:web:last-kb-id` 仅当属于本次列表才采用，不自动选第一项；空列表阻断提问并提示「找管理员开通成员」（EmptyKbCard · `tests/ask/empty-kb.test.tsx`）；列表失败走错误卡 + 重试，不给输入、不说开通成员（`tests/ask/kb-picker-members-only.test.tsx`）。**不**在客户端再滤一遍成员；过滤真值在 API `selectVisibleKbs`
-- 问答档位：`getAskModes` → `GET /api/v1/knowledge-bases/:kbId/ask-modes` 读 `allowedModes`/`defaultMode`，提问传 `options.mode`（`tests/ask/ask-mode.test.tsx`）；**不**读 settings、**不**展示 τ
+- 选择知识库：ui `ClosedSelect` 只列本次 `GET /knowledge-bases` 可见行（展示名、值为 id；`ask-panel`）；`localStorage` `strict-rag:web:last-kb-id` 仅当属于本次列表才采用，不自动选第一项；空列表阻断提问并提示「找管理员开通成员」（EmptyKbCard · `tests/ask/empty-kb.test.tsx`）；列表失败走错误卡 + 重试，不给输入、不说开通成员（`tests/ask/kb-picker-members-only.test.tsx`）。**不**在客户端再滤一遍成员；过滤真值在 API `selectVisibleKbs`
+- 问答档位：同一 `ClosedSelect`；`getAskModes` → `GET /api/v1/knowledge-bases/:kbId/ask-modes` 读 `allowedModes`/`defaultMode`，提问传 `options.mode`（`tests/ask/ask-mode.test.tsx`）；**不**读 settings、**不**展示 τ
 - 流式输出：`@ai-sdk/react` 的 `useChat` + `DefaultChatTransport`；服务端使用 AI SDK UI Message Stream 协议
 - 进度展示：`data-status`（瞬时状态）；终态：`data-ask-final` 经 `AskResponseSchema.safeParse` 校验通过后，才进入 answered / abstained 状态；**不**手写 SSE 分帧逻辑
 - 三种结果态：`answered`（已回答）/ `abstained`（已拒答）/ 错误；引用列表仅在 answered 且非闲聊（chitchat）路径下展示；点击引用走 `getAskAudit` → `GET /api/v1/ask/:requestId` 展示当时 snapshot（preview 截断），**不是** `chunk.view` 现网全文（`ask-panel.tsx` CitationBlock · `tests/ask/citation-chunk-detail.test.tsx`）
@@ -48,7 +48,7 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列�
 - 分层：传输 `lib/http.ts` · 身份 `auth/api.ts` · 业务 `src/api/{ask,sessions,feedback}.ts` · hook `hooks/use-knowledge-ask.ts`
 - 401 自动刷新重试（两条路径，**均无单测**）：`lib/http.ts`（Bearer 注入 + 单飞 `ensureRefresh`，失败清 session）+ `api/ask.ts` transport 的 `fetch` 包装（401 → `refreshAccessToken` 重试）
 - 类型：`@strict-rag/contracts`
-- 样式：Tailwind v4（`postcss.config.mjs`；`src/app/globals.css` 引入 ui 主题并配置 `@source`）；`ask-panel` / 登录页使用 Button · Input · Label · Textarea · Card · Badge · Alert（含 `variant="abstain"`）等原子组件；**没有**大面积用 `style={{}}` 写布局 / 色板
+- 样式：Tailwind v4（`postcss.config.mjs`；`src/app/globals.css` 引入 ui 主题并配置 `@source`）；`ask-panel` / 登录页使用 Button · Input · Label · Textarea · ClosedSelect · Card · Badge · Alert（含 `variant="abstain"`）等原子组件；**没有**大面积用 `style={{}}` 写布局 / 色板
 - 构建：`next build --webpack`；`next.config` 配置 `transpilePackages` + webpack `extensionAlias`
 - 依赖：`ai` · `@ai-sdk/react`（版本由 catalog 统一管理）
 - **B13**：`FeedbackBar`（`ask-panel.tsx`）在 answered/abstained 且有 `requestId` 时展示 有帮助/无帮助/报错/缺文档 → `src/api/feedback.ts` → `POST /api/v1/ask/{requestId}/feedback`（`tests/ask/feedback-category.test.tsx`）
@@ -71,7 +71,7 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列�
 | 分片预览全文 | 引用点回是 **当时快照 preview**；现网 `chunk.view` 全文在 admin，web **无** 分片运营页 |
 | 按 `requestId` 断线重拉 | 工单明确不做；`getAskAudit` 不是 AskResponse 重放 |
 | 类型字典下拉 / 强制选类型 | B11 刻意不做；依赖 `kb.config.write` 的 GET settings 字典 |
-| 可搜索完整选择器 / 库目录页 | 原生 `<select>` 只列本次 GET 行；无 combobox；无发现页 |
+| 可搜索完整选择器 / 库目录页 | `ClosedSelect` 只列本次 GET 行；无 combobox；无发现页 |
 | 生产视觉 / product.pen **像素级**定稿 | Soft Bento token + ui 原子组件已接入；**并非**对 product.pen 的全屏像素还原 |
 
 ---
@@ -92,7 +92,7 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列�
 |------|------|
 | 首页 / 登录 | `src/app/page.tsx` · `src/app/login/page.tsx` |
 | 鉴权 | `src/components/auth-guard.tsx` · `src/auth/api.ts` · `client-session.ts` |
-| 问答面板 | `src/components/ask-panel.tsx`（原生库下拉 · 档位 · 无库空态 · 列表失败重试 · 建议主按钮 · `coref_unresolved` 回填不重发 · 配额 · 反馈类别 · B11 文档类型可选） |
+| 问答面板 | `src/components/ask-panel.tsx`（`ClosedSelect` 库/档位 · 无库空态 · 列表失败重试 · 建议主按钮 · `coref_unresolved` 回填不重发 · 配额 · 反馈类别 · B11 文档类型可选） |
 | ask 流 | `src/hooks/use-knowledge-ask.ts`（含 ready 无 final 兜底 + getScope + getMode）· `src/api/ask.ts`（`parseScopeDocTypesInput` / `buildAskRequestBody` / `getAskAudit` / `getAskModes` / `throwIfAskFailResponse`）· `ask-panel.tsx`（`lastQuestion` · CitationBlock） |
 | 引用点回 | `src/api/ask.ts` `getAskAudit` · `ask-panel.tsx` CitationBlock · `tests/ask/citation-chunk-detail.test.tsx` |
 | 消费余量测 | `tests/ask/ask-mode.test.tsx` · `empty-kb.test.tsx` · `kb-picker-members-only.test.tsx` · `suggested-actions.test.tsx` · `coref-unresolved.test.tsx` · `quota-429.test.tsx` · `feedback-category.test.tsx` |

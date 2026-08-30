@@ -27,8 +27,8 @@ import { Badge } from '@strict-rag/ui/components/ui/badge';
 import { Button } from '@strict-rag/ui/components/ui/button';
 import { Card, CardContent } from '@strict-rag/ui/components/ui/card';
 import { Input } from '@strict-rag/ui/components/ui/input';
+import { ClosedSelect } from '@strict-rag/ui/components/ui/closed-select';
 import { Label } from '@strict-rag/ui/components/ui/label';
-import { Select } from '@strict-rag/ui/components/ui/select';
 import { Textarea } from '@strict-rag/ui/components/ui/textarea';
 import { cn } from '@strict-rag/ui/lib/utils';
 import { useRouter } from 'next/navigation';
@@ -394,11 +394,10 @@ export function AskPanel() {
               <form onSubmit={onSubmit} className="flex flex-col gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="ask-kb">知识库</Label>
-                  <Select
+                  <ClosedSelect
                     id="ask-kb"
                     value={kbId}
-                    onChange={(ev) => {
-                      const v = ev.target.value;
+                    onValueChange={(v) => {
                       if (kbOptions.some((o) => o.id === v)) {
                         setKbId(v);
                         window.localStorage.setItem(KB_STORAGE, v);
@@ -406,35 +405,28 @@ export function AskPanel() {
                         setKbId('');
                       }
                     }}
-                    required
-                  >
-                    <option value="">请选择知识库</option>
-                    {kbOptions.map((k) => (
-                      <option key={k.id} value={k.id}>
-                        {k.name}
-                      </option>
-                    ))}
-                  </Select>
+                    options={kbOptions.map((k) => ({ value: k.id, label: k.name }))}
+                    placeholder="请选择知识库"
+                  />
                 </div>
                 {askModes ? (
                   <div className="space-y-1.5">
                     <Label htmlFor="ask-mode">问答档位</Label>
-                    <Select
+                    <ClosedSelect
                       id="ask-mode"
                       value={mode}
-                      onChange={(ev) => {
-                        const parsed = AskModeSchema.safeParse(ev.target.value);
+                      onValueChange={(v) => {
+                        const parsed = AskModeSchema.safeParse(v);
                         if (parsed.success && askModes.allowedModes.includes(parsed.data)) {
                           setMode(parsed.data);
                         }
                       }}
-                    >
-                      {askModes.allowedModes.map((m) => (
-                        <option key={m} value={m}>
-                          {ASK_MODE_LABELS[m]}（{m}）
-                        </option>
-                      ))}
-                    </Select>
+                      options={askModes.allowedModes.map((m) => ({
+                        value: m,
+                        label: `${ASK_MODE_LABELS[m]}（${m}）`,
+                      }))}
+                      placeholder="请选择档位"
+                    />
                     <p className="m-0 text-[11px] text-muted-foreground">
                       选项来自本库允许档位；客户端不可改阈值或检索预算。
                     </p>
