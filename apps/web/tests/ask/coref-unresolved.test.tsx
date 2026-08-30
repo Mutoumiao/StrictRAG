@@ -96,7 +96,7 @@ describe('AskPanel coref_unresolved 消费', () => {
     const user = userEvent.setup();
     const { rerender } = render(<AskPanel />);
     await waitFor(() => expect(screen.getByRole('button', { name: '提问' })).toBeInTheDocument());
-    await user.type(screen.getByLabelText('知识库 ID'), 'kb-1');
+    await user.selectOptions(await screen.findByLabelText('知识库'), 'kb-1');
     await user.type(screen.getByLabelText('问题'), WEAK_COREF);
     await user.click(screen.getByRole('button', { name: '提问' }));
     await waitFor(() => expect(askMock).toHaveBeenCalledWith(WEAK_COREF));

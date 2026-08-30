@@ -100,7 +100,7 @@ describe('AskPanel 建议动作主按钮', () => {
     const user = userEvent.setup();
     const { rerender } = render(<AskPanel />);
     await waitFor(() => expect(screen.getByRole('button', { name: '提问' })).toBeInTheDocument());
-    await user.type(screen.getByLabelText('知识库 ID'), 'kb-1');
+    await user.selectOptions(await screen.findByLabelText('知识库'), 'kb-1');
     await user.type(screen.getByLabelText('问题'), '年假怎么休');
     await user.click(screen.getByRole('button', { name: '提问' }));
     await waitFor(() => expect(askMock).toHaveBeenCalledWith('年假怎么休'));

@@ -62,6 +62,7 @@ export function AskPanel() {
   const [kbId, setKbId] = useState('');
   const [kbOptions, setKbOptions] = useState<{ id: string; name: string }[]>([]);
   const [kbListStatus, setKbListStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [kbReloadKey, setKbReloadKey] = useState(0);
   const [askModes, setAskModes] = useState<AskModes | null>(null);
   const [mode, setMode] = useState<AskMode | ''>('');
   const [modesLoadFailed, setModesLoadFailed] = useState(false);
@@ -95,17 +96,27 @@ export function AskPanel() {
   });
 
   useEffect(() => {
-    setKbId(window.localStorage.getItem(KB_STORAGE) ?? '');
+    let cancelled = false;
+    setKbListStatus('loading');
     void listKnowledgeBases()
       .then((rows) => {
-        setKbOptions(rows.map((r) => ({ id: r.id, name: r.name })));
+        if (cancelled) return;
+        const options = rows.map((r) => ({ id: r.id, name: r.name }));
+        const stored = window.localStorage.getItem(KB_STORAGE) ?? '';
+        setKbOptions(options);
+        setKbId(options.some((o) => o.id === stored) ? stored : '');
         setKbListStatus('ready');
       })
       .catch(() => {
+        if (cancelled) return;
         setKbOptions([]);
+        setKbId('');
         setKbListStatus('error');
       });
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [kbReloadKey]);
 
   useEffect(() => {
     const id = kbId.trim();
@@ -215,7 +226,8 @@ export function AskPanel() {
   async function submitQuestion(raw: string) {
     const q = raw.trim();
     const id = kbId.trim();
-    if (!q || !id || busy) return;
+    const listed = kbOptions.some((o) => o.id === id);
+    if (!q || !id || !listed || busy) return;
     window.localStorage.setItem(KB_STORAGE, id);
     setLastQuestion(q);
     setQuestion('');
@@ -271,7 +283,7 @@ export function AskPanel() {
     }
   }
 
-  const showAskForm = kbListStatus === 'error' || kbOptions.length > 0;
+  const kbSelected = kbOptions.some((o) => o.id === kbId);
 
   function onLogout() {
     logoutLocal();
@@ -372,33 +384,37 @@ export function AskPanel() {
           <p className="text-sm text-muted-foreground" role="status">
             正在加载可用知识库…
           </p>
-        ) : !showAskForm ? (
+        ) : kbListStatus === 'error' ? (
+          <KbListErrorCard onRetry={() => setKbReloadKey((n) => n + 1)} />
+        ) : kbOptions.length === 0 ? (
           <EmptyKbCard />
         ) : (
           <Card>
             <CardContent className="pt-4">
               <form onSubmit={onSubmit} className="flex flex-col gap-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="ask-kb">知识库 ID</Label>
-                  <Input
+                  <Label htmlFor="ask-kb">知识库</Label>
+                  <Select
                     id="ask-kb"
-                    list="web-kb-list"
                     value={kbId}
                     onChange={(ev) => {
                       const v = ev.target.value;
-                      setKbId(v);
-                      window.localStorage.setItem(KB_STORAGE, v.trim());
+                      if (kbOptions.some((o) => o.id === v)) {
+                        setKbId(v);
+                        window.localStorage.setItem(KB_STORAGE, v);
+                      } else {
+                        setKbId('');
+                      }
                     }}
-                    placeholder="uuid"
                     required
-                  />
-                  <datalist id="web-kb-list">
+                  >
+                    <option value="">请选择知识库</option>
                     {kbOptions.map((k) => (
                       <option key={k.id} value={k.id}>
                         {k.name}
                       </option>
                     ))}
-                  </datalist>
+                  </Select>
                 </div>
                 {askModes ? (
                   <div className="space-y-1.5">
@@ -456,7 +472,7 @@ export function AskPanel() {
                   />
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button type="submit" disabled={view.type === 'loading'}>
+                  <Button type="submit" disabled={view.type === 'loading' || !kbSelected}>
                     {view.type === 'loading' ? `处理中（${view.phase ?? '…'}）` : '提问'}
                   </Button>
                   {view.type === 'error' ||
@@ -471,11 +487,6 @@ export function AskPanel() {
                     </span>
                   ) : null}
                 </div>
-                {kbListStatus === 'error' ? (
-                  <p className="m-0 text-xs text-destructive">
-                    知识库列表加载失败，可粘贴知识库 ID 继续提问。
-                  </p>
-                ) : null}
                 {actionHint ? (
                   <p className="m-0 text-xs text-muted-foreground">{actionHint}</p>
                 ) : null}
@@ -520,6 +531,22 @@ function EmptyKbCard() {
         <p className="mt-2 mb-0 text-sm text-muted-foreground">
           你还不是任何知识库的成员，无法提问。请找管理员开通成员。
         </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function KbListErrorCard({ onRetry }: { onRetry: () => void }) {
+  return (
+    <Card>
+      <CardContent className="pt-6">
+        <h2 className="m-0 text-base font-semibold">知识库列表加载失败</h2>
+        <p className="mt-2 mb-4 text-sm text-muted-foreground" role="alert">
+          无法获取可用知识库，请稍后重试。
+        </p>
+        <Button type="button" onClick={onRetry}>
+          重试
+        </Button>
       </CardContent>
     </Card>
   );

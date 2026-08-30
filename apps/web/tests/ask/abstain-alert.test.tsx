@@ -92,7 +92,7 @@ describe('AskPanel', () => {
     const { rerender } = render(<AskPanel />);
     await waitFor(() => expect(screen.getByRole('button', { name: '提问' })).toBeInTheDocument());
 
-    await user.type(screen.getByLabelText('知识库 ID'), 'kb-1');
+    await user.selectOptions(await screen.findByLabelText('知识库'), 'kb-1');
     await user.type(screen.getByLabelText('问题'), '第一次问题');
     await user.click(screen.getByRole('button', { name: '提问' }));
     await waitFor(() => expect(askMock).toHaveBeenCalledWith('第一次问题'));
@@ -139,30 +139,4 @@ describe('AskPanel', () => {
     expect(screen.queryByText(/系统错误/)).not.toBeInTheDocument();
   });
 
-  it('知识库 datalist 有可见库，选择后写入 last-kb-id', async () => {
-    const user = userEvent.setup();
-    listKnowledgeBases.mockResolvedValue([
-      { id: 'kb-listed', tenantId: 't', name: '演示库' },
-    ]);
-    render(<AskPanel />);
-    await waitFor(() => {
-      expect(screen.getByRole('option', { name: '演示库', hidden: true })).toHaveValue(
-        'kb-listed',
-      );
-    });
-    await user.type(screen.getByLabelText('知识库 ID'), 'kb-paste');
-    expect(localStorage.getItem('strict-rag:web:last-kb-id')).toBe('kb-paste');
-  });
-
-  it('列表失败仍可粘贴 uuid', async () => {
-    const user = userEvent.setup();
-    listKnowledgeBases.mockRejectedValue(new Error('forbidden'));
-    render(<AskPanel />);
-    await waitFor(() => expect(listKnowledgeBases).toHaveBeenCalled());
-    await waitFor(() => expect(screen.getByRole('button', { name: '提问' })).toBeInTheDocument());
-    expect(screen.getByText(/知识库列表加载失败/)).toBeInTheDocument();
-    expect(screen.queryByRole('option', { hidden: true })).not.toBeInTheDocument();
-    await user.type(screen.getByLabelText('知识库 ID'), 'kb-uuid');
-    expect(localStorage.getItem('strict-rag:web:last-kb-id')).toBe('kb-uuid');
-  });
 });

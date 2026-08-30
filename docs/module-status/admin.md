@@ -129,7 +129,7 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 
 | 债 | 影响 | 备注 |
 |----|------|------|
-| 知识库手填 id | 演示门槛高 | 与 web 端同类债 |
+| 知识库手填 id | 演示门槛高 | web 已改为原生下拉；本包顶栏仍手填 uuid |
 | Soft Bento / product.pen 未做像素级对齐 | 观感不是最终定稿 | 色板与原子组件在 `packages/ui`；本包只做组合 |
 | 无 E2E、多数运营页无 RTL 测试、无 http 全路径 refresh 测试 | 修改 chunks / models / roles / feedback 页面只能靠手测 | 已覆盖外壳 / Guard / 审批 / members / 末位超管 + R5/R6；catalog 有单测；P0 清单见 `docs/testing/p0-redlines.md` |
 

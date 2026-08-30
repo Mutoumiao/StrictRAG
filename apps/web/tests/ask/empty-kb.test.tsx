@@ -2,7 +2,7 @@
  * 目标：无可用知识库时必须阻断提问，引导找管理员开通成员。
  * 需求：功能表 §3 无可用知识库
  * 被测：AskPanel 空态
- * 简介：列表成功且为空则无提问表；列表失败仍可粘贴（选择器半接线不在本工单）。
+ * 简介：列表成功且为空则无提问表、无选择器。
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -71,6 +71,8 @@ describe('AskPanel 无可用库空态', () => {
       expect(screen.getByText(/找管理员开通成员/)).toBeInTheDocument();
     });
     expect(screen.queryByRole('button', { name: '提问' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('知识库')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('知识库 ID')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '重试' })).not.toBeInTheDocument();
   });
 });

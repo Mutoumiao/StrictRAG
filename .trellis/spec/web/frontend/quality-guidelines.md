@@ -7,7 +7,8 @@
 | 拒答可见 | 失败 reason / userMessage 映射用户文案；禁止伪装成成功答案 |
 | citations | 仅展示服务端返回的合法 id；不可前端「补编」引用；点回走 `GET /ask/:requestId` **当时快照**（preview 截断），禁止当 `chunk.view` 现网全文 |
 | options | 只传白名单：stream / debug / mode / locale；`mode` 来自 `GET …/ask-modes` 的 allowedModes（禁止直改 τ / retrieveK） |
-| 无可用库 | 列表成功且为空 → 阻断提问，文案「找管理员开通成员」；列表失败仍可粘贴 uuid（选择器半接线不在此改） |
+| 知识库切换 | 原生 `<select>`：选项仅本次 `GET /knowledge-bases` 行；展示库名、值为 id；禁止粘贴 uuid / combobox。`localStorage` 脏 id 不采用、不自动选第一项 |
+| 无可用库 | 列表成功且为空 → 阻断提问，文案「找管理员开通成员」；列表失败 → 加载失败 + 重试，不给输入、文案不说开通成员 |
 | 建议动作 | 拒答 `suggestedActions` 出主按钮（首项 default）；按 type 换问法 / 重试 / 缺文档 / 联系管理员；禁止只做无动作列表 |
 | 指代失败 | `reason=coref_unresolved` **必须**走拒答卡（abstain，非系统红）；主按钮「用完整问题重述」= 聚焦输入 + 回填 `lastQuestion`，**禁止**自动 `ask` 弱指代；该 reason 下隐藏表单旁「重试」（避免原句再发）；禁止展示「已支持连续追问 / 已准出 / 多轮已启用」或把 `rewriteUsed` 当卖点 |
 | 配额 | HTTP 429 / `RATE_LIMITED` → 配额文案；禁止装 answered |
@@ -129,6 +130,7 @@ session: {
 | session clear / 坏 JSON / 无写入 | `readClientSession()` → null | **R4** |
 | AskPanel 重试 | 提交后 input 空；点重试仍 `ask(lastQuestion)` | — |
 | AskPanel `coref_unresolved` | 拒答 `role=alert` 含 reason / 非系统崩溃；主按钮回填且 `ask` 不再被调用；无宣传文案 | — |
+| AskPanel 库选择器 | 原生下拉只列本次 GET 行；空态/失败无输入；失败可重试且文案不含开通成员；脏缓存不提问 | — |
 | session key | 只写 `strict-rag:web:client-session`；不写 admin key | — |
 
 ## 流式 view 状态机（`use-knowledge-ask`）
@@ -187,6 +189,26 @@ if (status === 'ready') {
 - **Good**：`api` 浅（path/transport）+ hook/services 深（用例/状态机）+ `page` 薄  
 - **Good**：无 React → services；须订阅 → hooks；膨胀按 **业务** 拆 `*.services.ts`  
 - **Good**：抽公共时机见 [module-layering §12.1](./module-layering.md)（与 [admin §12.1](../../admin/frontend/module-layering.md) 同纪律）
+
+### Common Mistake: 列表失败回退粘贴 uuid
+
+**Symptom**：知识库列表 403/网络失败时仍出现输入框，用户可贴任意 id 提问；失败文案写成「去开通成员」。
+
+**Cause**：把 `kbListStatus === 'error'` 与「有可见库」合成同一套提问表（工单「web 消费余量」旧回退）。
+
+**Fix**：失败走独立错误卡 + 重试；空列表才走 EmptyKbCard。选择器只消费本次 GET 行。
+
+**Prevention**：`tests/ask/kb-picker-members-only.test.tsx` 断言失败无输入、可重试、文案不含开通成员。
+
+### Common Mistake: 脏缓存当选中或自动选第一项
+
+**Symptom**：`localStorage` 里的 kbId 已不在本次列表，却仍拿去提问；或列表有库时默认选中第一项。
+
+**Cause**：列表返回前先 `setKbId(stored)`；或 `ready` 后 `options[0]` 兜底。
+
+**Fix**：只在 stored id 属于本次行时采用；否则选择器无选中、提问 disabled。不写回第一项。
+
+**Prevention**：同文件脏缓存 it：select 值为空、`ask` 不被调用、不调用 `getAskModes(ghost)`。
 
 ### Common Mistake: 指代失败主按钮直接重发弱指代
 
