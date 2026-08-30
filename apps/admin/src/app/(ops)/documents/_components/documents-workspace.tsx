@@ -16,6 +16,7 @@ import type {
   DocumentListItem,
   ForUploadResponse,
   IngestJobListItem,
+  IngestReportItem,
   Lifecycle,
   VisibilityLevel,
 } from '@strict-rag/contracts';
@@ -50,6 +51,7 @@ import {
   type LoadDepartmentOptionsResult,
 } from '../meta.services';
 import { loadIngestJobs } from '../jobs.services';
+import { loadIngestReports, NO_INGEST_REPORT_HINT, reportsForDoc } from '../report.services';
 import {
   canArchive,
   canPublish,
@@ -111,6 +113,8 @@ export function DocumentsWorkspace() {
   const [pickedStrategy, setPickedStrategy] = useState('');
   const [jobs, setJobs] = useState<IngestJobListItem[]>([]);
   const [jobsNote, setJobsNote] = useState<string | null>(null);
+  const [docReports, setDocReports] = useState<IngestReportItem[]>([]);
+  const [reportNote, setReportNote] = useState<string | null>(null);
   const [reindexPlan, setReindexPlan] = useState<ForUploadResponse | null>(null);
   const [reindexPicked, setReindexPicked] = useState('');
   const [reindexBusy, setReindexBusy] = useState(false);
@@ -178,6 +182,8 @@ export function DocumentsWorkspace() {
       setDetailError(null);
       setSaveMessage(null);
       setBusy(false);
+      setDocReports([]);
+      setReportNote(null);
       return;
     }
     openIdRef.current = docId;
@@ -237,6 +243,17 @@ export function DocumentsWorkspace() {
     } else {
       setJobs([]);
       setJobsNote(jobsResult.message);
+    }
+    const reportKbId = result.detail.kbId;
+    const reportsResult = await loadIngestReports(reportKbId);
+    if (openIdRef.current !== docId) return;
+    if (reportsResult.ok) {
+      const mine = reportsForDoc(reportsResult.reports, docId);
+      setDocReports(mine);
+      setReportNote(mine.length === 0 ? NO_INGEST_REPORT_HINT : null);
+    } else {
+      setDocReports([]);
+      setReportNote(reportsResult.message);
     }
   }
 
@@ -743,6 +760,24 @@ export function DocumentsWorkspace() {
                                   <li key={j.id}>
                                     {j.jobName} · {j.status}
                                     {j.errorMessage ? ` · ${j.errorMessage}` : ''}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : null}
+                          </div>
+                          <div className="text-xs">
+                            <p className="font-semibold">入库报告</p>
+                            {reportNote ? <p className="text-muted-foreground">{reportNote}</p> : null}
+                            {docReports.length > 0 ? (
+                              <ul className="m-0 list-disc ps-4">
+                                {docReports.map((r) => (
+                                  <li key={r.id}>
+                                    v{r.indexVersion} · 分片 {r.chunkCount} · 文档内去重{' '}
+                                    {r.internalDropped}
+                                    {r.dualReady ? ' · 双就绪' : ' · 未双就绪'}
+                                    {r.reconcile
+                                      ? ` · 对账${r.reconcile.ok ? '通过' : '失败'} missing ${r.reconcile.missingCount} orphan ${r.reconcile.orphanCount}`
+                                      : ''}
                                   </li>
                                 ))}
                               </ul>

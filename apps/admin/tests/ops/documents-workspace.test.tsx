@@ -69,6 +69,14 @@ vi.mock('@/app/(ops)/documents/jobs.services', () => ({
   loadIngestJobs: async () => ({ ok: true, jobs: [] }),
 }));
 
+vi.mock('@/app/(ops)/documents/report.services', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/app/(ops)/documents/report.services')>();
+  return {
+    ...actual,
+    loadIngestReports: async () => ({ ok: true, reports: [] }),
+  };
+});
+
 const setDocumentLifecycle = vi.fn(
   async (_docId: string, lifecycle: 'active' | 'draft' | 'archived' | 'superseded') => ({
     ok: true as const,

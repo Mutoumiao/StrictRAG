@@ -12,6 +12,7 @@ import type {
   DocumentListItem,
   ForUploadResponse,
   IngestJobListItem,
+  IngestReportItem,
   PatchDocumentMetaBody,
   PatchLifecycleBody,
   PatchLifecycleResponse,
@@ -70,6 +71,10 @@ export async function patchDocumentLifecycle(docId: string, body: PatchLifecycle
 
 export async function listIngestJobs(docId: string) {
   return http.get<IngestJobListItem[]>(`/api/v1/documents/${docId}/ingest-jobs`);
+}
+
+export async function listIngestReports(kbId: string) {
+  return http.get<IngestReportItem[]>(`/api/v1/knowledge-bases/${kbId}/ingest-report`);
 }
 
 export async function completeUpload(kbId: string, docId: string, body: CompleteUploadBody) {

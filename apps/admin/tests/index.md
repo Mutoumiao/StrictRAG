@@ -34,6 +34,7 @@
 | `ops/chunk-strategy-panel.test.tsx` | 知识库设置分片策略弹窗必须能启用策略并保存 recommended，且声明不自动 reindex。 | 功能表 §4.5 | `ChunkStrategyPanel` | HTTP 真值在 api。 | 现行 |
 | `ops/document-upload.test.ts` | 上传服务必须按 upload-url → PUT → complete 调用，失败则入口顺序错乱。 | 上传入口 | `uploadAdminDocument` | 体积闸真值在 api。 | 现行 |
 | `ops/documents-workspace.test.tsx` | 文档列表薄页必须按码控制详情/保存/部门列，失败则运营交互与权限不符。 | 文档运营 UI | `DocumentsWorkspace · deptLabel / readyColLabel / visibilityLabel` | 含类型列、运营标签、Reindex、归档。 | 现行 |
+| `ops/ingest-report.test.tsx` | 文档行展开须展示入库报告；无报告须出「暂无入库报告」。 | 功能表 §4.3 | `DocumentsWorkspace · reportsForDoc` | 库级 GET 后按本行过滤；HTTP 真值在 api。 | 现行 |
 | `ops/eval-workspace.test.tsx` | 评测薄页无码须 403；有码才列出题目并入队 L1/L2。 | 功能表 §4.1 · prds/05-api §2.8 | `EvalWorkspace` | HTTP 真值在 api；本页不跑批。 | 现行 |
 | `ops/feedback-comment-escape.test.tsx` | 反馈 comment 含 `<script>` 必须当文本展示，不得当 HTML 解析。 | 剧本 K6 · prds/10-delivery/03-acceptance-scenarios.md | `FeedbackWorkspace` | comment 走 React 文本节点原样可见。 | 现行 |
 | `ops/kb-settings-services.test.ts` | 设置服务必须正确解析文档类型输入，失败则 PATCH 写出错误 docTypes。 | KB settings | `parseDocTypesInput` | 不写 URL。 | 现行 |
