@@ -60,3 +60,12 @@ export const AuthMeResponseSchema = z.object({
   email: z.string().email().optional(),
 });
 export type AuthMeResponse = z.infer<typeof AuthMeResponseSchema>;
+
+/**
+ * GET /api/v1/me/permissions 响应 data。
+ * `permissions` 与 GET /auth/me 同源（角色并集有效码）；本批不返回 byKb。
+ */
+export const MePermissionsResponseSchema = z.object({
+  permissions: z.array(z.string()),
+});
+export type MePermissionsResponse = z.infer<typeof MePermissionsResponseSchema>;

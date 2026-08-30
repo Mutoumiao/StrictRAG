@@ -46,3 +46,18 @@ export const RemoveMemberResponseSchema = z.object({
   removed: z.boolean(),
 });
 export type RemoveMemberResponse = z.infer<typeof RemoveMemberResponseSchema>;
+
+/** PUT …/knowledge-bases/:kbId/members/:userId — 只改库内角色 */
+export const UpdateMemberBodySchema = z
+  .object({
+    role: KbMemberRoleSchema,
+  })
+  .strict();
+export type UpdateMemberBody = z.infer<typeof UpdateMemberBodySchema>;
+
+export const UpdateMemberResponseSchema = z.object({
+  kbId: z.string().uuid(),
+  userId: z.string().uuid(),
+  role: KbMemberRoleSchema,
+});
+export type UpdateMemberResponse = z.infer<typeof UpdateMemberResponseSchema>;

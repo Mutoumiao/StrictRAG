@@ -108,4 +108,13 @@ describe('CreateFeedbackBodySchema / InviteMemberBodySchema', () => {
       InviteMemberBodySchema.safeParse({ email: 'a@b.com', role: 'read' }).success,
     ).toBe(true);
   });
+
+  it('PUT 成员 body 只接受 role，拒绝 allowedDocIds', async () => {
+    const { UpdateMemberBodySchema } = await import('../../src/ask/member.contract.js');
+    expect(UpdateMemberBodySchema.safeParse({ role: 'write' }).success).toBe(true);
+    expect(UpdateMemberBodySchema.safeParse({ role: 'owner' }).success).toBe(false);
+    expect(
+      UpdateMemberBodySchema.safeParse({ role: 'admin', allowedDocIds: [] }).success,
+    ).toBe(false);
+  });
 });
