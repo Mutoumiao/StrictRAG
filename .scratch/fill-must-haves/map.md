@@ -13,7 +13,7 @@ Status: open
 - 每轮先读：本图、`docs/agents/issue-tracker.md`、`docs/agents/domain.md`、功能表、相关包的 `docs/module-status/`。写代码前读 `.trellis/spec/` 对应包。执行完成后跑 skill `update-module-status`。
 - **覆盖「只做决策」**：工单可以动手补缺口，不只锁决策。
 - **本图是执行面**：缺口只在 `.scratch/fill-must-haves/` 工单上做完。`.trellis/tasks/08-06-project-backlog/` 只留指针和勾选。同一缺口禁止再 `task.py create` 平行实现任务。这只覆盖本图，不改全仓其它流程。
-- 顺序：本图 P2 语义已收官（第三批）；P2.5 出口走 **L2 归档准出**（工程路径 [L2 归档底线](./issues/14-l2-archive-floor.md) 已齐，人签仍图外）。[web 连续追问消费](./issues/16-web-multiturn-consumption.md) 已齐。下一步：[L3 自动熔断](./issues/17-l3-auto-fuse.md)。剩余 P2 半接线留雾。P3a 仍等该出口。P3b 可在 P2 后并行，但不抽走本批。
+- 顺序：本图 P2 语义已收官（第三批）；P2.5 出口走 **L2 归档准出**（工程路径 [L2 归档底线](./issues/14-l2-archive-floor.md) 已齐，人签仍图外）。[web 连续追问消费](./issues/16-web-multiturn-consumption.md)、[L3 自动熔断](./issues/17-l3-auto-fuse.md) 已齐。本批 P2.5 剩余必须具备收完。开放前沿空。剩余 P2 半接线留雾。P3a 仍等该出口。P3b 可在 P2 后并行，但不抽走本批。
 - 人签（B10 业务 PASS）不是代码缺口，不进本图执行工单。
 - 引用工单用标题，不要只写编号。一回合只解决一张工单（research 除外）。
 - 开放工单不列在本图正文，用 `.scratch/fill-must-haves/issues/` 扫描：未 `resolved`、无未完成的 `Blocked by`、`Status` 不是 `claimed`。
@@ -36,6 +36,7 @@ Status: open
 - [L2 归档底线](./issues/14-l2-archive-floor.md) — HTTP 入队 session_multiturn + worker 多轮窗 + admin 跑 L2；工程 signoffEligible；未归档禁止默认开 rewrite。准出人签 / 默认开 / 连续追问 UI 划出。
 - [裁定 L2 归档底线后下一步](./issues/15-after-l2-floor-order.md) — 继续补 P2.5 剩余必须具备；本批串行 web 连续追问消费 → L3 自动熔断。不回补 P2 半接线、不转 P3b、不等人签。
 - [web 连续追问消费](./issues/16-web-multiturn-consumption.md) — `coref_unresolved` 拒答卡 + 主按钮「用完整问题重述」回填不重发；禁止宣传连续追问 / 准出。
+- [L3 自动熔断](./issues/17-l3-auto-fuse.md) — 三 kind 闩后进程内关 rewrite 路径；`rewrite_dogfood` 不熔；不写 env / 窗 / 面板。
 
 ## Not yet specified
 

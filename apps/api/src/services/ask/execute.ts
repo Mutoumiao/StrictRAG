@@ -10,7 +10,12 @@ import {
 } from '../../graph/index.js';
 import { env } from '../../env.js';
 import { childLogger } from '../../logger.js';
-import { createAskTracer, recordAskResult, recordL3Ask } from '../../obs/index.js';
+import {
+  createAskTracer,
+  isL3RewriteFused,
+  recordAskResult,
+  recordL3Ask,
+} from '../../obs/index.js';
 import { getGateway, getGatewayForTenant } from '../gateway/index.js';
 import { createDefaultRetrieveDeps } from '../retrieve/index.js';
 import { sessionsRepo, type SessionsRepo } from '../sessions.js';
@@ -145,7 +150,11 @@ export async function executeAsk(
   }
 
   const repo = deps.sessions ?? sessionsRepo;
-  graphDeps.rewriteEnabled ??= env.SESSION_REWRITE_ENABLED;
+  if (isL3RewriteFused()) {
+    graphDeps.rewriteEnabled = false;
+  } else {
+    graphDeps.rewriteEnabled ??= env.SESSION_REWRITE_ENABLED;
+  }
   if (deps.evalSessionWindow && params.body.sessionId) {
     graphDeps.loadSessionWindow = async () =>
       clipSessionWindow(deps.evalSessionWindow ?? [], {

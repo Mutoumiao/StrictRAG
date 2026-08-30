@@ -13,6 +13,13 @@ type L3GuardKind = 'coref_fail_rate' | 'rewrite_dogfood' | 'topic_complaint' | '
 const counters = new Map<CounterKey, number>();
 const l3AlertLatched = new Set<L3GuardKind>();
 
+/** 闩后进程内关 rewrite。`rewrite_dogfood` 不进：env 为 true 时该闩立刻亮，拿它熔断等于掐死 dogfood。 */
+const L3_REWRITE_FUSE_KINDS: ReadonlySet<L3GuardKind> = new Set([
+  'coref_fail_rate',
+  'topic_complaint',
+  'l2_stale',
+]);
+
 // ponytail: 进程寿命比，不是运维 PRD 的 1h 滑窗；要滑窗另开
 export const L3_CORE_FAIL_RATE_MIN_SESSION = 20;
 export const L3_CORE_FAIL_RATE_THRESHOLD = 0.2;
@@ -57,7 +64,15 @@ export function recordAskResult(input: {
   metricInc(input.ok ? 'ask_ok' : 'ask_fail', { reason: input.reason });
 }
 
-/** L3 多轮护栏打点 + 进程内告警闩。只告警，不改默认 / 不熔断。 */
+/** L3 护栏闩后是否应强制关掉 rewrite 路径（进程内；不写 env / 库）。 */
+export function isL3RewriteFused(): boolean {
+  for (const kind of L3_REWRITE_FUSE_KINDS) {
+    if (l3AlertLatched.has(kind)) return true;
+  }
+  return false;
+}
+
+/** L3 多轮护栏打点 + 进程内告警闩。熔断见 `isL3RewriteFused`；不写 env / 不收窄窗。 */
 export function recordL3Ask(input: {
   rewriteUsed: boolean;
   reason: string;

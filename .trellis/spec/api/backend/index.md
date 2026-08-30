@@ -29,7 +29,7 @@
 - [ ] 触及 L2 题面/runner 时是否读 [l2-eval](./l2-eval.md)（HTTP 入队 + worker 窗 + 工程公式 ≠ 准出；**禁止**默认开 rewrite / 把 runner 或 persist 当准出）？  
 - [ ] 是否误把 L2 persist / `evalRunId` / 工程 `signoffEligible=true` 写成准出 PASS？  
 - [ ] 无合格 L2 归档时写产品默认开 rewrite 是否 400 `SESSION_REWRITE_DISABLED`（dogfood env 旁路保留）？  
-- [ ] 触及 L3 打点/告警时是否读 [l3-metrics](./l3-metrics.md)（打点+告警+主题投诉已计 + L2 过期闩 ≠ 准出 / ≠ 熔断；**禁止**按计数或告警改默认；**禁止**每问查 `eval_runs`）？  
+- [ ] 触及 L3 打点/告警/熔断时是否读 [l3-metrics](./l3-metrics.md)（打点+告警+主题投诉 + L2 过期闩 + 进程内熔断；`rewrite_dogfood` **不**熔；**禁止**写 env / 收窄窗；**禁止**每问查 `eval_runs`）？  
 - [ ] 新测例是否按 [testing](../../guides/testing.md) 落 `tests/<能力>/` 并更新 `tests/index.md`（禁止再同域镜像）？  
 
 ## Quality Check
@@ -64,7 +64,7 @@
 | [dashboard](./dashboard.md) | **B6 数据面板薄壳** · `dashboard.view` · 只读 summary ≤5 · **≠** APM |
 | [l1-eval](./l1-eval.md) | **B10** L1 工程 seed + eval_runs · **P2 底线** gold-questions / `eval/runs` 入队 · OPS-1 `retrieve_mode` · **≠** 业务签字真跑 |
 | [l2-eval](./l2-eval.md) | **P2.5-L2/L2R/L2P** 多轮题面 + 工程 runner + 可选 persist · **≠** 准出 / **≠** 默认开 rewrite |
-| [l3-metrics](./l3-metrics.md) | **P2.5-L3/L3A/L3F/L2S** 多轮护栏打点+告警+主题投诉已计 + L2 过期闩 · **≠** 准出 / **≠** 自动熔断 / **≠** 面板 |
+| [l3-metrics](./l3-metrics.md) | **P2.5-L3/L3A/L3F/L2S** 多轮护栏打点+告警+主题投诉 + L2 过期闩 + **进程内熔断** · **≠** 准出 / **≠** 写 env / **≠** 面板 |
 
 ## 依赖（package.json）
 

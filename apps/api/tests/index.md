@@ -17,7 +17,7 @@
 | `feedback/` | 答案反馈 API | B13 |
 | `gateway/` | 模型绑定 / mock / 双节点 | B3 · QUAL-3 |
 | `eval/` | L1/L2 工程 seed | B10 · **≠ 准出** |
-| `obs/` | 指标、限流、写审计 | ARCH-P2-4 · ARCH-P1b-2 |
+| `obs/` | 指标、限流、写审计、L3 进程内熔断 | ARCH-P2-4 · ARCH-P1b-2 · P2.5-L3 |
 | `env/` | env、health/ready、OpenAPI | P0 骨架 |
 | `docs-guard/` | 交付文档护栏 | 控制台 §0.5 |
 | `ops/` | 数据面板 HTTP | B6 |
@@ -121,6 +121,7 @@
 | `obs/l2-stale.test.ts` | rewrite dogfood 下 L2 指纹过期才告警。 | ARCH-P2-4 | `evaluateL2Stale` | rewrite dogfood 下 L2 指纹过期才告警。 | 现行 |
 | `obs/l3-ask.test.ts` | L3 ask 计数与护栏告警闩按阈值只告一次。 | ARCH-P2-4 | `recordL3Ask` | L3 ask 计数满阈只告一次，护栏告警有闩。 | 现行 |
 | `obs/l3-topic-complaint.test.ts` | 主题投诉计数满阈只告一次。 | ARCH-P2-4 | `recordL3TopicComplaint` | 主题投诉计数满阈只告一次。 | 现行 |
+| `obs/l3-rewrite-fuse.test.ts` | L3 护栏闩后本进程后续 ask 强制关掉 rewrite，dogfood 闩不熔断。 | prds/08-quality §0 L3 · 运维 §2.5 | `isL3RewriteFused / executeAsk` | coref/topic/l2_stale 闩后即使 env 为 true 也 rewriteUsed=false；会话壳仍落 transcript；rewrite_dogfood 不熔；复位后恢复。 | 现行 |
 | `obs/metrics.test.ts` | ask/llm/rerank 指标必须可按标签聚合。 | ARCH-P2-4 | `recordAskResult / recordLlmCall / recordRerank / metricGet` | 按标签聚合 ask / llm / rerank 计数。 | 现行 |
 | `obs/rate-limit.test.ts` | 超限必须返回 429 RATE_LIMITED。 | ARCH-P2-4 | `checkFixedWindowRateLimit / POST ask 429` | 超限返回 429 RATE_LIMITED；ask 路由走同一闸。 | 现行 |
 | `obs/tracer.test.ts` | memory tracer 记录主链 span，executeAsk 接线不得丢 span。 | ARCH-P2-4 | `createMemoryTracer / executeAsk` | 内存 tracer 记下主链 span；executeAsk 接线不得丢 span。 | 现行 |

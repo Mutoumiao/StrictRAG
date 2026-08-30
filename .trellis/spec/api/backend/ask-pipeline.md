@@ -135,6 +135,8 @@ routes/ask.ts
 
 与 S2 单轮一致：不调 `loadSessionWindow`、不调 rewrite LLM、`rewriteUsed=false`、`question=raw`。带 `sessionId` 仍 200 单轮。`coref_unresolved` **不可达**。
 
+L3 护栏闩（`coref_fail_rate` / `topic_complaint` / `l2_stale`）后，`executeAsk` **强制**本路径，即使 env 或显式 `graphDeps.rewriteEnabled` 为 true。会话壳仍落 transcript。`rewrite_dogfood` **不**熔。详见 [l3-metrics](./l3-metrics.md)。
+
 ##### 开路径（dogfood · `rewriteEnabled=true` ∧ 非空 sessionId ∧ mode≠fast ∧ 窗内 ≥1 条 user）
 
 ```text

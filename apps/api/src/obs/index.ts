@@ -7,6 +7,7 @@ export {
   recordL3Ask,
   recordL3TopicComplaint,
   evaluateL2Stale,
+  isL3RewriteFused,
   recordLlmCall,
   recordRerank,
   recordRateLimited,

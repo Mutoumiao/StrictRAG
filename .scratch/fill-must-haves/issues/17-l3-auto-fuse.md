@@ -2,7 +2,8 @@
 
 Type: task
 Label: wayfinder:task
-Status: open
+Status: resolved
+Assignee: grok
 Triage: ready-for-agent
 Blocked by: 16
 
@@ -38,3 +39,13 @@ Blocked by: 16
 收工：skill `update-module-status`；`.trellis/tasks/08-06-project-backlog/` 只补指针，禁止 `task.py create`。
 
 写代码前读 `.trellis/spec/` 对应包（api）。
+
+## Answer
+
+`coref_fail_rate` / `topic_complaint` / `l2_stale` 闩后，`executeAsk` 进程内强制 `rewriteEnabled=false`；即使 env 为 true 也 `rewriteUsed=false`。会话 `saveAskTrace` 仍落 transcript。`rewrite_dogfood` 不熔断。`metricsReset` 清闩即恢复。未写 env / 库 / 窗；未碰 L1 签字字段；无面板。
+
+证据：`apps/api/src/obs/metrics.ts` `isL3RewriteFused` · `services/ask/execute.ts` · `tests/obs/l3-rewrite-fuse.test.ts`。
+
+## Comments
+
+- 2026-08-30 认领并落地。HOW → `.trellis/spec/api/backend/l3-metrics.md` §1.4。08-06 只留指针。未建平行 Trellis 任务。本回合不启下一张工单。

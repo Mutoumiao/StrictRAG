@@ -3,7 +3,7 @@
 > 路径：`apps/api/src/obs/metrics.ts` `recordL3Ask` · `recordL3TopicComplaint` · `evaluateL2Stale` · 接线 `services/ask/execute.ts` / `routes/feedback.ts`  
 > 产品语义：`prds/08-quality/02-evaluation-and-gates.md` §0 L3 · `prds/10-delivery/02-ops-runbook.md` §2.5  
 > 任务：`08-16-p25-l3-metrics-min` · `08-16-p25-l3-alert-min` · `08-16-p25-l3-feedback-min` · `08-16-p25-l2-stale-min`  
-> **本窗状态**：六条 counter **已落**；主题投诉 `l3_topic_complaint_total` **已落**；进程内护栏告警 **已落**（`l3_guard_alert_total` + Pino warn，含 `l2_stale`）；**无** 自动关默认 / **无** 收窄窗 / **无** 面板 / **≠** L2 准出。
+> **本窗状态**：六条 counter **已落**；主题投诉 `l3_topic_complaint_total` **已落**；进程内护栏告警 **已落**（`l3_guard_alert_total` + Pino warn，含 `l2_stale`）；**进程内熔断已落**（`coref_fail_rate` / `topic_complaint` / `l2_stale` 闩后后续 ask 强制 `rewriteEnabled=false`；`rewrite_dogfood` **不**熔）；**无** 写 env / **无** 收窄窗 / **无** 面板 / **≠** L2 准出。
 
 ---
 
@@ -11,11 +11,12 @@
 
 | 轨 | 含义 | **禁止**宣称 |
 |----|------|--------------|
-| **打点 + 告警** | `GET /metrics` 能读到六键与 `l3_guard_alert_total{kind}`；超阈 / dogfood 开 env 时 Pino `warn`（每 kind 每进程一闩） | 「L3 护栏已上生产」/「准出 PASS」/「自动熔断已开」 |
-| **自动关默认 / 收窄窗** | 超阈关 `SESSION_REWRITE_ENABLED` / 改 `clipSessionWindow` | **仍不接线**；人工看日志或 `/metrics` 再决策 |
+| **打点 + 告警** | `GET /metrics` 能读到六键与 `l3_guard_alert_total{kind}`；超阈 / dogfood 开 env 时 Pino `warn`（每 kind 每进程一闩） | 「L3 护栏已上生产」/「准出 PASS」 |
+| **进程内熔断** | `coref_fail_rate` / `topic_complaint` / `l2_stale` 闩后，本进程后续 ask 强制 `rewriteEnabled=false`，退回单轮；会话壳仍落 transcript | 「已关仓库默认」/「已写 env」/「已准出」 |
+| **自动关默认 / 收窄窗** | 超阈写 `SESSION_REWRITE_ENABLED=false` / 改 `clipSessionWindow` / Grafana | **仍不接线**；面板属 P4 |
 
-**Wrong**：告警或计数升高 → 自动改 `SESSION_REWRITE_ENABLED` 或 `clipSessionWindow`。  
-**Correct**：只 `metricInc` + `logger.warn`；默认仍关；准出 / 默认开另建。
+**Wrong**：告警或计数升高 → 写 `SESSION_REWRITE_ENABLED` 或 `clipSessionWindow`；拿 `rewrite_dogfood` 熔断。  
+**Correct**：只改本进程 `executeAsk` 的 `rewriteEnabled`；env / 库默认不动；`metricsReset` 清闩即恢复。
 
 ---
 
@@ -79,19 +80,53 @@ recordL3Ask({ rewriteUsed, reason, hasSession, sessionDeepened?, documentBackref
 |------|------|----------|
 | `l2_stale` | `rewriteEnvOn === true` 且（无上次指纹 **或** `last !== current`） | `metricInc('l3_guard_alert_total', { kind })` + `logger.warn({ event: 'l3_guard', kind: 'l2_stale' }, 'l3 guard alert')` |
 
-`rewriteEnvOn` 缺省/false → **不**告。从未 persist L2 且 env 开时，可与 `rewrite_dogfood` 叠告（允许）。`metricsReset` 必清闩。
+`rewriteEnvOn` 缺省/false → **不**告。从未 persist L2 且 env 开时，可与 `rewrite_dogfood` 叠告（允许）。`metricsReset` 必清闩。`l2_stale` **会**熔断 rewrite 路径（见 §1.4），**不**改 `signoffEligible`、**不**每问查 `eval_runs`。
 
 ---
 
-## 2. 人工决策清单（运维 PRD §2.5 · 自动关仍不接线）
+## 1.4 进程内熔断（P2.5-L3 · 护栏闩 → 关 rewrite 路径）
 
-| 观察 | 人工动作（禁止代码自动做） |
-|------|----------------------------|
-| `l3_guard_alert_total{kind=coref_fail_rate}` 或 `l3_coref_fail` 占比高 | 考虑关默认 session / 收窄窗 |
-| `kind=rewrite_dogfood` 或 `l3_rewrite_used` 异常 | 核对 dogfood env，**禁止**合入默认 true |
-| `kind=topic_complaint` 或 `l3_topic_complaint_total` 升高 | 人工看会话投诉；**禁止**按投诉改默认 / 关 session |
-| `kind=l2_stale` | rewrite prompt / 模型身份变了或从未 persist L2；人工再跑 L2。**禁止**当准出 / 自动关默认 |
-| 仅有 `l3_session_ask` | 带会话问次；**不等于** rewrite 已开 |
+> **ponytail**：复用 `l3AlertLatched`，不另存熔断旗。`metricsReset` 清闩即恢复。  
+> **不**写 env / `.env` / `sessionRewriteEnabledDefault`；**不**收窄 `clipSessionWindow`；**不**回滚 prompt；**不**撤 L1 签字。
+
+```ts
+isL3RewriteFused(): boolean
+```
+
+| 已闩 kind | 熔断？ |
+|-----------|:------:|
+| `coref_fail_rate` | 是 |
+| `topic_complaint` | 是 |
+| `l2_stale` | 是 |
+| `rewrite_dogfood` | **否**（env 为 true 时该闩立刻亮；拿它熔断等于掐死 dogfood） |
+
+接线：`executeAsk` 在灌 `rewriteEnabled` 时，若 `isL3RewriteFused()` 则 **强制** `graphDeps.rewriteEnabled = false`（覆盖 env 与显式注入）。会话 `saveAskTrace` 仍走；`configSnap.sessionRewriteEnabledDefault` **仍记 env**（证明没写 env）。
+
+### Tests Required
+
+| 断言 | 落点 |
+|------|------|
+| 三熔断 kind 闩后 `isL3RewriteFused()===true`；`rewrite_dogfood` 闩后仍 false | `tests/obs/l3-rewrite-fuse.test.ts` |
+| 闩后即使 `SESSION_REWRITE_ENABLED=true` 也 `rewriteUsed=false`、不调 rewrite purpose、retrieve 用 raw | 同上 |
+| `saveTrace.sessionId` 仍在；`configSnap.sessionRewriteEnabledDefault` 仍 true | 同上 |
+| `metricsReset` 后 env true 可再 `rewriteUsed=true` | 同上 |
+
+### Wrong vs Correct
+
+**Wrong**：`latchL3GuardAlert` 里 `env.SESSION_REWRITE_ENABLED = false`；或 `rewrite_dogfood` 进入熔断集合。  
+**Correct**：只读闩集合；`executeAsk` 强制关图边；env 保持 dogfood 真值。
+
+---
+
+## 2. 人工决策清单（运维 PRD §2.5 · 写 env 仍不接线）
+
+| 观察 | 本进程已自动 | 仍须人工（禁止代码自动做） |
+|------|--------------|----------------------------|
+| `kind=coref_fail_rate` | 后续 ask 关 rewrite 路径 | 考虑写 env 关默认 / 收窄窗 / 修 rewrite |
+| `kind=rewrite_dogfood` | **不**熔断 | 核对 dogfood env，**禁止**合入默认 true |
+| `kind=topic_complaint` | 后续 ask 关 rewrite 路径 | 看会话投诉；**禁止**改 feedback 状态机 |
+| `kind=l2_stale` | 后续 ask 关 rewrite 路径 | 再跑 L2。**禁止**当准出 / 写 env |
+| 仅有 `l3_session_ask` | — | 带会话问次；**不等于** rewrite 已开 |
 
 ---
 
@@ -99,11 +134,12 @@ recordL3Ask({ rewriteUsed, reason, hasSession, sessionDeepened?, documentBackref
 
 | 禁止 | 原因 |
 |------|------|
-| 根据计数或告警自动改 env / 关会话 / 收窄窗 | 会冒充默认开/关策略 |
-| 按主题投诉改默认 / 改 feedback 状态机 | 本窗只计数 + 闩告警 |
-| 按 `l2_stale` 改默认 / 算出 `signoffEligible` / 每问查 `eval_runs` | 只告警；指纹 ≠ 准出；热路径零 I/O |
-| 宣称 L2 准出 / 连续追问 / 全文 Phase 2.5 / L3 护栏已上生产 | 本窗 = 打点 + 告警 |
-| 给 `/metrics` 加鉴权或换 Prometheus | 骨架已否决 |
+| 根据计数或告警写 env / `.env` / `sessionRewriteEnabledDefault` / 收窄窗 | 会冒充产品默认开/关；本窗只进程内关图边 |
+| 拿 `rewrite_dogfood` 熔断 | env 为 true 时该闩立刻亮，等于掐死 dogfood |
+| 按主题投诉改 feedback 状态机 | 投诉只计数 + 闩 + 熔断 rewrite |
+| 按 `l2_stale` 算出 `signoffEligible` / 每问查 `eval_runs` / 撤 L1 签字 | 指纹 ≠ 准出；热路径零 I/O |
+| 宣称 L2 准出 / 连续追问 / 全文 Phase 2.5 / 仓库默认已关 rewrite | 熔断 ≠ 写默认；≠ 准出 |
+| 给 `/metrics` 加鉴权或换 Prometheus / Grafana 面板 | 骨架已否决；面板属 P4 |
 | 仓库默认 `SESSION_REWRITE_ENABLED=true` / `AUTH_ENFORCE=true` | phase-scaffold |
 
 ---
@@ -113,4 +149,4 @@ recordL3Ask({ rewriteUsed, reason, hasSession, sessionDeepened?, documentBackref
 - Ask 图 / rewrite 默认关：[ask-pipeline](./ask-pipeline.md)  
 - L2 分轨（打点 ≠ 准出）：[l2-eval](./l2-eval.md)  
 - 指标名例：`docs/ops/rate-limit-and-metrics.md`  
-- IS：`docs/module-status/api.md` · 调度 `08-06` **P2.5-L3=部分** · **P2.5-L3A=部分** · **P2.5-IDX 仍索引**
+- IS：`docs/module-status/api.md` · 调度 `08-06` **P2.5-L3=部分**（打点+告警+进程内熔断；**无**面板 / **≠** 写默认）· **P2.5-IDX 仍索引**
