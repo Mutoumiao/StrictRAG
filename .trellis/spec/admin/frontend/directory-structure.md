@@ -34,7 +34,7 @@ apps/admin/
         chunks/               # B1 分片只读
         kb/settings/          # B2 知识库设置（薄；分片策略弹窗启用/recommended）
         models/               # B3 模型供应商 + 平台绑定（薄）
-        users/                # B4 平台用户
+        users/                # B4 平台用户（末位超管禁用/剥角色不可点）
         roles/                # B4 角色
         departments/          # B5 部门组织壳
         dashboard/            # B6 数据面板薄壳

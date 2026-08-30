@@ -84,6 +84,14 @@
 
 **Related**：`documents/api.ts` · `list.services.ts` · `lifecycle.services.ts` · `reindex.services.ts`。
 
+### Convention: 末位超管前端提示
+
+**What**：用户页按当前列表判定「唯一 active 且 `roleCodes` 含 `super_admin`」。该行「禁用」不可点；改角色时 `super_admin` 勾选不可点，保存若会让在职超管数为 0 则拦住。行上出说明。判定是体验裁剪，**不是**权限引擎；api `RULE_VIOLATION` 闸不改、不放宽。
+
+**Why**：功能表 §4.4「最后一位超管不可被撤光」；API 已 400，避免运营先点到错误。
+
+**Related**：`users/services.ts` `isLastActiveSuperAdmin` / `wouldStripLastSuperAdmin`；api [platform-users-roles](../../api/backend/platform-users-roles.md)。
+
 ### Convention: 建库入口
 
 **What**：有 `kb.create` 才在顶栏 KB 选择器旁显示「创建知识库」；表单 = 名称 + 首位库管（预填当前用户、可改）。成功后写入 `last-kb-id`。
@@ -162,6 +170,7 @@ expect(mapBizError(err)).toContain('shouldRefresh');
 | 审批有 view 无 decide | 列表可出；**无**「通过」「驳回」 |
 | 有 decide | 可点「通过」且 `applyApprovalAction(kb, id, 'approve')` |
 | 有 `doc.upload` + approved | 有「入队 scan」 |
+| 唯一 active 超管 | 「禁用」disabled；`super_admin` 勾选 disabled；行上说明；两名超管时可禁用其一 |
 
 ## 反模式
 

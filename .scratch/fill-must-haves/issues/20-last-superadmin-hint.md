@@ -2,7 +2,7 @@
 
 Type: task
 Label: wayfinder:task
-Status: open
+Status: resolved
 Triage: ready-for-agent
 Blocked by: 19
 
@@ -32,3 +32,16 @@ Blocked by: 19
 收工：skill `update-module-status`；`.trellis/tasks/08-06-project-backlog/` 只补指针，禁止 `task.py create`。
 
 写代码前读 `.trellis/spec/` 对应包（admin）。
+
+## Answer
+
+用户页按当前列表判定唯一 active 且 `roleCodes` 含 `super_admin`：该行「禁用」不可点；改角色时 `super_admin` 勾选不可点；保存若会让在职超管数为 0 则拦住。行上出说明。两名超管时仍可禁用/剥其一。
+
+API `RULE_VIOLATION` / `last active super_admin` 闸未改。未做启动引导超管页。未 `task.py create`。
+
+证据：`apps/admin/src/app/(ops)/users/services.ts`（`isLastActiveSuperAdmin` / `wouldStripLastSuperAdmin`）· `apps/admin/src/app/(ops)/users/_components/users-workspace.tsx` · `apps/admin/tests/ops/last-superadmin-hint.test.tsx` · `docs/module-status/admin.md`。
+
+## Comments
+
+- 2026-08-30 认领本工单并执行。开放前沿即本张。
+

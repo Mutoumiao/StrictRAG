@@ -12,7 +12,16 @@ import { Label } from '@strict-rag/ui/components/ui/label';
 
 import { useAdminAuth } from '@/components/auth-guard';
 
-import { createUser, loadUsers, setUserRoles, updateUser } from '../services';
+import {
+  createUser,
+  isLastActiveSuperAdmin,
+  LAST_SUPER_ADMIN_HINT,
+  loadUsers,
+  setUserRoles,
+  SUPER_ADMIN_ROLE_CODE,
+  updateUser,
+  wouldStripLastSuperAdmin,
+} from '../services';
 
 export function UsersWorkspace() {
   const { me } = useAdminAuth();
@@ -82,6 +91,7 @@ export function UsersWorkspace() {
 
   async function onToggleStatus(u: PlatformUser) {
     if (busy) return;
+    if (u.status === 'active' && isLastActiveSuperAdmin(users, u)) return;
     setBusy(true);
     setFlash(null);
     const next = u.status === 'active' ? 'disabled' : 'active';
@@ -97,6 +107,10 @@ export function UsersWorkspace() {
 
   async function onSaveRoles() {
     if (!editId || busy) return;
+    if (wouldStripLastSuperAdmin(users, editId, editRoleIds, roles)) {
+      setError(LAST_SUPER_ADMIN_HINT);
+      return;
+    }
     setBusy(true);
     setFlash(null);
     const r = await setUserRoles(editId, { roleIds: editRoleIds });
@@ -109,6 +123,12 @@ export function UsersWorkspace() {
     setFlash('角色已更新');
     await load();
   }
+
+  const editing = editId ? users.find((u) => u.id === editId) : undefined;
+  const editingLastSa = editing ? isLastActiveSuperAdmin(users, editing) : false;
+  const stripBlocked = editId
+    ? wouldStripLastSuperAdmin(users, editId, editRoleIds, roles)
+    : false;
 
   if (!canManage) {
     return (
@@ -124,7 +144,7 @@ export function UsersWorkspace() {
       <header>
         <h1 className="text-xl font-semibold tracking-tight">平台用户</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          运营账号管理（ADR-056 最小）。登录仍走 dev-login 模板，DB 角色未接入 JWT。
+          运营账号管理（ADR-056 最小）。唯一在职超级管理员不可禁用或撤掉超管角色。
         </p>
       </header>
 
@@ -199,39 +219,56 @@ export function UsersWorkspace() {
           <p className="text-sm text-muted-foreground">暂无用户（本列表仅 DB 记录；dev-login 不自动写入角色）</p>
         ) : (
           <ul className="divide-y divide-border">
-            {users.map((u) => (
-              <li key={u.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="font-medium">{u.email}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {u.displayName || '—'} · {u.status} · 角色: {u.roleCodes.join(', ') || '无'}
+            {users.map((u) => {
+              const lastSa = isLastActiveSuperAdmin(users, u);
+              const disableBlocked = lastSa && u.status === 'active';
+              const hintId = `last-sa-hint-${u.id}`;
+              return (
+                <li
+                  key={u.id}
+                  className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div>
+                    <div className="font-medium">{u.email}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {u.displayName || '—'} · {u.status} · 角色: {u.roleCodes.join(', ') || '无'}
+                    </div>
+                    {lastSa ? (
+                      <p id={hintId} className="mt-1 text-xs text-muted-foreground">
+                        {LAST_SUPER_ADMIN_HINT}
+                      </p>
+                    ) : null}
                   </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() => void onToggleStatus(u)}
-                  >
-                    {u.status === 'active' ? '禁用' : '启用'}
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() => {
-                      setEditId(u.id);
-                      setEditRoleIds([...u.roleIds]);
-                    }}
-                  >
-                    改角色
-                  </Button>
-                </div>
-              </li>
-            ))}
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={busy || disableBlocked}
+                      aria-label={u.status === 'active' ? `禁用 ${u.email}` : `启用 ${u.email}`}
+                      aria-describedby={disableBlocked ? hintId : undefined}
+                      title={disableBlocked ? LAST_SUPER_ADMIN_HINT : undefined}
+                      onClick={() => void onToggleStatus(u)}
+                    >
+                      {u.status === 'active' ? '禁用' : '启用'}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={busy}
+                      aria-label={`改角色 ${u.email}`}
+                      onClick={() => {
+                        setEditId(u.id);
+                        setEditRoleIds([...u.roleIds]);
+                      }}
+                    >
+                      改角色
+                    </Button>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
@@ -239,23 +276,40 @@ export function UsersWorkspace() {
       {editId ? (
         <section className="rounded-lg border border-border p-4">
           <h2 className="mb-3 text-sm font-medium">编辑角色</h2>
+          {editingLastSa ? (
+            <p className="mb-2 text-xs text-muted-foreground">{LAST_SUPER_ADMIN_HINT}</p>
+          ) : null}
           <div className="flex flex-wrap gap-2">
-            {roles.map((r) => (
-              <label
-                key={r.id}
-                className="flex cursor-pointer items-center gap-1.5 rounded border border-border px-2 py-1 text-xs"
-              >
-                <input
-                  type="checkbox"
-                  checked={editRoleIds.includes(r.id)}
-                  onChange={() => setEditRoleIds((prev) => toggleRole(prev, r.id))}
-                />
-                {r.name}
-              </label>
-            ))}
+            {roles.map((r) => {
+              const lockSa = editingLastSa && r.code === SUPER_ADMIN_ROLE_CODE;
+              return (
+                <label
+                  key={r.id}
+                  className="flex cursor-pointer items-center gap-1.5 rounded border border-border px-2 py-1 text-xs"
+                >
+                  <input
+                    type="checkbox"
+                    aria-label={`角色 ${r.code}`}
+                    checked={editRoleIds.includes(r.id)}
+                    disabled={lockSa}
+                    onChange={() => {
+                      if (lockSa) return;
+                      setEditRoleIds((prev) => toggleRole(prev, r.id));
+                    }}
+                  />
+                  {r.name}
+                  <span className="text-muted-foreground">({r.code})</span>
+                </label>
+              );
+            })}
           </div>
           <div className="mt-3 flex gap-2">
-            <Button type="button" disabled={busy} onClick={() => void onSaveRoles()}>
+            <Button
+              type="button"
+              disabled={busy || stripBlocked}
+              title={stripBlocked ? LAST_SUPER_ADMIN_HINT : undefined}
+              onClick={() => void onSaveRoles()}
+            >
               保存
             </Button>
             <Button type="button" variant="outline" onClick={() => setEditId(null)}>

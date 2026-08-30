@@ -7,13 +7,13 @@
 | 成熟度 | **可演示**（S2c 运营薄壳：文档 / 审批 / 成员 / 分片 / 设置 / 模型 + 用户 / 角色 / 部门 + **数据面板** + **反馈队列** + **评测底线**） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT + admin **dev-login**（经 api）· 知识库 = 手工填写 uuid · 菜单 = `clipMenuForShell` 裁剪（catalog 为 SSOT）· API 默认 `http://127.0.0.1:4000` |
 | 关联模块 | API 依赖：`api` 的文档 / 审批 / 成员 / 分片 / 设置 / 模型 / 用户角色 / 部门 / dashboard / **feedback-queue** / **gold-questions · eval/runs**；菜单与权限码：`admin-catalog`；类型：`contracts`；样式：`ui` |
-| 最近更新 | 2026-08-30（成员页可改角色；≠ allowedDocIds / ≠ 末位超管提示） |
+| 最近更新 | 2026-08-30（用户页末位超管禁用/剥角色不可点；API 闸不改） |
 | Spec | `.trellis/spec/admin/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · 审批 / 成员相关 API |
 
 ## 一句话状态
 
-Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 四态 lifecycle）+ 审批中心 + 成员管理（邀请 / 改角色 / 移除）+ 分片只读 + 知识库设置 + 模型网关最小集 + 用户 / 角色 / 部门最小集 + 数据面板薄壳 + 反馈队列薄壳 + 评测底线薄壳** 均已接通；顶栏 KB 选择器旁有建库入口（有 `kb.create` 才显示；名称 + 首位库管预填当前用户可改），库 id 仍可手填，外壳 **`clipMenuForShell`** 只显示已落地路由（**12** 条 ops href），**不是**完整运营台（无 APM 时序 / **≠** 全文隔离 / **≠** ES / **≠** 评测签字包）。Vitest / RTL 覆盖外壳 / Guard / 审批 / dashboard 403 + **P0 R5/R6** + settings / documents / departments / **eval** / **members** 工作区测 + **建库入口**；**无** E2E。
+Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 四态 lifecycle）+ 审批中心 + 成员管理（邀请 / 改角色 / 移除）+ 分片只读 + 知识库设置 + 模型网关最小集 + 用户（末位超管禁用/剥角色不可点） / 角色 / 部门最小集 + 数据面板薄壳 + 反馈队列薄壳 + 评测底线薄壳** 均已接通；顶栏 KB 选择器旁有建库入口（有 `kb.create` 才显示；名称 + 首位库管预填当前用户可改），库 id 仍可手填，外壳 **`clipMenuForShell`** 只显示已落地路由（**12** 条 ops href），**不是**完整运营台（无 APM 时序 / **≠** 全文隔离 / **≠** ES / **≠** 评测签字包）。Vitest / RTL 覆盖外壳 / Guard / 审批 / dashboard 403 + **P0 R5/R6** + settings / documents / departments / **eval** / **members** / **末位超管** 工作区测 + **建库入口**；**无** E2E。
 
 ---
 
@@ -58,9 +58,9 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 - Key **只写不回显**；**没有**真实的 fetch-models 代理 UI；**没有**知识库级绑定
 
 ### 平台用户 / 角色（B4 最小集）
-- `/users`：用户列表、新建（email / displayName / 角色）、启用禁用、修改角色；需要 `user.manage` 权限；数据路径仅 `users/api.ts` 一处
+- `/users`：用户列表、新建（email / displayName / 角色）、启用禁用、修改角色；**唯一 active 超管**「禁用」与剥 `super_admin` 不可点并出说明（列表判定；**≠** 改 api 400 闸）；需要 `user.manage` 权限；数据路径仅 `users/api.ts` 一处
 - `/roles`：角色列表、新建自定义角色、勾选权限码并保存；需要 `role.perm.manage` 权限；数据路径仅 `roles/api.ts` 一处
-- **没有**密码相关 UI；登录仍走 dev-login；**B4-W** 运行时角色以 api DB hydrate 为准（本包只 CRUD）
+- **没有**密码相关 UI；登录仍走 dev-login；**B4-W** 运行时角色以 api DB hydrate 为准（本包只 CRUD）；**没有**启动引导超管页
 - 用户部门归属的编辑入口在 **`/departments`** 页（有 `user.manage` 时用户下拉，加载失败回退 uuid）
 
 ### 部门（B5 最小集）
@@ -97,7 +97,7 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 - 类型 `@strict-rag/contracts`；菜单 / 权限码 `@strict-rag/admin-catalog`
 - 样式：Tailwind v4 + ui 主题；构建 `next build --webpack`
 - **单元 / 组件测试**：外壳 / Guard / 审批 / dashboard + **P0 R5/R6** + `tests/kb/current-kb.test.ts`（admin KB key 不与 web 混写）+ `tests/kb/create-kb.test.tsx`（`kb.create` 入口）+ `tests/auth/client-session.test.ts`（admin session 与 web 隔离）。测例在 `tests/<能力>/`；导航 `apps/admin/tests/index.md`；HOW：`.trellis/spec/guides/testing.md`
-  - **没有** chunks / models / users / roles / **feedback** 工作区测；documents / departments / settings / **members** 工作区测已有；**没有** E2E；**没有** http 全路径 refresh 集成测
+  - **没有** chunks / models / roles / **feedback** 工作区测；documents / departments / settings / **members** / **末位超管**（users）工作区测已有；**没有** E2E；**没有** http 全路径 refresh 集成测
 
 ---
 
@@ -130,7 +130,7 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 |----|------|------|
 | 知识库手填 id | 演示门槛高 | 与 web 端同类债 |
 | Soft Bento / product.pen 未做像素级对齐 | 观感不是最终定稿 | 色板与原子组件在 `packages/ui`；本包只做组合 |
-| 无 E2E、多数运营页无 RTL 测试、无 http 全路径 refresh 测试 | 修改 chunks / models / users / roles / feedback 页面只能靠手测 | 已覆盖外壳 / Guard / 审批 / members + R5/R6；catalog 有单测；P0 清单见 `docs/testing/p0-redlines.md` |
+| 无 E2E、多数运营页无 RTL 测试、无 http 全路径 refresh 测试 | 修改 chunks / models / roles / feedback 页面只能靠手测 | 已覆盖外壳 / Guard / 审批 / members / 末位超管 + R5/R6；catalog 有单测；P0 清单见 `docs/testing/p0-redlines.md` |
 
 ---
 
@@ -145,7 +145,7 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 | 反馈 | `app/(ops)/feedback/page.tsx` · `_components/feedback-workspace.tsx` · `api.ts` · `services.ts` |
 | API 封装 | 各 ops 目录 `api.ts` · `lib/http.ts` · `auth/api.ts` |
 | 登录 / 守卫 | `apps/admin/src/app/login/page.tsx` · `components/auth-guard.tsx` |
-| 前端测试 | `vitest.config.ts` · `src/test/` · `tests/shell/menu-clip.test.tsx` · `tests/ops/dashboard-workspace.test.tsx` · `tests/ops/approvals-workspace.test.tsx` · `tests/ops/members-workspace.test.tsx` · R5/R6 等 |
+| 前端测试 | `vitest.config.ts` · `src/test/` · `tests/shell/menu-clip.test.tsx` · `tests/ops/dashboard-workspace.test.tsx` · `tests/ops/approvals-workspace.test.tsx` · `tests/ops/members-workspace.test.tsx` · `tests/ops/last-superadmin-hint.test.tsx` · R5/R6 等 |
 | P0 清单 | `docs/testing/p0-redlines.md`（本包 R5–R6） |
 | 命令 | `pnpm --filter @strict-rag/admin test`（`package.json` → `vitest run`） |
 | 样式入口 | `apps/admin/src/app/globals.css` · `postcss.config.mjs` · `package.json`（tailwind devDeps · `build --webpack`） |

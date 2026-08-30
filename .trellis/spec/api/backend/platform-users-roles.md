@@ -69,7 +69,7 @@ DB：`platform_roles` · `user_roles`（`packages/db` · migration `0004_b4_plat
 - 四系统角色 + 自定义合法/非法码
 - PUT permissions 合法/非法
 - POST user 绑角色；列表 roleCodes
-- 最后超管 / 双超管
+- 最后超管 / 双超管（HTTP 400 闸；admin 用户页另做不可点提示，**本闸不放宽**）
 - permission-catalog 码集 + 无码 403
 
 ### 7. Wrong vs Correct
@@ -90,5 +90,5 @@ routes.post('/admin/users', requirePermission('user.manage'), handler)
 ### Design Decision: 超管判定
 
 **Context**：ADR-056 最后超管保护。  
-**Decision**：以角色 **code === `super_admin`**（启用）且用户 **active** 计数；不单靠权限码并集（避免自定义全码角色误判为「系统超管」种子）。  
+**Decision**：以角色 **code === `super_admin`**（启用）且用户 **active** 计数；不单靠权限码并集（避免自定义全码角色误判为「系统超管」种子）。admin 用户页用同一判定做禁用/剥角色不可点，**不得**用前端提示代替或放宽本闸。  
 **B4-W**：dev-login 经 `ensureUserRoleCodes` 写入 `user_roles`；中间件每请求 hydrate（≤5s 缓存 + 写失效）。
