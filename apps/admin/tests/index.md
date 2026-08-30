@@ -38,6 +38,7 @@
 | `ops/feedback-comment-escape.test.tsx` | 反馈 comment 含 `<script>` 必须当文本展示，不得当 HTML 解析。 | 剧本 K6 · prds/10-delivery/03-acceptance-scenarios.md | `FeedbackWorkspace` | comment 走 React 文本节点原样可见。 | 现行 |
 | `ops/kb-settings-services.test.ts` | 设置服务必须正确解析文档类型输入，失败则 PATCH 写出错误 docTypes。 | KB settings | `parseDocTypesInput` | 不写 URL。 | 现行 |
 | `ops/kb-settings-workspace.test.tsx` | KB 设置薄页必须按 kb.config.write 显隐，未改勾选不得 PATCH 强制/继承。 | B2 设置 UI | `SettingsWorkspace` | mode 真值在 api。 | 现行 |
+| `ops/members-workspace.test.tsx` | 成员页有 member.manage 才能改角色；改下拉须走 PUT 用例。 | prds/05-api §2.2 · 功能表 §5.2 成员 | `MembersWorkspace` | HTTP 真值在 api。 | 现行 |
 | `shell/auth-guard.test.tsx` | 无会话或无 admin.shell 必须跳转登录，失败则壳内页对无权限用户可见。 | admin.shell | `AdminAuthGuard` | mock 须持续 resolve。 | 现行 |
 | `shell/menu-clip.test.tsx` | 菜单必须按权限码裁剪，失败则无码用户仍看到落地路由。 | ADR-056 clip | `AdminShell` | 非完整运营台。 | 现行 |
 

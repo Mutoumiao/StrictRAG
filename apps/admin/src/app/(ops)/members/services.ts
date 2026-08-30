@@ -1,15 +1,15 @@
 'use client';
 
 /**
- * 成员管理用例：列表 / 邀请 / 移除（含成功后刷新列表）。
+ * 成员管理用例：列表 / 邀请 / 改角色 / 移除（含成功后刷新列表）。
  * 无 path；不做权限决策。
  */
 
-import type { InviteMemberBody, KbMember } from '@strict-rag/contracts';
+import type { InviteMemberBody, KbMember, KbMemberRole } from '@strict-rag/contracts';
 
 import { mapBizError } from '@/lib/map-biz-error';
 
-import { inviteMember, listMembers, removeMember } from './api';
+import { inviteMember, listMembers, removeMember, updateMemberRole } from './api';
 
 export type LoadMembersResult =
   | { ok: true; rows: KbMember[] }
@@ -54,12 +54,44 @@ export async function removeKbMember(
   }
 }
 
+export async function updateKbMemberRole(
+  kbId: string,
+  userId: string,
+  role: KbMemberRole,
+): Promise<MembersActionResult> {
+  try {
+    await updateMemberRole(kbId, userId, { role });
+    return { ok: true, text: '已改角色' };
+  } catch (err) {
+    return { ok: false, message: mapBizError(err) };
+  }
+}
+
 /** 邀请后刷新列表。 */
 export async function inviteKbMemberAndReload(
   kbId: string,
   body: InviteMemberBody,
 ): Promise<MembersMutationResult> {
   const ran = await inviteKbMember(kbId, body);
+  if (!ran.ok) return ran;
+  const list = await loadMemberList(kbId);
+  if (!list.ok) {
+    return {
+      ok: true,
+      text: `${ran.text}（列表刷新失败：${list.message}）`,
+      rows: [],
+    };
+  }
+  return { ok: true, text: ran.text, rows: list.rows };
+}
+
+/** 改角色后刷新列表。 */
+export async function updateKbMemberRoleAndReload(
+  kbId: string,
+  userId: string,
+  role: KbMemberRole,
+): Promise<MembersMutationResult> {
+  const ran = await updateKbMemberRole(kbId, userId, role);
   if (!ran.ok) return ran;
   const list = await loadMemberList(kbId);
   if (!list.ok) {

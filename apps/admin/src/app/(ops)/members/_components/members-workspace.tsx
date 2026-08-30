@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * 成员管理：列表 / 邀请 / 移除。需 member.manage（菜单亦裁剪）。
+ * 成员管理：列表 / 邀请 / 改角色 / 移除。需 member.manage（菜单亦裁剪）。
  */
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
@@ -26,6 +26,7 @@ import {
   inviteKbMemberAndReload,
   loadMemberList,
   removeKbMemberAndReload,
+  updateKbMemberRoleAndReload,
 } from '../services';
 
 export function MembersWorkspace() {
@@ -80,6 +81,24 @@ export function MembersWorkspace() {
     const result = await inviteKbMemberAndReload(id, { email: email.trim(), role });
     if (result.ok) {
       setEmail('');
+      setFlash(result.text);
+      setRows(result.rows);
+      setState('ready');
+    } else {
+      setFlash(result.message);
+    }
+    setBusy(false);
+  }
+
+  async function onChangeRole(userId: string, next: KbMemberRole) {
+    const id = readStoredKbId().trim();
+    if (!id) return;
+    const current = rows.find((r) => r.userId === userId);
+    if (current?.role === next) return;
+    setBusy(true);
+    setFlash(null);
+    const result = await updateKbMemberRoleAndReload(id, userId, next);
+    if (result.ok) {
       setFlash(result.text);
       setRows(result.rows);
       setState('ready');
@@ -173,7 +192,23 @@ export function MembersWorkspace() {
                   <div>{r.email ?? r.displayName ?? r.userId}</div>
                   <div className="text-[11px] text-muted-foreground">{r.userId}</div>
                 </TableCell>
-                <TableCell>{r.role}</TableCell>
+                <TableCell>
+                  {canManage ? (
+                    <Select
+                      aria-label={`成员角色 ${r.email ?? r.displayName ?? r.userId}`}
+                      value={r.role}
+                      disabled={busy}
+                      onChange={(e) => void onChangeRole(r.userId, e.target.value as KbMemberRole)}
+                      className="w-auto"
+                    >
+                      <option value="read">read</option>
+                      <option value="write">write</option>
+                      <option value="admin">admin</option>
+                    </Select>
+                  ) : (
+                    r.role
+                  )}
+                </TableCell>
                 <TableCell>
                   {canManage ? (
                     <Button

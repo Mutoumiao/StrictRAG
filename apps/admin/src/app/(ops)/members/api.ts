@@ -10,6 +10,8 @@ import type {
   InviteMemberResponse,
   KbMember,
   RemoveMemberResponse,
+  UpdateMemberBody,
+  UpdateMemberResponse,
 } from '@strict-rag/contracts';
 
 import { http } from '@/lib/http';
@@ -28,5 +30,12 @@ export async function inviteMember(kbId: string, body: InviteMemberBody) {
 export async function removeMember(kbId: string, userId: string) {
   return http.delete<RemoveMemberResponse>(
     `/api/v1/knowledge-bases/${kbId}/members/${userId}`,
+  );
+}
+
+export async function updateMemberRole(kbId: string, userId: string, body: UpdateMemberBody) {
+  return http.put<UpdateMemberResponse, UpdateMemberBody>(
+    `/api/v1/knowledge-bases/${kbId}/members/${userId}`,
+    body,
   );
 }
