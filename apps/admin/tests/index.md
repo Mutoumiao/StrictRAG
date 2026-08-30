@@ -12,7 +12,7 @@
 | `auth/` | 客户端 session、HttpError 字段 | P0 R5 |
 | `error-map/` | 业务码文案 | P0 R6 |
 | `ops/` | 文档/审批/设置/部门/面板薄页行为 | `prds/12-delivery-guides/04-交付控制台.md`（交互，非 API 真值） |
-| `kb/` | 当前 KB 选择 | 壳下拉 / 粘贴 uuid |
+| `kb/` | 当前 KB 选择 | 壳关闭列表 / 禁止粘贴 uuid |
 
 ## 测例
 
@@ -24,6 +24,7 @@
 | `kb/upload-strategy.test.ts` | 上传人选必须走 for-upload 结果，禁止写死默认策略码。 | 功能表 §4.5 | `pickUploadChunkStrategy` | 仅 1 个用 autoCode；≥2 须人选或 recommended。 | 现行 |
 | `kb/create-kb-services.test.ts` | 建库用例成功后必须把新库写成当前 KB。 | prds/05-api §2.1 | `createKbAndSelect` | 不写 URL；HTTP 真值在 api。 | 现行 |
 | `kb/create-kb.test.tsx` | 有 kb.create 才显示建库入口；表单预填当前用户并可改。 | prds/05-api §2.1 | `AdminShell · CreateKbControls` | 挂 KB 选择器，不单开二级菜单。真值在 api 建库写入。 | 现行 |
+| `kb/admin-kb-picker.test.tsx` | admin 顶栏当前 KB 只能选本次可见库，禁止粘贴 uuid。 | 功能表 §4 · 工单「admin 顶栏当前 KB 选择器」 | `AdminShell` 关闭列表 | 空态/失败无输入；脏缓存不打运营 API；建库成功选中新建库。 | 现行 |
 | `kb/current-kb.test.ts` | 当前 KB 选择必须读写 admin 独立 key，失败则污染 web 或选库丢失。 | 壳 KB 上下文 | `readStoredKbId / writeStoredKbId` | localStorage key。 | 现行 |
 | `ops/approvals-workspace.test.tsx` | 审批页必须按码显隐操作入口，失败则无 decide 仍露出通过/驳回。 | 审批闸 UI | `ApprovalsWorkspace` | 不替代 api 闸测。 | 现行 |
 | `ops/dashboard-workspace.test.tsx` | 数据面板无码须保持 403、有码才加载 summary，失败则指标页对无权限可见。 | B6 UI | `DashboardWorkspace` | 指标真值在 api。 | 现行 |

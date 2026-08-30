@@ -14,6 +14,7 @@ packages/ui/
       "./components/ui/label"    → label.tsx
       "./components/ui/textarea" → textarea.tsx
       "./components/ui/select"   → select.tsx
+      "./components/ui/closed-select" → closed-select.tsx
       "./components/ui/table"    → table.tsx
       "./components/ui/card"     → card.tsx
       "./components/ui/badge"    → badge.tsx

@@ -84,7 +84,7 @@ import { cn } from '@strict-rag/ui/lib/utils';
 | `./theme.css` | 主题入口 |
 | `./lib/utils` | `cn` |
 | `./components/ui/button` | Button · buttonVariants |
-| `./components/ui/input` · `label` · `textarea` · `select` | 表单 |
+| `./components/ui/input` · `label` · `textarea` · `select` · `closed-select` | 表单（新下拉用 ClosedSelect） |
 | `./components/ui/table` | Table 系列 |
 | `./components/ui/card` | Card 系列 |
 | `./components/ui/badge` · `alert` | 状态展示 |
@@ -94,6 +94,7 @@ import { cn } from '@strict-rag/ui/lib/utils';
 import { Button } from '@strict-rag/ui/components/ui/button';
 import { Input } from '@strict-rag/ui/components/ui/input';
 import { Label } from '@strict-rag/ui/components/ui/label';
+import { ClosedSelect } from '@strict-rag/ui/components/ui/closed-select';
 import { Alert, AlertTitle, AlertDescription } from '@strict-rag/ui/components/ui/alert';
 ```
 
@@ -104,7 +105,8 @@ import { Alert, AlertTitle, AlertDescription } from '@strict-rag/ui/components/u
 | 无业务 fetch / 无密钥 / 无 env | 库只做展示原子 |
 | variant | 优先 `cva`；依赖 `catalog:` |
 | ref | 可聚焦控件 **forwardRef** |
-| Select | 首版 **native** + 统一 class（非必须 Radix） |
+| Select | 首版 **native** + 统一 class（遗留；**新下拉禁止再用**） |
+| ClosedSelect | 关闭列表：展示文案、值为 id；不能输入、不能搜。不是 combobox、不是原生 `<select>`。admin 顶栏已用；web 回改另张 |
 | Button default | **primary**（品牌蓝），非 zinc 前景色块 |
 | 增组件 | 改 `package.json#exports` + 本表；按需，勿一次铺全集 |
 

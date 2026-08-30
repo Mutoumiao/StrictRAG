@@ -75,7 +75,7 @@ export function FeedbackWorkspace() {
       <header>
         <h1 className="m-0 text-lg font-semibold">反馈队列</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          KB：{kbId || '（顶部填写）'} · open 项目标 1 工作日内处理（见 ops/feedback-sla）
+          KB：{kbId || '（请在顶栏选择知识库）'} · open 项目标 1 工作日内处理（见 ops/feedback-sla）
         </p>
       </header>
 

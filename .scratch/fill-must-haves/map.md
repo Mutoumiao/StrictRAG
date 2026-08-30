@@ -13,7 +13,7 @@ Status: open
 - 每轮先读：本图、`docs/agents/issue-tracker.md`、`docs/agents/domain.md`、功能表、相关包的 `docs/module-status/`。写代码前读 `.trellis/spec/` 对应包。执行完成后跑 skill `update-module-status`。
 - **覆盖「只做决策」**：工单可以动手补缺口，不只锁决策。
 - **本图是执行面**：缺口只在 `.scratch/fill-must-haves/` 工单上做完。`.trellis/tasks/08-06-project-backlog/` 只留指针和勾选。同一缺口禁止再 `task.py create` 平行实现任务。这只覆盖本图，不改全仓其它流程。
-- 顺序：本图 P2 语义已收官（第三批）；P2.5 出口走 **L2 归档准出**（工程路径 [L2 归档底线](./issues/14-l2-archive-floor.md) 已齐，人签仍图外）。鉴权/成员余量已齐。入库报告最小闭环已齐。库选择器只列成员库已齐。其余 P2 半接线留雾。P3a 仍等该出口。P3b 可在 P2 后并行，但不抽走下一裁定。
+- 顺序：本图 P2 语义已收官（第三批）；P2.5 出口走 **L2 归档准出**（工程路径 [L2 归档底线](./issues/14-l2-archive-floor.md) 已齐，人签仍图外）。鉴权/成员余量已齐。入库报告最小闭环已齐。库选择器只列成员库已齐。admin 顶栏当前 KB 选择器已齐。其余 P2 半接线留雾。P3a 仍等该出口。P3b 可在 P2 后并行，但不抽走下一裁定。
 - **站规（UI）**：web / admin 新下拉必须基于 `@strict-rag/ui` 关闭列表，禁止浏览器原生 `<select>` 外壳（含现有 ui `Select`）。`Button` / `Input` / `Textarea` 仍走 ui 包。本规不改 GET / 鉴权语义。
 - 人签（B10 业务 PASS）不是代码缺口，不进本图执行工单。
 - 引用工单用标题，不要只写编号。一回合只解决一张工单（research 除外）。
@@ -46,6 +46,7 @@ Status: open
 - [裁定入库报告最小闭环后下一步](./issues/23-after-ingest-report-order.md) — 继续剩余 P2；本批只做库选择器只列成员库。不转 P3b、不跳 P4、不等人签。
 - [库选择器只列成员库](./issues/24-kb-picker-members-only.md) — web 原生下拉只列本次 GET 可见库；空态开通成员；失败重试无输入；脏缓存不采用。
 - [裁定库选择器只列成员库后下一步](./issues/25-after-kb-picker-order.md) — 继续剩余 P2；本批只做 admin 顶栏当前 KB 选择器。站规：新下拉必须用 ui 关闭列表。web 回改另张。不转 P3b、不跳 P4、不等人签。
+- [admin 顶栏当前 KB 选择器](./issues/26-admin-kb-picker.md) — ui `ClosedSelect` + admin 顶栏只列本次 GET；禁止粘贴；空态/失败/未选中三套文案；脏缓存不采用；建库成功选中新建库。web 回改仍是下一张。
 
 ## Not yet specified
 

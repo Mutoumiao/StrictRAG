@@ -2,7 +2,8 @@
 
 Type: task
 Label: wayfinder:task
-Status: open
+Status: claimed
+Assignee: grok
 Triage: ready-for-agent
 Blocked by: 26
 

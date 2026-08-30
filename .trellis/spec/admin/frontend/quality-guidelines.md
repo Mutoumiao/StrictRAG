@@ -61,7 +61,7 @@
 
 ## 阶段口径（S2c + 08-11）
 
-- 已具备：登录 · 壳 · 文档/审批/成员 · **B1–B6 薄页** · **B13 反馈队列**（`/feedback` · 码 `feedback.queue`）· 顶栏建库入口（`kb.create`）  
+- 已具备：登录 · 壳 · 文档/审批/成员 · **B1–B6 薄页** · **B13 反馈队列**（`/feedback` · 码 `feedback.queue`）· 顶栏当前 KB 关闭列表 + 建库入口（`kb.create`）  
 - 运营 SLA：`docs/ops/feedback-sla.md`（1 工作日处理约定；**非**代码硬闸）  
 - 未做：完整 APM · DEPT_ACL 强制 UI · KB 级模型绑定写 UI 等  
 - 线稿参考 `product.pen`；交付白话见 `prds/12-delivery-guides`（**非**接口 SSOT）  
@@ -100,9 +100,17 @@
 
 **Related**：`users/services.ts` `isLastActiveSuperAdmin` / `wouldStripLastSuperAdmin`；api [platform-users-roles](../../api/backend/platform-users-roles.md)。
 
+### Convention: 当前 KB 选择器
+
+**What**：顶栏用 `@strict-rag/ui` `ClosedSelect` 消费本次 `GET /knowledge-bases` 行（展示名、值为 id）。禁止粘贴 uuid、禁止原生 `Select`。空态「当前身份没有可见知识库」（不说开通成员；有 `kb.create` 仍可建）；列表失败「知识库列表加载失败」+ 重试，不给选择器；未选中时运营页「请在顶栏选择知识库」。`last-kb-id` 若不在本次列表中不采用、不自动选第一项；列表未就绪不挂运营子树，避免脏 id 打 API。
+
+**Why**：功能表 §4 当前 KB 选择器；站规新下拉必须关闭列表。
+
+**Related**：`admin-shell.tsx`；原子 `packages/ui` `ClosedSelect`；测例 `tests/kb/admin-kb-picker.test.tsx`。
+
 ### Convention: 建库入口
 
-**What**：有 `kb.create` 才在顶栏 KB 选择器旁显示「创建知识库」；表单 = 名称 + 首位库管（预填当前用户、可改）。成功后写入 `last-kb-id`。
+**What**：有 `kb.create` 才在顶栏 KB 选择器旁显示「创建知识库」；表单 = 名称 + 首位库管（预填当前用户、可改）。成功后选中新建库并写入 `last-kb-id`（选项须有这一行）。
 
 **Why**：PRD §2.1 要闭环；禁止独立空壳二级菜单，也禁止在向导里配策略/类型/绑定。
 
@@ -179,6 +187,7 @@ expect(mapBizError(err)).toContain('shouldRefresh');
 | 有 decide | 可点「通过」且 `applyApprovalAction(kb, id, 'approve')` |
 | 有 `doc.upload` + approved | 有「入队 scan」 |
 | 唯一 active 超管 | 「禁用」disabled；`super_admin` 勾选 disabled；行上说明；两名超管时可禁用其一 |
+| 顶栏当前 KB | 关闭列表只列本次 GET；空态/失败无输入；脏缓存不打运营 API；建库成功选中新建库 |
 
 ## 反模式
 

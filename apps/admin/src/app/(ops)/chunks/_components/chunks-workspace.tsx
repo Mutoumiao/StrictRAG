@@ -157,7 +157,7 @@ export function ChunksWorkspace() {
       </div>
 
       {!kbId ? (
-        <p className="text-sm text-muted-foreground">请在顶栏填写知识库 UUID 后刷新。</p>
+        <p className="text-sm text-muted-foreground">请在顶栏选择知识库</p>
       ) : null}
 
       {state === 'loading' ? <p className="text-sm text-muted-foreground">加载中…</p> : null}

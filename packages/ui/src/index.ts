@@ -9,6 +9,11 @@ export { Label, type LabelProps } from './components/ui/label.js';
 export { Textarea, type TextareaProps } from './components/ui/textarea.js';
 export { Select, type SelectProps } from './components/ui/select.js';
 export {
+  ClosedSelect,
+  type ClosedSelectOption,
+  type ClosedSelectProps,
+} from './components/ui/closed-select.js';
+export {
   Table,
   TableHeader,
   TableBody,

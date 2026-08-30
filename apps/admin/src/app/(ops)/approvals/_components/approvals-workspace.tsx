@@ -109,7 +109,7 @@ export function ApprovalsWorkspace() {
         </p>
       ) : null}
 
-      {!kbId ? <p className="text-sm text-muted-foreground">请在顶栏填写知识库 UUID。</p> : null}
+      {!kbId ? <p className="text-sm text-muted-foreground">请在顶栏选择知识库</p> : null}
 
       {state === 'loading' ? <p className="text-sm text-muted-foreground">加载中…</p> : null}
       {state === 'error' ? <p className="text-sm text-destructive">{error}</p> : null}

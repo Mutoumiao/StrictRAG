@@ -1,7 +1,7 @@
 # @strict-rag/ui · 共享 UI 库
 
 > 路径：`packages/ui`  
-> 现状：**Tailwind v4 主题入口** + Soft Bento 语义 token + 首批 shadcn 风格原子（Button/Input/Label/Textarea/Select/Table/Card/Badge/Alert）。admin/web 消费。
+> 现状：**Tailwind v4 主题入口** + Soft Bento 语义 token + 首批 shadcn 风格原子（Button/Input/Label/Textarea/Select/ClosedSelect/Table/Card/Badge/Alert）。admin/web 消费。新下拉用 **ClosedSelect**（关闭列表），禁止再用原生外壳 `Select`。
 
 ---
 

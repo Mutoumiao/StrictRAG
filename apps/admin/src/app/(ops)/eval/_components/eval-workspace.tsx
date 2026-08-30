@@ -163,7 +163,7 @@ export function EvalWorkspace() {
       <header>
         <h1 className="m-0 text-lg font-semibold">评测</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          KB：{kbId || '（顶部填写）'} · 维护黄金集并入队 L1；L2 用仓内题面入队。不是签字包，工程可签字 ≠ 准出 PASS。
+          KB：{kbId || '（请在顶栏选择知识库）'} · 维护黄金集并入队 L1；L2 用仓内题面入队。不是签字包，工程可签字 ≠ 准出 PASS。
         </p>
       </header>
 
@@ -171,7 +171,7 @@ export function EvalWorkspace() {
       {state === 'loading' ? <p className="text-sm">加载中…</p> : null}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       {state === 'idle' && !kbId ? (
-        <p className="text-sm text-muted-foreground">请先在顶部填写知识库。</p>
+        <p className="text-sm text-muted-foreground">请在顶栏选择知识库</p>
       ) : null}
 
       <section className="space-y-3">

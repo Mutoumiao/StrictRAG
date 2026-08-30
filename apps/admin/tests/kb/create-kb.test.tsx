@@ -111,6 +111,9 @@ describe('建库入口', () => {
         initialAdminUserId: OTHER_ADMIN,
       });
     });
-    expect(screen.getByPlaceholderText(/knowledge-base uuid/i)).toHaveValue(CREATED_ID);
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: '当前知识库' })).toHaveTextContent('新库');
+    });
+    expect(localStorage.getItem('strict-rag:admin:last-kb-id')).toBe(CREATED_ID);
   });
 });

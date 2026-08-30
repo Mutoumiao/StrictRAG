@@ -165,7 +165,7 @@ export function SettingsWorkspace() {
       <div>
         <h1 className="mb-1 text-lg font-semibold">知识库设置</h1>
         <p className="text-xs text-muted-foreground">
-          KB：{kbId || '（请在顶栏填写 knowledge-base uuid）'}
+          KB：{kbId || '（请在顶栏选择知识库）'}
         </p>
       </div>
 
@@ -354,7 +354,7 @@ export function SettingsWorkspace() {
       )}
 
       {!settings && state === 'idle' && !kbId && (
-        <p className="text-sm text-muted-foreground">请先在顶栏填写 KB id 后刷新本页。</p>
+        <p className="text-sm text-muted-foreground">请在顶栏选择知识库</p>
       )}
     </div>
   );

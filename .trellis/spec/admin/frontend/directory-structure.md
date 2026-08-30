@@ -13,7 +13,7 @@ apps/admin/
     lib/
       http.ts                 # 传输层（Bearer / refresh / 重试）
       kb-context.ts           # 当前 KB 选择（localStorage）
-      kb-api.ts               # GET/POST /knowledge-bases（壳下拉 + 建库；失败仍可粘贴 uuid）
+      kb-api.ts               # GET/POST /knowledge-bases（壳关闭列表 + 建库；失败不回退粘贴）
       kb-create.services.ts   # 建库用例：写当前 KB；无 path
       map-biz-error.ts        # services 共用错误映射（无 path）
     auth/

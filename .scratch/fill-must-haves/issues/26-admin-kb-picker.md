@@ -2,7 +2,8 @@
 
 Type: task
 Label: wayfinder:task
-Status: open
+Status: resolved
+Assignee: grok
 Triage: ready-for-agent
 Blocked by: 25
 
@@ -38,3 +39,16 @@ Blocked by: 25
 收工：skill `update-module-status`；`.trellis/tasks/08-06-project-backlog/` 只补指针，禁止 `task.py create`。
 
 写代码前读 `.trellis/spec/` 对应包（ui、admin）。站规：web/admin 新下拉必须基于 `@strict-rag/ui` 关闭列表，禁止原生 `<select>` 外壳。
+
+## Answer
+
+`@strict-rag/ui` 新增 `ClosedSelect`（关闭列表：展示名、值为 id；不能输入、不能搜；不是 combobox、不是原生 `<select>`）。admin 顶栏只用它消费本次 `GET /knowledge-bases`。空态「当前身份没有可见知识库」（有 `kb.create` 仍可建）；失败独立错误 + 重试、不给选择器；未选中时运营页「请在顶栏选择知识库」。脏 `last-kb-id` 不采用、不自动选第一项；列表未就绪不挂运营子树。建库成功选中新建库。未改 GET 过滤、未改 Ask 成员闸、未回改 web。
+
+测例：`apps/admin/tests/kb/admin-kb-picker.test.tsx`。未 `task.py create`。
+
+证据：`packages/ui/src/components/ui/closed-select.tsx` · `apps/admin/src/components/admin-shell.tsx`。
+
+## Comments
+
+- 2026-08-30 按图顺序认领本工单。开放前沿即本张；本回合写 ui 关闭列表 + admin 顶栏，不回改 web。
+- 2026-08-30 收工：关本工单。下一张开放前沿是 [web 下拉换 ui 关闭列表](./27-web-select-ui-library.md)。未 `task.py create`。

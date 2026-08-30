@@ -7,7 +7,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { render, screen, userEvent, waitFor } from '@/test/test-utils';
+import { render, screen } from '@/test/test-utils';
 
 const me = {
   userId: 'u-admin',
@@ -103,47 +103,5 @@ describe('AdminShell', () => {
       'href',
       '/dashboard',
     );
-  });
-
-  it('KB 输入写 admin last-kb-id', async () => {
-    me.permissions = ['admin.shell', 'doc.view'];
-    const user = userEvent.setup();
-    render(
-      <AdminShell>
-        <div>child</div>
-      </AdminShell>,
-    );
-    await user.type(screen.getByPlaceholderText(/knowledge-base uuid/i), 'kb-abc');
-    expect(localStorage.getItem('strict-rag:admin:last-kb-id')).toBe('kb-abc');
-  });
-
-  it('知识库 datalist 有可见库，仍可粘贴 uuid', async () => {
-    me.permissions = ['admin.shell', 'doc.view'];
-    render(
-      <AdminShell>
-        <div>child</div>
-      </AdminShell>,
-    );
-    await waitFor(() => {
-      expect(screen.getByRole('option', { name: '演示库', hidden: true })).toHaveValue(
-        'kb-listed',
-      );
-    });
-    expect(screen.getByPlaceholderText(/knowledge-base uuid/i)).toBeInTheDocument();
-  });
-
-  it('列表失败仍可粘贴 uuid', async () => {
-    listKnowledgeBases.mockRejectedValue(new Error('forbidden'));
-    me.permissions = ['admin.shell', 'doc.view'];
-    const user = userEvent.setup();
-    render(
-      <AdminShell>
-        <div>child</div>
-      </AdminShell>,
-    );
-    await waitFor(() => expect(listKnowledgeBases).toHaveBeenCalled());
-    expect(screen.queryByRole('option', { hidden: true })).not.toBeInTheDocument();
-    await user.type(screen.getByPlaceholderText(/knowledge-base uuid/i), 'kb-paste');
-    expect(localStorage.getItem('strict-rag:admin:last-kb-id')).toBe('kb-paste');
   });
 });

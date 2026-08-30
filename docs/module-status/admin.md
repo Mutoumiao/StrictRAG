@@ -5,15 +5,15 @@
 | 路径 | `apps/admin` |
 | 端口 | 3006 |
 | 成熟度 | **可演示**（S2c 运营薄壳：文档 / 审批 / 成员 / 分片 / 设置 / 模型 + 用户 / 角色 / 部门 + **数据面板** + **反馈队列** + **评测底线**） |
-| 默认依赖模式 | 鉴权 = 临时双 JWT + admin **dev-login**（经 api）· 知识库 = 手工填写 uuid · 菜单 = `clipMenuForShell` 裁剪（catalog 为 SSOT）· API 默认 `http://127.0.0.1:4000` |
+| 默认依赖模式 | 鉴权 = 临时双 JWT + admin **dev-login**（经 api）· 知识库 = 顶栏关闭列表（本次 GET 可见库，禁止粘贴 uuid）· 菜单 = `clipMenuForShell` 裁剪（catalog 为 SSOT）· API 默认 `http://127.0.0.1:4000` |
 | 关联模块 | API 依赖：`api` 的文档 / 审批 / 成员 / 分片 / 设置 / 模型 / 用户角色 / 部门 / dashboard / **feedback-queue** / **gold-questions · eval/runs**；菜单与权限码：`admin-catalog`；类型：`contracts`；样式：`ui` |
-| 最近更新 | 2026-08-30（文档行展开入库报告；无报告「暂无入库报告」；≠ 跨 doc / Hit@k） |
+| 最近更新 | 2026-08-30（顶栏当前 KB 关闭列表只列本次 GET；禁止粘贴 uuid；≠ web 回改） |
 | Spec | `.trellis/spec/admin/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · 审批 / 成员相关 API |
 
 ## 一句话状态
 
-Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 四态 lifecycle / 行展开入库报告）+ 审批中心 + 成员管理（邀请 / 改角色 / 移除）+ 分片只读 + 知识库设置 + 模型网关最小集 + 用户（末位超管禁用/剥角色不可点） / 角色 / 部门最小集 + 数据面板薄壳 + 反馈队列薄壳 + 评测底线薄壳** 均已接通；顶栏 KB 选择器旁有建库入口（有 `kb.create` 才显示；名称 + 首位库管预填当前用户可改），库 id 仍可手填，外壳 **`clipMenuForShell`** 只显示已落地路由（**12** 条 ops href），**不是**完整运营台（无 APM 时序 / **≠** 全文隔离 / **≠** ES / **≠** 评测签字包）。Vitest / RTL 覆盖外壳 / Guard / 审批 / dashboard 403 + **P0 R5/R6** + settings / documents / departments / **eval** / **members** / **末位超管** / **入库报告** 工作区测 + **建库入口**；**无** E2E。
+Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 四态 lifecycle / 行展开入库报告）+ 审批中心 + 成员管理（邀请 / 改角色 / 移除）+ 分片只读 + 知识库设置 + 模型网关最小集 + 用户（末位超管禁用/剥角色不可点） / 角色 / 部门最小集 + 数据面板薄壳 + 反馈队列薄壳 + 评测底线薄壳** 均已接通；顶栏当前 KB 用 ui `ClosedSelect` 只列本次 GET 可见库（空态 / 失败重试 / 脏缓存不采用；禁止粘贴 uuid），旁有建库入口（有 `kb.create` 才显示；名称 + 首位库管预填当前用户可改；成功后选中新建库），外壳 **`clipMenuForShell`** 只显示已落地路由（**12** 条 ops href），**不是**完整运营台（无 APM 时序 / **≠** 全文隔离 / **≠** ES / **≠** 评测签字包）。Vitest / RTL 覆盖外壳 / Guard / 审批 / dashboard 403 + **P0 R5/R6** + settings / documents / departments / **eval** / **members** / **末位超管** / **入库报告** 工作区测 + **建库入口** + **当前 KB 关闭列表**；**无** E2E。
 
 ---
 
@@ -27,7 +27,7 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 ### 运营外壳（S2c · B7 菜单裁剪）
 - `AdminShell`：消费 `clipMenuForShell`（**没有**本地 href 白名单）；已落地 href SSOT = `admin-catalog` 的 `ADMIN_IMPLEMENTED_HREFS`
 - 当前落地 **十二条** ops 路由：`/dashboard` · `/documents` · `/approvals` · `/members` · `/chunks` · `/kb/settings` · `/models` · `/users` · `/roles` · `/departments` · **`/feedback`** · **`/eval`**
-- 知识库手填 id，localStorage `strict-rag:admin:last-kb-id`；有 `kb.create` 时顶栏显示「创建知识库」（名称 + 首位库管，预填当前用户可改），成功后写入当前 KB。**不是**独立二级菜单，**不是**建库向导
+- 当前 KB：`ClosedSelect` 消费本次 `GET /knowledge-bases`（展示名、值为 id）；`last-kb-id` 不在列表中则不采用、不自动选第一项；空态「当前身份没有可见知识库」；失败可重试无输入；运营页未选中「请在顶栏选择知识库」。有 `kb.create` 时顶栏显示「创建知识库」（名称 + 首位库管，预填当前用户可改），成功后选中新建库。**不是**独立二级菜单，**不是**建库向导，**不是** combobox
 
 ### 数据面板（B6 薄壳）
 - `/dashboard`：只读 3–5 指标（kb / 文档 / 待审 / processReady / 近 24h 问答）；`page → services → api` 分层
@@ -97,8 +97,8 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 - 模块私有 API：`app/(ops)/{dashboard,documents,approvals,members,chunks,kb/settings,models,users,roles,departments,feedback,eval}/api.ts`（**没有** 集中 `lib/admin-api.ts`）
 - 类型 `@strict-rag/contracts`；菜单 / 权限码 `@strict-rag/admin-catalog`
 - 样式：Tailwind v4 + ui 主题；构建 `next build --webpack`
-- **单元 / 组件测试**：外壳 / Guard / 审批 / dashboard + **P0 R5/R6** + `tests/kb/current-kb.test.ts`（admin KB key 不与 web 混写）+ `tests/kb/create-kb.test.tsx`（`kb.create` 入口）+ `tests/auth/client-session.test.ts`（admin session 与 web 隔离）。测例在 `tests/<能力>/`；导航 `apps/admin/tests/index.md`；HOW：`.trellis/spec/guides/testing.md`
-  - **没有** chunks / models / roles / **feedback** 工作区测；documents / departments / settings / **members** / **末位超管**（users）工作区测已有；**没有** E2E；**没有** http 全路径 refresh 集成测
+- **单元 / 组件测试**：外壳 / Guard / 审批 / dashboard + **P0 R5/R6** + `tests/kb/current-kb.test.ts`（admin KB key 不与 web 混写）+ `tests/kb/create-kb.test.tsx`（`kb.create` 入口）+ `tests/kb/admin-kb-picker.test.tsx`（关闭列表只列本次 GET）+ `tests/auth/client-session.test.ts`（admin session 与 web 隔离）。测例在 `tests/<能力>/`；导航 `apps/admin/tests/index.md`；HOW：`.trellis/spec/guides/testing.md`
+  - **没有** chunks / models / roles / **feedback** 工作区测；documents / departments / settings / **members** / **末位超管**（users）工作区测已有；当前 KB 关闭列表测 `tests/kb/admin-kb-picker.test.tsx`；**没有** E2E；**没有** http 全路径 refresh 集成测
 
 ---
 
@@ -113,7 +113,7 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 | 按历史 indexVersion 浏览分片的 UI | ADR-052 明确不做 |
 | 生效区间 / DELETE / 替代联动 / 在线编写 | 文档运营余量最小闭环明确不做；入库报告最小入口已有 |
 | 部分 API 封装符号未接线 | `patchPlatformRole` / `listFeedbackQueue(status)` 等封装已写但当前 UI 未调用 |
-| 完整运营 IA / 多知识库选择器 | 目前手填 uuid；不是产品级的库管体验 |
+| 完整运营 IA | 顶栏当前 KB 关闭列表已落地；仍不是完整运营台 / 库管向导 |
 | 生产视觉 / product.pen **像素级**定稿 | 已使用 Soft Bento token + ui 组件；**并非**对 product.pen 的全屏像素还原 |
 
 ### 其他包 / 后端挂账
@@ -129,7 +129,6 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 
 | 债 | 影响 | 备注 |
 |----|------|------|
-| 知识库手填 id | 演示门槛高 | web 已改为原生下拉；本包顶栏仍手填 uuid |
 | Soft Bento / product.pen 未做像素级对齐 | 观感不是最终定稿 | 色板与原子组件在 `packages/ui`；本包只做组合 |
 | 无 E2E、多数运营页无 RTL 测试、无 http 全路径 refresh 测试 | 修改 chunks / models / roles / feedback 页面只能靠手测 | 已覆盖外壳 / Guard / 审批 / members / 末位超管 + R5/R6；catalog 有单测；P0 清单见 `docs/testing/p0-redlines.md` |
 
@@ -140,6 +139,7 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 | 类型 | 指针 |
 |------|------|
 | 外壳 / 菜单裁剪 | `apps/admin/src/components/admin-shell.tsx` → `clipMenuForShell`；href SSOT：`packages/admin-catalog/src/menu-tree.ts` |
+| 当前 KB 关闭列表 | `apps/admin/src/components/admin-shell.tsx` `ClosedSelect`；测例 `tests/kb/admin-kb-picker.test.tsx` |
 | 建库入口 | `apps/admin/src/components/create-kb-controls.tsx` · `lib/kb-api.ts` `createKnowledgeBase` · `lib/kb-create.services.ts`；测例 `tests/kb/create-kb.test.tsx` |
 | 运营页 | `apps/admin/src/app/(ops)/documents|approvals|members|chunks|kb/settings|models|dashboard|departments|users|roles|feedback/` |
 | 文档运营余量 | `documents/_components/documents-workspace.tsx` · `list.services.ts` `opsLabel` · `reindex.services.ts` · `lifecycle.services.ts`；测例 `tests/ops/document-ops-label.test.ts` · `document-reindex.test.ts` · `documents-workspace.test.tsx` |

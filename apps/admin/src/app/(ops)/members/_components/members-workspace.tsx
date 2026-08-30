@@ -133,7 +133,7 @@ export function MembersWorkspace() {
         </Button>
       </div>
 
-      {!kbId ? <p className="text-sm text-muted-foreground">请在顶栏填写知识库 UUID。</p> : null}
+      {!kbId ? <p className="text-sm text-muted-foreground">请在顶栏选择知识库</p> : null}
 
       {flash ? <p className="text-[13px]">{flash}</p> : null}
 
