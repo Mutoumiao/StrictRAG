@@ -1,7 +1,7 @@
 # @strict-rag/web · 用户端前端
 
 > 路径：`apps/web` · 目标端口 **3005**  
-> 现状：**S2 最小 ask UI**（登录 · 会话壳 · KB 下拉可见库、可粘贴 uuid · AI SDK 流 / 同步 · 三态）+ **B13** 答案旁反馈提交（`createAskFeedback`）；**无**完整多轮 rewrite。
+> 现状：**S2 最小 ask UI**（登录 · 会话壳 · KB 下拉可见库、可粘贴 uuid · AI SDK 流 / 同步 · 三态）+ **B13** 答案旁反馈提交（`createAskFeedback`）+ **coref_unresolved** 拒答卡消费（主按钮回填不重发）；**无**完整多轮 rewrite、**无**对外宣传连续追问。
 
 ---
 
@@ -21,6 +21,7 @@
 - [ ] 档位是否读 `GET …/ask-modes` 的 `allowedModes`/`defaultMode` 并传 `options.mode`（禁止直改 τ / retrieveK）？  
 - [ ] 无可用库是否阻断提问并引导找管理员开通成员（列表失败仍可粘贴 uuid）？  
 - [ ] 拒答 `suggestedActions` 是否出主按钮（换问法 / 重试 / 缺文档 / 联系管理员）？  
+- [ ] `coref_unresolved` 是否走拒答卡（abstain，非系统红）？主按钮「用完整问题重述」是否回填 `lastQuestion`、聚焦输入、**禁止**自动重发弱指代？界面是否禁止「已支持连续追问 / 已准出」类宣传？  
 - [ ] 429 `RATE_LIMITED` 是否出配额文案，禁止装 answered？  
 - [ ] 反馈是否含报错 / 缺文档类别（`wrong_answer` / `missing_doc`）？  
 - [ ] 会话存储 key 是否仅为 `strict-rag:web:client-session`？  
@@ -37,6 +38,7 @@
 - [ ] 无服务端密钥  
 - [ ] 不把会话历史当「证据」展示逻辑写死为可 citation  
 - [ ] 拒答态可见 reason/userMessage；禁止伪装成功答案  
+- [ ] `coref_unresolved` 拒答卡 + 主按钮回填不重发；无连续追问 / 准出宣传  
 - [ ] 流：只信 `data-ask-final`；`ready` 且仍 loading 有 error 兜底（见 [quality-guidelines](./quality-guidelines.md) 状态机）  
 - [ ] 重试用 `lastQuestion`（非已空 `question`）  
 - [ ] 分层符合 [module-layering](./module-layering.md)  

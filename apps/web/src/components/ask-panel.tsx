@@ -459,7 +459,8 @@ export function AskPanel() {
                   <Button type="submit" disabled={view.type === 'loading'}>
                     {view.type === 'loading' ? `处理中（${view.phase ?? '…'}）` : '提问'}
                   </Button>
-                  {view.type === 'error' || view.type === 'abstained' ? (
+                  {view.type === 'error' ||
+                  (view.type === 'abstained' && view.data.reason !== 'coref_unresolved') ? (
                     <Button type="button" variant="link" onClick={onRetry}>
                       重试
                     </Button>
@@ -502,6 +503,13 @@ export function AskPanel() {
       </div>
     </div>
   );
+}
+
+function abstainHelperText(reason: string): string {
+  if (reason === 'coref_unresolved') {
+    return '这是业务拒答，不是系统崩溃。请把指代改成完整问题后再问，不会自动重发。';
+  }
+  return '这是业务结果，不是系统崩溃。可调整问题表述或补充入库后重试。';
 }
 
 function EmptyKbCard() {
@@ -773,9 +781,7 @@ function AbstainedCard({
       <AlertDescription className="mt-3">
         {data.userMessage || data.answer || '当前无法给出有证据支撑的答案。'}
       </AlertDescription>
-      <p className="mt-2 mb-0 text-xs text-muted-foreground">
-        这是业务结果，不是系统崩溃。可调整问题表述或补充入库后重试。
-      </p>
+      <p className="mt-2 mb-0 text-xs text-muted-foreground">{abstainHelperText(data.reason)}</p>
       <SuggestedActionBar
         actions={data.suggestedActions ?? []}
         requestId={data.requestId}

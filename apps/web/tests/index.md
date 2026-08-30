@@ -8,7 +8,7 @@
 
 | 目录 | 能力 | 需求锚点 |
 |------|------|----------|
-| `ask/` | 问答 UI、流式终态、拒答展示、scope 顶层、档位/空态/建议动作/配额/反馈类别 | `prds/05-api` · 功能表 §3 · P0 R1/R2/R10 |
+| `ask/` | 问答 UI、流式终态、拒答展示、scope 顶层、档位/空态/建议动作/配额/反馈类别、指代失败消费 | `prds/05-api` · 功能表 §3 · P0 R1/R2/R10 · P2.5 coref |
 | `auth/` | 客户端 session 读写 | P0 R4 |
 | `sessions/` | 会话壳服务 | `prds/04-pipelines` 历史≠evidence |
 | `error-map/` | 业务码文案映射 | P0 R3 |
@@ -25,6 +25,7 @@
 | `ask/ask-mode.test.tsx` | 问答档位必须读库 allowedModes/defaultMode 并传 mode，客户端不可改阈值。 | 功能表 §3 问答档位 | `AskPanel` 档位下拉 · `buildAskRequestBody` | 下拉只列允许档；默认 defaultMode。 | 现行 |
 | `ask/empty-kb.test.tsx` | 无可用知识库时必须阻断提问，引导找管理员开通成员。 | 功能表 §3 无可用知识库 | `AskPanel` 空态 | 列表成功且为空则无提问表。 | 现行 |
 | `ask/suggested-actions.test.tsx` | 拒答建议动作必须按 reason 出主按钮，而不是只做列表文案。 | 功能表 §3 建议动作 | `AskPanel` SuggestedActionBar | 首项主按钮；换问法回填；缺文档提交类别。 | 现行 |
+| `ask/coref-unresolved.test.tsx` | 指代失败必须按业务拒答展示和操作，不得当系统崩溃，也不得写成连续追问卖点。 | 功能表 §3 建议动作 / 连续追问 rewrite · prds/04-pipelines/02-online-ask-langgraph.md §2.1 | `AskPanel` AbstainedCard SuggestedActionBar | coref_unresolved 拒答卡 + 主按钮回填不重发；无宣传文案。 | 现行 |
 | `ask/quota-429.test.tsx` | ask 429 RATE_LIMITED 必须出配额文案，不得装成已回答。 | 功能表 §3 配额/限流触顶 | `throwIfAskFailResponse` · ErrorCard | 解析失败信封；错误卡提问次数已达上限。 | 现行 |
 | `ask/feedback-category.test.tsx` | 答案反馈必须能提交报错与缺文档类别，不只赞/踩。 | 功能表 §3 答案反馈 | `AskPanel` FeedbackBar | 报错 → wrong_answer；缺文档 → missing_doc。 | 现行 |
 | `auth/client-session.test.ts` | clear、坏 JSON 或无 token 时读 session 必须为 null。 | P0 R4 | `readClientSession · clearClientSession · saveClientSession` | 不测 expires 产品闸（DEC-1）。 | 现行 |

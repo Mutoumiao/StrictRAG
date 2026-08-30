@@ -9,6 +9,7 @@
 | options | 只传白名单：stream / debug / mode / locale；`mode` 来自 `GET …/ask-modes` 的 allowedModes（禁止直改 τ / retrieveK） |
 | 无可用库 | 列表成功且为空 → 阻断提问，文案「找管理员开通成员」；列表失败仍可粘贴 uuid（选择器半接线不在此改） |
 | 建议动作 | 拒答 `suggestedActions` 出主按钮（首项 default）；按 type 换问法 / 重试 / 缺文档 / 联系管理员；禁止只做无动作列表 |
+| 指代失败 | `reason=coref_unresolved` **必须**走拒答卡（abstain，非系统红）；主按钮「用完整问题重述」= 聚焦输入 + 回填 `lastQuestion`，**禁止**自动 `ask` 弱指代；该 reason 下隐藏表单旁「重试」（避免原句再发）；禁止展示「已支持连续追问 / 已准出 / 多轮已启用」或把 `rewriteUsed` 当卖点 |
 | 配额 | HTTP 429 / `RATE_LIMITED` → 配额文案；禁止装 answered |
 | scope | 产品检索 scope（如 `docTypes`）放在 **请求顶层** `scope`，**禁止**塞进 `options`（ADR-050） |
 | 流式终态 | **只信 `data-ask-final`**（`AskResponseSchema.safeParse` 通过后才更新 answered/abstained） |
@@ -17,7 +18,7 @@
 | 重试 | 提交后会清空输入框 → **必须**保留 `lastQuestion`（或等价）；`onRetry` **禁止**只读已空的 `question` |
 | 禁止 | 自写 SSE 分帧；用 text-delta / 中间事件覆盖终态答案 |
 | 质量面板 | 禁止 UI 暴露 tauClaim 等调参给普通用户 |
-| rewrite | P2 强制关；debug 若展示须 `rewriteUsed=false` |
+| rewrite | 服务端强制关；web **无**开关；debug 若展示须 `rewriteUsed=false`；禁止把 rewrite 当用户可见卖点 |
 | 反馈（B13） | 仅提交本轮 `requestId` 的 rating/category/comment；类别含报错 `wrong_answer` / 缺文档 `missing_doc`；**禁止**把用户评论当 citation/evidence 回灌 ask |
 | 反馈 API | `src/api/feedback.ts` → `POST /api/v1/ask/:requestId/feedback`；鉴权/成员以 **API** 为准 |
 
@@ -127,6 +128,7 @@ session: {
 | mapBizError 已知 code | 文案含 `CODE:` + message | **R3** |
 | session clear / 坏 JSON / 无写入 | `readClientSession()` → null | **R4** |
 | AskPanel 重试 | 提交后 input 空；点重试仍 `ask(lastQuestion)` | — |
+| AskPanel `coref_unresolved` | 拒答 `role=alert` 含 reason / 非系统崩溃；主按钮回填且 `ask` 不再被调用；无宣传文案 | — |
 | session key | 只写 `strict-rag:web:client-session`；不写 admin key | — |
 
 ## 流式 view 状态机（`use-knowledge-ask`）
@@ -185,6 +187,16 @@ if (status === 'ready') {
 - **Good**：`api` 浅（path/transport）+ hook/services 深（用例/状态机）+ `page` 薄  
 - **Good**：无 React → services；须订阅 → hooks；膨胀按 **业务** 拆 `*.services.ts`  
 - **Good**：抽公共时机见 [module-layering §12.1](./module-layering.md)（与 [admin §12.1](../../admin/frontend/module-layering.md) 同纪律）
+
+### Common Mistake: 指代失败主按钮直接重发弱指代
+
+**Symptom**：`coref_unresolved` 点「用完整问题重述」立刻再请求，或表单旁「重试」把「还有呢？」原句发出去。
+
+**Cause**：把 `rephrase` 当成 `retry_later`；或 abstained 一律露出 `onRetry`。
+
+**Fix**：`rephrase` 只 `setQuestion(lastQuestion)` + `focus()`；该 reason 隐藏表单旁「重试」。
+
+**Prevention**：`tests/ask/coref-unresolved.test.tsx` 断言点击主按钮后 `ask` 不再被调用，且无「重试」按钮。
 
 ### Common Mistake: 重试依赖已清空输入
 

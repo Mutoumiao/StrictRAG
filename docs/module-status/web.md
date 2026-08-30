@@ -7,13 +7,13 @@
 | 成熟度 | **可演示**（S2 用户端薄壳） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT（经 api）· `NEXT_PUBLIC_API_BASE_URL` 默认 `http://127.0.0.1:4000` · 问答 = AI SDK UI Message Stream · rewrite = **服务端强制关**（本包无开关控件）· 知识库 = 手工填写 id |
 | 关联模块 | ask 流 / 会话 / 反馈提交：`api`；类型：`contracts`；样式 / 组件：`ui` |
-| 最近更新 | 2026-08-28（消费余量：档位 UI、无库空态、建议动作主按钮、429 配额文案、反馈报错/缺文档） |
+| 最近更新 | 2026-08-30（coref_unresolved 拒答卡 + 主按钮「用完整问题重述」回填不重发；**无**连续追问宣传） |
 | Spec | `.trellis/spec/web/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · ask 流相关 API |
 
 ## 一句话状态
 
-Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列表 / 历史回放 + B13 答后反馈（赞/踩/报错/缺文档）+ 档位下拉 + 无库空态 + 拒答主按钮 + 429 配额文案** 已接通；知识库仍可手填 id（**不是**「只列成员库」切换器），没有完整的产品信息架构（IA），**没有**连续追问 / rewrite。包内配有 Vitest / RTL **P0 红线测试**（R1–R4 / R10；**不是** E2E、**不是** L1 黄金集评测）。
+Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列表 / 历史回放 + B13 答后反馈（赞/踩/报错/缺文档）+ 档位下拉 + 无库空态 + 拒答主按钮 + 429 配额文案 + `coref_unresolved` 拒答卡（主按钮回填不重发）** 已接通；知识库仍可手填 id（**不是**「只列成员库」切换器），没有完整的产品信息架构（IA），**没有**对外宣传连续追问 / rewrite（服务端仍强制关）。包内配有 Vitest / RTL **P0 红线测试**（R1–R4 / R10；**不是** E2E、**不是** L1 黄金集评测）。
 
 ---
 
@@ -34,6 +34,7 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列�
 - 三种结果态：`answered`（已回答）/ `abstained`（已拒答）/ 错误；引用列表仅在 answered 且非闲聊（chitchat）路径下展示；点击引用走 `getAskAudit` → `GET /api/v1/ask/:requestId` 展示当时 snapshot（preview 截断），**不是** `chunk.view` 现网全文（`ask-panel.tsx` CitationBlock · `tests/ask/citation-chunk-detail.test.tsx`）
 - 空库 `reason=kb_not_ready`：走拒答 `Alert variant="abstain"`（展示 `userMessage`），**不**进系统错误卡（`tests/ask/abstain-alert.test.tsx` · `tests/ask/stream-ready-no-final.test.ts`）
 - 拒答建议动作：`suggestedActions` 出主按钮（首项 default）；换问法回填 `lastQuestion`、稍后重试走 `onRetry`、缺文档提交 `missing_doc`、联系管理员给提示（`tests/ask/suggested-actions.test.tsx`）
+- 指代失败 `reason=coref_unresolved`：走拒答 `Alert variant="abstain"`（业务拒答，非系统崩溃）；主按钮「用完整问题重述」聚焦输入、回填 `lastQuestion`、**不**自动重发；该 reason 隐藏表单旁「重试」；界面无「已支持连续追问 / 已准出」类文案（`tests/ask/coref-unresolved.test.tsx`）
 - 配额触顶：流式 fetch 解析 429 限流码 → 错误卡「提问次数已达上限」，**不**装 answered（`tests/ask/quota-429.test.tsx`）
 - 拒答 / 错误时的"重试"：基于 `lastQuestion` 实现（提交后清空输入框不会导致重试按钮失效）
 - **流结束但无 final 的兜底**：`useChat` 的 `status==='ready'` 且仍处于 `loading` 时，报错"流式响应未包含有效终态"（`use-knowledge-ask.ts`；有回归测试）
@@ -65,7 +66,7 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列�
 | 项 | 说明 |
 |----|------|
 | 产品级 IA / 多路由 | 基本是单页应用；不是完整的用户门户 |
-| rewrite / 连续追问 | **未开启**；不得对外承诺 |
+| rewrite / 连续追问 | **未开启**（服务端强制关）；web 只消费 `coref_unresolved` 拒答卡，**不得**对外承诺已支持连续追问 / 已准出 |
 | 反馈列表 / 运营处理 | **提交 UI 已有**（B13 FeedbackBar）；队列处理在 admin |
 | 分片预览全文 | 引用点回是 **当时快照 preview**；现网 `chunk.view` 全文在 admin，web **无** 分片运营页 |
 | 按 `requestId` 断线重拉 | 工单明确不做；`getAskAudit` 不是 AskResponse 重放 |
@@ -92,13 +93,13 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列�
 |------|------|
 | 首页 / 登录 | `src/app/page.tsx` · `src/app/login/page.tsx` |
 | 鉴权 | `src/components/auth-guard.tsx` · `src/auth/api.ts` · `client-session.ts` |
-| 问答面板 | `src/components/ask-panel.tsx`（档位 · 无库空态 · 建议主按钮 · 配额 · 反馈类别 · B11 文档类型可选） |
+| 问答面板 | `src/components/ask-panel.tsx`（档位 · 无库空态 · 建议主按钮 · `coref_unresolved` 回填不重发 · 配额 · 反馈类别 · B11 文档类型可选） |
 | ask 流 | `src/hooks/use-knowledge-ask.ts`（含 ready 无 final 兜底 + getScope + getMode）· `src/api/ask.ts`（`parseScopeDocTypesInput` / `buildAskRequestBody` / `getAskAudit` / `getAskModes` / `throwIfAskFailResponse`）· `ask-panel.tsx`（`lastQuestion` · CitationBlock） |
 | 引用点回 | `src/api/ask.ts` `getAskAudit` · `ask-panel.tsx` CitationBlock · `tests/ask/citation-chunk-detail.test.tsx` |
-| 消费余量测 | `tests/ask/ask-mode.test.tsx` · `empty-kb.test.tsx` · `suggested-actions.test.tsx` · `quota-429.test.tsx` · `feedback-category.test.tsx` |
+| 消费余量测 | `tests/ask/ask-mode.test.tsx` · `empty-kb.test.tsx` · `suggested-actions.test.tsx` · `coref-unresolved.test.tsx` · `quota-429.test.tsx` · `feedback-category.test.tsx` |
 | B11 测 | `tests/ask/scope-top-level.test.ts` · `tests/ask/stream-ready-no-final.test.ts` getScope / getMode |
 | 会话 / 反馈 | `src/api/sessions.ts` · `src/services/sessions.services.ts` · `src/api/feedback.ts` · `ask-panel` FeedbackBar |
-| 前端测试 | `vitest.config.ts` · `src/test/` · `tests/ask/stream-ready-no-final.test.ts`（R1 · kb_not_ready final）· `tests/ask/abstain-alert.test.tsx`（R2 · kb_not_ready 拒答卡）· `tests/auth/client-session.test.ts`（R4）· `tests/error-map/map-biz-error.test.ts`（R3）· `tests/sessions/session-shell.test.ts` · fixtures → `@strict-rag/contracts/testing` |
+| 前端测试 | `vitest.config.ts` · `src/test/` · `tests/ask/stream-ready-no-final.test.ts`（R1 · kb_not_ready final）· `tests/ask/abstain-alert.test.tsx`（R2 · kb_not_ready 拒答卡）· `tests/ask/coref-unresolved.test.tsx`（指代失败拒答卡）· `tests/auth/client-session.test.ts`（R4）· `tests/error-map/map-biz-error.test.ts`（R3）· `tests/sessions/session-shell.test.ts` · fixtures → `@strict-rag/contracts/testing` |
 | P0 清单 | `docs/testing/p0-redlines.md`（本包 R1–R4 · 协作 R10） |
 | 命令 | `pnpm --filter @strict-rag/web test`（`package.json` → `vitest run`） |
 | 传输层 | `src/lib/http.ts`（**尚无**单测） |
