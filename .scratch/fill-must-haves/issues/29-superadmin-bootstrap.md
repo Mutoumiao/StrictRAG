@@ -2,7 +2,8 @@
 
 Type: task
 Label: wayfinder:task
-Status: open
+Status: resolved
+Assignee: grok
 Triage: ready-for-agent
 Blocked by: 28
 
@@ -49,3 +50,16 @@ Blocked by: 28
 收工：skill `update-module-status`；`.trellis/tasks/08-06-project-backlog/` 只补指针，禁止 `task.py create`。
 
 写代码前读 `.trellis/spec/` 对应包（api、db、admin-catalog）。
+
+## Answer
+
+api `index.ts` listen 前对 `DEV_DEFAULT_TENANT` 跑 ADR-056 引导：upsert `permission_definitions`（migration `0012`；kind 存 catalog 原值含 `page+action`；不静默删）、`super_admin.codesJson` 精确等于 `ALL_PERMISSION_CODES`、无 active 超管则按 `SUPER_ADMIN_EMAIL`+`SUPER_ADMIN_PASSWORD` 创建（scrypt 写 `password_hash`）或缺则失败。已有超管不改哈希。复用同邮箱用户绑超管且不改哈希。`createApp()` 不跑。其它系统角色绑码不重写。
+
+未做：引导页、密码登录 HTTP、PUT 锁超管全码、`role_permissions` 终态、worker 引导。
+
+测例：`apps/api/tests/acl/superadmin-bootstrap.test.ts`；schema：`packages/db/tests/acl/permission-definitions-schema.test.ts`。
+
+## Comments
+
+- 2026-08-31 认领并执行。权威切边见 [裁定 web 下拉换 ui 关闭列表后下一步](./28-after-web-select-order.md)。
+- 落盘：引导函数 + listen 前调用；08-06 只补指针；未 `task.py create`；未 push。
