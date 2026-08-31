@@ -121,7 +121,7 @@ isDefaultRetrievable({ status, lifecycle })
 |----|------|-------------|
 | `platform_roles` | 角色元数据 + **`codes_json`** 内嵌权限码 | 非独立 role_permissions 表（**过渡**；DEC-X1） |
 | `user_roles` | 用户↔角色 | 对齐 |
-| （无）`permissions` 表 | 码字典在 **admin-catalog 包** | 不落 PG 字典表 |
+| `permission_definitions` | 启动自 catalog upsert 的码字典（ADR-056；migration `0012`） | **不是**运行时求值；放行仍 `codes_json`。kind 存 catalog 原值（含 `page+action`） |
 
 Runtime 放行 HOW → [api auth-authorization](../../api/backend/auth-authorization.md)「Runtime Truth」。  
 **禁止**在 db 包复制权限码字符串全集。

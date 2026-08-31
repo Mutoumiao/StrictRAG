@@ -7,9 +7,9 @@ apps/api/
   tests/
     index.md               # 本包测例导航（HOW：guides/testing.md）
   src/
-    index.ts                 # 启动 + SIGINT/SIGTERM → closeDb/closeQueue
-    app.ts                   # createApp：requestId → secure → timeout → bodyLimit → auth → adminWriteAudit → routes → notFound/onError
-    env.ts                   # Zod env（+ API_REQUEST_TIMEOUT_MS · API_JSON_BODY_LIMIT_BYTES …）
+    index.ts                 # listen 前 await 引导超管；失败 process.exit；SIGINT/SIGTERM → closeDb/closeQueue
+    app.ts                   # createApp：requestId → secure → timeout → bodyLimit → auth → adminWriteAudit → routes → notFound/onError（**不**自动引导）
+    env.ts                   # Zod env（+ SUPER_ADMIN_EMAIL/PASSWORD 可选 + API_REQUEST_TIMEOUT_MS · API_JSON_BODY_LIMIT_BYTES …）
     auth/
       types.ts
       middleware.ts          # attachAuth · requireAuth · requirePermission · WhenEnforced · requireKbMember · requireKbScope · evaluateKbMember · isAuthEnforceEnabled
@@ -54,7 +54,8 @@ apps/api/
     services/
       documents.ts · kb-list.ts · chunks.ts · chunk-strategies.ts  # B12 注册表
       members.ts · sessions.ts · feedback.ts · kb-settings.ts · model-gateway.ts
-      platform-users-roles.ts · departments.ts · dashboard.ts
+      platform-users-roles.ts · superadmin-bootstrap.ts · password-hash.ts
+      departments.ts · dashboard.ts
       db.ts · storage.ts · queue.ts
       ask/                   # executeAsk · session-window（近窗裁剪）· session-guard · traces 落库
       gateway/               # chat · embed · rerank；B3-W bindings + QUAL-3 dual endpoints

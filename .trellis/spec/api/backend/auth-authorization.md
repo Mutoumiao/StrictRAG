@@ -133,15 +133,17 @@ createDbRoleAuthzLoader(repo)
 | 层 | 真相 | 非真相 |
 |----|------|--------|
 | **码字典 SSOT** | `@strict-rag/admin-catalog` `PERMISSION_DEFINITIONS` | contracts / 前端硬编码全集 |
+| **码字典落库** | `permission_definitions`（api listen 前 upsert；不静默删） | 运行时求值切到该表 |
 | **角色模板（种子默认）** | admin-catalog `ROLE_TEMPLATES` | JWT `roles` 列表本身 |
 | **运行时有效码** | PG：`user_roles` ⋈ 启用的 `platform_roles.codes_json` → `hydrateAuthz` | access JWT 内嵌 roles 当放行条件 |
-| **身份** | access JWT `sub` / `sid` / `app` | — |
+| **身份** | access JWT `sub` / `sid` / `app` | `password_hash` / 启动引导页 |
 
 ##### Schema Delta（有意偏差 · 已接受过渡）
 
 | PRD/理想（摘要） | 当前 schema | 代理行为 |
 |------------------|-------------|---------|
 | 角色 ↔ 权限 规范化关联表 | **`platform_roles.codes_json: string[]`** | 角色行内嵌码数组；写路径校验 ⊆ catalog |
+| 权限码字典表 | **`permission_definitions`**（`0012`） | 启动 upsert catalog；**不**参与 hydrate |
 | 用户 ↔ 角色 | `user_roles` 多对多 | **已对齐** |
 | 每次请求算有效码 | `hydrateAuthz` + ≤5s 缓存 | **已对齐**（多实例脏读 ≤TTL） |
 | JWT 带全量 codes | JWT **仅** roles 模板锚点 | 放行看 hydrate 后 `effectiveCodes` |

@@ -2,7 +2,7 @@
 
 > 路径：`packages/admin-catalog`  
 > ADR-056：权限码 + admin 菜单树 **前后端同源**  
-> 现状：已种子 **权限码 + 角色模板 + 菜单树**（ADR-051/056）；DB upsert 同步仍属 P2 后续。
+> 现状：已种子 **权限码 + 角色模板 + 菜单树**（ADR-051/056）；api listen 前 upsert 进 `permission_definitions`（本包仍纯数据，不连 PG）。
 
 ---
 

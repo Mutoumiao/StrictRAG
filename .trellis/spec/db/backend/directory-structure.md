@@ -21,6 +21,7 @@ packages/db/
         schema-meta.ts
         users.ts
         platform-roles.ts   # platform_roles · user_roles（codes_json 现状）
+        permission-definitions.ts  # 启动 catalog upsert 字典（≠ 运行时求值）
         departments.ts      # departments · user_departments（B5 壳）
         model-providers.ts
         model-bindings.ts

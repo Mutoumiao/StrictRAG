@@ -2,7 +2,7 @@
 
 > 路径：`apps/api/src/routes/platform-users-roles.ts` · `services/platform-users-roles.ts`  
 > PRD：`prds/05-api` §2.11 · ADR-056  
-> 切片：CRUD + 授码 + 最后超管闸；**B4-W** 已接线 JWT 每请求 DB hydrate（见 `auth-authorization.md` · `role-hydrate.ts`）
+> 切片：CRUD + 授码 + 最后超管闸；**B4-W** 已接线 JWT 每请求 DB hydrate（见 `auth-authorization.md` · `role-hydrate.ts`）；**启动引导** `services/superadmin-bootstrap.ts`（AD1–AD3；`createApp()` 不跑）
 
 ---
 
@@ -72,6 +72,13 @@ DB：`platform_roles` · `user_roles`（`packages/db` · migration `0004_b4_plat
 - 最后超管 / 双超管（HTTP 400 闸；admin 用户页另做不可点提示，**本闸不放宽**）
 - permission-catalog 码集 + 无码 403
 
+`apps/api/tests/acl/superadmin-bootstrap.test.ts`（直接调引导函数；AD2 抛错，不真 `process.exit`）：
+
+- AD1 空库 + 两 env → active 超管、字典全码、超管 `codesJson` 全码
+- AD2 无超管且缺 env → `SuperAdminBootstrapError`
+- AD3 已有超管再跑 → 哈希不变、码仍全
+- 同邮箱非超管被绑上且哈希不变；`createApp` 不引用引导；kb_admin 自定义码不覆盖；upsert 不静默删
+
 ### 7. Wrong vs Correct
 
 #### Wrong
@@ -92,3 +99,9 @@ routes.post('/admin/users', requirePermission('user.manage'), handler)
 **Context**：ADR-056 最后超管保护。  
 **Decision**：以角色 **code === `super_admin`**（启用）且用户 **active** 计数；不单靠权限码并集（避免自定义全码角色误判为「系统超管」种子）。admin 用户页用同一判定做禁用/剥角色不可点，**不得**用前端提示代替或放宽本闸。  
 **B4-W**：dev-login 经 `ensureUserRoleCodes` 写入 `user_roles`；中间件每请求 hydrate（≤5s 缓存 + 写失效）。
+
+### Design Decision: 启动引导超管（ADR-056 AD1–AD3）
+
+**Context**：无 active 超管时须 fail-closed；已有超管不得被 env 重置密码。  
+**Decision**：`bootstrapSuperAdmin` 可单测；`index.ts` listen **之前** `await runSuperAdminBootstrap()`，失败 `process.exit(1)`。`createApp()` **不**调用。每次：catalog upsert `permission_definitions`（不静默删）；`super_admin.codesJson` 精确等于 `ALL_PERMISSION_CODES`。无 active 超管则须 `SUPER_ADMIN_EMAIL`+`SUPER_ADMIN_PASSWORD`（Zod 仍可选）。新建用户写 scrypt `password_hash`；复用邮箱不改哈希。其它系统角色绑码不重写。只针对 `DEV_DEFAULT_TENANT`。  
+**不做**：引导页、密码登录 HTTP、PUT 锁超管全码、`role_permissions` 终态、worker 引导。

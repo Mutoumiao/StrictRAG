@@ -77,11 +77,11 @@
 | V5 | ingest | 部分测（reject+禁 scan；可重提 API 未做） |
 | Y4 Z7 X3 | acl | 已测 |
 | O1 R1–R3 T7 | ops | 已测 |
-| AD3 | ops | 部分测（跳过重种子；补码 → QUAL-SUPER-BOOT） |
+| AD1 AD2 AD3 | ops | 已测（引导函数；createApp 不跑；≠ 密码登录） |
 
 P2 必签的 `部分测` 仍多。补测时先信任环（A/D/F/H/K/U），再入库闸（L/M/V），再运营壳。不要按 116 行机械铺开。
 
-P2 必签但 **缺实现** 的（不写假装测；已挂 QUAL-* task）：K5→QUAL-K5、E4→QUAL-E4、E5→QUAL-E5、L7→QUAL-L7、V3→QUAL-V3、AA1→QUAL-AA1、B1-A4→QUAL-ACL-CAP、O4→QUAL-TENANT-Q、AD1/AD2/AD3 补码→QUAL-SUPER-BOOT、R4–R10→QUAL-PLANE、G3→QUAL-G3、AB8→QUAL-AB8、AC7→QUAL-AC7。M7 仍归 QUAL-2。详见各分册。
+P2 必签但 **缺实现** 的（不写假装测；已挂 QUAL-* task）：K5→QUAL-K5、E4→QUAL-E4、E5→QUAL-E5、L7→QUAL-L7、V3→QUAL-V3、AA1→QUAL-AA1、B1-A4→QUAL-ACL-CAP、O4→QUAL-TENANT-Q、R4–R10→QUAL-PLANE、G3→QUAL-G3、AB8→QUAL-AB8、AC7→QUAL-AC7。AD1–AD3 引导已测（wayfinder 启动引导超管）。M7 仍归 QUAL-2。详见各分册。
 
 ## 附录
 
