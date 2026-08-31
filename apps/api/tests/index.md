@@ -38,7 +38,8 @@
 | `acl/permission-resolve.test.ts` | 有效权限码 = 模板 ∪ grants − denies。 | ADR-051 | `resolveEffectiveCodes / canAccessKbScoped` | 有效码求值。 | 现行 |
 | `acl/platform-users-roles.test.ts` | 平台用户角色写路径必须失效缓存。 | B4 | `platform-users-roles routes` | 写路径 invalidate 缓存。 | 现行 |
 | `acl/retrieve-dept-acl.test.ts` | 检索期按部门 ACL 过滤可见文档。 | DEPT_ACL | `filterDocsForDeptAcl` | 默认 enforce 关。 | 现行 |
-| `acl/system-roles-skip-reseed.test.ts` | 已有 isSystem 角色则不再 insert 系统角色。 | 剧本 AD3（部分） | `ensureSystemRoles` | 只锁跳过重种子，≠ 补码、≠ 不重置密码（无该启动器）。 | 现行 |
+| `acl/system-roles-skip-reseed.test.ts` | 已有 isSystem 角色则不再 insert 系统角色。 | 剧本 AD3（部分） | `ensureSystemRoles` | 只锁跳过重种子，≠ 补码、≠ 不重置密码。补码见 `superadmin-bootstrap`。 | 现行 |
+| `acl/superadmin-bootstrap.test.ts` | 空库须能按 env 引导出 active 超管与 catalog 全码；缺 env 须失败；已有超管不得改哈希。 | 剧本 AD1–AD3 · ADR-056 | `bootstrapSuperAdmin` · `createApp` | 直接调引导函数；AD2 抛错；createApp 不自动跑；upsert 不静默删；kb_admin 自定义码不覆盖。 | 现行 |
 | `ask/body-lt-passthrough.test.ts` | 制度正文中的 `<` 必须原样进入 generate，不得被 HTML escape 成 `&lt;`。 | 剧本 K6 · prds/10-delivery/03-acceptance-scenarios.md · ADR-037 | `runAskGraph（generate / claim_split user 消息）` | evidence.text 含尖括号时 prompt 保留原字符。feedback 脚本消毒不在本包。 | 现行 |
 | `ask/budget.test.ts` | mode 预算表与 tryCharge 闸；检索/LLM 额度耗尽不得 answered。 | ADR-032 · prds/04-pipelines | `budgetForMode / tryChargeLlm / tryChargeRetrieve / runAskGraph 预算路径` | 校验 mode 默认额度与 tryCharge；检索/LLM 耗尽须 abstained。 | 现行 |
 | `ask/citations.test.ts` | 非法 citation 不得 answered；混合法/非法只保留证据 id 并仍走 verify。 | prds/08-quality | `runAskGraph（generate+citations）` | 非法引用拒答；混合引用只留证据 id；insufficient 走 model_abstained。 | 现行 |

@@ -56,7 +56,21 @@ export type PlatformUsersRolesRepo = {
   listRoles(tenantId: string): Promise<RoleRow[]>;
   getRole(tenantId: string, id: string): Promise<RoleRow | null>;
   getRoleByCode(tenantId: string, code: string): Promise<RoleRow | null>;
+  /** 不触发 ensureSystemRoles；启动引导用。 */
+  peekRoleByCode(tenantId: string, code: string): Promise<RoleRow | null>;
   createRole(
+    tenantId: string,
+    input: {
+      code: string;
+      name: string;
+      isSystem: number;
+      enabled: number;
+      codesJson: string[];
+      createdBy?: string;
+    },
+  ): Promise<RoleRow>;
+  /** 不触发 ensureSystemRoles；启动引导插入超管角色。 */
+  insertRole(
     tenantId: string,
     input: {
       code: string;
@@ -88,8 +102,14 @@ export type PlatformUsersRolesRepo = {
       status: string;
       isPlatformOperator: string;
       createdBy?: string;
+      passwordHash?: string | null;
+      platformRole?: string;
     },
   ): Promise<UserRow>;
+  getUserLoginSecrets(
+    tenantId: string,
+    userId: string,
+  ): Promise<{ passwordHash: string | null; platformRole: string } | null>;
   updateUser(
     tenantId: string,
     id: string,
@@ -236,11 +256,19 @@ export function createMemoryPlatformUsersRolesRepo(): PlatformUsersRolesRepo {
   const roles = new Map<string, RoleRow>();
   const userTable = new Map<string, UserRow>();
   const userToRoles = new Map<string, string[]>();
+  const userSecrets = new Map<string, { passwordHash: string | null; platformRole: string }>();
   const seededTenants = new Set<string>();
 
   const repo: PlatformUsersRolesRepo = {
     async ensureSystemRoles(tenantId) {
       if (seededTenants.has(tenantId)) return;
+      const hasSystem = [...roles.values()].some(
+        (r) => r.tenantId === tenantId && r.isSystem === 1,
+      );
+      if (hasSystem) {
+        seededTenants.add(tenantId);
+        return;
+      }
       for (const r of seedSystemRoles(tenantId)) {
         roles.set(r.id, r);
       }
@@ -257,12 +285,18 @@ export function createMemoryPlatformUsersRolesRepo(): PlatformUsersRolesRepo {
     },
     async getRoleByCode(tenantId, code) {
       await repo.ensureSystemRoles(tenantId);
+      return repo.peekRoleByCode(tenantId, code);
+    },
+    async peekRoleByCode(tenantId, code) {
       return (
         [...roles.values()].find((r) => r.tenantId === tenantId && r.code === code) ?? null
       );
     },
     async createRole(tenantId, input) {
       await repo.ensureSystemRoles(tenantId);
+      return repo.insertRole(tenantId, input);
+    },
+    async insertRole(tenantId, input) {
       const row: RoleRow = {
         id: uuidv7(),
         tenantId,
@@ -318,7 +352,21 @@ export function createMemoryPlatformUsersRolesRepo(): PlatformUsersRolesRepo {
       };
       userTable.set(row.id, row);
       userToRoles.set(row.id, []);
+      userSecrets.set(row.id, {
+        passwordHash: input.passwordHash ?? null,
+        platformRole: input.platformRole ?? 'user',
+      });
       return row;
+    },
+    async getUserLoginSecrets(tenantId, userId) {
+      const u = userTable.get(userId);
+      if (!u || u.tenantId !== tenantId) return null;
+      return (
+        userSecrets.get(userId) ?? {
+          passwordHash: null,
+          platformRole: 'user',
+        }
+      );
     },
     async updateUser(tenantId, id, patch) {
       const cur = await repo.getUser(tenantId, id);
@@ -415,6 +463,10 @@ export const platformUsersRolesRepo: PlatformUsersRolesRepo = {
 
   async getRoleByCode(tenantId, code) {
     await this.ensureSystemRoles(tenantId);
+    return this.peekRoleByCode(tenantId, code);
+  },
+
+  async peekRoleByCode(tenantId, code) {
     const [r] = await getDb()
       .select()
       .from(platformRoles)
@@ -436,6 +488,10 @@ export const platformUsersRolesRepo: PlatformUsersRolesRepo = {
 
   async createRole(tenantId, input) {
     await this.ensureSystemRoles(tenantId);
+    return this.insertRole(tenantId, input);
+  },
+
+  async insertRole(tenantId, input) {
     const id = uuidv7();
     await getDb().insert(platformRoles).values({
       id,
@@ -447,8 +503,8 @@ export const platformUsersRolesRepo: PlatformUsersRolesRepo = {
       codesJson: input.codesJson,
       createdBy: input.createdBy,
     });
-    const row = await this.getRole(tenantId, id);
-    if (!row) throw new Error('createRole failed');
+    const row = await this.peekRoleByCode(tenantId, input.code);
+    if (!row) throw new Error('insertRole failed');
     return row;
   },
 
@@ -526,7 +582,8 @@ export const platformUsersRolesRepo: PlatformUsersRolesRepo = {
       tenantId,
       email: input.email,
       displayName: input.displayName,
-      platformRole: 'user',
+      platformRole: input.platformRole ?? 'user',
+      passwordHash: input.passwordHash,
       status: input.status,
       isPlatformOperator: input.isPlatformOperator,
       createdBy: input.createdBy,
@@ -534,6 +591,22 @@ export const platformUsersRolesRepo: PlatformUsersRolesRepo = {
     const row = await this.getUser(tenantId, id);
     if (!row) throw new Error('createUser failed');
     return row;
+  },
+
+  async getUserLoginSecrets(tenantId, userId) {
+    const [r] = await getDb()
+      .select({
+        passwordHash: users.passwordHash,
+        platformRole: users.platformRole,
+      })
+      .from(users)
+      .where(and(eq(users.tenantId, tenantId), eq(users.id, userId)))
+      .limit(1);
+    if (!r) return null;
+    return {
+      passwordHash: r.passwordHash ?? null,
+      platformRole: r.platformRole,
+    };
   },
 
   async updateUser(tenantId, id, patch) {

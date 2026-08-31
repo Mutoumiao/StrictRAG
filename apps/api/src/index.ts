@@ -12,26 +12,37 @@ import { env } from './env.js';
 import { logger } from './logger.js';
 import { closeDb } from './services/db.js';
 import { closeQueue } from './services/queue.js';
+import { runSuperAdminBootstrap } from './services/superadmin-bootstrap.js';
 
-const app = createApp();
+async function start(): Promise<void> {
+  try {
+    await runSuperAdminBootstrap();
+  } catch (err) {
+    logger.error({ err }, 'superadmin bootstrap failed');
+    process.exit(1);
+  }
 
-serve(
-  {
-    fetch: app.fetch,
-    port: env.API_PORT,
-    hostname: '0.0.0.0',
-  },
-  (info) => {
-    logger.info(
-      {
-        port: info.port,
-        tauClaim: env.TAU_CLAIM,
-        gatewayConfigured: Boolean(env.GATEWAY_BASE_URL),
-      },
-      `api listening on http://127.0.0.1:${info.port}`,
-    );
-  },
-);
+  const app = createApp();
+  serve(
+    {
+      fetch: app.fetch,
+      port: env.API_PORT,
+      hostname: '0.0.0.0',
+    },
+    (info) => {
+      logger.info(
+        {
+          port: info.port,
+          tauClaim: env.TAU_CLAIM,
+          gatewayConfigured: Boolean(env.GATEWAY_BASE_URL),
+        },
+        `api listening on http://127.0.0.1:${info.port}`,
+      );
+    },
+  );
+}
+
+void start();
 
 let shuttingDown = false;
 

@@ -77,6 +77,12 @@ const EnvSchema = z
     /** 空=/ready skipped；有值才 ping Mongo */
     MONGODB_URL: z.string().optional().default(''),
     /**
+     * 启动引导超管（ADR-056）。Zod 保持可选；无 active 超管时由引导函数校验二者皆有。
+     * 已有超管不覆盖密码。不是登录页、不是验密 HTTP。
+     */
+    SUPER_ADMIN_EMAIL: z.string().optional(),
+    SUPER_ADMIN_PASSWORD: z.string().optional(),
+    /**
      * 身份 JWT。
      * 接入 Better Auth 后可弃用签发，仍可暂时兼容校验。
      */
