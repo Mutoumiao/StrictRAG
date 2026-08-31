@@ -2,6 +2,7 @@ export { baseColumns } from './_shard/base-columns.js';
 export { schemaMeta } from './system/schema-meta.js';
 export { users } from './system/users.js';
 export { platformRoles, userRoles } from './system/platform-roles.js';
+export { permissionDefinitions } from './system/permission-definitions.js';
 export { departments, userDepartments } from './system/departments.js';
 export { deptCrossGrants } from './system/dept-cross-grants.js';
 
