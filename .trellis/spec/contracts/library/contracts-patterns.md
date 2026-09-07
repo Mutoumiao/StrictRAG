@@ -12,7 +12,7 @@
 
 `CreateKbBodySchema`：**必填** `name` + `initialAdminUserId`；**不要**把 `tenantId` 放进 body（令牌覆盖）。
 
-`PatchDocumentMetaBodySchema`：`ownerDeptId` / `visibilityLevel` / `docType` 至少一个；`docType` 合法码由 api 对照 KB 枚举，schema 只约束非空字符串或 null。`DocumentListItemSchema` 含 `docType`。
+`PatchDocumentMetaBodySchema`：`ownerDeptId` / `visibilityLevel` / `docType` / `aclPrincipals` 至少一个；`docType` 合法码由 api 对照 KB 枚举，schema 只约束非空字符串或 null。`aclPrincipals`：omit 不改；`null` 清回未设；`[]` 显式空；元素 uuid，最长 256。`DocumentListItemSchema` 含 `docType` / `aclPrincipals`（缺省 `null`）。
 
 分片策略三层 HTTP：`ForUploadQuerySchema` 必带 `contentType`；`PatchKbChunkStrategiesBodySchema.items` 至少一条。写入闸仍是 `IMPLEMENTED_CHUNK_STRATEGIES`，不是 catalog 列表。
 

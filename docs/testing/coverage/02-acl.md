@@ -8,7 +8,7 @@
 
 - `AUTH_ENFORCE` **默认关**。`apps/api/tests/auth/enforce-401.test.ts` 只证明开 enforce 且无 Bearer → 401，以及默认关时 WhenEnforced 放行。B1 默认路径**不**当作生产 enforce 已测。
 - `DEPT_ACL_ENFORCE` **默认关**。AE3 为兼容行为；AE4 起强制开属 P3 / 开强制后。
-- 文档级 `aclPrincipals` **源码不存在**（`docs/module-status/api.md`：≠ 全文隔离）。B2 **不标缺测**。
+- 文档级 `aclPrincipals` 用户 uuid 名单最小已落（PG 把关；不跟 `DEPT_ACL_ENFORCE`；**≠** 角色 principal / ES terms / 默认开强制）。B2-2 / B2-3 仍延后。
 - 成员闸 / 分片 / 面板 / 设置 / 部门走 `requirePermission`（与 enforce 开关无关）；上传 / 审批 / lifecycle 多走 `requirePermissionWhenEnforced`。
 
 ## 剧本 B · 权限（Phase 2 底线 / Phase 3 细粒度）
@@ -39,10 +39,10 @@
 
 | ID | 期望摘要 | 阶段 | 形态 | 覆盖 | 主包 | 证据 | 缺口 |
 |----|----------|------|------|------|------|------|------|
-| B2-1 | 成员无文档 D 权限，问仅 D 能答的题：不得 verified 泄漏 D；evidence 无 D | P3 文档ACL | — | 延后 | api | docs/module-status/api.md（完整 ACL / ≠ 全文隔离）；全仓无 `aclPrincipals` | P3；源码未做文档级 principal |
-| B2-2 | principal 变更（移出 role）+ reindex 后该文档对该用户不可检索 | P3 文档ACL | — | 延后 | api | 同上 | P3；无文档 ACL 索引字段 |
-| B2-3 | dense 单路亦过文档 ACL（构造「dense 不过滤会召回」） | P3 文档ACL | — | 延后 | api | 同上 | P3；禁止把部门滤或 docTypes 当成文档 ACL |
-| B2-4 | 缺省无 `aclPrincipals` → KB 内成员可读；显式 `[]` → 不可读 | P3 文档ACL | — | 延后 | api | 同上 | P3；字段不存在，勿标缺测 |
+| B2-1 | 成员无文档 D 权限，问仅 D 能答的题：不得 verified 泄漏 D；evidence 无 D | P3 文档ACL | 注入 | 部分测 | api | apps/api/tests/acl/doc-acl-principals.test.ts；apps/api/tests/acl/documents-acl-principals.test.ts（`filterDocsForAclPrincipals` 未授权文档不进结果）；`loadCorpusFromDb` 部门滤后再 principals | 无 E2E 问句泄漏 / 无 ask HTTP evidence 断言 |
+| B2-2 | principal 变更（移出 role）+ reindex 后该文档对该用户不可检索 | P3 文档ACL | — | 延后 | api | PG 滤即时生效；无自动 reindex；ES 不写 principals | 角色码 principal / reindex-on-change 未做 |
+| B2-3 | dense 单路亦过文档 ACL（构造「dense 不过滤会召回」） | P3 文档ACL | — | 延后 | api | PG corpus 滤后 dense 同源；无「dense 不过滤会召回」构造 | 无 dense 单路负向夹具 |
+| B2-4 | 缺省无 `aclPrincipals` → KB 内成员可读；显式 `[]` → 不可读 | P3 文档ACL | 单测 | 已测 | api | apps/api/tests/acl/doc-acl-principals.test.ts（null 可见 / `[]` 不可见）；apps/api/tests/acl/documents-acl-principals.test.ts（PATCH 三态；列表 `[]` 不含、null 含）；packages/contracts/tests/ingest/document-contract.test.ts | — |
 
 **安全签字（原文）**：B1 + B1-A3 试点必签；大库加签 B1-A1；B2 上敏感库前必签。
 
@@ -113,7 +113,7 @@
 | AE5 | 同上 M：可见 D_staff 与 D_mgr | P3 / 开强制后 | 单测 | 部分测 | api | apps/api/tests/acl/retrieve-dept-acl.test.ts（同部门负责人可见 30） | 默认关；无 M ask HTTP |
 | AE6 | 用户 X 无人事归属、无 grant → 不可见人事部门密级文档 | P3 / 开强制后 | 单测 | 部分测 | api | apps/api/tests/acl/retrieve-dept-acl.test.ts（无归属只见空部门；开+无归属列表省略他部门） | 默认关 |
 | AE7 | 给 X 跨部门 grant level≥30 → X 可见 D_mgr；审计有记录 | P3 / 开强制后 | 单测 | 部分测 | api | apps/api/tests/acl/retrieve-dept-acl.test.ts（未过期 grant≥级别可见）；apps/api/tests/acl/dept-grants-http.test.ts（POST/GET/DELETE 可回读，无 `dept.manage` 403） | 默认关；grant 写审计未专断言 |
-| AE8 | dense 与 ES filter 均含部门条件；禁止单路泄漏 | P3 / 开强制后 | 单测 | 部分测 | api | apps/api/src/services/retrieve/corpus.ts（PG 语料先 `filterDocsForDeptAcl`）；`es-sparse.ts` `buildAclFilter` 可追加 `ownerDeptId` terms；apps/api/tests/ask/es-dept-query-filter.test.ts；apps/api/tests/acl/retrieve-dept-acl.test.ts | 默认关；可见级/过期 grant 仍以 PG 为准；无 E ask 端到端泄漏；无 aclPrincipals 全文 |
+| AE8 | dense 与 ES filter 均含部门条件；禁止单路泄漏 | P3 / 开强制后 | 单测 | 部分测 | api | apps/api/src/services/retrieve/corpus.ts（PG 语料先 `filterDocsForDeptAcl`）；`es-sparse.ts` `buildAclFilter` 可追加 `ownerDeptId` terms；apps/api/tests/ask/es-dept-query-filter.test.ts；apps/api/tests/acl/retrieve-dept-acl.test.ts | 默认关；可见级/过期 grant 仍以 PG 为准；无 E ask 端到端泄漏；aclPrincipals 用户 uuid 名单走 PG、ES 不写 terms |
 | AE9 | 无 `dept.manage` 改树 → 403 | P2必签 | 单测 | 已测 | api | apps/api/tests/acl/departments-http.test.ts（kb_admin 无 `dept.manage` → 403）；apps/api/tests/acl/dept-grants-http.test.ts（无码 403） | — |
 | AE10 | 上级「公司」成员 U（非人事）；子部门人事 D_staff=20；enforce=true → U 可见（上级看下级） | P3 / 开强制后 | 单测 | 部分测 | api | apps/api/tests/acl/retrieve-dept-acl.test.ts（祖先成员可见子孙 20）；apps/api/tests/kb/dept-inherit-down.test.ts | 默认关；inheritDown=false 时此 Then 不成立（另有关继承测） |
 | AE11 | 同上 U 非负责人；人事 D_mgr=30 → U 不可见（级别仍约束） | P3 / 开强制后 | 单测 | 部分测 | api | apps/api/tests/acl/retrieve-dept-acl.test.ts（祖先成员不可见子孙 30；祖先负责人可见 30） | 默认关 |

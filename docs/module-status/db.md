@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（schema + client + 检索谓词底座；**无**业务服务层） |
 | 默认依赖模式 | 需要调用方提供 `DATABASE_URL`；时间列使用本地格式字符串（见 ORM PRD） |
 | 关联模块 | `api` 与 `worker` 共用 client / schema；检索闸门谓词被 api retrieve 复用 |
-| 最近更新 | 2026-09-07（`kb_settings_audits`，migration `0013`；≠ admin_write 全路径落表） |
+| 最近更新 | 2026-09-07（`documents.acl_principals` 可空 uuid[]，migration `0014`；NULL=未设，禁止 default `[]`） |
 | Spec | `.trellis/spec/db/backend/` |
 | PRD | `prds/03-data` · `prds/02-engineering/02-orm-drizzle.md` |
 
@@ -33,7 +33,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 - **B5**：`departments` · `user_departments`（migration `0005_b5_departments`）
 
 ### Schema · kb（入库主轴）
-- `knowledge_bases` · `documents`（含 **`chunkStrategy` / `chunkStrategyParams`** · **P3b-META** `owner_dept_id` / `visibility_level` 默认 20；**强制未接**）· `chunks` · `chunk_manifests`
+- `knowledge_bases` · `documents`（含 **`chunkStrategy` / `chunkStrategyParams`** · **P3b-META** `owner_dept_id` / `visibility_level` 默认 20；**强制未接** · **P3b** `acl_principals` 可空 `uuid[]`，NULL=未设）· `chunks` · `chunk_manifests`
 - `chunk_embeddings`：**`embedding` 列为 jsonb `number[]`**（演示 mock 向量；**不是** native pgvector/`vector` 列）
 - `ingest_jobs`：schema 已有；**worker** `job-ledger` 按阶段边界最小写（**非**本包服务层；无查询 API；同 doc 锁在 worker Redis 侧）
 - `ingest_reports`：doc+indexVersion 唯一；事实列 chunkCount / internalDropped / 双就绪 / 对账计数（migration `0011_ingest_reports`）；**无** 跨 doc / Hit@k 列
@@ -47,8 +47,8 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 - **gold_questions**：运营题面（caseKey 每库唯一；migration `0010_eval_floor`）
 - schema 单测：`tests/ask/ask-schema.test.ts`
 
-### Migrations（journal 14 条，idx 0–13）
-- `0000_phase0_schema_meta` → `0013_kb_settings_audits`（`drizzle/meta/_journal.json`）
+### Migrations（journal 15 条，idx 0–14）
+- `0000_phase0_schema_meta` → `0014_p3b_acl_principals`（`drizzle/meta/_journal.json`）
 - 脚本：`db:generate` / `db:migrate` / `db:studio`（运维产品化流水线 **不**在本包宣称）
 
 ### 查询谓词

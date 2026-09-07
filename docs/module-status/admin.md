@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（S2c 运营薄壳：文档 / 审批 / 成员 / 分片 / 设置 / 模型 + 用户 / 角色 / 部门 + **数据面板** + **反馈队列** + **评测底线**） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT + admin **dev-login**（经 api）· 知识库 = 顶栏关闭列表（本次 GET 可见库，禁止粘贴 uuid）· 菜单 = `clipMenuForShell` 裁剪（catalog 为 SSOT）· API 默认 `http://127.0.0.1:4000` |
 | 关联模块 | API 依赖：`api` 的文档 / 审批 / 成员 / 分片 / 设置 / 模型 / 用户角色 / 部门 / dashboard / **feedback-queue** / **gold-questions · eval/runs**；菜单与权限码：`admin-catalog`；类型：`contracts`；样式：`ui` |
-| 最近更新 | 2026-09-07（设置页修改日志一节；无独立路由 / 无新菜单） |
+| 最近更新 | 2026-09-07（文档行展开 `aclPrincipals` Textarea +「仅名单可见」；有 `doc.editor` 才保存；**≠** 用户下拉 / 角色 principal） |
 | Spec | `.trellis/spec/admin/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · 审批 / 成员相关 API |
 
@@ -35,7 +35,7 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 
 ### 文档
 - `/documents`：按知识库拉取文档列表；表格展示部门 / 可见级 / **类型** / **运营标签**（待审…现行可问…已归档；原串 `status · lifecycle` 次要）/ **向量 / 稀疏就绪**（有树时部门列显示名，否则 uuid；可见级默认中文标签；可按部门/可见级**本地**筛，不加 GET query；审批操作在审批页进行；稀疏就绪 **≠** 生产 ES）
-- 点行改 `ownerDeptId` / `visibilityLevel` / `docType`：有 `dept.manage` 用部门下拉，否则 uuid 粘贴；类型枚举来自设置 GET（需 `kb.config.write`），否则文本框；`doc.editor` 裁保存
+- 点行改 `ownerDeptId` / `visibilityLevel` / `docType` / `aclPrincipals`：有 `dept.manage` 用部门下拉，否则 uuid 粘贴；类型枚举来自设置 GET（需 `kb.config.write`），否则文本框；名单用 Textarea（逗号或换行）+「仅名单可见」勾选（未勾选且空 → `null`；勾选且空 → `[]`）；`doc.editor` 裁保存；无该码只读；**无**用户下拉 / **无**角色 principal
 - 行展开 **Reindex**（`doc.reindex`）：走 `for-upload`；≥2 未选按钮不可提交
 - 行展开 **入库报告**（紧挨「入库阶段」）：库级 GET 后只展示本行；无报告「暂无入库报告」；**不是**独立抽屉 / 新页；**不是**跨 doc 冲突对
 - lifecycle（`doc.lifecycle`）：上架仍须 `status=ready` 且仅 draft；可废止 / 归档。检索闸仍 ready∧active，不自动升

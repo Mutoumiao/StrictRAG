@@ -2,7 +2,7 @@
 
 > 路径：`packages/db`  
 > 消费者：`apps/api` · `apps/worker`（**必须**共用）  
-> 现状：KB/文档/chunk/manifest/embed/ingest_jobs + **ingest_reports** + **kb_settings_audits** + **ask_*** + **eval_runs**（B10-followup 工程）+ users + **platform_roles/user_roles** + **permission_definitions**（启动 upsert；≠ 运行时求值）+ **departments/user_departments** + model_providers/bindings；`documents.owner_dept_id` / `visibility_level` **已有列**（P3b-META；**强制未接**）；`query/retrieval-gate`；migrate 在 `drizzle/`（含 `0007_p3b_doc_dept_meta` · `0011_ingest_reports` · `0012_permission_definitions` · `0013_kb_settings_audits`）。
+> 现状：KB/文档/chunk/manifest/embed/ingest_jobs + **ingest_reports** + **kb_settings_audits** + **ask_*** + **eval_runs**（B10-followup 工程）+ users + **platform_roles/user_roles** + **permission_definitions**（启动 upsert；≠ 运行时求值）+ **departments/user_departments** + model_providers/bindings；`documents.owner_dept_id` / `visibility_level` **已有列**（P3b-META；**强制未接**）；`documents.acl_principals` 可空 `uuid[]`（migration `0014_p3b_acl_principals`；NULL=未设，禁止 default `[]`）；`query/retrieval-gate`；migrate 在 `drizzle/`（含 `0007_p3b_doc_dept_meta` · `0011_ingest_reports` · `0012_permission_definitions` · `0013_kb_settings_audits` · `0014_p3b_acl_principals`）。
 
 ---
 

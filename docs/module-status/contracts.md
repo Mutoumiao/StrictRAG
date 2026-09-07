@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（支撑 P0/P1 入库 + S2 问答/会话/反馈/成员 + B1–B6 运营契约 + **B12 策略码 / ingest job**；**非**全量 OpenAPI） |
 | 默认依赖模式 | 纯库；无运行时开关 |
 | 关联模块 | 被 `api` · `worker` · `web` · `admin` 消费；是全仓错误码、响应信封、队列名与 **可写分片策略集** 的唯一来源 |
-| 最近更新 | 2026-09-07（KbSettingsAuditItem 设置修改日志列表项；≠ 密钥字段） |
+| 最近更新 | 2026-09-07（DocumentListItem / PatchDocumentMetaBody 可回读/写 `aclPrincipals`；omit / null / [] 三态） |
 | Spec | `.trellis/spec/contracts/library/` |
 | PRD | `prds/05-api` · 各域契约与 PRD 短名对齐 |
 
@@ -31,7 +31,7 @@
 - **黄金集 / run DTO**：eval/gold.contract.ts · eval/eval-run.contract.ts；2×2 纯函数 eval/l1-matrix.ts；L2 解析 eval/l2-gold.ts · 工程公式 eval/l2-matrix.ts
 
 ### 入库 + 分片策略（B12）
-- 文档 body 及列表 / 详情 / 审批 / 扫描等成功响应的 data 形状（`ingest/document.contract`）；列表项含 `docType`；`PatchDocumentMetaBodySchema` 可写 `ownerDeptId` / `visibilityLevel` / `docType`
+- 文档 body 及列表 / 详情 / 审批 / 扫描等成功响应的 data 形状（`ingest/document.contract`）；列表项含 `docType` / `aclPrincipals`（缺省 `null`）；`PatchDocumentMetaBodySchema` 可写 `ownerDeptId` / `visibilityLevel` / `docType` / `aclPrincipals`（omit 不改；`null` 清回未设；`[]` 显式空；元素 uuid，最长 256）
 - **`CreateKbBodySchema`**：`name` + **必填** `initialAdminUserId`；**不含** `tenantId`（令牌覆盖）
 - **complete / reindex body 可选 `chunkStrategy`**；reindex 成功 data 含 `chunkStrategy` + `strategyChanged`
 - 分片 list query / item / response + detail（`ingest/chunk.contract`；list **不含** body）
@@ -64,7 +64,7 @@
 - `AskModeSchema`（`strict` / `balanced` / `fast`）+ `DEFAULT_ALLOWED_MODES` / `DEFAULT_DEFAULT_MODE`（`kb/kb-settings.contract`）
 - `KbSettings` / `PatchKbSettingsBodySchema`（strict 白名单 + modes 唯一性 + `dataClass` 默认 internal + `deptInheritDown` 默认 true + `deptAclEnforce` 默认 false）（`kb/kb-settings.contract`）
 - **`KbSettingsAuditItemSchema`**：`id` / `kbId` / `actorUserId` / `createdAt` / `diff`；`.strict()` 拒密钥键（`kb/settings-audit.contract.ts` · `tests/kb/settings-audit-contract.test.ts`）
-- `DocumentListItem` 含 `ownerDeptId` / `visibilityLevel`（缺省 null / 20；详情 inherit 列表项）
+- `DocumentListItem` 含 `ownerDeptId` / `visibilityLevel` / `aclPrincipals`（缺省 null / 20 / null；详情 inherit 列表项）
 - `DeptCrossGrant` / `CreateDeptCrossGrantBodySchema`（`system/dept-grants.contract`）
 - `CompleteUploadBody` 可选 `ownerDeptId` / `visibilityLevel`（P3b-UPL；旧 `{}` 仍合法）
 - `qualitySnapshot` · `sessionRewrite` 锁定形状；禁止 τ / rewrite 写键
