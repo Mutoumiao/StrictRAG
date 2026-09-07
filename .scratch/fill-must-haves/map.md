@@ -13,7 +13,7 @@ Status: open
 - 每轮先读：本图、`docs/agents/issue-tracker.md`、`docs/agents/domain.md`、功能表、相关包的 `docs/module-status/`。写代码前读 `.trellis/spec/` 对应包。执行完成后跑 skill `update-module-status`。
 - **覆盖「只做决策」**：工单可以动手补缺口，不只锁决策。
 - **本图是执行面**：缺口只在 `.scratch/fill-must-haves/` 工单上做完。`.trellis/tasks/08-06-project-backlog/` 只留指针和勾选。同一缺口禁止再 `task.py create` 平行实现任务。这只覆盖本图，不改全仓其它流程。
-- 顺序：本图 P2 语义已收官（第三批）；P2.5 出口走 **L2 归档准出**（工程路径 [L2 归档底线](./issues/14-l2-archive-floor.md) 已齐，人签仍图外）。鉴权/成员余量已齐。入库报告最小闭环已齐。库选择器只列成员库已齐。admin 顶栏当前 KB 选择器已齐。web 下拉换 ui 关闭列表已齐。启动引导超管已齐（env 创建，不是页）。写路径锁超管全码已齐。修改日志最小闭环已齐。三平面配额最小闭环为本批执行工单。其余 P2 半接线留雾。P3a 仍等该出口。P3b 可在 P2 后并行，但不抽走下一裁定。
+- 顺序：本图 P2 语义已收官（第三批）；P2.5 出口走 **L2 归档准出**（工程路径 [L2 归档底线](./issues/14-l2-archive-floor.md) 已齐，人签仍图外）。鉴权/成员余量已齐。入库报告最小闭环已齐。库选择器只列成员库已齐。admin 顶栏当前 KB 选择器已齐。web 下拉换 ui 关闭列表已齐。启动引导超管已齐（env 创建，不是页）。写路径锁超管全码已齐。修改日志最小闭环已齐。三平面配额最小闭环已齐。其余 P2 半接线留雾。P3a 仍等该出口。P3b 可在 P2 后并行，但不抽走下一裁定。
 - **站规（UI）**：web / admin 新下拉必须基于 `@strict-rag/ui` 关闭列表，禁止浏览器原生 `<select>` 外壳（含现有 ui `Select`）。`Button` / `Input` / `Textarea` 仍走 ui 包。本规不改 GET / 鉴权语义。
 - 人签（B10 业务 PASS）不是代码缺口，不进本图执行工单。
 - 引用工单用标题，不要只写编号。一回合只解决一张工单（research 除外）。
@@ -55,10 +55,11 @@ Status: open
 - [裁定写路径锁超管全码后下一步](./issues/32-after-superadmin-codes-lock-order.md) — 继续剩余 P2；本批只做修改日志最小闭环。不转 P3b、不跳 P4、不等人签。
 - [修改日志最小闭环](./issues/33-settings-audit-min.md) — PATCH 有 diff 落 `kb_settings_audits`；GET settings-audit 可查询；admin 设置页一节。ARCH-P1b-2 仍是 Pino、不落表。
 - [裁定修改日志最小闭环后下一步](./issues/34-after-settings-audit-order.md) — 继续剩余 P2；本批只做三平面配额最小闭环。不转 P3b、不跳 P4、不等人签。
+- [三平面配额最小闭环](./issues/35-quota-planes-min.md) — ask/ingest 分 store 固定窗口（默认 0=关）互不阻断；ask 触顶 429 `RATE_LIMITED` + `ask_quota_exhausted`；指标带 `plane`；aux 只留常量。embed TPM / maxEmbedCalls / staging fail-closed 划出。
 
 ## Not yet specified
 
-- 剩余 P2 半接线（鉴权/成员余量、入库报告、库选择器、admin 顶栏、web 关闭列表回改、启动引导超管、写路径锁超管全码、修改日志已出雾；三平面配额为本批工单）：失败 Webhook、在线编写（完整体验 P2.x）
+- 剩余 P2 半接线（鉴权/成员余量、入库报告、库选择器、admin 顶栏、web 关闭列表回改、启动引导超管、写路径锁超管全码、修改日志、三平面配额已出雾）：失败 Webhook、在线编写（完整体验 P2.x）
 - LangGraph 编排重构：技术栈冻结为 LangGraph.js（硬性标准）；源码现为线性状态机（`apps/api/src/graph/run.ts`），需后续重构为官方 LangGraph.js。另起路线
 - P3a Full 图（CRAG / multi_hop）；硬门在 L2 归档准出（工程路径是 L2 归档底线；人签不进本图）
 - P3b 尚未齐的强制检索面：ES 查询期对称、aclPrincipals 全文、敏感解禁、仓库默认开 `DEPT_ACL_ENFORCE`

@@ -2,7 +2,7 @@
 
 Type: task
 Label: wayfinder:task
-Status: claimed
+Status: resolved
 Assignee: grok
 Triage: ready-for-agent
 Blocked by: 34
@@ -46,6 +46,18 @@ Blocked by: 34
 收工：更新 `.trellis/spec/` 与 `docs/ops/rate-limit-and-metrics.md`；回写 `docs/module-status/`；coverage 03-ops 剧本 R5/R8/R9。`.trellis/tasks/` 若无则跳过。禁止 `task.py create`。禁止 push。
 
 写代码前读 `.trellis/spec/` 对应包（api / contracts）与 HOW `.trellis/spec/guides/testing.md`。测例落 `tests/<能力>/`，文件头目标/简介简体中文，登记 index。现有 `tests/obs/rate-limit.test.ts` 与 `apps/web/tests/ask/quota-429.test.tsx` 必须仍绿。
+
+## Answer
+
+ask 继续 `ASK_RATE_LIMIT_RPM`（默认 0），ingest 新增 `INGEST_RATE_LIMIT_RPM`（默认 0，Zod 同形）。两平面独立固定窗口、分 store / 分前缀；aux 只留 `QUOTA_PLANES` 常量，不跑。
+
+ask 触顶 HTTP 429 + 业务码仍是 `RATE_LIMITED`（web 配额文案不破）；`details` 含 `plane: 'ask'` 与 `ask_quota_exhausted: true`；不执行图、禁止 200 空答 `answered`。ingest 闸打在 `POST …/documents/:docId/complete` 落 pending 前；触顶 429 `RATE_LIMITED`，`details.plane='ingest'`。打满 ask 不阻断 complete；打满 ingest 不阻断 ask。
+
+`recordAskResult` / `recordLlmCall` / `recordRerank` 带 `plane=ask`；complete 成功或限流打 `ingest_complete_total{plane=ingest}`。仓库两 RPM 保持 0。生产主闸仍在网关 L0；进程内非集群。
+
+未做：embed TPM / `maxEmbedCalls` / staging fail-closed / aux 运行时 / Redis 集群配额 / 进程内全路由中间件 / 改 `RATE_LIMITED` / 默认打开 RPM / Webhook / 在线编写 / P3 / 人签 / rewrite / LangGraph / E2E。未 `task.py create`。`.trellis/tasks/` 目录不存在，已跳过。
+
+证据：`apps/api/src/obs/rate-limit.ts` · `obs/metrics.ts` · `routes/ask.ts` · `routes/documents/index.ts` · `env.ts` · `apps/api/tests/obs/quota-planes.test.ts`。
 
 ## Comments
 
