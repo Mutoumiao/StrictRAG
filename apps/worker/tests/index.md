@@ -28,7 +28,7 @@
 | `eval/run-l2-batch.test.ts` | worker L2 批跑必须串行多轮窗，泄漏计零容忍，mock 不得 signoffEligible。 | prds/08-quality §6.2 · 功能表 §10.2 | `runL2Batch` | 注入 executeTurn；≠ 准出 PASS。 | 现行 |
 | `ingest/embed-es-serial.test.ts` | embed 与稀疏索引串行就绪，禁并行假完成。 | X-03 · prds/04-pipelines | `pipeline 串行就绪` | embedReady 与 esReady 须同时为 1。 | 现行 |
 | `ingest/embed-http.test.ts` | embed HTTP 客户端须按 Gateway 契约取向量。 | prds/07-models | `embedTextsHttp · mockEmbedVector` | mock 维数稳定；POST /embeddings；空 baseUrl 失败。 | 现行 |
-| `ingest/es-http.test.ts` | 稀疏索引 HTTP 配置与对账不得静默错配。 | OPS-1 | `esHttpConfigFromEnv · sparseTextForChunk · reconcileIndexed` | 空 URL 为 null；chunk 文本拼接；missing/orphan。 | 现行 |
+| `ingest/es-http.test.ts` | 稀疏索引 HTTP 配置与对账不得静默错配；mapping/bulk 含 ownerDeptId。 | OPS-1 · DEPT_ACL | `esHttpConfigFromEnv · sparseTextForChunk · reconcileIndexed · ensureSparseIndex · bulkIndexSparse` | 空 URL 为 null；chunk 文本拼接；missing/orphan；无部门不写该字段。 | 现行 |
 | `ingest/extract-text.test.ts` | utf8 文本层可抽；PDF 不得当 utf8 垃圾返回。 | prds/04-pipelines/01-offline-ingest.md | `hasUtf8TextLayer · decodeUtf8Text · extractUtf8TextLayer` | txt/md 按类型或扩展名；pdf 走 NO_TEXT_LAYER。 | 现行 |
 | `ingest/failure-webhook.test.ts` | 入库阶段失败须按可选 URL 发一次 Webhook，空 URL 不发，失败不得阻断账本。 | 功能表 §10.3 | `notifyIngestFailure · recordStageEnd` | POST JSON 只试一次；无正文/密钥；非 2xx 只 warn。 | 现行 |
 | `ingest/header-too-short.test.ts` | 仅页眉约 20 字不得 parse 成功、不得 ready。 | 剧本 Q3 · prds/10-delivery/03-acceptance-scenarios.md · ADR-043 | `runIngestStage` parse 字数闸 | 过短全文 needs_ocr + NO_TEXT_LAYER；不得物化成功 manifest。 | 现行 |

@@ -1,5 +1,5 @@
 /**
- * Worker 真 ES bulk（与 api es-sparse 映射对齐：chunkId/kbId/docId/sparseText）。
+ * Worker 真 ES bulk（与 api es-sparse 映射对齐：chunkId/kbId/docId/ownerDeptId/sparseText）。
  * 无新包；fetch。IK / 多租户 Router 不在本窗。
  */
 
@@ -26,6 +26,29 @@ export function sparseTextForChunk(contextPrefix: string | null, bodyText: strin
   const body = (bodyText ?? '').trim();
   if (prefix && body) return `${prefix}\n${body}`;
   return body || prefix;
+}
+
+export type SparseBulkDoc = {
+  chunkId: string;
+  tenantId: string;
+  kbId: string;
+  docId: string;
+  sparseText: string;
+  ownerDeptId?: string | null;
+};
+
+/** 有值才写入；空/缺省不出现该字段（缺字段不得当全员可见）。 */
+export function sparseBulkSource(d: SparseBulkDoc): Record<string, string> {
+  const source: Record<string, string> = {
+    chunkId: d.chunkId,
+    tenantId: d.tenantId,
+    kbId: d.kbId,
+    docId: d.docId,
+    sparseText: d.sparseText,
+  };
+  const owner = typeof d.ownerDeptId === 'string' ? d.ownerDeptId.trim() : '';
+  if (owner) source.ownerDeptId = owner;
+  return source;
 }
 
 export function reconcileIndexed(
@@ -64,6 +87,7 @@ export async function ensureSparseIndex(cfg: EsHttpConfig): Promise<void> {
           tenantId: { type: 'keyword' },
           kbId: { type: 'keyword' },
           docId: { type: 'keyword' },
+          ownerDeptId: { type: 'keyword' },
           sparseText: { type: 'text' },
         },
       },
@@ -77,7 +101,7 @@ export async function ensureSparseIndex(cfg: EsHttpConfig): Promise<void> {
 
 export async function bulkIndexSparse(
   cfg: EsHttpConfig,
-  docs: Array<{ chunkId: string; tenantId: string; kbId: string; docId: string; sparseText: string }>,
+  docs: SparseBulkDoc[],
 ): Promise<{ indexed: number }> {
   if (docs.length === 0) return { indexed: 0 };
   const base = trimUrl(cfg.baseUrl);
@@ -85,15 +109,7 @@ export async function bulkIndexSparse(
   const lines: string[] = [];
   for (const d of docs) {
     lines.push(JSON.stringify({ index: { _index: cfg.index, _id: d.chunkId } }));
-    lines.push(
-      JSON.stringify({
-        chunkId: d.chunkId,
-        tenantId: d.tenantId,
-        kbId: d.kbId,
-        docId: d.docId,
-        sparseText: d.sparseText,
-      }),
-    );
+    lines.push(JSON.stringify(sparseBulkSource(d)));
   }
   const res = await fetch(`${base}/_bulk`, {
     method: 'POST',
