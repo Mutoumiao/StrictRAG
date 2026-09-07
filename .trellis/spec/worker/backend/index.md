@@ -23,6 +23,7 @@
 - [ ] `pnpm --filter @strict-rag/worker check-types` · `lint` · `test`  
 - [ ] 新测例是否落在 `tests/<能力>/`、文件头含目标/需求、并已写入 `tests/index.md`？（HOW：[testing](../../guides/testing.md)）  
 - [ ] 失败任务可观测；retryable 与 [ingest-idempotency §4](./ingest-idempotency.md) 方向一致  
+- [ ] 失败 Webhook 是否空 URL 不发、只试一次、不阻断账本？（触发只在 `recordStageEnd`）  
 - [ ] 提交说明勿写「生产杀毒已上 / QUAL-2 完成 / 生产级 Redlock 与完整账本已齐」（最小幂等/账本/锁见幂等文 §5）  
 
 ---

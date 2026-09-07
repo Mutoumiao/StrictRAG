@@ -5,9 +5,9 @@
 | 路径 | `apps/worker` |
 | 端口 | 无 HTTP 端口 |
 | 成熟度 | **可联调**（P1 入库状态机；**仅** development/test + mock 栈可起；**staging/production 当前无合法扫描配置**） |
-| 默认依赖模式 | `APP_ENV=development` · 启动探针 `WORKER_PROBE_ON_START=true` · 扫描 = `mock_clean` · 向量 = `mock`（dims=8，枚举 `mock\|fail`）· ES 索引 = `mock`（枚举 `mock\|fail\|http`，**默认 mock**；`http` 须 `ELASTICSEARCH_URL`）· 对象存储 = 默认本地目录；`STORAGE_MODE=s3` 走 RustFS（S3 兼容） · `S3_BUCKET=strict-rag` · Mongo URL 空则 `mongoDocId=local:` · `INGEST_MIN_EXTRACTED_CHARS=40` · **可运行叠加** `.env.operable.example`（http/s3/mongo；**不**改 Zod 默认） |
+| 默认依赖模式 | `APP_ENV=development` · 启动探针 `WORKER_PROBE_ON_START=true` · 扫描 = `mock_clean` · 向量 = `mock`（dims=8，枚举 `mock\|fail`）· ES 索引 = `mock`（枚举 `mock\|fail\|http`，**默认 mock**；`http` 须 `ELASTICSEARCH_URL`）· 对象存储 = 默认本地目录；`STORAGE_MODE=s3` 走 RustFS（S3 兼容） · `S3_BUCKET=strict-rag` · Mongo URL 空则 `mongoDocId=local:` · `INGEST_MIN_EXTRACTED_CHARS=40` · `INGEST_FAILURE_WEBHOOK_URL` **空=不发** · **可运行叠加** `.env.operable.example`（http/s3/mongo；**不**改 Zod 默认） |
 | 关联模块 | 由 `api` 入队触发；写库走 `@strict-rag/db`；队列名 / job payload / 可执行策略集来自 `@strict-rag/contracts`；运行需要 Redis + PostgreSQL |
-| 最近更新 | 2026-08-30（入库报告最小落库；双就绪 / 去重清空 / 对账失败；≠ 跨 doc / Hit@k） |
+| 最近更新 | 2026-09-07（入库失败可选 Webhook；空 URL 不发；≠ HMAC / 重试队列） |
 | Spec | `.trellis/spec/worker/backend/` |
 | PRD | `prds/06-async` · `prds/04-pipelines/01-offline-ingest.md` |
 
@@ -55,6 +55,7 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 - 不可重试（`UnrecoverableError`）：`MALWARE` / `NOT_APPROVED` / `UNSUPPORTED_CHUNK_STRATEGY` / `DOC_NOT_FOUND` / `EMPTY_CHUNKS` / `MISSING_INDEX_VERSION` / `EMBED_NOT_READY` / `UNKNOWN_STAGE` / `IDEMPOTENT_CHUNK_FORBIDDEN`（`bull-outcome.ts`）
 - 未知 errorCode **fail-closed 不重试**
 - **账本最小**：`job-ledger.ts` 每 stage 先 insert `running`、结束时写 `succeeded`/`failed`（写失败仅记 warn 日志，不阻断）；**未做** api 入队写 / 查询 API
+- **失败 Webhook 最小**：`INGEST_FAILURE_WEBHOOK_URL` 空则不发；仅 `recordStageEnd` 见 `errorCode` 时 POST JSON（`event=ingest.failed` + tenantId/kbId/docId/stage/errorCode/at，可选 jobId）；超时约 3s、只一次；非 2xx/网络错 warn **不抛**、**不阻断**账本。无 HMAC / 无重试队列 / 无 ask webhook / 无正文与对象路径
 - **入库报告最小**：`ingest-report.ts` 按 `docId+indexVersion` 落可查询行（双就绪成功；文档内去重清空失败；对账失败不标双就绪）；写失败 warn 不阻断；**不含** 跨 doc / L1 / Hit@k
 - **同 doc 锁最小**：`doc-lock.ts` 用 Redis `SET NX EX`（默认 TTL 180s）+ token 安全释放；`index.ts` 持锁再跑 stage；抢锁失败 `DOC_LOCK_BUSY` 可重试；**非** Redlock
 
@@ -77,6 +78,7 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 | `ingest_jobs` 完整运维账本 | **最小 stage 写已有**；无查询面 / 无 api 入队 `queued` |
 | 入库报告完整语义 | 最小事实行已落；**无** 跨 doc MinHash / `pending_review` / Hit@k |
 | dual-ready 自动 `lifecycle=active` | 终态 draft；检索默认可检索性另闸 |
+| 失败 Webhook 加固 | **最小 POST 已有**；无 HMAC / 重试队列 / admin·KB URL / ask 拒答 webhook |
 
 ---
 
@@ -91,7 +93,8 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 | 入库 ES 默仍 mock | 可运行栈须显式 `INGEST_ES_MODE=http` | 与 api `RETRIEVE_ES_MODE=http` 共用索引名；≠ IK |
 | 分块策略极简 | 检索质量上限低 | 扩策略：先 worker 实现 + 扩 contracts `IMPLEMENTED_*` |
 | `GATEWAY_*` 死配置 | 易误读「已接网关 embed」 | pipeline 未用 |
-| 失败重试 / 死信 | 仅 BullMQ attempts + 日志；无业务 DLQ 面板 | 对照 PRD 异步章节 |
+| 失败重试 / 死信 | 仅 BullMQ attempts + 日志；无业务 DLQ 面板 | 对照 PRD 异步章节。失败 Webhook 只一次 warn，≠ 重试队列 |
+| 失败 Webhook 加固 | 无 HMAC、无 admin/KB URL、无 ask 拒答 webhook | 最小闭环已接；空 URL 默认不发 |
 
 ---
 
@@ -100,9 +103,10 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 | 类型 | 指针 |
 |------|------|
 | 入口 / 队列 | `apps/worker/src/index.ts` · `queues.ts` · `db.ts` |
-| 流水线 | `apps/worker/src/ingest/pipeline.ts` · `es-store.ts` · `es-http.ts` · `mongo-body.ts` · `ingest-report.ts` |
+| 流水线 | `apps/worker/src/ingest/pipeline.ts` · `es-store.ts` · `es-http.ts` · `mongo-body.ts` · `ingest-report.ts` · `failure-webhook.ts` |
 | 扫描闸 | `apps/worker/src/scan-mode-policy.ts` · `tests/ingest/scan-startup-policy.test.ts` · `env.ts` superRefine |
 | 幂等 / 重试 / 锁 | `ingest/idempotency.ts` · `doc-lock.ts` · `job-ledger.ts` · `tests/ingest/{idempotency,doc-lock,job-ledger,bull-outcome}.test.ts` |
+| 失败 Webhook | `ingest/failure-webhook.ts` · `job-ledger.ts` `recordStageEnd` · `tests/ingest/failure-webhook.test.ts` |
 | 策略 SSOT | `packages/contracts/src/ingest/chunk-strategy.ts`（`IMPLEMENTED_*`） |
 | job 契约 | `packages/contracts/src/async/ingest-job.ts` |
 | 环境变量默认值 | `apps/worker/src/env.ts` |

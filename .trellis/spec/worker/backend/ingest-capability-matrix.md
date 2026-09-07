@@ -17,6 +17,7 @@
 | **es_index** | **stub** | `mockEsStore` · `INGEST_ES_MODE` | 进程内 Map 对账；无 live 枚举 | 真 ES+IK bulk（B8） |
 | **activate / lifecycle** | **partial** | dual-ready → `status=ready` · `lifecycle=draft` | **不**自动 active；检索第二闸在 api | 运营 activate API 全流程（产品侧） |
 | **ingest_jobs 账本** | **partial** | schema + `job-ledger.ts` | stage 边界写 running→succeeded/failed；无 api 写 / 无查询面 | 运维查询 · 入队侧 queued |
+| **失败 Webhook** | **partial** | `failure-webhook.ts` · `recordStageEnd` | 账本 `errorCode` 时 POST `ingest.failed` JSON；空 URL 不发；~3s 只一次；失败 warn 不阻断 | HMAC / 重试队列 / admin·KB URL / ask webhook |
 | **ingest_reports** | **partial** | `ingest-report.ts` + pipeline | 双就绪 / 去重清空 / 对账失败落可查询行 | 跨 doc / pending_review / Hit@k |
 | **同 doc 并发锁** | **partial** | `doc-lock.ts` · `index.ts` | Redis SET NX EX + token 释放；`DOC_LOCK_BUSY` 可重试 | Redlock / 多 master / 锁运维面 |
 | **物理多队列** | **deferred** | 单 `sr-ingest` + `stage` | 逻辑 stage 折叠 | 见 §1.1 · ADR-060 |

@@ -11,7 +11,7 @@ apps/worker/
     index.md                 # 本包测例导航
   src/
     index.ts                 # BullMQ workers · 优雅退出 · 无 HTTP
-    env.ts                   # Zod：INGEST_* · STORAGE_* · APP_ENV
+    env.ts                   # Zod：INGEST_* · STORAGE_* · APP_ENV · INGEST_FAILURE_WEBHOOK_URL
     logger.ts
     db.ts
     queues.ts                # QUEUE_NAMES · IngestJobData · EvalJobData
@@ -25,7 +25,8 @@ apps/worker/
     ingest/
       pipeline.ts            # 状态机 scan→parse→chunk→embed→es_index
       idempotency.ts         # X-04 幂等纯函数
-      job-ledger.ts          # ingest_jobs 阶段账本（最小）
+      job-ledger.ts          # ingest_jobs 阶段账本（最小）；failed 时可选 Webhook
+      failure-webhook.ts     # 入库失败可选 Webhook（空 URL 不发；非阻断）
       ingest-report.ts       # 入库报告最小落库（doc+indexVersion；非阻断）
       doc-lock.ts            # 同 doc Redis SET NX 锁（最小；非 Redlock）
       es-store.ts            # mock ES（进程内 Map）
@@ -62,6 +63,7 @@ apps/worker/
 | Key | 默认 | 说明 |
 |-----|------|------|
 | `INGEST_SCAN_MODE` | `mock_clean` | `mock_clean` \| `mock_infected` \| `off` \| `on`；**启动闸**见 quality X-01/X-02（prod 禁 mock；`on` 未接引擎禁启动） |
+| `INGEST_FAILURE_WEBHOOK_URL` | 空 | 空=不发；阶段账本 `errorCode` 时 POST JSON 一次；失败 warn **不阻断** |
 | `APP_ENV` | `development` | 与 scan mode 交叉校验 |
 | `STORAGE_LOCAL_DIR` | 相对 monorepo 根 | 与 api 同锚，禁 cwd 分叉 |
 | 队列名 | `sr-ingest` 等 | **禁止** `:` |

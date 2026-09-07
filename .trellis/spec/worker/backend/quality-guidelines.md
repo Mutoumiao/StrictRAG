@@ -13,6 +13,7 @@
 | 扫描在 parse 前 | `stage=scan` 通过后才 `parse` / 写 manifest（ADR-039） |
 | 分片策略 | 读 `documents.chunkStrategy`；**禁止**第二注册表；**仅**执行 contracts `IMPLEMENTED_CHUNK_STRATEGIES`（X-03） |
 | 依赖方向 | **禁止** `import` `apps/api/**`（X-18） |
+| 失败 Webhook 不阻断 | `recordStageEnd` 在 `errorCode` 时可 POST；空 URL 不发；HTTP/网络错只 warn；**禁止**因 webhook 失败改入库终态或抛出；**禁止**在 pipeline 各 `status=failed` 再发一遍 |
 
 ## 技术债：QUAL-2 / DEC-SCAN（2026-08-12）
 
