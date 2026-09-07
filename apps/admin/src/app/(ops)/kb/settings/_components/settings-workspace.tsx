@@ -1,14 +1,14 @@
 'use client';
 
 /**
- * 知识库设置薄页：基本信息 / 语料分级 / 部门强制 / 部门继承 / 问答档位 / 质量只读 / rewrite 锁。
+ * 知识库设置薄页：基本信息 / 语料分级 / 部门强制 / 部门继承 / 问答档位 / 质量只读 / rewrite 锁 / 修改日志。
  * 禁止 τ 滑块与 rewrite 开关。sensitive ≠ 解禁。强制勾选 ≠ 仓库默认开 / 解禁 / ES。
  * 未改 inherit 勾选不得 PATCH deptInheritDown（GET 缺省 true 不可写回盖 env）。
  * 未改强制勾选不得 PATCH deptAclEnforce（GET 缺省 false 不可写回钉成显式关）。
  */
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import type { AskMode, DataClass, KbSettings } from '@strict-rag/contracts';
+import type { AskMode, DataClass, KbSettings, KbSettingsAuditItem } from '@strict-rag/contracts';
 import { Button } from '@strict-rag/ui/components/ui/button';
 import { Input } from '@strict-rag/ui/components/ui/input';
 import { Label } from '@strict-rag/ui/components/ui/label';
@@ -17,8 +17,11 @@ import { useAdminAuth } from '@/components/auth-guard';
 import { readStoredKbId } from '@/lib/kb-context';
 
 import {
+  formatSettingsAuditValue,
   loadKbBindings,
   loadKbSettings,
+  loadKbSettingsAudit,
+  NO_SETTINGS_AUDIT_HINT,
   parseDocTypesInput,
   saveKbBindings,
   saveKbSettings,
@@ -34,6 +37,7 @@ export function SettingsWorkspace() {
 
   const [kbId, setKbId] = useState('');
   const [settings, setSettings] = useState<KbSettings | null>(null);
+  const [auditItems, setAuditItems] = useState<KbSettingsAuditItem[]>([]);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [allowedModes, setAllowedModes] = useState<AskMode[]>(['balanced']);
@@ -66,6 +70,7 @@ export function SettingsWorkspace() {
     setKbId(id);
     if (!id) {
       setSettings(null);
+      setAuditItems([]);
       setState('idle');
       setError(null);
       return;
@@ -84,6 +89,8 @@ export function SettingsWorkspace() {
       return;
     }
     applySettings(result.settings);
+    const audits = await loadKbSettingsAudit(id);
+    setAuditItems(audits.ok ? audits.items : []);
     const binds = await loadKbBindings(id);
     if (binds.ok) {
       const primary = binds.bindings.embed?.primary ?? '';
@@ -145,6 +152,8 @@ export function SettingsWorkspace() {
       applySettings(result.settings);
       setFlash(result.text);
       setState('ready');
+      const audits = await loadKbSettingsAudit(id);
+      setAuditItems(audits.ok ? audits.items : []);
     } else {
       setFlash(result.message);
     }
@@ -351,6 +360,33 @@ export function SettingsWorkspace() {
             {busy ? '保存中…' : '保存'}
           </Button>
         </form>
+      )}
+
+      {settings && (
+        <section className="space-y-3 rounded-lg border border-border p-4">
+          <h2 className="text-sm font-semibold">修改日志</h2>
+          {auditItems.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{NO_SETTINGS_AUDIT_HINT}</p>
+          ) : (
+            <ul className="space-y-3 text-sm">
+              {auditItems.map((row) => (
+                <li key={row.id} className="space-y-1">
+                  <p className="text-muted-foreground">
+                    {row.createdAt ?? '—'} · {row.actorUserId}
+                  </p>
+                  <ul className="m-0 list-disc ps-4">
+                    {Object.entries(row.diff).map(([field, change]) => (
+                      <li key={field}>
+                        {field}：{formatSettingsAuditValue(change.from)} →{' '}
+                        {formatSettingsAuditValue(change.to)}
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       )}
 
       {!settings && state === 'idle' && !kbId && (

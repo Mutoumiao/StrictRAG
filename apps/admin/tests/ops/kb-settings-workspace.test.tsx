@@ -17,6 +17,7 @@ const me = {
 
 const loadKbSettings = vi.fn();
 const saveKbSettings = vi.fn();
+const loadKbSettingsAudit = vi.fn();
 
 vi.mock('@/components/auth-guard', () => ({
   useAdminAuth: () => ({
@@ -35,6 +36,7 @@ vi.mock('@/app/(ops)/kb/settings/services', async (importOriginal) => {
     ...actual,
     loadKbSettings: (...args: unknown[]) => loadKbSettings(...args),
     saveKbSettings: (...args: unknown[]) => saveKbSettings(...args),
+    loadKbSettingsAudit: (...args: unknown[]) => loadKbSettingsAudit(...args),
     loadKbBindings: (...args: unknown[]) => loadKbBindings(...args),
     saveKbBindings: (...args: unknown[]) => saveKbBindings(...args),
   };
@@ -63,9 +65,11 @@ describe('SettingsWorkspace', () => {
     me.permissions = [];
     loadKbSettings.mockReset();
     saveKbSettings.mockReset();
+    loadKbSettingsAudit.mockReset();
     loadKbBindings.mockReset();
     saveKbBindings.mockReset();
     loadKbBindings.mockResolvedValue({ ok: true, bindings: {} });
+    loadKbSettingsAudit.mockResolvedValue({ ok: true, items: [] });
     localStorage.clear();
   });
 

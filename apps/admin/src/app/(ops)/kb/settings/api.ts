@@ -8,6 +8,7 @@
 import type {
   ChunkStrategyCatalogResponse,
   KbSettings,
+  KbSettingsAuditItem,
   PatchKbChunkStrategiesBody,
   PatchKbSettingsBody,
   PlatformBindings,
@@ -22,6 +23,10 @@ export async function getKbSettings(kbId: string) {
 
 export async function patchKbSettings(kbId: string, body: PatchKbSettingsBody) {
   return http.patch<KbSettings>(`/api/v1/knowledge-bases/${kbId}/settings`, body);
+}
+
+export async function listKbSettingsAudit(kbId: string) {
+  return http.get<KbSettingsAuditItem[]>(`/api/v1/knowledge-bases/${kbId}/settings-audit`);
 }
 
 export async function getKbModelBindings(kbId: string) {

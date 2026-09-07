@@ -4,11 +4,25 @@
  * 知识库设置用例：加载 / 保存（无 path；不做权限决策）。
  */
 
-import type { KbSettings, PatchKbSettingsBody, PlatformBindings, PutPlatformBindingsBody } from '@strict-rag/contracts';
+import type {
+  KbSettings,
+  KbSettingsAuditItem,
+  PatchKbSettingsBody,
+  PlatformBindings,
+  PutPlatformBindingsBody,
+} from '@strict-rag/contracts';
 
 import { mapBizError } from '@/lib/map-biz-error';
 
-import { getKbModelBindings, getKbSettings, patchKbSettings, putKbModelBindings } from './api';
+import {
+  getKbModelBindings,
+  getKbSettings,
+  listKbSettingsAudit,
+  patchKbSettings,
+  putKbModelBindings,
+} from './api';
+
+export const NO_SETTINGS_AUDIT_HINT = '暂无修改日志';
 
 export type LoadSettingsResult =
   | { ok: true; settings: KbSettings }
@@ -36,6 +50,31 @@ export async function saveKbSettings(
     return { ok: true, settings, text: '已保存' };
   } catch (err) {
     return { ok: false, message: mapBizError(err) };
+  }
+}
+
+export type LoadSettingsAuditResult =
+  | { ok: true; items: KbSettingsAuditItem[] }
+  | { ok: false; message: string; items: KbSettingsAuditItem[] };
+
+export async function loadKbSettingsAudit(kbId: string): Promise<LoadSettingsAuditResult> {
+  try {
+    const items = await listKbSettingsAudit(kbId);
+    return { ok: true, items };
+  } catch (err) {
+    return { ok: false, message: mapBizError(err), items: [] };
+  }
+}
+
+export function formatSettingsAuditValue(value: unknown): string {
+  if (value === undefined) return '—';
+  if (value === null) return 'null';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
   }
 }
 
