@@ -10,6 +10,7 @@
 |------|------|----------|
 | `ask/` | ask 相关表形状 | `prds/03-data` |
 | `ingest/` | 文档/部门列 | P3b-META |
+| `kb/` | 知识库设置修改日志表 | 功能表 §4.2 |
 | `acl/` | 跨部门 grant 表 | DEPT_ACL |
 | `retrieve/` | ready∧active 纯函数 | 质量红线；R7 附录 |
 | `env/` | 写库时间格式 | ORM PRD |
@@ -24,6 +25,7 @@
 | `env/local-datetime.test.ts` | 写库时间必须是本地 yyyy-MM-dd HH:mm:ss 格式串，失败则 ORM 时间契约不成立。 | prds/02-engineering/02-orm-drizzle.md | `formatLocalDateTime` | 断言输出形状为本地日期时间串。 | 现行 |
 | `ingest/documents-schema.test.ts` | 文档表必须含部门与可见级列，且 id / 时间列策略不变。 | P3b-META | `documents` | 核对 ownerDeptId / visibilityLevel 及本地时间、uuid；强制未接。 | 现行 |
 | `ingest/ingest-reports-schema.test.ts` | 入库报告表必须暴露 doc+indexVersion 唯一约束与事实列。 | 功能表 §5.2 | `ingestReports` | 不含跨 doc / Hit@k 列。 | 现行 |
+| `kb/settings-audits-schema.test.ts` | 知识库设置修改日志表必须暴露租户 / 库 / 操作者与 diff_json。 | 功能表 §4.2 | `kbSettingsAudits` | 无密钥 / τ 列。 | 现行 |
 | `ingest/chunk-strategy-schema.test.ts` | 分片策略三层表必须暴露平台定义与库启用列。 | 功能表 §4.5 · ADR-053 | `chunkStrategyDefinitions · kbChunkStrategies` | 核对 code / docFamilies / recommendedFamilies。 | 现行 |
 | `retrieve/ready-active-gate.test.ts` | 默认检索闸只放行 ready∧active，其它状态或生命周期不得进入默认检索集。 | 双就绪闸（P0 R7 附录；主锚在 api corpus） | `isDefaultRetrievable · filterDefaultRetrievable` | 纯函数过滤；R7 生产路径在 api。 | 现行 |
 

@@ -92,6 +92,13 @@
       "when": 1756600000000,
       "tag": "0012_permission_definitions",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1756686400000,
+      "tag": "0013_kb_settings_audits",
+      "breakpoints": true
     }
   ]
 }
