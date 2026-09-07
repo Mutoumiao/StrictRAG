@@ -53,18 +53,22 @@
 | 层 | 值 | 说明 |
 |----|-----|------|
 | **L0 网关** | 边缘 RPM / WAF | **生产主闸**；本仓不实现全局限流（见 ops 文） |
-| **仓库默认 L1** | `ASK_RATE_LIMIT_RPM=0` | **关**；便于 dev/test/demo；仅 ask 路径 |
+| **仓库默认 L1 ask** | `ASK_RATE_LIMIT_RPM=0` | **关**；键 `ask:userId:kbId` · `askRateLimitStore` |
+| **仓库默认 L1 ingest** | `INGEST_RATE_LIMIT_RPM=0` | **关**；打在 complete 入队前；键 `ingest:tenantId:kbId` · **独立** `ingestRateLimitStore` |
+| **aux** | `QUOTA_PLANES` 含 `'aux'` | **只留常量，不跑** |
 | **PRD 试点目标** | 同步 **30/min/user** · stream 可更严（15） | 部署/试点 env **显式**设正数 |
-| 超限 | **429** `RATE_LIMITED` + 建议 `Retry-After` | `obs/rate-limit.ts` |
-| **禁止** | 把默认 0 写成「已满足试点 30」；或改仓库默认强制 30 导致本地全红；或把 L1 当集群配额 | |
+| 超限 | **429** `RATE_LIMITED`（**不**改码） | ask：`details.plane='ask'` + `ask_quota_exhausted`；ingest：`details.plane='ingest'`。**禁止** 200 空答 `answered` |
+| **禁止** | 把默认 0 写成「已满足试点 30」；或改仓库默认强制 30 导致本地全红；或把 L1 当集群配额；ask/ingest 共用 store | |
 
 ```typescript
 // routes/ask.ts — 路由只编排
 // 1) AskRequestSchema.safeParse
 // 2) sessionId 有则 resolveOwnedSession（本人本 KB）
-// 3) 限流 ASK_RATE_LIMIT_RPM（0=关）
+// 3) 限流 ASK_RATE_LIMIT_RPM（0=关；store=askRateLimitStore）
 // 4) executeAsk → 同步 ok() 或 createUIMessageStreamResponse（AI SDK）
 ```
+
+打满 ask **不**阻断 complete；打满 ingest **不**阻断 ask。测：`tests/obs/quota-planes.test.ts`。策略 SSOT：`docs/ops/rate-limit-and-metrics.md`。
 
 #### 流协议（AI SDK UI Message Stream · 实现 SSOT）
 
@@ -286,7 +290,8 @@ route
 | `GATEWAY_RERANK_FALLBACK_URL` | 空 | QUAL-3 第二 rerank 节点 |
 | `RERANK_MIN_NODES` | 按 `APP_ENV` | staging/prod 默认 2；dev/test 默认 1；见 [model-gateway](./model-gateway.md) §9 |
 | `SESSION_REWRITE_ENABLED` | `false` | dogfood 可 `true`；**禁止**仓库默认改 true |
-| `ASK_RATE_LIMIT_RPM` | `0` | 0=关闭 |
+| `ASK_RATE_LIMIT_RPM` | `0` | 0=关闭；ask 平面 |
+| `INGEST_RATE_LIMIT_RPM` | `0` | 0=关闭；ingest 平面（complete）；与 ask 分 store |
 | `AUTH_ENFORCE` | `false` | **不影响** ask 成员闸（始终 enforce 成员） |
 | `DEPT_ACL_ENFORCE` | `false` | 开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树（无树/缺节点只精确；grant 子树不读 inheritDown）；超管 `roleBypassesKbMembership` 绕过；列表同滤；ES 查询期已强制 tenantId+kbId，部门/ACL principals 查询期对称仍无 / **禁止**默认改 true |
 | `DEPT_INHERIT_DOWN` | `true` | 仅 `'false'` 关祖先；精确+grant 仍在；**禁止**默认改 false |
@@ -304,7 +309,8 @@ route
 | KB 不存在 | 404 |
 | 非成员（非 super_admin 旁路） | 403 |
 | sessionId 存在但不归属 | 404 |
-| 超 RPM | 429（限流开启时） |
+| 超 ask RPM | 429 `RATE_LIMITED`；`details.plane='ask'` + `ask_quota_exhausted`（限流开启时）；**禁止** 200 `answered` |
+| 超 ingest RPM | 429 `RATE_LIMITED`；`details.plane='ingest'`（complete 入队前；限流开启时） |
 | rerank 不可用 / 双节点全失败 | `abstained` + `rerank_unavailable`；**禁止** answered（QUAL-3） |
 | 空证据 / 库外 | `abstained` |
 | claim min 不达标 | `abstained`（min 否决） |

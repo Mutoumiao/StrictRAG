@@ -5,13 +5,13 @@
 | **Owner** | 后端 / 运维 |
 | **Backlog** | ARCH-P2-4 · `08-06-project-backlog` |
 | **状态** | 策略文档已落地（非进程内全局限流实现） |
-| **非目标** | 进程内全路由 RPM 当生产方案；Prometheus 全量；改仓库默认 `ASK_RATE_LIMIT_RPM` |
+| **非目标** | 进程内全路由 RPM 当生产方案；Prometheus 全量；改仓库默认 `ASK_RATE_LIMIT_RPM` / `INGEST_RATE_LIMIT_RPM`；Redis 集群配额；aux 运行时平面 |
 
 ---
 
 ## 1. 一句话
 
-**生产主闸在网关（L0）**；进程内 ask 固定窗口（L1）只是试点/防误打。  
+**生产主闸在网关（L0）**；进程内 ask / ingest 固定窗口（L1）只是试点/防误打，**非集群**。  
 `GET /metrics` **默认无鉴权**——生产须网络隔离或反向代理保护，**禁止**对公网裸暴露。
 
 ---
@@ -28,34 +28,42 @@
     · 生产主闸（本仓不实现）
     │
     ▼
-【L1】api 进程 · 仅 ask
-    · ASK_RATE_LIMIT_RPM（默认 0 = 关）
-    · 固定窗口 60s · 键 ask:userId:kbId
-    · 超限 → HTTP 429 · BizCode RATE_LIMITED
+【L1】api 进程 · ask 与 ingest 分平面
+    · ASK_RATE_LIMIT_RPM / INGEST_RATE_LIMIT_RPM（默认 0 = 关）
+    · 固定窗口 60s · 分 store · 分前缀
+    · ask 键 ask:userId:kbId · ingest 键 ingest:tenantId:kbId
+    · 超限 → HTTP 429 · BizCode RATE_LIMITED（不改业务码）
+    · aux 只留常量，本窗不跑
     │
     ▼
-ask 图 / 检索 / 生成 …
+ask 图 / complete 落 pending …
 ```
 
 | 层 | 作用域 | 配置 / 落点 | 多实例 | 生产角色 |
 |----|--------|-------------|--------|----------|
 | **L0 网关** | 入口流量 | 网关产品配置（非本 monorepo 代码） | 由网关集群负责 | **主闸** |
-| **L1 ask** | `POST …/ask` 仅此路径 | `ASK_RATE_LIMIT_RPM` · `apps/api/src/obs/rate-limit.ts` · `routes/ask.ts` | **进程内 Map，实例间不共享** | 试点 / 二次护栏 |
+| **L1 ask** | `POST …/ask` | `ASK_RATE_LIMIT_RPM` · `obs/rate-limit.ts` · `routes/ask.ts` | **进程内 Map，实例间不共享** | 试点 / 二次护栏 |
+| **L1 ingest** | `POST …/documents/:docId/complete` 入队前 | `INGEST_RATE_LIMIT_RPM` · 同上 · `routes/documents/index.ts` | **独立 ingest store，与 ask 不共享计数** | 试点 / 二次护栏 |
+| **aux** | 常量 `QUOTA_PLANES` 含 `'aux'` | 不接线 | — | 本窗不跑 |
 
 ### 2.1 L1 行为（代码锚）
 
-| 项 | 说明 |
-|----|------|
-| 默认 | `ASK_RATE_LIMIT_RPM=0` → **不限流**（dev / test / demo） |
-| 试点建议 | 部署 env **显式**设正数（如 `30`）；**禁止**把仓库默认 0 写成「已满足试点 30」 |
-| 算法 | 固定窗口（`windowMs` 默认 60_000） |
-| 键 | `askRateLimitKey(userId, kbId)` → `ask:${userId}:${kbId}` |
-| 超限响应 | `fail(…, BizCode.RATE_LIMITED, …, 429, { retryAfterSec })`；计数 `ask_rate_limited_total` |
-| 单测 | `apps/api/tests/obs/rate-limit.test.ts`（`ask route 429 RATE_LIMITED`） |
+| 项 | ask | ingest |
+|----|-----|--------|
+| 默认 | `ASK_RATE_LIMIT_RPM=0` → **不限流** | `INGEST_RATE_LIMIT_RPM=0` → **不限流** |
+| 试点建议 | 部署 env **显式**设正数（如 `30`） | 同上；**禁止**把仓库默认 0 写成已开试点 |
+| 算法 | 固定窗口（`windowMs` 默认 60_000） | 同 |
+| 键 | `askRateLimitKey(userId, kbId)` → `ask:${userId}:${kbId}` | `ingestRateLimitKey(tenantId, kbId)` → `ingest:${tenantId}:${kbId}` |
+| store | `askRateLimitStore` | `ingestRateLimitStore`（独立 Map） |
+| 超限响应 | 429 `RATE_LIMITED`；`details.plane='ask'` + `ask_quota_exhausted: true` | 429 `RATE_LIMITED`；`details.plane='ingest'` |
+| 指标 | `recordAskResult` / `recordLlmCall` / `recordRerank` 带 `plane=ask`；限流 `ask_rate_limited_total` | complete 成功或限流 `ingest_complete_total{plane=ingest}` |
+| 单测 | `tests/obs/rate-limit.test.ts` · `tests/obs/quota-planes.test.ts` | `tests/obs/quota-planes.test.ts` |
+
+打满 ask **不**阻断 complete；打满 ingest **不**阻断 ask。aux 平面常量可有、不打运行时。
 
 ```bash
 # 试点示例（仅部署会话；勿改仓库 .env 默认）
-ASK_RATE_LIMIT_RPM=30 pnpm --filter @strict-rag/api dev
+ASK_RATE_LIMIT_RPM=30 INGEST_RATE_LIMIT_RPM=30 pnpm --filter @strict-rag/api dev
 ```
 
 ### 2.2 明确否决
@@ -64,8 +72,10 @@ ASK_RATE_LIMIT_RPM=30 pnpm --filter @strict-rag/api dev
 |--------|------|
 | 进程内**全局限流**中间件当生产方案 | 与 ARCH 挂账一致；应放 L0 网关 |
 | 把 L1 Map 当集群配额 | 多副本各自窗口，可被打穿 |
-| 默认打开 `ASK_RATE_LIMIT_RPM>0` | 破坏 demo/test；试点用 env 显式开 |
-| 用限流「静默丢弃」代替 429 信封 | 须标准 `ApiFailure` + `RATE_LIMITED` |
+| 默认打开 `ASK_RATE_LIMIT_RPM>0` / `INGEST_RATE_LIMIT_RPM>0` | 破坏 demo/test；试点用 env 显式开 |
+| 用限流「静默丢弃」或 200 空答 `answered` 代替 429 信封 | 须标准 `ApiFailure` + `RATE_LIMITED`（web 认此码） |
+| 改 `RATE_LIMITED` 为新业务码 | 会破 web 429 文案 |
+| Redis 集群配额 / embed TPM / aux 运行时 | 本窗不做 |
 
 ---
 
@@ -78,7 +88,7 @@ ASK_RATE_LIMIT_RPM=30 pnpm --filter @strict-rag/api dev
 | 路径 | `GET /metrics`（**不**在 `/api/v1` 下） |
 | 鉴权 | **无**（与 `/health` 类似的运维面） |
 | 载荷 | `{ service: 'api', metrics: metricsSnapshot() }` — 进程内 counter 快照 |
-| 指标名例 | `ask_total` / `ask_ok` / `ask_fail` · `llm_call_total` · `rerank_total` · `ask_rate_limited_total` · `l3_rewrite_used_total` / `l3_coref_fail_total` / `l3_session_ask_total` / `l3_session_deepened_total` / `l3_topic_complaint_total` · `l3_guard_alert_total`（kind：`coref_fail_rate` / `rewrite_dogfood` / `topic_complaint` / `l2_stale`；除 dogfood 外闩后进程内关 rewrite，**≠** 写 env） |
+| 指标名例 | `ask_total` / `ask_ok` / `ask_fail`（`plane=ask`）· `llm_call_total` · `rerank_total` · `ask_rate_limited_total` · `ingest_complete_total`（`plane=ingest`）· `l3_rewrite_used_total` / `l3_coref_fail_total` / `l3_session_ask_total` / `l3_session_deepened_total` / `l3_topic_complaint_total` · `l3_guard_alert_total`（kind：`coref_fail_rate` / `rewrite_dogfood` / `topic_complaint` / `l2_stale`；除 dogfood 外闩后进程内关 rewrite，**≠** 写 env） |
 | 非目标 | Prometheus exposition 格式 / 直方图全量（→ 更后阶段） |
 | 代码 | `apps/api/src/app.ts` · `apps/api/src/obs/metrics.ts` |
 
@@ -133,3 +143,4 @@ curl -sS http://127.0.0.1:4000/metrics
 | 日期 | 内容 |
 |------|------|
 | 2026-08-12 | 初版 · ARCH-P2-4：L0/L1 分层 + `/metrics` 保护选项 A–C；否决进程内全局限流生产方案 |
+| 2026-09-07 | 三平面配额最小闭环：ask/ingest 分 store 固定窗口；aux 只留常量；指标带 `plane` |

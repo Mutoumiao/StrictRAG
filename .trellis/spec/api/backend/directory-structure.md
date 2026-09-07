@@ -9,7 +9,7 @@ apps/api/
   src/
     index.ts                 # listen 前 await 引导超管；失败 process.exit；SIGINT/SIGTERM → closeDb/closeQueue
     app.ts                   # createApp：requestId → secure → timeout → bodyLimit → auth → adminWriteAudit → routes → notFound/onError（**不**自动引导）
-    env.ts                   # Zod env（+ SUPER_ADMIN_EMAIL/PASSWORD 可选 + API_REQUEST_TIMEOUT_MS · API_JSON_BODY_LIMIT_BYTES …）
+    env.ts                   # Zod env（+ SUPER_ADMIN_EMAIL/PASSWORD 可选 + ASK_RATE_LIMIT_RPM · INGEST_RATE_LIMIT_RPM 默认 0 + API_REQUEST_TIMEOUT_MS · API_JSON_BODY_LIMIT_BYTES …）
     auth/
       types.ts
       middleware.ts          # attachAuth · requireAuth · requirePermission · WhenEnforced · requireKbMember · requireKbScope · evaluateKbMember · isAuthEnforceEnabled
@@ -26,7 +26,7 @@ apps/api/
     routes/
       auth.ts                # dev-login · refresh · /auth/me · export meRoutes（GET /me/permissions）· bootstrap ensureUserRoleCodes
       documents/             # ARCH-P1a 试点：按域目录（P1 入库 + B12 complete/reindex 闸 + P3b-META PATCH + complete 可写部门）
-        index.ts             # export documentRoutes · PATCH 部门/可见级/docType · complete/reindex · lifecycle 四态 · GET 列表 enforce 时同滤
+        index.ts             # export createDocumentRoutes / documentRoutes · PATCH 部门/可见级/docType · complete ingest 平面闸 · reindex · lifecycle 四态 · GET 列表 enforce 时同滤
         mappers.ts           # toListItem / toDetail 纯函数
       ingest-report.ts       # GET …/ingest-report（库级已落库行；doc.view WhenEnforced + 成员闸）
       chunks.ts              # B1 分片只读 list/detail（ADR-052）
@@ -71,7 +71,7 @@ apps/api/
       run-l2-golden.ts       # L2 批跑 CLI：进程内窗 + 末轮机械分；signoffEligible 恒 false
       # CLI 测例在 tests/eval/l1-cli.test.ts · l2-cli.test.ts
       seed-es-sparse-probe.ts # OPS-1：PG chunks → ES bulk + sample search
-    obs/                     # metrics · rate-limit · memory/ask tracer
+    obs/                     # metrics（plane=ask/ingest）· rate-limit（ask/ingest 分 store；aux 常量）· memory/ask tracer
     gates/                   # 上传体积 · 审批 scan
     ready/checks.ts
     lib/response.ts · pg-error.ts

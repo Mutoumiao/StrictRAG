@@ -188,7 +188,7 @@ index **不能**用来宣称「入库 / ask / 鉴权测全了」；那是 P0 红
 | `feedback/` | 答案反馈 |
 | `gateway/` | 模型网关绑定 / mock / 双节点 |
 | `eval/` | L1/L2 工程 seed（≠ 业务签字） |
-| `obs/` | 指标、限流、审计日志 |
+| `obs/` | 指标、限流、三平面配额、审计日志 |
 | `env/` | env 校验、ready/health、启动闸 |
 | `shell/` | admin 壳、菜单裁剪、Guard |
 | `ops/` | admin 薄运营页的界面行为 |

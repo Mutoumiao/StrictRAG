@@ -5,9 +5,9 @@
 | 路径 | `apps/api` |
 | 端口 | 4000 |
 | 成熟度 | **可演示**（已包含：P0/P1 入库 + S2 最小问答 + B1–B6 最小运营 API + B10 L1 工程 seed + B12 策略闸 + B13 反馈 API；演示依赖 mock ES / 通常走 mock Gateway；L1 **≠** 业务签字门禁） |
-| 默认依赖模式 | 检索：`RETRIEVE_ES_MODE=mock`（默认 mock ES；`http` 须 `ELASTICSEARCH_URL`）；鉴权：临时双 JWT，`AUTH_ENFORCE` **默认 `false`**；rewrite：`SESSION_REWRITE_ENABLED` **默认 false**（图边已落；dogfood 可开；**≠** 准出）；对象存储：默认 `local`（`STORAGE_MODE=s3` 走 RustFS / S3 兼容）；Gateway：`GATEWAY_MODE=''`（空按 `GATEWAY_BASE_URL` 推断，缺 URL 走 mock）；上传上限 `INGEST_MAX_FILE_BYTES=52_428_800`（50 MiB）/ 天花板 `INGEST_MAX_FILE_BYTES_CEILING=209_715_200`（200 MiB）；`LANGFUSE_ENABLED=false`；`OBS_MEMORY_TRACE=true`。**B3-W/B2-W**：ask 读取 platform 绑定 + **KB scope 绑定覆盖（只读 list，无 PUT KB 绑定 HTTP）**；**B4-W**：每请求从 DB `user_roles` hydrate；`DEPT_ACL_ENFORCE` **默认 `false`**（开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤且列表项带部门字段；`DEPT_INHERIT_DOWN` 默认 true；KB `deptInheritDown` 可覆盖 env；KB `deptAclEnforce` 可覆盖 env，未写跟 env，GET 未写回读 false；设置页可勾选，未改不写回；ES 查询期已强制 tenantId+kbId（共享索引安全隔离），部门/ACL principals 查询期对称仍无）；`MONGODB_URL` 空（非空时检索融合后批取 Mongo `chunk_bodies` 权威正文，缺块 fail-closed）；`ASK_RATE_LIMIT_RPM=0`；`SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` **可选**（无 active 超管时缺一则 **index.ts listen 前**失败；`createApp()` 不跑引导）；L1 CLI 需显式指定 `L1_KB_ID`（可选 `L1_PERSIST_EVAL`） |
+| 默认依赖模式 | 检索：`RETRIEVE_ES_MODE=mock`（默认 mock ES；`http` 须 `ELASTICSEARCH_URL`）；鉴权：临时双 JWT，`AUTH_ENFORCE` **默认 `false`**；rewrite：`SESSION_REWRITE_ENABLED` **默认 false**（图边已落；dogfood 可开；**≠** 准出）；对象存储：默认 `local`（`STORAGE_MODE=s3` 走 RustFS / S3 兼容）；Gateway：`GATEWAY_MODE=''`（空按 `GATEWAY_BASE_URL` 推断，缺 URL 走 mock）；上传上限 `INGEST_MAX_FILE_BYTES=52_428_800`（50 MiB）/ 天花板 `INGEST_MAX_FILE_BYTES_CEILING=209_715_200`（200 MiB）；`LANGFUSE_ENABLED=false`；`OBS_MEMORY_TRACE=true`。**B3-W/B2-W**：ask 读取 platform 绑定 + **KB scope 绑定覆盖（只读 list，无 PUT KB 绑定 HTTP）**；**B4-W**：每请求从 DB `user_roles` hydrate；`DEPT_ACL_ENFORCE` **默认 `false`**（开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤且列表项带部门字段；`DEPT_INHERIT_DOWN` 默认 true；KB `deptInheritDown` 可覆盖 env；KB `deptAclEnforce` 可覆盖 env，未写跟 env，GET 未写回读 false；设置页可勾选，未改不写回；ES 查询期已强制 tenantId+kbId（共享索引安全隔离），部门/ACL principals 查询期对称仍无）；`MONGODB_URL` 空（非空时检索融合后批取 Mongo `chunk_bodies` 权威正文，缺块 fail-closed）；`ASK_RATE_LIMIT_RPM=0`；`INGEST_RATE_LIMIT_RPM=0`（ask/ingest 分 store 试点限流；aux 只留常量）；`SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` **可选**（无 active 超管时缺一则 **index.ts listen 前**失败；`createApp()` 不跑引导）；L1 CLI 需显式指定 `L1_KB_ID`（可选 `L1_PERSIST_EVAL`） |
 | 关联模块 | 入库演示还需要 `worker` + PostgreSQL + Redis；契约 `@strict-rag/contracts`（含 `IMPLEMENTED_CHUNK_STRATEGIES` / `IngestJobData`）；schema `@strict-rag/db`（含 `eval_runs`）；L1 gold / RACI 在仓根 `fixtures/l1/`；L2 题面草案在 `fixtures/l2/` |
-| 最近更新 | 2026-09-07（KB settings 修改日志落表 + GET settings-audit；ARCH-P1b-2 仍不落表） |
+| 最近更新 | 2026-09-07（ask/ingest 分平面限流 + `plane` 指标；aux 不跑；KB settings 修改日志仍落表） |
 | Spec | `.trellis/spec/api/backend/`（含 [dashboard](../../.trellis/spec/api/backend/dashboard.md) · [l1-eval](../../.trellis/spec/api/backend/l1-eval.md) · [l2-eval](../../.trellis/spec/api/backend/l2-eval.md) · [l3-metrics](../../.trellis/spec/api/backend/l3-metrics.md)） |
 | PRD | `prds/05-api` · `04-pipelines` · `08-quality` · `09-security` |
 
@@ -107,7 +107,7 @@
 - Gateway 切片（`GATEWAY_MODE` mock/http；ask 走 `getGatewayForTenant`；Key 不进日志）；rerank 双节点：`GATEWAY_RERANK_FALLBACK_URL` + `RERANK_MIN_NODES`（staging/prod 默认 2；`services/gateway/resolve.ts`；QUAL-3 测）
 - **B2-W**：ask 入口校验 `mode∈allowedModes` / `defaultMode`；settings `docTypes` 读写 + scope 子集闸；τ 字段仍拒绝写入
 - 检索适配层（dense∥sparse → RRF → rerank；`RETRIEVE_ES_MODE` **默认 mock**；`http` = ES BM25 sparse **切片**（`es-sparse.ts`；查询期强制 tenantId+kbId `buildAclFilter`；ES 检索失败 → `sparse_unavailable`，缺 URL → `internal_guard`，**禁止**回落 mock）；服务端按 mode 注入 `retrieveK/rerankTopN`（fast 60/10，balanced/strict 150/20，客户端禁止透传）；`MONGODB_URL` 非空时融合后从 Mongo `chunk_bodies` 批取权威正文（`mongo-body.ts`；缺块 fail-closed），空 = 演示回退 PG `body_text`；**不等于**生产 ES+IK / 多租户 Router（B8））
-- 观测骨架：进程内 metrics、内存 tracer、ask 限流（`ASK_RATE_LIMIT_RPM` 默认 0 即关闭）、`/metrics` 端点**无鉴权**（生产保护策略见 `docs/ops/rate-limit-and-metrics.md` · ARCH-P2-4；**≠** 把进程内全局限流当生产方案）
+- 观测骨架：进程内 metrics、内存 tracer、**三平面配额最小闭环**（ask `ASK_RATE_LIMIT_RPM` / ingest `INGEST_RATE_LIMIT_RPM` 默认 0 即关闭；分 store / 分前缀；触顶 429 `RATE_LIMITED`，ask `details` 含 `plane=ask` + `ask_quota_exhausted`；complete 入队前打 ingest 闸；`recordAskResult` / llm / rerank 带 `plane=ask`，complete 成功或限流带 `plane=ingest`；aux 只留常量不跑）、`/metrics` 端点**无鉴权**（生产保护策略见 `docs/ops/rate-limit-and-metrics.md` · ARCH-P2-4；**≠** 把进程内全局限流当生产方案 / **≠** Redis 集群配额 / **≠** embed TPM）
 - **L3 打点+告警+进程内熔断部分**（P2.5-L3 / L3A / L3F / L2S）：`recordL3Ask` 记六键 + `l3_topic_complaint_total` + `l3_guard_alert_total{kind}`（`coref_fail_rate` / `rewrite_dogfood` / `topic_complaint` / `l2_stale`）；超阈或 dogfood 开 env 时 Pino warn（每 kind 每进程一闩）；`executeAsk` 传 `rewriteEnvOn`；`coref_fail_rate` / `topic_complaint` / `l2_stale` 闩后后续 ask 强制 `rewriteEnabled=false`（`isL3RewriteFused`；即使 env true 也 `rewriteUsed=false`；会话壳仍落 transcript）；`rewrite_dogfood` **不**熔；**无**写 env / **无**收窄窗 / **无**面板 / **≠** 准出（`obs/metrics.ts` · `services/ask/execute.ts` · `tests/obs/l3-rewrite-fuse.test.ts`）
 - **P0 红线单测已挂账**（清单见 `docs/testing/p0-redlines.md`；**不是** L1 黄金集评测、**也不是**远程 CI 门禁）：
   - **R7** `filterDocsForRetrieve` / `tests/ask/ready-active-corpus.test.ts`（生产装载路径；db 包的 `retrieval-gate` 为底层附录）
@@ -153,6 +153,7 @@
 | 生产 IdP | 仍是临时双 JWT；**B4-W** 已读 `user_roles` hydrate（≠ Better Auth / 密码登录）。启动引导只写 `password_hash`，**无**验密 HTTP。超管绑码写路径已锁全码 |
 | 成员 `allowedDocIds` / 检索 ACL 闸 | PUT 只改 `role`；`GET /me/permissions` 无 `byKb` |
 | 入库报告完整语义 | 库级 GET 已有最小事实行；**无** 跨 doc 冲突对 / `pending_review` / L0 vs L1 Hit@k |
+| 三平面配额全文 | ask/ingest 进程内 RPM 分 store 已落（默认 0=关）；**无** embed TPM / `maxEmbedCalls` / staging fail-closed / aux 运行时 / Redis 集群 / L0 网关 |
 
 ### 其他包的 UI / 产品面挂账（非本包义务）
 
@@ -210,11 +211,11 @@
 | 启动引导超管 | `index.ts` · `services/superadmin-bootstrap.ts` · `services/password-hash.ts` · `env.ts` `SUPER_ADMIN_*` · `tests/acl/superadmin-bootstrap.test.ts` |
 | 写路径锁超管全码 | `routes/platform-users-roles.ts` PUT/PATCH · `wouldChangeSuperAdminAwayFromFullCatalog` · `tests/acl/platform-users-roles.test.ts` |
 | Gateway 运行时 / 检索 | `apps/api/src/services/gateway/`（`getGatewayForTenant` · `bindings.ts` · `resolve.ts`）· `services/retrieve/`（`corpus.ts` · `es-sparse.ts`（`buildAclFilter`）· `mongo-body.ts` · `filterDocsForRetrieve`） |
-| 观测 | `apps/api/src/obs/` · `obs/metrics.ts` `isL3RewriteFused` · `tests/obs/l3-rewrite-fuse.test.ts` |
+| 观测 | `apps/api/src/obs/` · `obs/metrics.ts` `isL3RewriteFused` · `obs/rate-limit.ts` 分平面 store · `tests/obs/quota-planes.test.ts` · `tests/obs/l3-rewrite-fuse.test.ts` |
 | L1 工程 seed / followup 工程 | `fixtures/l1/gold.yaml` · `RACI.md` · `README.md` · `apps/api/src/eval/l1-matrix.ts` · `eval/adr046-snapshot.ts` · `scripts/run-l1-golden.ts` · `scripts/seed-es-sparse-probe.ts` · `packages/db/src/schema/ask/eval-runs.ts` · `docs/ops/live-retrieve-profile.md` · `turbo.json`（`L1_*` / `L1_PERSIST_EVAL`） |
 | P2 评测底线 HTTP | `apps/api/src/routes/eval.ts` · `services/gold-questions.ts` · `services/eval-runs.ts` · `tests/eval/http-gold-questions.test.ts` · `tests/eval/http-eval-runs.test.ts` |
 | L2 题面 + 工程 runner | `fixtures/l2/gold.yaml` · `README.md` · `RACI.md` · `sample-report.md` · `corpus/` · `apps/api/src/eval/l2-gold.ts` · `l2-fingerprint.ts` · `tests/eval/l2-gold.test.ts` · `scripts/run-l2-golden.ts` · `tests/eval/l2-cli.test.ts` · `turbo.json`（`L2_*`） |
-| 环境变量默认值 | `apps/api/src/env.ts`（`RETRIEVE_ES_MODE=mock` · `AUTH_ENFORCE=false` · `SESSION_REWRITE_ENABLED=false` · `SUPER_ADMIN_*` 可选）；L1 CLI 另读 `L1_KB_ID` 等（**非** `env.ts` Zod 必填） |
+| 环境变量默认值 | `apps/api/src/env.ts`（`RETRIEVE_ES_MODE=mock` · `AUTH_ENFORCE=false` · `SESSION_REWRITE_ENABLED=false` · `ASK_RATE_LIMIT_RPM=0` · `INGEST_RATE_LIMIT_RPM=0` · `SUPER_ADMIN_*` 可选）；L1 CLI 另读 `L1_KB_ID` 等（**非** `env.ts` Zod 必填） |
 | 单测 | `apps/api/tests/<能力>/`；导航 `apps/api/tests/index.md`；HOW：`.trellis/spec/guides/testing.md` |
 | P0 红线 | `docs/testing/p0-redlines.md` · `tests/ask/ready-active-corpus.test.ts`（R7）· `tests/ask/min-veto.test.ts`（R8）· `tests/ask/verify-required.test.ts`（R9） |
 | Task（辅证 · 08-11 归档） | `archive/2026-08/08-11-b12-chunk-strategies` · `08-11-b13-feedback-ui` · `08-11-b2-w-kb-settings-wire` · `08-11-b3-w-gateway-read-db` · `08-11-b4-w-jwt-db-roles` · `08-11-b10-followup-eval-runs` · `08-11-ops-live-retrieve-profile` · `08-11-qual-auth-enforce-redline` · `08-11-qual-rerank-dual-node` · `08-11-qual-scan-engine`（QUAL-2 延期） |

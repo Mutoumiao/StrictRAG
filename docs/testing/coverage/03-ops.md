@@ -80,7 +80,7 @@ P1/P3/P4/P6 为 P2 配置/单测必签。`online_sample` 未启 → P4/P5/P7–P
 
 ## 剧本 R · 三平面配额与 embed 预算
 
-R1–R6、R8–R10 为 P2 必签。R7/R11/R12 在启用对应路径时签。源码现无 `plane` / `maxEmbedCalls` / TPM 配额。
+R1–R6、R8–R10 为 P2 必签。R7/R11/R12 在启用对应路径时签。ask/ingest 进程内 RPM 分平面已落（默认 0=关）；无 `maxEmbedCalls` / embed TPM；aux 只留常量。
 
 | ID | 期望摘要 | 阶段 | 形态 | 覆盖 | 主包 | 证据 | 缺口 |
 |----|----------|------|------|------|------|------|------|
@@ -88,13 +88,13 @@ R1–R6、R8–R10 为 P2 必签。R7/R11/R12 在启用对应路径时签。源�
 | R2 | route/grade/generate/verify 不直接调用 embed | P2必签 | 单测 | 已测 | api | apps/api/tests/ask/embed-budget.test.ts | 注入 retrieve 且 `retrieveDeps.embed` 已接线 → spy 0 次；chat 仅 generate/claim_split/judge。P2 图无 grade 节点。 |
 | R3 | ask 路径对 evidence body 再 embed → 失败或禁止 | P2必签 | 单测 | 已测 | api | apps/api/tests/ask/embed-budget.test.ts | embed 参数仅为 `[question]`，不得传入 chunk.text |
 | R4 | runtime 配 `maxEmbedCalls` → 启动 warning；行为 ≡ 无该字段 | P2必签 | 单测 | 缺实现 | api | apps/api/src/env.ts · apps/api/src/graph/budget.ts（仅 maxLLM/maxRetrieve） | 无 `maxEmbedCalls` 字段。 |
-| R5 | 打满 ingest 配额 → ask 仍可达；打满 ask 不阻断 ingest | P2必签 | 注入 | 缺实现 | api | — | 无三平面配额。ask 429 是 RPM 闸（`obs/rate-limit.test.ts`），不是平面配额。 |
+| R5 | 打满 ingest 配额 → ask 仍可达；打满 ask 不阻断 ingest | P2必签 | 注入 | 已测 | api | apps/api/tests/obs/quota-planes.test.ts | 进程内分 store 注入；≠ Redis 集群。complete 代表 ingest 闸。 |
 | R6 | mock embed TPM 触顶 → 队列堆积+告警；文档非 ready 直至清单全 embed；无半套 ready | P2必签 | 注入 | 缺实现 | worker | apps/worker/tests/ingest/embed-es-serial.test.ts（双就绪，非 TPM） | 无 ingest TPM/配额。 |
 | R7 | contextualize 429 耗尽 → L0 索引路径；`contextualize_l0_fallback`；ask 不受影响 | 启用 L1 路径时 | 注入 | 延后 | worker | — | 无 contextualize 实现。 |
-| R8 | ask 平面触顶 → 429/503 或强制 fast；不 200 空答 answered；`ask_quota_exhausted` | P2必签 | 单测 | 缺实现 | api | apps/api/tests/obs/rate-limit.test.ts（`RATE_LIMITED`，非平面配额） | 无 `ask_quota_exhausted`。 |
-| R9 | 指标三维：ask 调用 `plane=ask`；入库 embed `plane=ingest`；purpose 可区分 | P2必签 | 单测 | 缺实现 | api | apps/api/tests/obs/metrics.test.ts（`purpose` 标签，无 `plane`） | 无 `plane=` 标签。 |
-| R10 | staging 缺 plane 配额 → warning + 安全默认；非无限流裸奔 | P2必签 | 单测 | 缺实现 | api | apps/api/src/env.ts | 无 plane 配额启动闸。 |
-| R11 | rerank 打点 `plane=ask`；仍不计 maxLLM/maxRetrieve | 启用对应路径时 | 单测 | 延后 | api | apps/api/tests/obs/metrics.test.ts（`recordRerank` 无 plane） | rerank 计数有；无 plane。 |
+| R8 | ask 平面触顶 → 429/503 或强制 fast；不 200 空答 answered；`ask_quota_exhausted` | P2必签 | 单测 | 已测 | api | apps/api/tests/obs/quota-planes.test.ts · apps/api/tests/obs/rate-limit.test.ts · apps/web/tests/ask/quota-429.test.tsx | 429 `RATE_LIMITED` + `details.plane=ask` + `ask_quota_exhausted`；不 200 answered。未做 503 / 强制 fast。 |
+| R9 | 指标三维：ask 调用 `plane=ask`；入库 embed `plane=ingest`；purpose 可区分 | P2必签 | 单测 | 部分测 | api | apps/api/tests/obs/quota-planes.test.ts · apps/api/tests/obs/metrics.test.ts | ask/llm/rerank 带 `plane=ask`；complete 成功或限流带 `plane=ingest`。入库 embed 未打 `plane=ingest`；无 TPM。 |
+| R10 | staging 缺 plane 配额 → warning + 安全默认；非无限流裸奔 | P2必签 | 单测 | 缺实现 | api | apps/api/src/env.ts | 无 plane 配额启动闸。两 RPM 默认 0=关，≠ staging fail-closed。 |
+| R11 | rerank 打点 `plane=ask`；仍不计 maxLLM/maxRetrieve | 启用对应路径时 | 单测 | 延后 | api | apps/api/tests/obs/metrics.test.ts · quota-planes.test.ts（`recordRerank` 已带 plane=ask） | 标签已有；预算隔离路径仍延后。 |
 | R12 | `eval.run` / online_sample 打点 `plane=aux`；失败不影响 ask | 启用对应路径时 | 单测 | 延后 | api | — | aux 平面未开。 |
 
 ## 剧本 T · 业务线加严 / 放宽门禁
@@ -185,12 +185,12 @@ Phase 4 建议，**不挡 P2** → 默认延后。I2 指标可部分测。
 | N | 9 | 0 | 0 | 1 | 0 | 0 | 8 |
 | O | 11 | 1 | 1 | 0 | 1 | 8 | 0 |
 | P | 11 | 0 | 3 | 0 | 1 | 7 | 0 |
-| R | 12 | 3 | 0 | 0 | 6 | 3 | 0 |
+| R | 12 | 5 | 1 | 0 | 3 | 3 | 0 |
 | T | 10 | 3 | 5 | 0 | 0 | 2 | 0 |
 | AB | 8 | 3 | 4 | 0 | 1 | 0 | 0 |
 | AC | 9 | 5 | 3 | 0 | 1 | 0 | 0 |
 | AD | 10 | 4 | 4 | 0 | 2 | 0 | 0 |
 | I | 5 | 0 | 1 | 0 | 0 | 4 | 0 |
-| **合计** | **93** | **19** | **24** | **1** | **16** | **24** | **9** |
+| **合计** | **93** | **21** | **25** | **1** | **13** | **24** | **9** |
 
 ID 闭集（93）：C1–C5；G1–G3；N1–N9；O1–O11；P1–P11；R1–R12；T1–T10；AB1–AB8；AC1–AC9；AD1–AD10；I1–I5。

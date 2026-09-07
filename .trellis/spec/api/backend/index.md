@@ -30,6 +30,7 @@
 - [ ] 是否误把 L2 persist / `evalRunId` / 工程 `signoffEligible=true` 写成准出 PASS？  
 - [ ] 无合格 L2 归档时写产品默认开 rewrite 是否 400 `SESSION_REWRITE_DISABLED`（dogfood env 旁路保留）？  
 - [ ] 触及 L3 打点/告警/熔断时是否读 [l3-metrics](./l3-metrics.md)（打点+告警+主题投诉 + L2 过期闩 + 进程内熔断；`rewrite_dogfood` **不**熔；**禁止**写 env / 收窄窗；**禁止**每问查 `eval_runs`）？  
+- [ ] 触及限流/配额时是否读 [ask-pipeline](./ask-pipeline.md) X-28（ask/ingest 分 store；触顶 429 `RATE_LIMITED`；**禁止**改码 / 默认 RPM 改正数 / 进程内全路由中间件）？  
 - [ ] 新测例是否按 [testing](../../guides/testing.md) 落 `tests/<能力>/` 并更新 `tests/index.md`（禁止再同域镜像）？  
 
 ## Quality Check

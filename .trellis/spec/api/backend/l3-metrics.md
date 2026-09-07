@@ -36,7 +36,7 @@ recordL3Ask({ rewriteUsed, reason, hasSession, sessionDeepened?, documentBackref
 | `l3_external_backref_total` | `externalBackref === true`（可选；缺省当 false；**≠** 自动熔断） |
 
 接线：`executeAsk` 在 `recordAskResult` **之后**调用，并传 `rewriteEnvOn: env.SESSION_REWRITE_ENABLED`。`skipTrace` 批跑也计（与 ask 结果同源）。  
-`documentBackref` **由**图 retrieve 写入；`externalBackref` **由** `rawQuestion` 判定写入；`rewriteEnvOn` **由** `executeAsk` 传入；本文件打点 + 闩告警。**不**改 `recordAskResult` 签名。**不**新建 `obs/l3.ts`。**禁止**按计数或告警改 env / 窗。
+`documentBackref` **由**图 retrieve 写入；`externalBackref` **由** `rawQuestion` 判定写入；`rewriteEnvOn` **由** `executeAsk` 传入；本文件打点 + 闩告警。**不**改 `recordAskResult` 签名（标签另带 `plane=ask`，见配额 HOW）。**不**新建 `obs/l3.ts`。**禁止**按计数或告警改 env / 窗。
 
 ---
 

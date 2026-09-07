@@ -60,7 +60,7 @@ resolveDocumentChunkStrategy({ existing, requested, requireExplicit? })
 |------|----------|
 | `GET …/chunk-strategies` · `/schema` · `PATCH` | `kb.config.write`；PATCH 写 `kb_chunk_strategies` |
 | `GET …/chunk-strategies/for-upload?contentType=` | 库启用 ∩ 文档族 ∩ **implemented**；仅 1 个 → `autoCode`；≥2 → `requireExplicit` |
-| complete | 走 for-upload available：仅 1 个可省略自动；≥2 未选 → 400；写入 `chunk_strategy` + `chunk_strategy_params` 快照 |
+| complete | 走 for-upload available：仅 1 个可省略自动；≥2 未选 → 400；写入 `chunk_strategy` + `chunk_strategy_params` 快照。**ingest 平面闸**在落 pending 前（`INGEST_RATE_LIMIT_RPM`，默认 0）；触顶 429 `RATE_LIMITED` `details.plane=ingest` |
 | reindex | 同上 available 计数；既有已实现且仍 available 可省略保留；脏未实现省略 → 400 |
 
 ### Wire 字段名（X-12 · ADR-059）

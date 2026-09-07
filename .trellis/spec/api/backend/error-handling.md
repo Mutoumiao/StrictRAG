@@ -47,7 +47,7 @@ import {
 | `SERVICE_UNAVAILABLE` | 503 | `BizCode.SERVICE_UNAVAILABLE` | |
 | `KB_NOT_READY` | 409 | `BizCode.KB_NOT_READY` | 保留短名；**ask 主路径不用**。空库 = 200 + `reason=kb_not_ready` |
 | `SESSION_REWRITE_DISABLED` | 400 | `BizCode.SESSION_REWRITE_DISABLED` | ADR-047 |
-| `RATE_LIMITED` | 429 | `BizCode.RATE_LIMITED` | |
+| `RATE_LIMITED` | 429 | `BizCode.RATE_LIMITED` | ask：`details.plane='ask'` + `ask_quota_exhausted`；ingest complete：`details.plane='ingest'`。**禁止**改码 / 200 空答 |
 | `INVALID_CREDENTIALS` | 401 | `BizCode.INVALID_CREDENTIALS` | 登录域；须在 §4 可检索或并入 UNAUTHORIZED 叙事 |
 | `RULE_VIOLATION` | 400/422 | `BizCode.RULE_VIOLATION` | 业务规则；优先能映射则用 VALIDATION/CONFLICT |
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | `BizCode.UNSUPPORTED_MEDIA_TYPE` | 上传 MIME |
