@@ -31,12 +31,14 @@
 | 方法 | 路径 | 中间件 | 说明 |
 |------|------|--------|------|
 | `GET` | `/api/v1/knowledge-bases/:kbId/settings` | `requirePermission('kb.config.write')` | 含 quality + rewrite 锁 |
-| `PATCH` | `/api/v1/knowledge-bases/:kbId/settings` | 同上 | body 白名单；写 Pino diff |
+| `PATCH` | `/api/v1/knowledge-bases/:kbId/settings` | 同上 | body 白名单；写 Pino diff；**diff 非空时插入 `kb_settings_audits` 一行** |
+| `GET` | `/api/v1/knowledge-bases/:kbId/settings-audit` | 同上（不新码） | 该库已落行，新在前，上限 50；空列表 200；缺库 404 |
 
 ```typescript
 // apps/api/src/routes/kb-settings.ts
 export function createKbSettingsRoutes(deps?: {
   repo?: KbSettingsRepo;
+  auditRepo?: KbSettingsAuditRepo;
   qualitySnapshot?: () => QualitySnapshot;
   resolveKbMember?: ResolveKbMember;
 })
@@ -81,7 +83,8 @@ export function createKbSettingsRoutes(deps?: {
 | `qualitySnapshot` | `{ tauClaim, gatePackageId?, effectiveAt? }`；τ ← `env.TAU_CLAIM` |
 | `sessionRewrite` | **固定** `{ enabledDefault: false, locked: true }`；写 `enabledDefault=true` 且无合格 L2 归档 → `SESSION_REWRITE_DISABLED`；有归档本窗仍锁只读 |
 
-**持久化**：`name`/`description` → 列；modes / `docTypes` / `dataClass` / `deptInheritDown` / `deptAclEnforce` → `knowledge_bases.config_json`。无 migration。  
+**持久化**：`name`/`description` → 列；modes / `docTypes` / `dataClass` / `deptInheritDown` / `deptAclEnforce` → `knowledge_bases.config_json`。  
+**修改日志**：PATCH 成功且 `merged.diff` 非空时插入 `kb_settings_audits`（`actorUserId` = 令牌 userId；`tenantId` = 令牌租户，缺则 `DEV_DEFAULT_TENANT`）。空 diff / 失败 PATCH **不写**。列表 DTO：`id` / `kbId` / `actorUserId` / `createdAt` / `diff`；**禁止**密钥字段。ARCH-P1b-2 `admin_write` 中间件仍是 Pino、**不**落表。  
 运行时：`parseDeptInheritDownFromConfig` 仅认字面 true/false；未写 → `isDeptInheritDown()`。GET 回读未写仍展示 true。admin 设置页可勾选；**未改不得带该键**。  
 `parseDeptAclEnforceFromConfig` 仅认字面 true/false；未写 → `isDeptAclEnforced()`。GET 未写回读 false（与运行时未写跟 env 不同）。admin 设置页可勾选；**未改不得带该键**。
 
@@ -107,6 +110,7 @@ export function createKbSettingsRoutes(deps?: {
 | 测 | 断言 |
 |----|------|
 | `tests/kb/settings-http.test.ts` | doc_operator 403；非成员 403；GET quality+锁+`dataClass=internal`；PATCH 回读；PATCH `dataClass`；非法 `dataClass` 400；τ/sessionRewrite 400；defaultMode 越界 400；未知 KB 404 |
+| `tests/kb/settings-audit-http.test.ts` | PATCH 有 diff → GET 见该行；空 diff 不增行；失败 PATCH 不写；无码 403；空列表 200；缺库 404 |
 | `packages/contracts/tests/kb/settings-contract.test.ts` | strict 拒禁字段；modes 去重；sessionRewrite 形状；`dataClass` 缺省 internal |
 
 ### 7. Wrong vs Correct
@@ -125,6 +129,7 @@ requirePermission('kb.config.write', { resolveKbMember })
 PatchKbSettingsBodySchema.safeParse(raw) // .strict()
 sessionRewrite: { enabledDefault: false, locked: true }
 // 变更：childLogger.info({ event: 'kb_settings_patch', diff })
+// diff 非空 → auditRepo.insert；GET …/settings-audit 读已落行
 ```
 
 ---

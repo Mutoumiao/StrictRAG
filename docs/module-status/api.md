@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（已包含：P0/P1 入库 + S2 最小问答 + B1–B6 最小运营 API + B10 L1 工程 seed + B12 策略闸 + B13 反馈 API；演示依赖 mock ES / 通常走 mock Gateway；L1 **≠** 业务签字门禁） |
 | 默认依赖模式 | 检索：`RETRIEVE_ES_MODE=mock`（默认 mock ES；`http` 须 `ELASTICSEARCH_URL`）；鉴权：临时双 JWT，`AUTH_ENFORCE` **默认 `false`**；rewrite：`SESSION_REWRITE_ENABLED` **默认 false**（图边已落；dogfood 可开；**≠** 准出）；对象存储：默认 `local`（`STORAGE_MODE=s3` 走 RustFS / S3 兼容）；Gateway：`GATEWAY_MODE=''`（空按 `GATEWAY_BASE_URL` 推断，缺 URL 走 mock）；上传上限 `INGEST_MAX_FILE_BYTES=52_428_800`（50 MiB）/ 天花板 `INGEST_MAX_FILE_BYTES_CEILING=209_715_200`（200 MiB）；`LANGFUSE_ENABLED=false`；`OBS_MEMORY_TRACE=true`。**B3-W/B2-W**：ask 读取 platform 绑定 + **KB scope 绑定覆盖（只读 list，无 PUT KB 绑定 HTTP）**；**B4-W**：每请求从 DB `user_roles` hydrate；`DEPT_ACL_ENFORCE` **默认 `false`**（开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤且列表项带部门字段；`DEPT_INHERIT_DOWN` 默认 true；KB `deptInheritDown` 可覆盖 env；KB `deptAclEnforce` 可覆盖 env，未写跟 env，GET 未写回读 false；设置页可勾选，未改不写回；ES 查询期已强制 tenantId+kbId（共享索引安全隔离），部门/ACL principals 查询期对称仍无）；`MONGODB_URL` 空（非空时检索融合后批取 Mongo `chunk_bodies` 权威正文，缺块 fail-closed）；`ASK_RATE_LIMIT_RPM=0`；`SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` **可选**（无 active 超管时缺一则 **index.ts listen 前**失败；`createApp()` 不跑引导）；L1 CLI 需显式指定 `L1_KB_ID`（可选 `L1_PERSIST_EVAL`） |
 | 关联模块 | 入库演示还需要 `worker` + PostgreSQL + Redis；契约 `@strict-rag/contracts`（含 `IMPLEMENTED_CHUNK_STRATEGIES` / `IngestJobData`）；schema `@strict-rag/db`（含 `eval_runs`）；L1 gold / RACI 在仓根 `fixtures/l1/`；L2 题面草案在 `fixtures/l2/` |
-| 最近更新 | 2026-09-07（写路径锁超管全码；PUT/PATCH 改少 400；≠ 引导页 / ≠ 密码登录） |
+| 最近更新 | 2026-09-07（KB settings 修改日志落表 + GET settings-audit；ARCH-P1b-2 仍不落表） |
 | Spec | `.trellis/spec/api/backend/`（含 [dashboard](../../.trellis/spec/api/backend/dashboard.md) · [l1-eval](../../.trellis/spec/api/backend/l1-eval.md) · [l2-eval](../../.trellis/spec/api/backend/l2-eval.md) · [l3-metrics](../../.trellis/spec/api/backend/l3-metrics.md)） |
 | PRD | `prds/05-api` · `04-pipelines` · `08-quality` · `09-security` |
 
@@ -54,6 +54,7 @@
 - 始终强制 `requirePermission('kb.config.write')`；知识库作用域要求调用者是成员（超级管理员可旁路）
 - `qualitySnapshot.tauClaim` 只读（取自 `env.TAU_CLAIM`）；`sessionRewrite` 固定锁定为关闭
 - 试图写入 τ、`allowDegradedGenerate`、`sessionRewrite*` 等字段一律返回 400；成功的写操作会输出 Pino 日志 `kb_settings_patch` 并记录 diff
+- **修改日志最小闭环**：PATCH 成功且 `merged.diff` 非空时插入 `kb_settings_audits`（actor = 令牌 userId；tenant = 令牌租户，缺则 `DEV_DEFAULT_TENANT`）；空 diff / 失败 PATCH 不写。`GET /knowledge-bases/:kbId/settings-audit` 同码 + 成员闸；新在前，上限 50；空列表 200；缺库 404（`routes/kb-settings.ts` · `services/kb-settings-audit.ts` · `tests/kb/settings-audit-http.test.ts`）。**不是** `admin_write` 中间件落表
 - **B2-W 已接线**：ask 入口校验 `mode∈allowedModes` / `defaultMode`；`docTypes` scope 子集闸；Gateway **读** KB scope 绑定覆盖（**无** KB 绑定 HTTP 写；admin 写 UI 仍可延后）
 
 ### 模型供应商 / 平台绑定（B3 · ADR-055 最小集）
@@ -202,6 +203,7 @@
 | 建库闭环 | `routes/documents/index.ts` POST `/knowledge-bases` · `services/documents.ts` `createKb` · `tests/kb/create-kb.test.ts` |
 | 分片只读 | `apps/api/src/routes/chunks.ts` · `services/chunks.ts` · `tests/ingest/chunks-http.test.ts` |
 | 知识库设置 | `apps/api/src/routes/kb-settings.ts` · `services/kb-settings.ts` · `tests/kb/settings-http.test.ts` |
+| 设置修改日志 | `routes/kb-settings.ts` GET `…/settings-audit` · `services/kb-settings-audit.ts` · `tests/kb/settings-audit-http.test.ts` |
 | 模型网关 B3 | `apps/api/src/routes/model-gateway.ts` · `services/model-gateway.ts` · `tests/gateway/bindings-http.test.ts` |
 | 数据面板 B6 | `apps/api/src/routes/dashboard.ts` · `services/dashboard.ts` · `tests/ops/dashboard-http.test.ts` |
 | 鉴权 / 成员 | `apps/api/src/auth/` · `routes/auth.ts` `meRoutes` · `routes/members.ts` · `tests/acl/me-permissions.test.ts` · `tests/acl/members-http.test.ts` |

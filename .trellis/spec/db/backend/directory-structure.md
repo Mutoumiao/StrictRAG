@@ -34,6 +34,7 @@ packages/db/
         kb-members.ts
         ingest-jobs.ts
         ingest-reports.ts      # 入库报告最小行（doc+indexVersion）
+        kb-settings-audits.ts  # 知识库设置修改日志（diff_json）
         chunk-strategy-definitions.ts  # ADR-053 平台注册表
         kb-chunk-strategies.ts         # ADR-053 库启用
       ask/

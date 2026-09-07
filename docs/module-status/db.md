@@ -6,13 +6,13 @@
 | 成熟度 | **可联调**（schema + client + 检索谓词底座；**无**业务服务层） |
 | 默认依赖模式 | 需要调用方提供 `DATABASE_URL`；时间列使用本地格式字符串（见 ORM PRD） |
 | 关联模块 | `api` 与 `worker` 共用 client / schema；检索闸门谓词被 api retrieve 复用 |
-| 最近更新 | 2026-08-31（`permission_definitions`，migration `0012`；≠ 运行时求值） |
+| 最近更新 | 2026-09-07（`kb_settings_audits`，migration `0013`；≠ admin_write 全路径落表） |
 | Spec | `.trellis/spec/db/backend/` |
 | PRD | `prds/03-data` · `prds/02-engineering/02-orm-drizzle.md` |
 
 ## 一句话状态
 
-Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库任务表 / 入库报告表 / 成员**、**问答会话 / 轨迹 / 反馈 / eval_runs**、**模型供应商 / 绑定**、**平台角色（codes_json）/ 用户角色**、**permission_definitions（启动字典）** 以及 **部门 / 用户部门** 表均已落地；并提供默认检索双闸谓词（`ready ∧ active`）。**不等于**生产级迁移运维全集、完整任务账本/锁、或权限三表终态（求值仍 `codes_json`）。
+Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库任务表 / 入库报告表 / 设置修改日志表 / 成员**、**问答会话 / 轨迹 / 反馈 / eval_runs**、**模型供应商 / 绑定**、**平台角色（codes_json）/ 用户角色**、**permission_definitions（启动字典）** 以及 **部门 / 用户部门** 表均已落地；并提供默认检索双闸谓词（`ready ∧ active`）。**不等于**生产级迁移运维全集、完整任务账本/锁、或权限三表终态（求值仍 `codes_json`）。
 
 ---
 
@@ -37,6 +37,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 - `chunk_embeddings`：**`embedding` 列为 jsonb `number[]`**（演示 mock 向量；**不是** native pgvector/`vector` 列）
 - `ingest_jobs`：schema 已有；**worker** `job-ledger` 按阶段边界最小写（**非**本包服务层；无查询 API；同 doc 锁在 worker Redis 侧）
 - `ingest_reports`：doc+indexVersion 唯一；事实列 chunkCount / internalDropped / 双就绪 / 对账计数（migration `0011_ingest_reports`）；**无** 跨 doc / Hit@k 列
+- `kb_settings_audits`：tenantId / kbId / actorUserId / diffJson（migration `0013_kb_settings_audits`）；**无**密钥列；**不是** admin_write 全路径落表
 - `kb_members`
 - **ADR-053**：`chunk_strategy_definitions` · `kb_chunk_strategies`（migration `0009_chunk_strategy_layers`）
 
@@ -46,8 +47,8 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 - **gold_questions**：运营题面（caseKey 每库唯一；migration `0010_eval_floor`）
 - schema 单测：`tests/ask/ask-schema.test.ts`
 
-### Migrations（journal 13 条，idx 0–12）
-- `0000_phase0_schema_meta` → `0012_permission_definitions`（`drizzle/meta/_journal.json`）
+### Migrations（journal 14 条，idx 0–13）
+- `0000_phase0_schema_meta` → `0013_kb_settings_audits`（`drizzle/meta/_journal.json`）
 - 脚本：`db:generate` / `db:migrate` / `db:studio`（运维产品化流水线 **不**在本包宣称）
 
 ### 查询谓词
@@ -89,7 +90,8 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 | 类型 | 指针 |
 |------|------|
 | 导出 | `packages/db/src/index.ts` · `schema/index.ts` |
-| 知识库表 | `packages/db/src/schema/kb/*`（`documents.ts` · `chunk-embeddings.ts` · `ingest-jobs.ts` · `ingest-reports.ts`） |
+| 知识库表 | `packages/db/src/schema/kb/*`（`documents.ts` · `chunk-embeddings.ts` · `ingest-jobs.ts` · `ingest-reports.ts` · `kb-settings-audits.ts`） |
+| 设置修改日志 | `schema/kb/kb-settings-audits.ts` · migration `drizzle/0013_kb_settings_audits.sql` · `tests/kb/settings-audits-schema.test.ts` |
 | 问答 / 评测表 | `packages/db/src/schema/ask/*` · `eval-runs.ts` · `gold-questions.ts` · migration `drizzle/0006_b10_eval_runs.sql` · `0010_eval_floor.sql` |
 | 平台 / 部门 | `schema/system/platform-roles.ts` · `departments.ts` |
 | 权限码字典 | `schema/system/permission-definitions.ts` · migration `drizzle/0012_permission_definitions.sql` · `tests/acl/permission-definitions-schema.test.ts` |

@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（支撑 P0/P1 入库 + S2 问答/会话/反馈/成员 + B1–B6 运营契约 + **B12 策略码 / ingest job**；**非**全量 OpenAPI） |
 | 默认依赖模式 | 纯库；无运行时开关 |
 | 关联模块 | 被 `api` · `worker` · `web` · `admin` 消费；是全仓错误码、响应信封、队列名与 **可写分片策略集** 的唯一来源 |
-| 最近更新 | 2026-08-30（IngestReportItem 库级报告事实行；≠ 跨 doc / Hit@k） |
+| 最近更新 | 2026-09-07（KbSettingsAuditItem 设置修改日志列表项；≠ 密钥字段） |
 | Spec | `.trellis/spec/contracts/library/` |
 | PRD | `prds/05-api` · 各域契约与 PRD 短名对齐 |
 
@@ -63,6 +63,7 @@
 ### 知识库设置（B2）
 - `AskModeSchema`（`strict` / `balanced` / `fast`）+ `DEFAULT_ALLOWED_MODES` / `DEFAULT_DEFAULT_MODE`（`kb/kb-settings.contract`）
 - `KbSettings` / `PatchKbSettingsBodySchema`（strict 白名单 + modes 唯一性 + `dataClass` 默认 internal + `deptInheritDown` 默认 true + `deptAclEnforce` 默认 false）（`kb/kb-settings.contract`）
+- **`KbSettingsAuditItemSchema`**：`id` / `kbId` / `actorUserId` / `createdAt` / `diff`；`.strict()` 拒密钥键（`kb/settings-audit.contract.ts` · `tests/kb/settings-audit-contract.test.ts`）
 - `DocumentListItem` 含 `ownerDeptId` / `visibilityLevel`（缺省 null / 20；详情 inherit 列表项）
 - `DeptCrossGrant` / `CreateDeptCrossGrantBodySchema`（`system/dept-grants.contract`）
 - `CompleteUploadBody` 可选 `ownerDeptId` / `visibilityLevel`（P3b-UPL；旧 `{}` 仍合法）
@@ -123,6 +124,7 @@
 | 入库文档 | `src/ingest/document.contract.ts`（`CreateKbBodySchema` · complete/reindex `chunkStrategy`） |
 | 分片 | `src/ingest/chunk.contract.ts` |
 | 知识库设置 | `src/kb/kb-settings.contract.ts` |
+| 设置修改日志 | `src/kb/settings-audit.contract.ts` `KbSettingsAuditItemSchema` · `tests/kb/settings-audit-contract.test.ts` |
 | 运营域 | `src/system/{dashboard,model-gateway,platform-users-roles,departments,health}.contract.ts` |
 | 单测 | `packages/contracts/tests/<能力>/`；导航 `packages/contracts/tests/index.md` |
 | P0 清单 | `docs/testing/p0-redlines.md`（协作 R10） |

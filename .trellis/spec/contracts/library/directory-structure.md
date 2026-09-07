@@ -36,6 +36,7 @@ packages/contracts/
       member.contract.ts
     kb/
       kb-settings.contract.ts   # B2 设置 GET data / PATCH body（ADR-054）
+      settings-audit.contract.ts  # GET settings-audit 列表项（无密钥）
     eval/
       l1-matrix.ts          # 2×2 纯函数（api CLI + worker 共用）
       l2-gold.ts            # L2 题面解析（无 fs）
@@ -56,7 +57,7 @@ packages/contracts/
 | `auth/` | 登录/TokenPair/会话身份 DTO |
 | `ingest/` | 入库文档 DTO + **分片只读** list/detail（body **与** 全部成功响应） |
 | `ask/` | ask / session / feedback / member / reason / SSE |
-| `kb/` | 知识库设置 settings（B2） |
+| `kb/` | 知识库设置 settings（B2）+ 修改日志列表项 |
 | `async/` | 队列名等跨进程常量 |
 
 **不要**全塞进 `common/`；新域按 PRD 资源增加。  
