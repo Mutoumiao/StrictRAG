@@ -30,6 +30,7 @@
 | `ingest/embed-http.test.ts` | embed HTTP 客户端须按 Gateway 契约取向量。 | prds/07-models | `embedTextsHttp · mockEmbedVector` | mock 维数稳定；POST /embeddings；空 baseUrl 失败。 | 现行 |
 | `ingest/es-http.test.ts` | 稀疏索引 HTTP 配置与对账不得静默错配。 | OPS-1 | `esHttpConfigFromEnv · sparseTextForChunk · reconcileIndexed` | 空 URL 为 null；chunk 文本拼接；missing/orphan。 | 现行 |
 | `ingest/extract-text.test.ts` | utf8 文本层可抽；PDF 不得当 utf8 垃圾返回。 | prds/04-pipelines/01-offline-ingest.md | `hasUtf8TextLayer · decodeUtf8Text · extractUtf8TextLayer` | txt/md 按类型或扩展名；pdf 走 NO_TEXT_LAYER。 | 现行 |
+| `ingest/failure-webhook.test.ts` | 入库阶段失败须按可选 URL 发一次 Webhook，空 URL 不发，失败不得阻断账本。 | 功能表 §10.3 | `notifyIngestFailure · recordStageEnd` | POST JSON 只试一次；无正文/密钥；非 2xx 只 warn。 | 现行 |
 | `ingest/header-too-short.test.ts` | 仅页眉约 20 字不得 parse 成功、不得 ready。 | 剧本 Q3 · prds/10-delivery/03-acceptance-scenarios.md · ADR-043 | `runIngestStage` parse 字数闸 | 过短全文 needs_ocr + NO_TEXT_LAYER；不得物化成功 manifest。 | 现行 |
 | `ingest/idempotency.test.ts` | 重试不重分块；半套稀疏索引不得假完成。 | X-04 | `decideChunkPath · missingEmbeddingChunkIds · mockEsStore · isIngestErrorRetryable` | indexVersion 路径、缺 embedding 补齐、retry 矩阵。 | 现行 |
 | `ingest/ingest-report.test.ts` | 入库报告落库只写真事；同 version 更新保留文档内 dropped。 | 功能表 §4.3 / §5.2 | `buildIngestReportInsert · persistIngestReport` | 非阻断；不含跨 doc / Hit@k。 | 现行 |

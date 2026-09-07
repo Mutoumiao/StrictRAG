@@ -10,6 +10,7 @@ import { uuidv7 } from 'uuidv7';
 
 import { logger } from '../logger.js';
 import { QUEUE_NAMES } from '../queues.js';
+import { notifyIngestFailure } from './failure-webhook.js';
 
 export type LedgerJobStatus = 'running' | 'succeeded' | 'failed';
 
@@ -27,6 +28,10 @@ export type StageLedgerResultLike = {
   errorCode?: string;
   next?: { stage: string };
   done?: boolean;
+};
+
+export type RecordStageEndDeps = {
+  notifyFailure?: typeof notifyIngestFailure;
 };
 
 /** jobName = 逻辑 stage（与 BullMQ job name 对齐） */
@@ -95,23 +100,45 @@ export async function recordStageStart(
 }
 
 /**
- * 阶段结束：update status。jobId 空则 no-op。
+ * 阶段结束：update status。jobId 空则跳过写库。
+ * errorCode 存在时再发可选失败 Webhook（先账本后 notify；notify 吞错）。
  */
 export async function recordStageEnd(
   db: Db,
   jobId: string | null,
-  ctxStage: string,
+  ctx: StageLedgerContext,
   result: StageLedgerResultLike,
   indexVersion?: number | null,
+  deps?: RecordStageEndDeps,
 ): Promise<void> {
-  if (!jobId) return;
-  const patch = buildStageEndPatch(ctxStage, result, indexVersion);
+  if (jobId) {
+    const patch = buildStageEndPatch(ctx.stage, result, indexVersion);
+    try {
+      await db.update(ingestJobs).set(patch).where(eq(ingestJobs.id, jobId));
+    } catch (err) {
+      logger.warn(
+        { err, jobId, stage: ctx.stage },
+        'ingest_jobs recordStageEnd failed (non-blocking)',
+      );
+    }
+  }
+
+  if (!result.errorCode) return;
+
+  const notify = deps?.notifyFailure ?? notifyIngestFailure;
   try {
-    await db.update(ingestJobs).set(patch).where(eq(ingestJobs.id, jobId));
+    await notify({
+      tenantId: ctx.tenantId,
+      kbId: ctx.kbId,
+      docId: ctx.docId,
+      stage: ctx.stage,
+      errorCode: result.errorCode,
+      ...(jobId ? { jobId } : {}),
+    });
   } catch (err) {
     logger.warn(
-      { err, jobId, stage: ctxStage },
-      'ingest_jobs recordStageEnd failed (non-blocking)',
+      { err, docId: ctx.docId, stage: ctx.stage },
+      'ingest failure webhook notify threw (non-blocking)',
     );
   }
 }

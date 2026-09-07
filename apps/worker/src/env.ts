@@ -60,6 +60,8 @@ const EnvSchema = z
     EVAL_INTERNAL_TOKEN: z.string().optional().default(''),
     /** L2 题面路径；空则仓根 fixtures/l2/gold.yaml */
     EVAL_L2_GOLD_PATH: z.string().optional().default(''),
+    /** 入库阶段失败可选 Webhook；空=不发。只试一次，失败 warn 不阻断 */
+    INGEST_FAILURE_WEBHOOK_URL: z.string().optional().default(''),
   })
   .superRefine((data, ctx) => {
     if (data.TAU_CLAIM_LEGACY !== undefined && data.TAU_CLAIM_LEGACY !== data.TAU_CLAIM) {

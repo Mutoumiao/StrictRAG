@@ -35,7 +35,7 @@ import { embedTextsHttp, mockEmbedVector } from './embed-http.js';
 import { decodeUtf8Text, hasUtf8TextLayer } from './extract-text.js';
 import { extractPdfTextLayer, isPdfObject } from './pdf-text.js';
 import { persistIngestReport } from './ingest-report.js';
-import { recordStageEnd, recordStageStart } from './job-ledger.js';
+import { recordStageEnd, recordStageStart, type StageLedgerContext } from './job-ledger.js';
 import { localMongoDocId, upsertChunkBodies, upsertDocumentBody } from './mongo-body.js';
 import { deleteObject, readObjectBytes, storeConfigFromEnv } from './object-store.js';
 
@@ -139,6 +139,14 @@ export async function runIngestStage(data: IngestJobData): Promise<IngestStageRe
     return failStage('DOC_NOT_FOUND');
   }
 
+  const ledgerCtx: StageLedgerContext = {
+    tenantId: doc.tenantId,
+    kbId: doc.kbId,
+    docId: doc.id,
+    stage: data.stage,
+    indexVersion: data.indexVersion ?? doc.indexVersion,
+  };
+
   // ADR-048：任意阶段再确认
   if (doc.approvalStatus !== 'approved') {
     await setDoc(data.docId, {
@@ -147,31 +155,19 @@ export async function runIngestStage(data: IngestJobData): Promise<IngestStageRe
       errorMessage: 'scan/pipeline blocked: not approved',
     });
     const denied = failStage('NOT_APPROVED');
-    const deniedJobId = await recordStageStart(getDb(), {
-      tenantId: doc.tenantId,
-      kbId: doc.kbId,
-      docId: doc.id,
-      stage: data.stage,
-      indexVersion: data.indexVersion ?? doc.indexVersion,
-    });
-    await recordStageEnd(getDb(), deniedJobId, data.stage, denied, data.indexVersion);
+    const deniedJobId = await recordStageStart(getDb(), ledgerCtx);
+    await recordStageEnd(getDb(), deniedJobId, ledgerCtx, denied, data.indexVersion);
     return denied;
   }
 
-  const jobId = await recordStageStart(getDb(), {
-    tenantId: doc.tenantId,
-    kbId: doc.kbId,
-    docId: doc.id,
-    stage: data.stage,
-    indexVersion: data.indexVersion ?? doc.indexVersion,
-  });
+  const jobId = await recordStageStart(getDb(), ledgerCtx);
 
   try {
     const result = await runIngestStageCore(data, doc, log);
     await recordStageEnd(
       getDb(),
       jobId,
-      data.stage,
+      ledgerCtx,
       result,
       resolveLedgerIndexVersion(data, doc, result),
     );
@@ -180,7 +176,7 @@ export async function runIngestStage(data: IngestJobData): Promise<IngestStageRe
     await recordStageEnd(
       getDb(),
       jobId,
-      data.stage,
+      ledgerCtx,
       { done: true, errorCode: 'PIPELINE_THROW' },
       data.indexVersion ?? doc.indexVersion,
     );

@@ -4,7 +4,7 @@
  * 被测：buildStageStartRow · buildStageEndPatch · recordStageStart · recordStageEnd
  * 简介：最小账本行、成功链、失败码、pipeline 接线。
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   buildStageEndPatch,
@@ -13,7 +13,16 @@ import {
   ledgerStatusFromResult,
   recordStageEnd,
   recordStageStart,
+  type StageLedgerContext,
 } from '../../src/ingest/job-ledger.js';
+
+vi.mock('../../src/ingest/failure-webhook.js', () => ({
+  notifyIngestFailure: async () => undefined,
+}));
+
+function ledgerCtx(stage: string): StageLedgerContext {
+  return { tenantId: 't', kbId: 'k', docId: 'd', stage };
+}
 
 describe('ledgerJobName / ledgerStatusFromResult', () => {
   it('jobName equals stage', () => {
@@ -127,10 +136,10 @@ describe('recordStageStart / recordStageEnd (shipped writers)', () => {
         }),
       }),
     };
-    await recordStageEnd(db as never, null, 'scan', { next: { stage: 'parse' } });
+    await recordStageEnd(db as never, null, ledgerCtx('scan'), { next: { stage: 'parse' } });
     expect(updates).toHaveLength(0);
 
-    await recordStageEnd(db as never, 'job-1', 'scan', { next: { stage: 'parse' } });
+    await recordStageEnd(db as never, 'job-1', ledgerCtx('scan'), { next: { stage: 'parse' } });
     expect(updates).toHaveLength(1);
     expect(updates[0]).toMatchObject({ status: 'succeeded' });
   });
@@ -146,7 +155,10 @@ describe('recordStageStart / recordStageEnd (shipped writers)', () => {
       }),
     };
     await expect(
-      recordStageEnd(db as never, 'job-1', 'embed', { done: true, errorCode: 'EMBED_FAILED' }),
+      recordStageEnd(db as never, 'job-1', ledgerCtx('embed'), {
+        done: true,
+        errorCode: 'EMBED_FAILED',
+      }),
     ).resolves.toBeUndefined();
   });
 });
