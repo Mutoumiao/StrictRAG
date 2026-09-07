@@ -2,7 +2,7 @@
 
 Type: task
 Label: wayfinder:task
-Status: claimed
+Status: resolved
 Assignee: grok
 Triage: ready-for-agent
 Blocked by: 32
@@ -43,6 +43,18 @@ Blocked by: 32
 收工：更新 `.trellis/spec/` 对应包；回写 `docs/module-status/`；`.trellis/tasks/08-06-project-backlog/` 目录若无则跳过，禁止 `task.py create`。
 
 写代码前读 `.trellis/spec/` 对应包（db / contracts / api / admin）与 HOW `.trellis/spec/guides/testing.md`。测例落 `tests/<能力>/`，文件头目标/简介简体中文，并登记 index。
+
+## Answer
+
+PATCH 知识库设置成功且 `merged.diff` 非空时插入 `kb_settings_audits` 一行（actor = 令牌 userId；tenant = 令牌租户，缺则 `DEV_DEFAULT_TENANT`）。空 diff 不写。失败 PATCH 不写。
+
+`GET /api/v1/knowledge-bases/:kbId/settings-audit`：与 settings 同码 `kb.config.write` + 成员闸；该库已落行，新在前，上限 50；空列表 200；缺库 404。列表项只含 `id` / `kbId` / `actorUserId` / `createdAt` / `diff`，无密钥字段。admin 设置页加「修改日志」一节（时间 / 操作者 / 字段旧→新）；无行「暂无修改日志」。无独立路由 / 无新菜单 / 无新权限码。
+
+ARCH-P1b-2 `admin_write` 中间件仍是 Pino、不落表。
+
+未做：Webhook / 三平面配额 / 在线编写 / 角色用户成员审批 lifecycle 日志 / 记 τ / API Key / P3 / 人签 / 默认开 rewrite / LangGraph / E2E。未 `task.py create`。`.trellis/tasks/` 目录不存在，已跳过 backlog 指针。
+
+证据：`packages/db/src/schema/kb/kb-settings-audits.ts` · `packages/contracts/src/kb/settings-audit.contract.ts` · `apps/api/src/routes/kb-settings.ts` · `apps/api/src/services/kb-settings-audit.ts` · `apps/admin/src/app/(ops)/kb/settings/` · `apps/api/tests/kb/settings-audit-http.test.ts` · `apps/admin/tests/ops/settings-audit.test.tsx`。
 
 ## Comments
 
