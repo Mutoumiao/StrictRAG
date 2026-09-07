@@ -2,7 +2,7 @@
 
 Type: task
 Label: wayfinder:task
-Status: claimed
+Status: resolved
 Assignee: grok
 Triage: ready-for-agent
 Blocked by: 40
@@ -47,3 +47,22 @@ Blocked by: 40
 收工：`.trellis/spec/` api / db / contracts / admin；`docs/module-status/` 对应包；coverage `02-acl` B2-1 / B2-4（能测的 Then 回写，不能把 B2-2/B2-3 假绿）。禁止 push。禁止 `task.py create`。
 
 写代码前读 `.trellis/spec/api/backend/` 检索与授权、`.trellis/spec/db/backend/`、`.trellis/spec/guides/testing.md`。测例落 `tests/<能力>/`，文件头简体中文，登记 index。
+
+## Answer
+
+文档级 `aclPrincipals` 最小闭环已落地。
+
+- 列：`documents.acl_principals` 可空 `uuid[]`（migration `0014`）。SQL `NULL` = 未设（KB 成员可读）；`'{}'` = 显式空（非超管不可读）。
+- 契约：PATCH omit 不改；`null` 清回未设；`[]` 显式空；非法 uuid / 超长 256 条 400。列表/详情回读缺省 `null`。
+- 可见性：`doc-acl.ts` 纯函数；超管 bypass；不跟 `DEPT_ACL_ENFORCE`。列表 / 详情 / chunks / `loadCorpusFromDb` 在部门滤之后同滤。
+- admin：行展开 Textarea +「仅名单可见」；无 `doc.editor` 只读。无用户下拉、无新原生 `<select>`。
+- 测例：契约 / schema / 纯函数 / HTTP 三态与列表滤 / admin 保存 `[]`。B2-4 已测；B2-1 部分测。B2-2 / B2-3 仍延后。
+
+未做：默认开 `DEPT_ACL_ENFORCE`、敏感解禁、角色 principal、ES terms、`allowedDocIds`、自动 reindex。未 `task.py create`。未 push。
+
+证据：`packages/db/src/schema/kb/documents.ts` · `apps/api/src/services/retrieve/doc-acl.ts` · `corpus.ts` · `routes/documents/index.ts` · `routes/chunks.ts` · `apps/admin/src/app/(ops)/documents/_components/documents-workspace.tsx` · `apps/api/tests/acl/doc-acl-principals.test.ts` · `apps/api/tests/acl/documents-acl-principals.test.ts`。
+
+## Comments
+
+- 2026-09-07 认领并执行。权威切边见 [裁定 ES 查询期部门对称后下一步](./40-after-es-dept-filter-order.md)。
+
