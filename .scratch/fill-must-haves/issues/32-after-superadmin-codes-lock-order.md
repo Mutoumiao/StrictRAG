@@ -2,7 +2,8 @@
 
 Type: grilling
 Label: wayfinder:grilling
-Status: open
+Status: resolved
+Assignee: grok
 Triage: ready-for-human
 Blocked by: 31
 
@@ -28,3 +29,27 @@ Blocked by: 31
 4. **本图暂停执行**，等图外 L2 人签
 
 本工单只锁顺序与切边，不写产品代码。
+
+## Answer
+
+写路径锁超管全码之后，本图继续收 **剩余 P2 半接线**。本批只做修改日志最小闭环。不转 P3b、不跳 P4、不暂停等人签。人签 / 准出 PASS / 仓库默认打开 rewrite / P3a 仍不进执行。
+
+本批一张：
+
+- [修改日志最小闭环](./33-settings-audit-min.md) — 开放前沿。KB settings PATCH 已有 `merged.diff`（谁改了哪些字段的旧→新），只打 Pino、不可查询。本张落可查询行 + 库级 GET + admin 设置页列表。切边见该工单正文。
+
+仍留雾：失败 Webhook、三平面配额、在线编写。
+
+未改产品代码。
+
+## Comments
+
+- 2026-09-07 按图顺序认领本工单。开放前沿无执行工单；本回合只锁「写路径锁超管全码后下一步」，不写产品代码。用户授权本图全程自行决策。
+- Q1：选 1。继续收剩余 P2 半接线。不转 P3b、不跳 P4、不暂停等人签。
+- Q2：选 修改日志最小闭环。settings PATCH 已有 diff 未落表，是半接线。失败 Webhook 是真空、三平面配额是新子系统、在线编写仍是 P2.x，均留雾。
+- Q3：选 1。一张执行工单：落库 + GET + admin 设置页列表。
+- Q4：选 1。只记 KB settings PATCH 的 `merged.diff`。不把 `admin_write` 中间件全路径落表。空 diff 不写行。
+- Q5：选 1。`GET /api/v1/knowledge-bases/:kbId/settings-audit`；权限与 settings 相同（`kb.config.write` + 成员闸）。空列表 200。
+- Q6：选 1。admin 挂知识库设置页一节，只展示本库已落行（谁 / 何时 / 字段旧→新）。无独立路由。
+- Q7：选 1。禁止落密钥。diff 只用现有 `merged.diff` 键。不记 tauClaim / qualitySnapshot。
+- 2026-09-07 自行确认落盘：关本工单；建 [修改日志最小闭环](./33-settings-audit-min.md)。
