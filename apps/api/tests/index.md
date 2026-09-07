@@ -120,6 +120,7 @@
 | `kb/dept-acl-enforce-resolve.test.ts` | KB deptAclEnforce 覆盖 env，未写时展示与运行时分钉。 | P3b-KBENF | `parseDeptAclEnforceFromConfig / resolveDeptAclEnforce` | P3b-KBENF。 | 现行 |
 | `kb/dept-inherit-down.test.ts` | KB deptInheritDown 覆盖 env，祖先在关闭向下继承时不可见子孙。 | P3b-KBINH | `parseDeptInheritDownFromConfig / resolveDeptInheritDown / filterDocsForDeptAcl` | P3b-KBINH。 | 现行 |
 | `kb/settings-http.test.ts` | 知识库设置 HTTP 按 B2 契约读写。 | B2 | `kb-settings routes` | 设置 HTTP。 | 现行 |
+| `kb/settings-audit-http.test.ts` | PATCH settings 有 diff 须落可查询修改日志；空 diff / 失败不写；读面权限与空列表/缺库对齐。 | 功能表 §4.2 | `PATCH/GET /knowledge-bases/:kbId/settings-audit` | 有 diff 的 PATCH → GET 见该行；空 diff 不增行；无码 403；空列表 200；缺库 404。 | 现行 |
 | `kb/visible-list.test.ts` | 可见知识库列表只返回当前身份能看到的库。 | 壳下拉数据 | `selectVisibleKbs / toKbListItem` | 可见库列表。 | 现行 |
 | `obs/admin-write-audit.test.ts` | 管理写路径必须打审计日志且不落表、不含敏感键。 | ARCH-P1b-2 | `adminWriteAuditMiddleware / shouldAuditAdminWrite` | 不落表。 | 现行 |
 | `obs/l2-stale.test.ts` | rewrite dogfood 下 L2 指纹过期才告警。 | ARCH-P2-4 | `evaluateL2Stale` | rewrite dogfood 下 L2 指纹过期才告警。 | 现行 |

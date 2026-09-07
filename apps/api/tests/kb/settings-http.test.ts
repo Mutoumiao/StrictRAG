@@ -12,6 +12,7 @@ import { uuidv7 } from 'uuidv7';
 import { attachAuthMiddleware, type AuthVariables } from '../../src/auth/middleware.js';
 import { issueTokenPair } from '../../src/auth/identity/token-service.js';
 import { requestIdMiddleware } from '../../src/middleware/request-id.js';
+import { createMemoryKbSettingsAuditRepo } from '../../src/services/kb-settings-audit.js';
 import { createMemoryKbSettingsRepo } from '../../src/services/kb-settings.js';
 import { createKbSettingsRoutes } from '../../src/routes/kb-settings.js';
 
@@ -48,6 +49,7 @@ function buildApp(
     '/api/v1',
     createKbSettingsRoutes({
       repo,
+      auditRepo: createMemoryKbSettingsAuditRepo(),
       qualitySnapshot: () => ({
         tauClaim: 0.55,
         gatePackageId: null,

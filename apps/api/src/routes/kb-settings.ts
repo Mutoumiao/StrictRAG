@@ -3,6 +3,7 @@ import {
   PatchKbSettingsBodySchema,
   PutPlatformBindingsBodySchema,
   type KbSettings,
+  type KbSettingsAuditItem,
   type PlatformBindings,
   type QualitySnapshot,
 } from '@strict-rag/contracts';
@@ -18,6 +19,11 @@ import { fail, ok } from '../lib/response.js';
 import { childLogger } from '../logger.js';
 import { evalRunRepo } from '../services/eval-runs.js';
 import {
+  SETTINGS_AUDIT_LIST_LIMIT,
+  kbSettingsAuditRepo,
+  type KbSettingsAuditRepo,
+} from '../services/kb-settings-audit.js';
+import {
   buildKbSettingsView,
   kbSettingsRepo,
   mergeKbSettingsPatch,
@@ -32,6 +38,7 @@ import {
 
 export type KbSettingsRouteDeps = {
   repo?: KbSettingsRepo;
+  auditRepo?: KbSettingsAuditRepo;
   /** 质量 snapshot 注入；默认 env.TAU_CLAIM */
   qualitySnapshot?: () => QualitySnapshot;
   resolveKbMember?: ResolveKbMember;
@@ -65,6 +72,7 @@ export function createKbSettingsRoutes(
   deps: KbSettingsRouteDeps = {},
 ): Hono<{ Variables: AuthVariables }> {
   const repo = deps.repo ?? kbSettingsRepo;
+  const auditRepo = deps.auditRepo ?? kbSettingsAuditRepo;
   const qualityOf = deps.qualitySnapshot ?? defaultQuality;
   const hasArchive =
     deps.hasQualifyingL2Archive ?? ((id: string) => evalRunRepo.hasQualifyingL2Archive(id));
@@ -137,9 +145,27 @@ export function createKbSettingsRoutes(
         },
         'kb settings updated',
       );
+      await auditRepo.insert({
+        tenantId: resolveTenantId(auth?.tenantId),
+        kbId,
+        actorUserId: auth?.userId ?? '',
+        diff: merged.diff,
+      });
     }
 
     const data: KbSettings = buildKbSettingsView({ row: updated, quality: qualityOf() });
+    return ok(c, data);
+  });
+
+  /** GET /api/v1/knowledge-bases/:kbId/settings-audit — 该库已落行；空列表 200 */
+  routes.get('/knowledge-bases/:kbId/settings-audit', write, async (c) => {
+    const kbId = c.req.param('kbId');
+    const row = await repo.get(kbId);
+    if (!row) {
+      return fail(c, BizCode.NOT_FOUND, 'knowledge base not found', 404);
+    }
+    const listed = await auditRepo.listByKb(kbId);
+    const data: KbSettingsAuditItem[] = listed.slice(0, SETTINGS_AUDIT_LIST_LIMIT);
     return ok(c, data);
   });
 
