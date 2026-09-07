@@ -2,7 +2,7 @@
  * 目标：ask/llm/rerank 指标必须可按标签聚合。
  * 需求：ARCH-P2-4
  * 被测：recordAskResult / recordLlmCall / recordRerank / metricGet
- * 简介：按标签聚合 ask / llm / rerank 计数。
+ * 简介：按标签聚合 ask / llm / rerank 计数（含 plane=ask）。
  */
 
 import { describe, expect, it } from 'vitest';
@@ -26,11 +26,13 @@ describe('metrics skeleton', () => {
     recordRerank(true);
     recordRerank(false, 'timeout');
 
-    expect(metricGet('ask_total', { status: 'answered', reason: 'verified' })).toBe(1);
-    expect(metricGet('ask_fail', { reason: 'low_retrieval' })).toBe(1);
-    expect(metricGet('llm_call_total', { purpose: 'generate', ok: 'true' })).toBe(1);
-    expect(metricGet('llm_call_total', { purpose: 'judge', ok: 'false' })).toBe(1);
-    expect(metricGet('rerank_total', { ok: 'true' })).toBe(1);
-    expect(metricGet('rerank_total', { ok: 'false', kind: 'timeout' })).toBe(1);
+    expect(metricGet('ask_total', { status: 'answered', reason: 'verified', plane: 'ask' })).toBe(
+      1,
+    );
+    expect(metricGet('ask_fail', { reason: 'low_retrieval', plane: 'ask' })).toBe(1);
+    expect(metricGet('llm_call_total', { purpose: 'generate', ok: 'true', plane: 'ask' })).toBe(1);
+    expect(metricGet('llm_call_total', { purpose: 'judge', ok: 'false', plane: 'ask' })).toBe(1);
+    expect(metricGet('rerank_total', { ok: 'true', plane: 'ask' })).toBe(1);
+    expect(metricGet('rerank_total', { ok: 'false', kind: 'timeout', plane: 'ask' })).toBe(1);
   });
 });

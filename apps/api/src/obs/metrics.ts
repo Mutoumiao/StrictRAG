@@ -4,6 +4,7 @@
  */
 
 import { logger } from '../logger.js';
+import type { QuotaPlane } from './rate-limit.js';
 
 export type MetricLabels = Record<string, string | number | boolean | undefined>;
 
@@ -54,14 +55,17 @@ export function metricsReset(): void {
   l3AlertLatched.clear();
 }
 
-/** ask 结果：status / reason */
+const ASK_PLANE: QuotaPlane = 'ask';
+const INGEST_PLANE: QuotaPlane = 'ingest';
+
+/** ask 结果：status / reason；标签固定 plane=ask */
 export function recordAskResult(input: {
   status: string;
   reason: string;
   ok: boolean;
 }): void {
-  metricInc('ask_total', { status: input.status, reason: input.reason });
-  metricInc(input.ok ? 'ask_ok' : 'ask_fail', { reason: input.reason });
+  metricInc('ask_total', { status: input.status, reason: input.reason, plane: ASK_PLANE });
+  metricInc(input.ok ? 'ask_ok' : 'ask_fail', { reason: input.reason, plane: ASK_PLANE });
 }
 
 /** L3 护栏闩后是否应强制关掉 rewrite 路径（进程内；不写 env / 库）。 */
@@ -134,13 +138,18 @@ export function evaluateL2Stale(input: {
 }
 
 export function recordLlmCall(purpose: string, ok: boolean): void {
-  metricInc('llm_call_total', { purpose, ok: String(ok) });
+  metricInc('llm_call_total', { purpose, ok: String(ok), plane: ASK_PLANE });
 }
 
 export function recordRerank(ok: boolean, kind?: string): void {
-  metricInc('rerank_total', { ok: String(ok), ...(kind ? { kind } : {}) });
+  metricInc('rerank_total', { ok: String(ok), plane: ASK_PLANE, ...(kind ? { kind } : {}) });
 }
 
-export function recordRateLimited(scope: string): void {
-  metricInc('ask_rate_limited_total', { scope });
+export function recordRateLimited(scope: string, plane: QuotaPlane = 'ask'): void {
+  metricInc('ask_rate_limited_total', { scope, plane });
+}
+
+/** complete 成功或限流；plane=ingest。aux 不打运行时。 */
+export function recordIngestComplete(input: { result: 'ok' | 'rate_limited' }): void {
+  metricInc('ingest_complete_total', { plane: INGEST_PLANE, result: input.result });
 }

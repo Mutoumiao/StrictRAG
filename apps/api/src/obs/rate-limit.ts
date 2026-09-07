@@ -1,7 +1,11 @@
 /**
- * ask 试点限流：固定窗口（每分钟）。
- * ASK_RATE_LIMIT_RPM=0 关闭。单测可注入时钟与 store。
+ * 三平面配额：ask / ingest 独立固定窗口（每分钟）；aux 只留常量、不跑。
+ * ASK_RATE_LIMIT_RPM / INGEST_RATE_LIMIT_RPM = 0 关闭。
+ * 单测可注入时钟与 store；进程内 Map，非集群。
  */
+
+export const QUOTA_PLANES = ['ask', 'ingest', 'aux'] as const;
+export type QuotaPlane = (typeof QUOTA_PLANES)[number];
 
 export type RateLimitResult =
   | { ok: true; remaining: number }
@@ -17,10 +21,13 @@ export type RateLimitOptions = {
   now?: () => number;
 };
 
-const defaultStore: RateLimitStore = new Map();
+/** ask 平面默认 store；与 ingest 分实例 */
+export const askRateLimitStore: RateLimitStore = new Map();
+/** ingest 平面默认 store；与 ask 分实例 */
+export const ingestRateLimitStore: RateLimitStore = new Map();
 
 /**
- * @param key 通常 `userId:kbId`
+ * @param key 通常带平面前缀，如 `ask:userId:kbId`
  */
 export function checkFixedWindowRateLimit(
   key: string,
@@ -31,7 +38,7 @@ export function checkFixedWindowRateLimit(
     return { ok: true, remaining: Number.POSITIVE_INFINITY };
   }
   const windowMs = options.windowMs ?? 60_000;
-  const store = options.store ?? defaultStore;
+  const store = options.store ?? askRateLimitStore;
   const now = (options.now ?? Date.now)();
 
   let slot = store.get(key);
@@ -49,10 +56,20 @@ export function checkFixedWindowRateLimit(
   return { ok: true, remaining: Math.max(0, limit - slot.count) };
 }
 
-export function resetRateLimitStore(store: RateLimitStore = defaultStore): void {
-  store.clear();
+export function resetRateLimitStore(store?: RateLimitStore): void {
+  if (store) {
+    store.clear();
+    return;
+  }
+  askRateLimitStore.clear();
+  ingestRateLimitStore.clear();
 }
 
 export function askRateLimitKey(userId: string, kbId: string): string {
   return `ask:${userId}:${kbId}`;
+}
+
+/** ingest 键按 tenant+kb，与 ask 分前缀 */
+export function ingestRateLimitKey(tenantId: string, kbId: string): string {
+  return `ingest:${tenantId}:${kbId}`;
 }

@@ -2,7 +2,7 @@
  * 目标：api env 默认值保持关闭态，tauClaim 双源冲突必须拒绝。
  * 需求：基建: api env Zod
  * 被测：env Zod 对齐（不启动进程）
- * 简介：rewrite / AUTH_ENFORCE 默认关。
+ * 简介：rewrite / AUTH_ENFORCE 默认关；ask/ingest RPM 默认 0。
  */
 
 import { describe, expect, it } from 'vitest';
@@ -122,6 +122,23 @@ describe('DEPT_INHERIT_DOWN default stays true', () => {
     const r = DeptInheritDownSchema.safeParse({ DEPT_INHERIT_DOWN: 'false' });
     expect(r.success).toBe(true);
     if (r.success) expect(r.data.DEPT_INHERIT_DOWN).toBe(false);
+  });
+});
+
+/** 与 env.ts 中 ASK/INGEST RPM 对齐（禁止仓库默认改正数） */
+const QuotaRpmSchema = z.object({
+  ASK_RATE_LIMIT_RPM: z.coerce.number().int().min(0).default(0),
+  INGEST_RATE_LIMIT_RPM: z.coerce.number().int().min(0).default(0),
+});
+
+describe('ask/ingest RPM default stays 0', () => {
+  it('default / omitted → 0', () => {
+    const r = QuotaRpmSchema.safeParse({});
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.ASK_RATE_LIMIT_RPM).toBe(0);
+      expect(r.data.INGEST_RATE_LIMIT_RPM).toBe(0);
+    }
   });
 });
 

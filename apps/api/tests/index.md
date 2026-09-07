@@ -17,7 +17,7 @@
 | `feedback/` | 答案反馈 API | B13 |
 | `gateway/` | 模型绑定 / mock / 双节点 | B3 · QUAL-3 |
 | `eval/` | L1/L2 工程 seed | B10 · **≠ 准出** |
-| `obs/` | 指标、限流、写审计、L3 进程内熔断 | ARCH-P2-4 · ARCH-P1b-2 · P2.5-L3 |
+| `obs/` | 指标、限流、三平面配额、写审计、L3 进程内熔断 | ARCH-P2-4 · ARCH-P1b-2 · P2.5-L3 · 剧本 R5/R8/R9 |
 | `env/` | env、health/ready、OpenAPI | P0 骨架 |
 | `docs-guard/` | 交付文档护栏 | 控制台 §0.5 |
 | `ops/` | 数据面板 HTTP | B6 |
@@ -75,7 +75,7 @@
 | `docs-guard/auth-enforce-pilot.test.ts` | 试点文档与 AUTH_ENFORCE 开关默认值保持一致。 | docs/ops/auth-enforce-pilot.md | `docs/ops/auth-enforce-pilot.md · .env.example` | 文档护栏。 | 现行 |
 | `docs-guard/delivery-s05.test.ts` | 交付控制台 §0.5 已闭合待盘点行不得回退。 | 交付控制台 | `prds/12-delivery-guides/04-交付控制台.md` | 读 PRD 文件，非 mock。 | 现行 |
 | `env/body-limit.test.ts` | 超限 JSON body 必须 413 PAYLOAD_TOO_LARGE。 | prds/05-api · ARCH-P0 | `createApp body-limit` | 超限 JSON body 必须 413 PAYLOAD_TOO_LARGE。 | 现行 |
-| `env/defaults.test.ts` | api env 默认值保持关闭态，tauClaim 双源冲突必须拒绝。 | 基建: api env Zod | `env Zod 对齐（不启动进程）` | rewrite / AUTH_ENFORCE 默认关。 | 现行 |
+| `env/defaults.test.ts` | api env 默认值保持关闭态，tauClaim 双源冲突必须拒绝。 | 基建: api env Zod | `env Zod 对齐（不启动进程）` | rewrite / AUTH_ENFORCE 默认关；ask/ingest RPM 默认 0。 | 现行 |
 | `env/error-envelope.test.ts` | 未知路径与未处理异常必须走统一错误信封，且不得泄漏 stack。 | prds/05-api · ARCH-P0 | `createApp onError / isAskTimeoutExcept / isBodyLimitExcept` | 未知路径与未处理异常走统一信封，且不得泄漏 stack。 | 现行 |
 | `env/health-ready.test.ts` | health 探针必须返回 ok。 | P0 | `GET /health` | health/ready。 | 现行 |
 | `env/openapi-document.test.ts` | OpenAPI 文档必须从 contracts 生成。 | ARCH-P2-1 | `buildOpenApiDocument / isOpenApiDocsEnabled` | OpenAPI 文档自 contracts 生成。 | 现行 |
@@ -127,7 +127,8 @@
 | `obs/l3-ask.test.ts` | L3 ask 计数与护栏告警闩按阈值只告一次。 | ARCH-P2-4 | `recordL3Ask` | L3 ask 计数满阈只告一次，护栏告警有闩。 | 现行 |
 | `obs/l3-topic-complaint.test.ts` | 主题投诉计数满阈只告一次。 | ARCH-P2-4 | `recordL3TopicComplaint` | 主题投诉计数满阈只告一次。 | 现行 |
 | `obs/l3-rewrite-fuse.test.ts` | L3 护栏闩后本进程后续 ask 强制关掉 rewrite，dogfood 闩不熔断。 | prds/08-quality §0 L3 · 运维 §2.5 | `isL3RewriteFused / executeAsk` | coref/topic/l2_stale 闩后即使 env 为 true 也 rewriteUsed=false；会话壳仍落 transcript；rewrite_dogfood 不熔；复位后恢复。 | 现行 |
-| `obs/metrics.test.ts` | ask/llm/rerank 指标必须可按标签聚合。 | ARCH-P2-4 | `recordAskResult / recordLlmCall / recordRerank / metricGet` | 按标签聚合 ask / llm / rerank 计数。 | 现行 |
+| `obs/metrics.test.ts` | ask/llm/rerank 指标必须可按标签聚合。 | ARCH-P2-4 | `recordAskResult / recordLlmCall / recordRerank / metricGet` | 按标签聚合 ask / llm / rerank 计数（含 plane=ask）。 | 现行 |
+| `obs/quota-planes.test.ts` | ask 与 ingest 平面配额必须隔离，触顶不得 200 空答 answered。 | 剧本 R5 / R8 / R9 · ARCH-P2-4 | `POST ask / POST complete / 分 store / plane 指标` | ask 429 带 plane=ask 与 ask_quota_exhausted；ingest 429 带 plane=ingest；打满一侧不阻断另一侧。 | 现行 |
 | `obs/rate-limit.test.ts` | 超限必须返回 429 RATE_LIMITED。 | ARCH-P2-4 | `checkFixedWindowRateLimit / POST ask 429` | 超限返回 429 RATE_LIMITED；ask 路由走同一闸。 | 现行 |
 | `obs/tracer.test.ts` | memory tracer 记录主链 span，executeAsk 接线不得丢 span。 | ARCH-P2-4 | `createMemoryTracer / executeAsk` | 内存 tracer 记下主链 span；executeAsk 接线不得丢 span。 | 现行 |
 | `ops/dashboard-http.test.ts` | 面板 summary HTTP 按 B6 返回聚合。 | B6 | `createDashboardRoutes` | 面板 summary HTTP。 | 现行 |

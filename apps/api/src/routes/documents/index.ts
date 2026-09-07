@@ -52,11 +52,32 @@ import {
   loadDeptGrants,
   loadDeptNodes,
 } from '../../services/retrieve/dept-acl.js';
+import { env } from '../../env.js';
+import {
+  checkFixedWindowRateLimit,
+  ingestRateLimitKey,
+  ingestRateLimitStore,
+  recordIngestComplete,
+  type RateLimitResult,
+} from '../../obs/index.js';
 import { enqueueIngest } from '../../services/queue.js';
 import { effectiveMaxUploadBytes, getStorage } from '../../services/storage.js';
 import { toDetail, toListItem } from './mappers.js';
 
-export const documentRoutes = new Hono<{ Variables: ApiVariables }>();
+export type DocumentRouteDeps = {
+  /** ingest 平面限流；默认 INGEST_RATE_LIMIT_RPM + ingest store */
+  checkIngestRateLimit?: (tenantId: string, kbId: string) => RateLimitResult;
+};
+
+export function createDocumentRoutes(deps: DocumentRouteDeps = {}) {
+const documentRoutes = new Hono<{ Variables: ApiVariables }>();
+const checkIngestLimit =
+  deps.checkIngestRateLimit ??
+  ((tenantId: string, kbId: string) =>
+    checkFixedWindowRateLimit(ingestRateLimitKey(tenantId, kbId), {
+      limit: env.INGEST_RATE_LIMIT_RPM,
+      store: ingestRateLimitStore,
+    }));
 
 /** GET /api/v1/knowledge-bases — 身份可见库；enforce 关时列默认租户全量（可粘贴 uuid） */
 documentRoutes.get('/knowledge-bases', requirePermissionWhenEnforced('kb.list'), async (c) => {
@@ -279,10 +300,25 @@ documentRoutes.post(
       );
     }
 
+    // 试点限流（INGEST_RATE_LIMIT_RPM>0）：落 pending / 入队前
+    const ingestRl = checkIngestLimit(doc.tenantId, kbId);
+    if (!ingestRl.ok) {
+      recordIngestComplete({ result: 'rate_limited' });
+      childLogger({ requestId: c.get('requestId') }).warn(
+        { retryAfterSec: ingestRl.retryAfterSec, plane: 'ingest', kbId, docId },
+        'ingest rate limited',
+      );
+      return fail(c, BizCode.RATE_LIMITED, 'ingest rate limit exceeded', 429, {
+        retryAfterSec: ingestRl.retryAfterSec,
+        plane: 'ingest',
+      });
+    }
+
     await documentRepo.markCompletePending(docId, head.byteSize, {
       chunkStrategy: strategyGate.code,
       chunkStrategyParams: strategyParams,
     });
+    recordIngestComplete({ result: 'ok' });
 
     childLogger({ requestId: c.get('requestId') }).info(
       {
@@ -589,3 +625,8 @@ documentRoutes.get(
     return ok(c, data);
   },
 );
+
+  return documentRoutes;
+}
+
+export const documentRoutes = createDocumentRoutes();

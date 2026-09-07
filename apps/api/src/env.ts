@@ -128,6 +128,11 @@ const EnvSchema = z
      */
     ASK_RATE_LIMIT_RPM: z.coerce.number().int().min(0).default(0),
     /**
+     * ingest 试点限流：每租户每 KB 每分钟 complete 上限。
+     * 0 = 关闭。与 ASK_RATE_LIMIT_RPM 同形；分 store，互不阻断。
+     */
+    INGEST_RATE_LIMIT_RPM: z.coerce.number().int().min(0).default(0),
+    /**
      * worker → api 评测 execute-ask 共享口令。空 = 内口关闭（HTTP 503）。
      * 须与 worker EVAL_INTERNAL_TOKEN 相同；禁止进 web/admin。
      */

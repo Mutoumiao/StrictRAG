@@ -11,6 +11,7 @@ export {
   recordLlmCall,
   recordRerank,
   recordRateLimited,
+  recordIngestComplete,
   L3_CORE_FAIL_RATE_MIN_SESSION,
   L3_CORE_FAIL_RATE_THRESHOLD,
   L3_TOPIC_COMPLAINT_THRESHOLD,
@@ -19,8 +20,14 @@ export {
   checkFixedWindowRateLimit,
   resetRateLimitStore,
   askRateLimitKey,
+  ingestRateLimitKey,
+  askRateLimitStore,
+  ingestRateLimitStore,
+  QUOTA_PLANES,
+  type QuotaPlane,
   type RateLimitResult,
   type RateLimitOptions,
+  type RateLimitStore,
 } from './rate-limit.js';
 export {
   createMemoryTracer,

@@ -21,6 +21,7 @@ import { fail, ok } from '../lib/response.js';
 import { env } from '../env.js';
 import {
   askRateLimitKey,
+  askRateLimitStore,
   checkFixedWindowRateLimit,
   recordRateLimited,
   type RateLimitResult,
@@ -100,6 +101,7 @@ export function createAskRoutes(deps: AskRouteDeps = {}) {
     ((userId: string, kbId: string) =>
       checkFixedWindowRateLimit(askRateLimitKey(userId, kbId), {
         limit: env.ASK_RATE_LIMIT_RPM,
+        store: askRateLimitStore,
       }));
 
   /** GET /knowledge-bases/:kbId/ask-modes — 成员可读档位；禁止经此口暴露 τ */
@@ -204,13 +206,15 @@ export function createAskRoutes(deps: AskRouteDeps = {}) {
       sessionId: sessionId ?? undefined,
     });
 
-    // 试点限流（ASK_RATE_LIMIT_RPM>0）
+    // 试点限流（ASK_RATE_LIMIT_RPM>0）；触顶不得 200 空答
     const rl = checkLimit(auth.userId, kbId);
     if (!rl.ok) {
-      recordRateLimited('ask');
-      log.warn({ retryAfterSec: rl.retryAfterSec }, 'ask rate limited');
+      recordRateLimited('ask', 'ask');
+      log.warn({ retryAfterSec: rl.retryAfterSec, plane: 'ask' }, 'ask rate limited');
       return fail(c, BizCode.RATE_LIMITED, 'ask rate limit exceeded', 429, {
         retryAfterSec: rl.retryAfterSec,
+        plane: 'ask',
+        ask_quota_exhausted: true,
       });
     }
 
