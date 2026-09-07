@@ -2,7 +2,8 @@
 
 Type: grilling
 Label: wayfinder:grilling
-Status: open
+Status: resolved
+Assignee: grok
 Triage: ready-for-human
 Blocked by: 39
 
@@ -27,3 +28,25 @@ Blocked by: 39
 4. **本图暂停执行**，等图外 L2 人签
 
 本工单只锁顺序与切边，不写产品代码。
+
+## Answer
+
+ES 查询期部门对称之后，**在线编写留雾**（P2.x，不并进）。本图继续 **P3b 余量**。本批只做 aclPrincipals 全文最小闭环。不默认打开 `DEPT_ACL_ENFORCE`、不做敏感解禁、不跳 P4、不等人签。P3a / 人签 / 准出 PASS / 默认开 rewrite 仍不进执行。
+
+本批一张：
+
+- [aclPrincipals 全文最小闭环](./41-acl-principals-min.md) — 开放前沿。可空用户 uuid 数组；缺省 null = KB 成员可读；显式 `[]` = 非超管不可读。列表 / 详情 / chunks / retrieve 语料同滤。不跟部门强制开关。切边见该工单正文。
+
+仍留雾：敏感解禁、仓库默认开 `DEPT_ACL_ENFORCE`、角色 principal、ES principals terms、在线编写。
+
+未改产品代码。
+
+## Comments
+
+- 2026-09-07 按图顺序认领。用户授权本图全程自行决策。
+- Q1：选 1。继续 P3b 余量。在线编写留雾（P2.x）。不跳 P4、不暂停。
+- Q2：本批只做 aclPrincipals 全文最小闭环。不默认开 enforce、不解禁。B2 上敏感库前必签，解禁挂在文档 ACL 之后。
+- Q3：一张工单。PG 列 + PATCH/回读 + 列表/详情/chunks/retrieve 同滤。ES terms / 角色码 / reindex-on-change 划出。
+- Q4：缺省 null = 成员可读；显式 `[]` = 非超管不可读。显式名单不跟 `DEPT_ACL_ENFORCE`（宁拒勿妄）。超管 `roleBypassesKbMembership` 绕过。
+- Q5：元素只用户 uuid。非法 uuid 400。超长数组 400。角色 principal / ES 对称 / 敏感解禁留雾。
+- 2026-09-07 自行确认落盘：关本工单；建 [aclPrincipals 全文最小闭环](./41-acl-principals-min.md)。
