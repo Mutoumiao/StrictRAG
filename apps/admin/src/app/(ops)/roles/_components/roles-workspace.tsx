@@ -12,7 +12,13 @@ import { Label } from '@strict-rag/ui/components/ui/label';
 
 import { useAdminAuth } from '@/components/auth-guard';
 
-import { createRole, loadRolesPage, saveRolePermissions } from '../services';
+import {
+  createRole,
+  isLockedSuperAdminRole,
+  loadRolesPage,
+  saveRolePermissions,
+  SUPER_ADMIN_CODES_LOCKED_HINT,
+} from '../services';
 
 export function RolesWorkspace() {
   const { me } = useAdminAuth();
@@ -78,6 +84,11 @@ export function RolesWorkspace() {
 
   async function onSavePerms() {
     if (!editId || busy) return;
+    const current = roles.find((r) => r.id === editId) ?? null;
+    if (isLockedSuperAdminRole(current)) {
+      setError(SUPER_ADMIN_CODES_LOCKED_HINT);
+      return;
+    }
     setBusy(true);
     setFlash(null);
     const r = await saveRolePermissions(editId, { codes: editCodes });
@@ -100,6 +111,7 @@ export function RolesWorkspace() {
   }
 
   const editing = roles.find((r) => r.id === editId) ?? null;
+  const codesLocked = isLockedSuperAdminRole(editing);
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-8 p-6">
@@ -193,16 +205,22 @@ export function RolesWorkspace() {
           <h2 className="mb-3 text-sm font-medium">
             权限码 · {editing.name} ({editing.code})
           </h2>
+          {codesLocked ? (
+            <p className="mb-2 text-xs text-muted-foreground">{SUPER_ADMIN_CODES_LOCKED_HINT}</p>
+          ) : null}
           <div className="grid max-h-80 gap-1 overflow-y-auto sm:grid-cols-2">
             {catalog.map((p) => (
               <label
                 key={p.code}
-                className="flex cursor-pointer items-start gap-2 rounded px-2 py-1 text-xs hover:bg-muted/40"
+                className={`flex items-start gap-2 rounded px-2 py-1 text-xs ${
+                  codesLocked ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:bg-muted/40'
+                }`}
               >
                 <input
                   type="checkbox"
                   className="mt-0.5"
                   checked={editCodes.includes(p.code)}
+                  disabled={codesLocked}
                   onChange={() => setEditCodes((prev) => toggleCode(prev, p.code))}
                 />
                 <span>
@@ -215,7 +233,12 @@ export function RolesWorkspace() {
             ))}
           </div>
           <div className="mt-3 flex gap-2">
-            <Button type="button" disabled={busy} onClick={() => void onSavePerms()}>
+            <Button
+              type="button"
+              disabled={busy || codesLocked}
+              title={codesLocked ? SUPER_ADMIN_CODES_LOCKED_HINT : undefined}
+              onClick={() => void onSavePerms()}
+            >
               保存权限
             </Button>
             <Button type="button" variant="outline" onClick={() => setEditId(null)}>
