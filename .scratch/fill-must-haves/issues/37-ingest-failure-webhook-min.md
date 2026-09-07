@@ -2,7 +2,7 @@
 
 Type: task
 Label: wayfinder:task
-Status: claimed
+Status: resolved
 Assignee: grok
 Triage: ready-for-agent
 Blocked by: 36
@@ -41,6 +41,18 @@ Blocked by: 36
 收工：更新 `.trellis/spec/worker/` 与 `docs/module-status/worker.md`；coverage 若有对应行则回写。`.trellis/tasks/` 若无则跳过。禁止 `task.py create`。禁止 push。
 
 写代码前读 `.trellis/spec/worker/backend/` 与 HOW `.trellis/spec/guides/testing.md`。测例落 `apps/worker/tests/ingest/`，文件头目标/简介简体中文，登记 index。
+
+## Answer
+
+worker env 新增可选 `INGEST_FAILURE_WEBHOOK_URL`（默认空=不发）。`notifyIngestFailure` 在空 URL 时直接返回；否则 `POST` JSON（`Content-Type: application/json`），超时约 3s，只试一次。fetch 抛错或非 2xx 只 `logger.warn`，不抛。
+
+载荷：`event: 'ingest.failed'` + `tenantId` / `kbId` / `docId` / `stage` / `errorCode` / `at`（`formatLocalDateTime`），可选 `jobId`。无正文、无密钥、无对象存储路径。
+
+触发只在 `recordStageEnd`：`result.errorCode` 存在时先写账本再 notify；notify 吞错，不阻断账本。pipeline 各 `status=failed` 不再另发。
+
+未做：HMAC / 重试队列 / admin 配置页 / KB 级 URL / ask 拒答 webhook。未 `task.py create`。`.trellis/tasks/` 目录不存在，已跳过。coverage 无对应 webhook 剧本行，未编造。
+
+证据：`apps/worker/src/ingest/failure-webhook.ts` · `job-ledger.ts` · `env.ts` · `apps/worker/tests/ingest/failure-webhook.test.ts`。
 
 ## Comments
 
