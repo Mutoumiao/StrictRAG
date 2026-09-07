@@ -2,7 +2,7 @@
 
 > 路径：`apps/api/src/routes/platform-users-roles.ts` · `services/platform-users-roles.ts`  
 > PRD：`prds/05-api` §2.11 · ADR-056  
-> 切片：CRUD + 授码 + 最后超管闸；**B4-W** 已接线 JWT 每请求 DB hydrate（见 `auth-authorization.md` · `role-hydrate.ts`）；**启动引导** `services/superadmin-bootstrap.ts`（AD1–AD3；`createApp()` 不跑）
+> 切片：CRUD + 授码 + 最后超管闸 + **写路径锁超管全码**；**B4-W** 已接线 JWT 每请求 DB hydrate（见 `auth-authorization.md` · `role-hydrate.ts`）；**启动引导** `services/superadmin-bootstrap.ts`（AD1–AD3；`createApp()` 不跑）
 
 ---
 
@@ -53,6 +53,7 @@ DB：`platform_roles` · `user_roles`（`packages/db` · migration `0004_b4_plat
 | email 冲突 | 409 | CONFLICT |
 | 未知 roleId | 400 | VALIDATION_ERROR |
 | 最后 active super_admin 禁用/剥权 | 400 | RULE_VIOLATION |
+| PUT/PATCH 把 `super_admin.codesJson` 改成不等于 catalog 全码 | 400 | RULE_VIOLATION |
 | 用户/角色不存在 | 404 | NOT_FOUND |
 
 ### 5. Good / Base / Bad
@@ -70,6 +71,7 @@ DB：`platform_roles` · `user_roles`（`packages/db` · migration `0004_b4_plat
 - PUT permissions 合法/非法
 - POST user 绑角色；列表 roleCodes
 - 最后超管 / 双超管（HTTP 400 闸；admin 用户页另做不可点提示，**本闸不放宽**）
+- PUT/PATCH 超管改少码 400；全码（乱序）200；PATCH 不带 codes 改 name 200
 - permission-catalog 码集 + 无码 403
 
 `apps/api/tests/acl/superadmin-bootstrap.test.ts`（直接调引导函数；AD2 抛错，不真 `process.exit`）：

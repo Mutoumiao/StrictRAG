@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（已包含：P0/P1 入库 + S2 最小问答 + B1–B6 最小运营 API + B10 L1 工程 seed + B12 策略闸 + B13 反馈 API；演示依赖 mock ES / 通常走 mock Gateway；L1 **≠** 业务签字门禁） |
 | 默认依赖模式 | 检索：`RETRIEVE_ES_MODE=mock`（默认 mock ES；`http` 须 `ELASTICSEARCH_URL`）；鉴权：临时双 JWT，`AUTH_ENFORCE` **默认 `false`**；rewrite：`SESSION_REWRITE_ENABLED` **默认 false**（图边已落；dogfood 可开；**≠** 准出）；对象存储：默认 `local`（`STORAGE_MODE=s3` 走 RustFS / S3 兼容）；Gateway：`GATEWAY_MODE=''`（空按 `GATEWAY_BASE_URL` 推断，缺 URL 走 mock）；上传上限 `INGEST_MAX_FILE_BYTES=52_428_800`（50 MiB）/ 天花板 `INGEST_MAX_FILE_BYTES_CEILING=209_715_200`（200 MiB）；`LANGFUSE_ENABLED=false`；`OBS_MEMORY_TRACE=true`。**B3-W/B2-W**：ask 读取 platform 绑定 + **KB scope 绑定覆盖（只读 list，无 PUT KB 绑定 HTTP）**；**B4-W**：每请求从 DB `user_roles` hydrate；`DEPT_ACL_ENFORCE` **默认 `false`**（开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤且列表项带部门字段；`DEPT_INHERIT_DOWN` 默认 true；KB `deptInheritDown` 可覆盖 env；KB `deptAclEnforce` 可覆盖 env，未写跟 env，GET 未写回读 false；设置页可勾选，未改不写回；ES 查询期已强制 tenantId+kbId（共享索引安全隔离），部门/ACL principals 查询期对称仍无）；`MONGODB_URL` 空（非空时检索融合后批取 Mongo `chunk_bodies` 权威正文，缺块 fail-closed）；`ASK_RATE_LIMIT_RPM=0`；`SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` **可选**（无 active 超管时缺一则 **index.ts listen 前**失败；`createApp()` 不跑引导）；L1 CLI 需显式指定 `L1_KB_ID`（可选 `L1_PERSIST_EVAL`） |
 | 关联模块 | 入库演示还需要 `worker` + PostgreSQL + Redis；契约 `@strict-rag/contracts`（含 `IMPLEMENTED_CHUNK_STRATEGIES` / `IngestJobData`）；schema `@strict-rag/db`（含 `eval_runs`）；L1 gold / RACI 在仓根 `fixtures/l1/`；L2 题面草案在 `fixtures/l2/` |
-| 最近更新 | 2026-08-31（ADR-056 启动引导超管 AD1–AD3；listen 前；≠ 引导页 / ≠ 密码登录） |
+| 最近更新 | 2026-09-07（写路径锁超管全码；PUT/PATCH 改少 400；≠ 引导页 / ≠ 密码登录） |
 | Spec | `.trellis/spec/api/backend/`（含 [dashboard](../../.trellis/spec/api/backend/dashboard.md) · [l1-eval](../../.trellis/spec/api/backend/l1-eval.md) · [l2-eval](../../.trellis/spec/api/backend/l2-eval.md) · [l3-metrics](../../.trellis/spec/api/backend/l3-metrics.md)） |
 | PRD | `prds/05-api` · `04-pipelines` · `08-quality` · `09-security` |
 
@@ -72,7 +72,8 @@
 - 始终做权限码校验；`codes` 必须是 admin-catalog 的子集；最后一个可用的 `super_admin` 被禁用或剥离权限时返回 400；系统内置的 super_admin 角色禁止禁用
 - 数据表：`platform_roles` / `user_roles`；内置四个系统角色种子数据；测试用内存仓库
 - **B4-W 已接线**：中间件每请求 `hydrateAuthz`（读取 `user_roles` + 启用角色 `codesJson`）；进程缓存 TTL **5s**；loader 超时 **3s** 时回退 JWT claims（`role-hydrate.ts`）；写路径 `invalidateRoleCache`（**单实例假设**）；dev-login `ensureUserRoleCodes` bootstrap；dev/test 无绑定时回退 claims；**没有**密码登录 HTTP / 生产 IdP
-- **启动引导超管（ADR-056 AD1–AD3）**：`index.ts` listen **前** `runSuperAdminBootstrap`（默认租户）；upsert `permission_definitions`；`super_admin.codesJson` 精确等于 catalog 全码；无 active 超管则按 `SUPER_ADMIN_*` 创建（scrypt 哈希）或缺则失败；已有超管不改哈希；`createApp()` **不**跑。测例 `tests/acl/superadmin-bootstrap.test.ts`。**无**引导页 / **无**验密 HTTP / **无** PUT 锁超管全码
+- **启动引导超管（ADR-056 AD1–AD3）**：`index.ts` listen **前** `runSuperAdminBootstrap`（默认租户）；upsert `permission_definitions`；`super_admin.codesJson` 精确等于 catalog 全码；无 active 超管则按 `SUPER_ADMIN_*` 创建（scrypt 哈希）或缺则失败；已有超管不改哈希；`createApp()` **不**跑。测例 `tests/acl/superadmin-bootstrap.test.ts`。**无**引导页 / **无**验密 HTTP
+- **写路径锁超管全码**：PUT/PATCH（带 `codes`）把 `super_admin` 绑码改少 → 400 `RULE_VIOLATION`；全码（乱序）200；PATCH 不带 codes 改 name 200。测例 `tests/acl/platform-users-roles.test.ts`
 - **QUAL-1**：`AUTH_ENFORCE=true` 时 `requirePermissionWhenEnforced` 无 Bearer → 401 `UNAUTHORIZED`（`tests/auth/enforce-401.test.ts`）；**默认仍关**
 - 权限运行时实况：**`codes_json` 过渡**（字典表已落，**不**切求值）；终态迁表须 ADR
 
@@ -148,8 +149,7 @@
 | 按 `requestId` 断线重拉 | `GET /ask/:requestId` 只回审计 snapshot+trace，**不是** AskResponse 重放 |
 | 审计管理台 | 无搜索 / 过滤 / 导出；Langfuse 仍 mock 日志 |
 | 完整 ACL / 部门强制隔离 | 开关有、默认关；开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤且带列；可关继承（env + KB 覆盖 + 设置页勾选，未改不写回）；ES 查询期已强制 tenantId+kbId，部门/ACL principals 查询期对称仍无 / **无** 默认开 |
-| 生产 IdP | 仍是临时双 JWT；**B4-W** 已读 `user_roles` hydrate（≠ Better Auth / 密码登录）。启动引导只写 `password_hash`，**无**验密 HTTP |
-| PUT/PATCH 锁超管全码 | 重启会把 `super_admin.codesJson` 补回全码；写路径仍可改少 |
+| 生产 IdP | 仍是临时双 JWT；**B4-W** 已读 `user_roles` hydrate（≠ Better Auth / 密码登录）。启动引导只写 `password_hash`，**无**验密 HTTP。超管绑码写路径已锁全码 |
 | 成员 `allowedDocIds` / 检索 ACL 闸 | PUT 只改 `role`；`GET /me/permissions` 无 `byKb` |
 | 入库报告完整语义 | 库级 GET 已有最小事实行；**无** 跨 doc 冲突对 / `pending_review` / L0 vs L1 Hit@k |
 
@@ -206,6 +206,7 @@
 | 数据面板 B6 | `apps/api/src/routes/dashboard.ts` · `services/dashboard.ts` · `tests/ops/dashboard-http.test.ts` |
 | 鉴权 / 成员 | `apps/api/src/auth/` · `routes/auth.ts` `meRoutes` · `routes/members.ts` · `tests/acl/me-permissions.test.ts` · `tests/acl/members-http.test.ts` |
 | 启动引导超管 | `index.ts` · `services/superadmin-bootstrap.ts` · `services/password-hash.ts` · `env.ts` `SUPER_ADMIN_*` · `tests/acl/superadmin-bootstrap.test.ts` |
+| 写路径锁超管全码 | `routes/platform-users-roles.ts` PUT/PATCH · `wouldChangeSuperAdminAwayFromFullCatalog` · `tests/acl/platform-users-roles.test.ts` |
 | Gateway 运行时 / 检索 | `apps/api/src/services/gateway/`（`getGatewayForTenant` · `bindings.ts` · `resolve.ts`）· `services/retrieve/`（`corpus.ts` · `es-sparse.ts`（`buildAclFilter`）· `mongo-body.ts` · `filterDocsForRetrieve`） |
 | 观测 | `apps/api/src/obs/` · `obs/metrics.ts` `isL3RewriteFused` · `tests/obs/l3-rewrite-fuse.test.ts` |
 | L1 工程 seed / followup 工程 | `fixtures/l1/gold.yaml` · `RACI.md` · `README.md` · `apps/api/src/eval/l1-matrix.ts` · `eval/adr046-snapshot.ts` · `scripts/run-l1-golden.ts` · `scripts/seed-es-sparse-probe.ts` · `packages/db/src/schema/ask/eval-runs.ts` · `docs/ops/live-retrieve-profile.md` · `turbo.json`（`L1_*` / `L1_PERSIST_EVAL`） |

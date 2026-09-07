@@ -153,7 +153,7 @@ P2 必签。api listen 前引导函数已接；createApp 不跑。
 |----|----------|------|------|------|------|------|------|
 | AD1 | 空库 + 配置 SUPER_ADMIN_* 启动 api → 创建超管；permission_definitions 含 catalog 全码；超管角色绑全码 | P2必签 | 单测 | 已测 | api | apps/api/tests/acl/superadmin-bootstrap.test.ts（直接调引导函数）· `services/superadmin-bootstrap.ts` · `env.ts` `SUPER_ADMIN_*` 可选 | 不真 listen / 不真 `process.exit`。dev-login ≠ 本步。 |
 | AD2 | 缺 SUPER_ADMIN_* 且无超管启动 → 启动失败 | P2必签 | 单测 | 已测 | api | apps/api/tests/acl/superadmin-bootstrap.test.ts（抛 `SuperAdminBootstrapError`） | index.ts 失败走 `process.exit(1)`，单测不真退出。 |
-| AD3 | 已有超管再启动 → 不用 env 重置密码；码仍补齐 | P2必签 | 单测 | 已测 | api | apps/api/tests/acl/superadmin-bootstrap.test.ts（哈希不变 + 码仍全）· `system-roles-skip-reseed.test.ts`（ensure 跳过重种子） | PUT 锁超管全码未做。 |
+| AD3 | 已有超管再启动 → 不用 env 重置密码；码仍补齐 | P2必签 | 单测 | 已测 | api | apps/api/tests/acl/superadmin-bootstrap.test.ts（哈希不变 + 码仍全）· `system-roles-skip-reseed.test.ts`（ensure 跳过重种子）· `platform-users-roles.test.ts`（PUT/PATCH 改少超管码 400） | 写路径锁已测。引导页 / 密码登录仍未做。 |
 | AD4 | 超管建角色：树勾选 doc.* 等保存 → 200；审计 | P2必签 | 单测 | 已测 | api | apps/api/tests/acl/platform-users-roles.test.ts（POST 合法码 201；未知码 400）· apps/api/tests/obs/admin-write-audit.test.ts（`/admin/roles` 写应审计） | 审计为中间件命中，非本 POST 日志体。 |
 | AD5 | 超管建平台用户并绑该角色；用户登录 admin 后 `/me/permissions` = 角色并集 | P2必签 | 单测 | 部分测 | api | apps/api/tests/acl/platform-users-roles.test.ts（POST 用户 + 绑角色 201，列表含 `roleCodes`）；apps/api/tests/acl/me-permissions.test.ts（`GET /me/permissions` = 模板并集，与 `/auth/me` 同源） | 无「建用户 + 绑自定义角色后登录」链路；现测是模板角色并集。 |
 | AD6 | 无 `user.manage` 调用户 API → 403 | P2必签 | 单测 | 已测 | api | apps/api/tests/acl/platform-users-roles.test.ts（kb_admin GET users → 403/`user.manage`） | — |
