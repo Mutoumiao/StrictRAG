@@ -5,6 +5,7 @@
  * 简介：写路径 invalidate 缓存。
  */
 
+import { ALL_PERMISSION_CODES } from '@strict-rag/admin-catalog';
 import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
 import { uuidv7 } from 'uuidv7';
@@ -305,6 +306,63 @@ describe('platform users/roles routes (ADR-056 / B4)', () => {
       headers: { authorization: `Bearer ${accessToken}` },
     });
     expect(res.status).toBe(403);
+  });
+
+  it('PUT/PATCH super_admin 改少码 → 400；全码或只改 name → 200', async () => {
+    const { accessToken } = await token(['super_admin']);
+    const { app, repo } = buildApp();
+    const saId = await superAdminRoleId(repo);
+
+    const shrinkPut = await app.request(`/api/v1/admin/roles/${saId}/permissions`, {
+      method: 'PUT',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ codes: ['admin.shell'] }),
+    });
+    expect(shrinkPut.status).toBe(400);
+    const shrinkPutBody = (await shrinkPut.json()) as { error: { code: string; message: string } };
+    expect(shrinkPutBody.error.code).toBe('RULE_VIOLATION');
+    expect(shrinkPutBody.error.message).toContain('cannot reduce super_admin permission codes');
+
+    const fullPut = await app.request(`/api/v1/admin/roles/${saId}/permissions`, {
+      method: 'PUT',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ codes: [...ALL_PERMISSION_CODES].reverse() }),
+    });
+    expect(fullPut.status).toBe(200);
+    const fullBody = (await fullPut.json()) as { data: { codes: string[] } };
+    expect(new Set(fullBody.data.codes)).toEqual(new Set(ALL_PERMISSION_CODES));
+
+    const shrinkPatch = await app.request(`/api/v1/admin/roles/${saId}`, {
+      method: 'PATCH',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ codes: ['admin.shell', 'kb.list'] }),
+    });
+    expect(shrinkPatch.status).toBe(400);
+    const shrinkPatchBody = (await shrinkPatch.json()) as { error: { code: string; message: string } };
+    expect(shrinkPatchBody.error.code).toBe('RULE_VIOLATION');
+    expect(shrinkPatchBody.error.message).toContain('cannot reduce super_admin permission codes');
+
+    const namePatch = await app.request(`/api/v1/admin/roles/${saId}`, {
+      method: 'PATCH',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ name: '超级管理员（锁）' }),
+    });
+    expect(namePatch.status).toBe(200);
+    const named = (await namePatch.json()) as { data: { name: string; codes: string[] } };
+    expect(named.data.name).toBe('超级管理员（锁）');
+    expect(new Set(named.data.codes)).toEqual(new Set(ALL_PERMISSION_CODES));
   });
 
   it('禁止禁用系统 super_admin 角色 → 400', async () => {

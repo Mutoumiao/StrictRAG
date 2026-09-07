@@ -28,6 +28,7 @@ import {
   toPublicRole,
   toPublicUser,
   validatePermissionCodes,
+  wouldChangeSuperAdminAwayFromFullCatalog,
   wouldRemoveLastSuperAdmin,
   type PlatformUsersRolesRepo,
 } from '../services/platform-users-roles.js';
@@ -154,6 +155,14 @@ export function createPlatformUsersRolesRoutes(
         400,
       );
     }
+    if (codesJson !== undefined && wouldChangeSuperAdminAwayFromFullCatalog(cur, codesJson)) {
+      return fail(
+        c,
+        BizCode.RULE_VIOLATION,
+        'cannot reduce super_admin permission codes',
+        400,
+      );
+    }
     const updated = await repo.updateRole(tenantId, roleId, {
       name: patch.name,
       enabled: patch.enabled,
@@ -186,6 +195,14 @@ export function createPlatformUsersRolesRoutes(
     const roleId = c.req.param('roleId');
     const cur = await repo.getRole(tenantId, roleId);
     if (!cur) return fail(c, BizCode.NOT_FOUND, 'role not found', 404);
+    if (wouldChangeSuperAdminAwayFromFullCatalog(cur, codesCheck.codes)) {
+      return fail(
+        c,
+        BizCode.RULE_VIOLATION,
+        'cannot reduce super_admin permission codes',
+        400,
+      );
+    }
     const updated = await repo.updateRole(tenantId, roleId, {
       codesJson: codesCheck.codes,
       updatedBy: auth?.userId,

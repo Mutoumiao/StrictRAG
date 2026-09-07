@@ -36,7 +36,7 @@
 | `acl/me-permissions.test.ts` | GET /me/permissions 必须回角色并集有效码，且与 /auth/me 同源。 | prds/05-api §2.11 · 功能表 §5.1 · 剧本 Y1 | `GET /api/v1/me/permissions` | 超管含 admin.shell / dashboard.view / role.perm.manage；不废 /auth/me。 | 现行 |
 | `acl/members-http.test.ts` | 成员 CRUD HTTP 按成员码授权。 | 成员码 | `createMemberRoutes` | 成员 CRUD HTTP（含 PUT 只改 role）。 | 现行 |
 | `acl/permission-resolve.test.ts` | 有效权限码 = 模板 ∪ grants − denies。 | ADR-051 | `resolveEffectiveCodes / canAccessKbScoped` | 有效码求值。 | 现行 |
-| `acl/platform-users-roles.test.ts` | 平台用户角色写路径必须失效缓存。 | B4 | `platform-users-roles routes` | 写路径 invalidate 缓存。 | 现行 |
+| `acl/platform-users-roles.test.ts` | 平台用户角色写路径必须失效缓存；超管绑码不得改少。 | B4 · ADR-056 · 工单「写路径锁超管全码」 | `platform-users-roles routes` | 写路径 invalidate 缓存；PUT/PATCH 改少超管码 400，全码或只改 name 200。 | 现行 |
 | `acl/retrieve-dept-acl.test.ts` | 检索期按部门 ACL 过滤可见文档。 | DEPT_ACL | `filterDocsForDeptAcl` | 默认 enforce 关。 | 现行 |
 | `acl/system-roles-skip-reseed.test.ts` | 已有 isSystem 角色则不再 insert 系统角色。 | 剧本 AD3（部分） | `ensureSystemRoles` | 只锁跳过重种子，≠ 补码、≠ 不重置密码。补码见 `superadmin-bootstrap`。 | 现行 |
 | `acl/superadmin-bootstrap.test.ts` | 空库须能按 env 引导出 active 超管与 catalog 全码；缺 env 须失败；已有超管不得改哈希。 | 剧本 AD1–AD3 · ADR-056 | `bootstrapSuperAdmin` · `createApp` | 直接调引导函数；AD2 抛错；createApp 不自动跑；upsert 不静默删；kb_admin 自定义码不覆盖。 | 现行 |

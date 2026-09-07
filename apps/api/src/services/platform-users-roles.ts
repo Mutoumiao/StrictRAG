@@ -1,4 +1,5 @@
 import {
+  ALL_PERMISSION_CODES,
   isPermissionCode,
   PERMISSION_DEFINITIONS,
   ROLE_TEMPLATES,
@@ -146,6 +147,26 @@ function seedSystemRoles(tenantId: string): RoleRow[] {
 
 export function resolveTenantId(tenantId?: string | null): string {
   return tenantId ?? DEV_DEFAULT_TENANT;
+}
+
+/** catalog 全码集合相等（顺序无关）。 */
+export function isFullCatalogCodes(codes: readonly string[]): boolean {
+  if (codes.length !== ALL_PERMISSION_CODES.length) return false;
+  const set = new Set(codes);
+  if (set.size !== ALL_PERMISSION_CODES.length) return false;
+  return ALL_PERMISSION_CODES.every((c) => set.has(c));
+}
+
+/**
+ * 写路径锁：不得把 super_admin 绑码改成不等于 catalog 全码。
+ * 其它角色返回 false。
+ */
+export function wouldChangeSuperAdminAwayFromFullCatalog(
+  role: Pick<RoleRow, 'code'>,
+  nextCodes: readonly string[],
+): boolean {
+  if (role.code !== SUPER_ADMIN_ROLE_CODE) return false;
+  return !isFullCatalogCodes(nextCodes);
 }
 
 export function validatePermissionCodes(
