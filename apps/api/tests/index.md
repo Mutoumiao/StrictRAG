@@ -45,7 +45,8 @@
 | `ask/citations.test.ts` | 非法 citation 不得 answered；混合法/非法只保留证据 id 并仍走 verify。 | prds/08-quality | `runAskGraph（generate+citations）` | 非法引用拒答；混合引用只留证据 id；insufficient 走 model_abstained。 | 现行 |
 | `ask/embed-budget.test.ts` | query embed 只发生在 retrieve，次数不超过 retrieve 次且不计入 LLM 预算。 | 剧本 R1 · 剧本 R2 · 剧本 R3 · prds/10-delivery/03-acceptance-scenarios.md · ADR-044 | `runRetrieve embed / runAskGraph` | 两次 retrieve 只 embed 两次；图节点不调 embed；不得把 chunk 正文传入 embed。 | 现行 |
 | `ask/es-sparse-probe.test.ts` | 稀疏探针脚本在缺少 KB 时必须拒绝误跑。 | OPS-1 | `requireProbeKbId` | 非生产 ES 宣称。 | 现行 |
-| `ask/es-sparse.test.ts` | 稀疏检索 HTTP 切片按 env 解析，失败不得静默回 mock；buildAclFilter 强制 tenantId+kbId。 | OPS-1 | `esConfigFromEnv / searchSparseEs / buildAclFilter` | 稀疏检索 HTTP 切片 + ACL filter。 | 现行 |
+| `ask/es-dept-query-filter.test.ts` | ES 查询期按部门 ownerDeptId 收窄，缺字段不得当全员可见。 | DEPT_ACL · 工单 ES 查询期部门对称 | `buildAclFilter / searchSparseEs / collectVisibleOwnerDeptIds / runRetrieve` | enforce 默认关；开且非超管才 terms；超管不加；PG 可见级闸仍保留。 | 现行 |
+| `ask/es-sparse.test.ts` | 稀疏检索 HTTP 切片按 env 解析，失败不得静默回 mock；buildAclFilter 强制 tenantId+kbId，可选 ownerDeptId terms。 | OPS-1 | `esConfigFromEnv / searchSparseEs / buildAclFilter` | 稀疏检索 HTTP 切片 + ACL filter。 | 现行 |
 | `ask/evidence-verbatim.test.ts` | 当轮 evidence.text 进入 generate/verify 与 citation 必须逐字一致，不得改写。 | 剧本 K4 · prds/10-delivery/03-acceptance-scenarios.md · ADR-037 | `runAskGraph（generateUserPrompt / claim_split / citation.preview）` | 现权威为 evidence.text / PG body，≠ Mongo。 | 现行 |
 | `ask/execute-trace.test.ts` | executeAsk 落 trace 时历史文不得进入 evidence。 | prds/05-api · 历史≠evidence | `executeAsk` | 落库 trace 时只记录本轮 evidence，不把历史文写进快照。 | 现行 |
 | `ask/history-not-evidence.test.ts` | 会话历史与加深窗文本不得进入 evidence / 不得充当 verify 依据。 | 历史≠evidence · prds/04-pipelines | `runAskGraph（history / evidence_snapshot）` | 有 session 仍只凭 evidence 验证；历史与加深窗文本不得进 snapshot/citations。 | 现行 |
@@ -67,7 +68,7 @@
 | `ask/route-rules.test.ts` | 闲聊走 chitchat，知识/政策问句走 single，禁止政策句被当成闲聊。 | prds/04-pipelines/02-online-ask-langgraph.md | `ruleRoute` | 问候为 chitchat；带知识/政策词的问句必须 single。 | 现行 |
 | `ask/scope-hr-excludes-finance.test.ts` | hr scope 不得用 finance 文档作答。 | 剧本 X3 | `filterDocsForRetrieve / runRetrieve / runAskGraph` | scope.docTypes=hr 滤掉 finance；无证据或非法 citation 则拒答。 | 现行 |
 | `ask/scoring-rrf.test.ts` | 混合检索的余弦相似与 RRF 融合按预期排序。 | prds/04-pipelines | `cosine / rrfFuse` | 打分与倒数秩融合的纯函数。 | 现行 |
-| `ask/sparse-kb-filter.test.ts` | 共享索引查询必须带 tenantId + kbId term，外库 chunk 不得进 evidence。 | 剧本 O1 | `searchSparseEs / runRetrieve` http sparse | 默认 mock ES；锁 tenantId + kbId filter。≠ 生产独立索引。 | 现行 |
+| `ask/sparse-kb-filter.test.ts` | 共享索引查询必须带 tenantId + kbId term，外库 chunk 不得进 evidence。 | 剧本 O1 | `searchSparseEs / runRetrieve` http sparse | 默认 mock ES；锁 tenantId + kbId filter；部门 terms 另见 es-dept-query-filter。≠ 生产独立索引。 | 现行 |
 | `ask/verify-required.test.ts` | 合法 draft 必须完整 verify；拆句失败或网关错不得 answered。 | P0 R9 · prds/08-quality | `runAskGraph（verify / claim_split）` | happy 必经 generate+claim_split+judge；拆句失败或网关错不得 answered。 | 现行 |
 | `auth/enforce-401.test.ts` | AUTH_ENFORCE 开启且无 Bearer 时必须 401。 | QUAL-1 | `requirePermissionWhenEnforced` | enforce 开且无 Bearer → 401。 | 现行 |
 | `auth/role-hydrate.test.ts` | 每请求角色 hydrate 超时必须回退，缓存不超过 5s。 | B4-W | `role-hydrate middleware` | ≤5s 缓存。 | 现行 |

@@ -1,8 +1,8 @@
 /**
  * 目标：稀疏检索 HTTP 切片按 env 解析，失败不得静默回 mock。
  * 需求：OPS-1
- * 被测：esConfigFromEnv / searchSparseEs
- * 简介：稀疏检索 HTTP 切片。
+ * 被测：esConfigFromEnv / searchSparseEs / buildAclFilter
+ * 简介：稀疏检索 HTTP 切片；ACL filter 默认可选部门 terms。
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -36,6 +36,23 @@ describe('buildAclFilter', () => {
     expect(buildAclFilter({ tenantId: 't-1', kbId: 'kb-1' })).toEqual([
       { term: { tenantId: 't-1' } },
       { term: { kbId: 'kb-1' } },
+    ]);
+  });
+
+  it('空 ownerDeptIds 不加部门 terms', () => {
+    expect(buildAclFilter({ tenantId: 't-1', kbId: 'kb-1', ownerDeptIds: [] })).toEqual([
+      { term: { tenantId: 't-1' } },
+      { term: { kbId: 'kb-1' } },
+    ]);
+  });
+
+  it('非空 ownerDeptIds 追加 terms', () => {
+    expect(
+      buildAclFilter({ tenantId: 't-1', kbId: 'kb-1', ownerDeptIds: ['dept-a'] }),
+    ).toEqual([
+      { term: { tenantId: 't-1' } },
+      { term: { kbId: 'kb-1' } },
+      { terms: { ownerDeptId: ['dept-a'] } },
     ]);
   });
 });

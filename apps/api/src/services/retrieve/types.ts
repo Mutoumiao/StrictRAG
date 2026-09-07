@@ -87,6 +87,7 @@ export type SparseSearcher = (input: {
   kbId: string;
   question: string;
   size: number;
+  ownerDeptIds?: string[];
 }) => Promise<string[]>;
 
 /** 融合后批取正文；chunkId → 权威切片（contextPrefix + "\n" + text）。失败应抛错 */

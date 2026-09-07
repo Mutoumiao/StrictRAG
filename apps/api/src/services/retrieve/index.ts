@@ -2,6 +2,7 @@ export { rrfFuse } from './rrf.js';
 export { cosine, sparseOverlapScore, rankByScore } from './scoring.js';
 export { loadCorpusFromDb, hasRetrievableDocs, filterDocsForRetrieve } from './corpus.js';
 export {
+  collectVisibleOwnerDeptIds,
   filterDocsForDeptAcl,
   isDeptAclEnforced,
   isDocVisibleForDeptAcl,
@@ -10,7 +11,9 @@ export {
   searchSparseEs,
   ensureSparseIndex,
   bulkIndexSparse,
+  buildAclFilter,
   esConfigFromEnv,
+  sparseBulkSource,
   EsSparseError,
 } from './es-sparse.js';
 export {

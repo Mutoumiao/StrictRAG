@@ -14,6 +14,21 @@ import { runRetrieve } from '../../src/services/retrieve/retrieve.js';
 import { sparseOverlapScore } from '../../src/services/retrieve/scoring.js';
 import type { CorpusChunk, RetrieveDeps } from '../../src/services/retrieve/types.js';
 
+vi.mock('../../src/services/kb-settings.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/services/kb-settings.js')>();
+  return {
+    ...actual,
+    kbSettingsRepo: {
+      get: async () => ({
+        id: 'kb-tenant-a',
+        name: 'KB',
+        description: null,
+        configJson: {},
+      }),
+    },
+  };
+});
+
 const KB_A = 'kb-tenant-a';
 const KB_B = 'kb-tenant-b';
 const dims = 8;

@@ -127,6 +127,44 @@ export function isDocVisibleForDeptAcl(
   return eff != null && eff >= vis;
 }
 
+/**
+ * ES 查询期 ownerDeptId terms 候选：归属精确 ∪（inheritDown 时）子孙，
+ * 加上有效 grant 精确 ∪ 祖先部门子树（不读 inheritDown）。
+ * 无树/缺节点只精确。空列表 = 调用方不加部门 terms。
+ */
+export function collectVisibleOwnerDeptIds(opts: {
+  assignments: readonly DeptAssignment[];
+  depts?: readonly DeptAclNode[];
+  grants?: readonly DeptAclGrant[];
+  inheritDown?: boolean;
+  now?: string;
+}): string[] {
+  const inheritDown = opts.inheritDown ?? isDeptInheritDown();
+  const depts = opts.depts ?? [];
+  const byId = new Map(depts.map((d) => [d.id, d]));
+  const ids = new Set<string>();
+  const now = opts.now ?? formatLocalDateTime();
+
+  const addExactAndDescendants = (deptId: string, includeDescendants: boolean) => {
+    ids.add(deptId);
+    if (!includeDescendants || depts.length === 0) return;
+    const node = byId.get(deptId);
+    if (!node) return;
+    for (const d of depts) {
+      if (isAncestorPath(node.path, d.path)) ids.add(d.id);
+    }
+  };
+
+  for (const a of opts.assignments) {
+    addExactAndDescendants(a.deptId, inheritDown);
+  }
+  for (const g of opts.grants ?? []) {
+    if (!isGrantActive(g.expiresAt, now)) continue;
+    addExactAndDescendants(g.deptId, true);
+  }
+  return [...ids].sort();
+}
+
 export function filterDocsForDeptAcl<T extends DeptAclDoc>(
   docs: readonly T[],
   opts: {

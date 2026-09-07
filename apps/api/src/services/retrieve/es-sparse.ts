@@ -15,19 +15,60 @@ export type EsSparseSearchInput = {
   kbId: string;
   question: string;
   size: number;
+  /** enforce 开且非超管时传入；空/缺省不加部门 terms */
+  ownerDeptIds?: string[];
 };
+
+export type SparseBulkDoc = {
+  chunkId: string;
+  tenantId: string;
+  kbId: string;
+  docId: string;
+  sparseText: string;
+  ownerDeptId?: string | null;
+};
+
+export type EsAclFilterClause =
+  | { term: { tenantId: string } }
+  | { term: { kbId: string } }
+  | { terms: { ownerDeptId: string[] } };
+
+/** 有值才写入；空/缺省不出现该字段（缺字段不得当全员可见）。 */
+export function sparseBulkSource(d: SparseBulkDoc): Record<string, string> {
+  const source: Record<string, string> = {
+    chunkId: d.chunkId,
+    tenantId: d.tenantId,
+    kbId: d.kbId,
+    docId: d.docId,
+    sparseText: d.sparseText,
+  };
+  const owner = typeof d.ownerDeptId === 'string' ? d.ownerDeptId.trim() : '';
+  if (owner) source.ownerDeptId = owner;
+  return source;
+}
 
 /**
  * 检索期 ACL 对称 filter（ES 查询共用，禁止两路各写）。
  * P2 在 ES 查询期强制 tenantId + kbId（共享索引安全隔离，不得事后交 PG）。
+ * 非空 ownerDeptIds 时追加 terms 收窄；空/缺省仍只 tenantId+kbId。
+ * 缺 ownerDeptId 字段不得当全员可见。精确可见级仍由 PG filterDocsForDeptAcl 把关。
  * status/lifecycle/indexVersion 闸门由 PG corpus（loadCorpusFromDb）对称承载；
  * 生产级 ES 索引字段与 IK/Router 属 B8 分层，不在本窗。
  */
 export function buildAclFilter(input: {
   tenantId: string;
   kbId: string;
-}): Array<{ term: { tenantId: string } | { kbId: string } }> {
-  return [{ term: { tenantId: input.tenantId } }, { term: { kbId: input.kbId } }];
+  ownerDeptIds?: string[];
+}): EsAclFilterClause[] {
+  const filter: EsAclFilterClause[] = [
+    { term: { tenantId: input.tenantId } },
+    { term: { kbId: input.kbId } },
+  ];
+  const ownerDeptIds = (input.ownerDeptIds ?? []).filter((id) => id.trim().length > 0);
+  if (ownerDeptIds.length > 0) {
+    filter.push({ terms: { ownerDeptId: ownerDeptIds } });
+  }
+  return filter;
 }
 
 export class EsSparseError extends Error {
@@ -68,6 +109,7 @@ export async function ensureSparseIndex(cfg: EsSparseConfig): Promise<void> {
           tenantId: { type: 'keyword' },
           kbId: { type: 'keyword' },
           docId: { type: 'keyword' },
+          ownerDeptId: { type: 'keyword' },
           sparseText: { type: 'text' },
         },
       },
@@ -144,10 +186,10 @@ export async function searchSparseEs(
   return out;
 }
 
-/** bulk 索引文档；每项 _id=chunkId */
+/** bulk 索引文档；每项 _id=chunkId。ownerDeptId 有值才写入。 */
 export async function bulkIndexSparse(
   cfg: EsSparseConfig,
-  docs: Array<{ chunkId: string; tenantId: string; kbId: string; docId: string; sparseText: string }>,
+  docs: SparseBulkDoc[],
 ): Promise<{ indexed: number }> {
   if (docs.length === 0) return { indexed: 0 };
   const base = trimUrl(cfg.baseUrl);
@@ -155,15 +197,7 @@ export async function bulkIndexSparse(
   const lines: string[] = [];
   for (const d of docs) {
     lines.push(JSON.stringify({ index: { _index: cfg.index, _id: d.chunkId } }));
-    lines.push(
-      JSON.stringify({
-        chunkId: d.chunkId,
-        tenantId: d.tenantId,
-        kbId: d.kbId,
-        docId: d.docId,
-        sparseText: d.sparseText,
-      }),
-    );
+    lines.push(JSON.stringify(sparseBulkSource(d)));
   }
   const res = await fetch(`${base}/_bulk`, {
     method: 'POST',
