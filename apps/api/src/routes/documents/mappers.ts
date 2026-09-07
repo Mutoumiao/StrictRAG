@@ -29,6 +29,7 @@ export type DocMapSource = {
   updatedAt?: string | null;
   ownerDeptId?: string | null;
   visibilityLevel?: number | null;
+  aclPrincipals?: string[] | null;
 };
 
 export function toListItem(r: DocMapSource): DocumentListItem {
@@ -46,6 +47,7 @@ export function toListItem(r: DocMapSource): DocumentListItem {
     ownerDeptId: r.ownerDeptId ?? null,
     visibilityLevel: (r.visibilityLevel ?? 20) as VisibilityLevel,
     docType: r.docType ?? null,
+    aclPrincipals: r.aclPrincipals ?? null,
   };
 }
 

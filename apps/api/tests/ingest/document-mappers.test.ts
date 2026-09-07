@@ -44,6 +44,7 @@ describe('documents mappers（ARCH-P1a 域内纯函数）', () => {
     expect(item.embedReady).toBe(true);
     expect(item.esReady).toBe(false);
     expect(item.docType).toBe('policy');
+    expect(item.aclPrincipals).toBeNull();
   });
 
   it('toDetail 含租户/KB 与元数据', () => {
@@ -99,5 +100,17 @@ describe('documents mappers（ARCH-P1a 域内纯函数）', () => {
     expect(detail.updatedAt).toBeNull();
     expect(detail.ownerDeptId).toBeNull();
     expect(detail.visibilityLevel).toBe(20);
+    expect(detail.aclPrincipals).toBeNull();
+  });
+
+  it('toListItem 回读 aclPrincipals 三态', () => {
+    expect(toListItem({ ...base, aclPrincipals: null }).aclPrincipals).toBeNull();
+    expect(toListItem({ ...base, aclPrincipals: [] }).aclPrincipals).toEqual([]);
+    expect(
+      toListItem({
+        ...base,
+        aclPrincipals: ['01900000-0000-7000-8000-0000000000e1'],
+      }).aclPrincipals,
+    ).toEqual(['01900000-0000-7000-8000-0000000000e1']);
   });
 });

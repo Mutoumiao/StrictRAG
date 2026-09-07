@@ -11,7 +11,7 @@
 | `ask/` | 单轮信任路径、mode/docTypes、检索装载 | `prds/04-pipelines` · `prds/08-quality` · P0 R7–R9 |
 | `ingest/` | 入库 HTTP、体积/审批闸、分片策略、文档元数据 | `prds/04-pipelines/01-offline-ingest.md` · B12 |
 | `auth/` | JWT、AUTH_ENFORCE、hydrate | `prds/09-security` · QUAL-1 |
-| `acl/` | 成员、部门、kb-scope、列表同滤 | ADR-051 · DEPT_ACL |
+| `acl/` | 成员、部门、kb-scope、列表同滤、文档级 principals | ADR-051 · DEPT_ACL · P3b 文档 ACL |
 | `kb/` | 知识库列表与设置 | B2 / B2-W |
 | `sessions/` | 会话壳、近窗 | 历史≠evidence · rewrite 默认关 |
 | `feedback/` | 答案反馈 API | B13 |
@@ -30,6 +30,8 @@
 | `acl/chunks-dept-filter.test.ts` | chunks 列表必须套部门过滤。 | DEPT_ACL | `GET /documents/:docId/chunks` | chunks 列表部门过滤。 | 现行 |
 | `acl/departments-http.test.ts` | 部门壳 HTTP 按契约读写。 | B5 | `createDepartmentsRoutes` | 部门壳 HTTP。 | 现行 |
 | `acl/dept-grants-http.test.ts` | 跨部门 grant HTTP 按 DEPT_ACL 约束。 | DEPT_ACL | `createDeptGrantsRoutes` | 跨部门 grant。 | 现行 |
+| `acl/doc-acl-principals.test.ts` | 文档级用户 uuid 名单必须按 null/[]/命中/未命中/bypass 过滤，失败则非名单用户可读。 | P3b 文档 ACL · 覆盖 B2-4 / B2-1 最小 | `isDocVisibleForAclPrincipals / filterDocsForAclPrincipals` | null 可见、[] 不可见、命中可见、未命中/无 userId 不可见、bypass 可见。 | 现行 |
+| `acl/documents-acl-principals.test.ts` | 文档 aclPrincipals 必须可 PATCH 三态回读，且列表/详情/语料同滤。 | P3b 文档 ACL · 覆盖 B2-4 / B2-1 最小 | `PATCH/GET /documents/:docId · GET /knowledge-bases/:kbId/documents · filterDocsForAclPrincipals` | null 可读、[] 非超管不可读；名单内外分滤；bypass 200；retrieve 语料不含未授权文档。 | 现行 |
 | `acl/documents-dept-filter.test.ts` | 文档列表必须套部门过滤。 | DEPT_ACL | `documents list dept filter` | 文档列表部门过滤。 | 现行 |
 | `acl/kb-member-gate.test.ts` | 无 KB 成员必须 403，授权以码为准。 | 以码为准 | `requireKbMember / requirePermission` | 无成员 403。 | 现行 |
 | `acl/kb-scope-cache.test.ts` | KB 成员查找在同一请求内复用缓存。 | ARCH-P1b-1 | `lookupKbMembership / membershipCacheKey` | KB 成员查找请求内缓存。 | 现行 |

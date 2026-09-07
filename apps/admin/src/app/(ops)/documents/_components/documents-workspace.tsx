@@ -2,7 +2,7 @@
 
 /**
  * 文档薄列表：类型 / 运营标签 / 向量 / 稀疏。
- * 点行展开详情；可改 ownerDeptId / visibilityLevel / docType（有 doc.editor 才显示保存）。
+ * 点行展开详情；可改 ownerDeptId / visibilityLevel / docType / aclPrincipals（有 doc.editor 才显示保存）。
  * 有 dept.manage 时归属用部门列表下拉；无该码仍 uuid 粘贴。不宣称强制隔离已上。
  * Reindex 走 for-upload；≥2 必须人选。lifecycle 含归档/废止。上架仍须 ready。
  * 表头上方按已加载行本地筛部门/可见级；不改 GET query。
@@ -23,6 +23,7 @@ import type {
 import { Button } from '@strict-rag/ui/components/ui/button';
 import { Input } from '@strict-rag/ui/components/ui/input';
 import { Label } from '@strict-rag/ui/components/ui/label';
+import { Textarea } from '@strict-rag/ui/components/ui/textarea';
 import {
   Table,
   TableBody,
@@ -75,6 +76,30 @@ function toVisibilityLevel(value: string): VisibilityLevel {
   return (VISIBILITY_LEVELS.includes(n as VisibilityLevel) ? n : 20) as VisibilityLevel;
 }
 
+function parsePrincipalsText(text: string): string[] {
+  return text
+    .split(/[,\n\r]+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
+/** 未勾选且空 → null；勾选且空 → []；有 UUID → 数组。 */
+function aclPrincipalsFromForm(restrictToList: boolean, text: string): string[] | null {
+  const ids = parsePrincipalsText(text);
+  if (ids.length > 0) return ids;
+  return restrictToList ? [] : null;
+}
+
+function principalsFormFromDetail(aclPrincipals: string[] | null | undefined): {
+  restrictToList: boolean;
+  text: string;
+} {
+  return {
+    restrictToList: aclPrincipals != null,
+    text: (aclPrincipals ?? []).join('\n'),
+  };
+}
+
 export function DocumentsWorkspace() {
   const { me } = useAdminAuth();
   const canView = me.permissions.includes('doc.view');
@@ -100,6 +125,8 @@ export function DocumentsWorkspace() {
   const [ownerDeptId, setOwnerDeptId] = useState('');
   const [visibilityLevel, setVisibilityLevel] = useState<VisibilityLevel>(20);
   const [docType, setDocType] = useState('');
+  const [restrictToList, setRestrictToList] = useState(false);
+  const [principalsText, setPrincipalsText] = useState('');
   const [kbDocTypes, setKbDocTypes] = useState<string[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -207,6 +234,9 @@ export function DocumentsWorkspace() {
     setOwnerDeptId(result.detail.ownerDeptId ?? '');
     setVisibilityLevel(result.detail.visibilityLevel ?? 20);
     setDocType(result.detail.docType ?? '');
+    const principals = principalsFormFromDetail(result.detail.aclPrincipals);
+    setRestrictToList(principals.restrictToList);
+    setPrincipalsText(principals.text);
     setDetailState('ready');
     setReindexPlan(null);
     setReindexPicked('');
@@ -373,6 +403,7 @@ export function DocumentsWorkspace() {
       ownerDeptId: ownerDeptId.trim() === '' ? null : ownerDeptId.trim(),
       visibilityLevel,
       docType: docType.trim() === '' ? null : docType.trim(),
+      aclPrincipals: aclPrincipalsFromForm(restrictToList, principalsText),
     });
     if (openIdRef.current !== docId) {
       setBusy(false);
@@ -383,6 +414,9 @@ export function DocumentsWorkspace() {
       setOwnerDeptId(result.detail.ownerDeptId ?? '');
       setVisibilityLevel(result.detail.visibilityLevel ?? 20);
       setDocType(result.detail.docType ?? '');
+      const principals = principalsFormFromDetail(result.detail.aclPrincipals);
+      setRestrictToList(principals.restrictToList);
+      setPrincipalsText(principals.text);
       setSaveMessage('已保存');
       setSaveOk(true);
     } else {
@@ -630,6 +664,28 @@ export function DocumentsWorkspace() {
                                   </option>
                                 ))}
                               </select>
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="flex items-center gap-2 text-sm">
+                                <input
+                                  id="doc-acl-restrict"
+                                  type="checkbox"
+                                  checked={restrictToList}
+                                  onChange={(e) => setRestrictToList(e.target.checked)}
+                                  disabled={!canEdit}
+                                />
+                                仅名单可见
+                              </label>
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor="doc-acl-principals">可见用户 uuid</Label>
+                              <Textarea
+                                id="doc-acl-principals"
+                                value={principalsText}
+                                onChange={(e) => setPrincipalsText(e.target.value)}
+                                placeholder="逗号或换行分隔用户 uuid"
+                                disabled={!canEdit}
+                              />
                             </div>
                             <div className="space-y-1.5">
                               <Label htmlFor="doc-type">类型</Label>

@@ -52,6 +52,10 @@ import {
   loadDeptGrants,
   loadDeptNodes,
 } from '../../services/retrieve/dept-acl.js';
+import {
+  filterDocsForAclPrincipals,
+  isDocVisibleForAclPrincipals,
+} from '../../services/retrieve/doc-acl.js';
 import { env } from '../../env.js';
 import {
   checkFixedWindowRateLimit,
@@ -124,32 +128,36 @@ documentRoutes.get(
     const enforce = resolveDeptAclEnforce(
       parseDeptAclEnforceFromConfig(kb?.configJson ?? null),
     );
-    if (!enforce) {
-      return ok(c, rows.map(toListItem));
-    }
     const auth = c.get('auth');
     const bypass = roleBypassesKbMembership(auth?.roles ?? []);
-    if (bypass) {
-      logger.info(
-        { event: 'dept_acl_bypass', userId: auth?.userId, kbId },
-        'dept acl bypass',
-      );
-      return ok(c, rows.map(toListItem));
+    let visible = rows;
+    if (enforce) {
+      if (bypass) {
+        logger.info(
+          { event: 'dept_acl_bypass', userId: auth?.userId, kbId },
+          'dept acl bypass',
+        );
+      } else {
+        const tenantId = rows[0]?.tenantId;
+        const [assignments, depts, grants] = await Promise.all([
+          loadDeptAssignments(tenantId, auth?.userId),
+          loadDeptNodes(tenantId),
+          loadDeptGrants(tenantId, auth?.userId),
+        ]);
+        visible = filterDocsForDeptAcl(rows, {
+          assignments,
+          enforce: true,
+          depts,
+          grants,
+          inheritDown: resolveDeptInheritDown(
+            parseDeptInheritDownFromConfig(kb?.configJson ?? null),
+          ),
+        });
+      }
     }
-    const tenantId = rows[0]?.tenantId;
-    const [assignments, depts, grants] = await Promise.all([
-      loadDeptAssignments(tenantId, auth?.userId),
-      loadDeptNodes(tenantId),
-      loadDeptGrants(tenantId, auth?.userId),
-    ]);
-    const visible = filterDocsForDeptAcl(rows, {
-      assignments,
-      enforce: true,
-      depts,
-      grants,
-      inheritDown: resolveDeptInheritDown(
-        parseDeptInheritDownFromConfig(kb?.configJson ?? null),
-      ),
+    visible = filterDocsForAclPrincipals(visible, {
+      userId: auth?.userId,
+      bypass,
     });
     return ok(c, visible.map(toListItem));
   },
@@ -530,7 +538,7 @@ documentRoutes.patch(
   },
 );
 
-/** PATCH /api/v1/documents/:docId — 部门 / 可见级 / 类型；不改 lifecycle、不入队 */
+/** PATCH /api/v1/documents/:docId — 部门 / 可见级 / 类型 / 名单；不改 lifecycle、不入队 */
 documentRoutes.patch('/documents/:docId', requirePermission('doc.editor'), async (c) => {
   const docId = c.req.param('docId');
   const parsed = PatchDocumentMetaBodySchema.safeParse(await c.req.json().catch(() => ({})));
@@ -553,9 +561,14 @@ documentRoutes.patch('/documents/:docId', requirePermission('doc.editor'), async
   }
 
   await documentRepo.patchMeta(docId, {
-    ownerDeptId: parsed.data.ownerDeptId,
-    visibilityLevel: parsed.data.visibilityLevel,
-    docType: parsed.data.docType,
+    ...(parsed.data.ownerDeptId !== undefined ? { ownerDeptId: parsed.data.ownerDeptId } : {}),
+    ...(parsed.data.visibilityLevel !== undefined
+      ? { visibilityLevel: parsed.data.visibilityLevel }
+      : {}),
+    ...(parsed.data.docType !== undefined ? { docType: parsed.data.docType } : {}),
+    ...(parsed.data.aclPrincipals !== undefined
+      ? { aclPrincipals: parsed.data.aclPrincipals }
+      : {}),
   });
   const updated = await documentRepo.getDoc(docId);
   if (!updated) {
@@ -575,9 +588,9 @@ documentRoutes.get('/documents/:docId', requirePermissionWhenEnforced('doc.view'
   const enforce = resolveDeptAclEnforce(
     parseDeptAclEnforceFromConfig(kb?.configJson ?? null),
   );
+  const auth = c.get('auth');
+  const bypass = roleBypassesKbMembership(auth?.roles ?? []);
   if (enforce) {
-    const auth = c.get('auth');
-    const bypass = roleBypassesKbMembership(auth?.roles ?? []);
     if (bypass) {
       logger.info(
         { event: 'dept_acl_bypass', userId: auth?.userId, kbId: doc.kbId, docId: doc.id },
@@ -607,6 +620,9 @@ documentRoutes.get('/documents/:docId', requirePermissionWhenEnforced('doc.view'
         return fail(c, BizCode.FORBIDDEN, 'department acl denied', 403);
       }
     }
+  }
+  if (!isDocVisibleForAclPrincipals(doc, { userId: auth?.userId, bypass })) {
+    return fail(c, BizCode.FORBIDDEN, 'document acl denied', 403);
   }
   return ok(c, toDetail(doc));
 });

@@ -93,6 +93,7 @@ const listDoc = {
   ownerDeptId: null as string | null,
   visibilityLevel: 20 as const,
   docType: null as string | null,
+  aclPrincipals: null as string[] | null,
 };
 
 const detailDoc = {

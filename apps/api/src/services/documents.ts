@@ -218,23 +218,26 @@ export const documentRepo = {
       .where(eq(documents.id, docId));
   },
 
-  /** 部门 / 可见级 / 类型；不改 lifecycle、不入队 */
+  /** 部门 / 可见级 / 类型 / 名单；不改 lifecycle、不入队；undefined 不写 */
   async patchMeta(
     docId: string,
     patch: {
       ownerDeptId?: string | null;
       visibilityLevel?: 10 | 20 | 30 | 40;
       docType?: string | null;
+      aclPrincipals?: string[] | null;
     },
   ) {
     const set: {
       ownerDeptId?: string | null;
       visibilityLevel?: 10 | 20 | 30 | 40;
       docType?: string | null;
+      aclPrincipals?: string[] | null;
     } = {};
     if (patch.ownerDeptId !== undefined) set.ownerDeptId = patch.ownerDeptId;
     if (patch.visibilityLevel !== undefined) set.visibilityLevel = patch.visibilityLevel;
     if (patch.docType !== undefined) set.docType = patch.docType;
+    if (patch.aclPrincipals !== undefined) set.aclPrincipals = patch.aclPrincipals;
     if (Object.keys(set).length === 0) return;
     await getDb().update(documents).set(set).where(eq(documents.id, docId));
   },

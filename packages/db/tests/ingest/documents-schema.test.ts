@@ -1,8 +1,8 @@
 /**
- * 目标：文档表必须含部门与可见级列，且 id / 时间列策略不变。
- * 需求：P3b-META
+ * 目标：文档表必须含部门、可见级与 acl_principals 列，且 id / 时间列策略不变。
+ * 需求：P3b-META · P3b 文档 ACL
  * 被测：documents
- * 简介：核对 ownerDeptId / visibilityLevel 及本地时间、uuid；强制未接。
+ * 简介：核对 ownerDeptId / visibilityLevel / aclPrincipals 及本地时间、uuid；强制未接。
  */
 
 import { describe, expect, it } from 'vitest';
@@ -15,6 +15,11 @@ describe('documents schema (P3b-META)', () => {
     expect(documents.visibilityLevel).toBeDefined();
     expect(documents.ownerDeptId.name).toBe('owner_dept_id');
     expect(documents.visibilityLevel.name).toBe('visibility_level');
+  });
+
+  it('exposes aclPrincipals as nullable uuid array', () => {
+    expect(documents.aclPrincipals).toBeDefined();
+    expect(documents.aclPrincipals.name).toBe('acl_principals');
   });
 
   it('keeps local time strings and uuid id strategy', () => {

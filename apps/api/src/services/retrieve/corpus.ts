@@ -20,6 +20,7 @@ import {
   loadDeptGrants,
   loadDeptNodes,
 } from './dept-acl.js';
+import { filterDocsForAclPrincipals } from './doc-acl.js';
 import type { CorpusChunk, CorpusLoader, RetrieveScope } from './types.js';
 
 /** 文档侧双闸门 + 可选 docTypes（loadCorpusFromDb / hasRetrievableDocs 共用） */
@@ -75,16 +76,19 @@ export const loadCorpusFromDb: CorpusLoader = async ({
         loadDeptNodes(tenantId),
         loadDeptGrants(tenantId, userId),
       ]);
-  const allowed = filterDocsForDeptAcl(dual, {
-    assignments,
-    enforce,
-    depts,
-    grants,
-    bypass: bypassDeptAcl,
-    inheritDown: skipDeptIo
-      ? undefined
-      : resolveDeptInheritDown(parseDeptInheritDownFromConfig(kb?.configJson ?? null)),
-  });
+  const allowed = filterDocsForAclPrincipals(
+    filterDocsForDeptAcl(dual, {
+      assignments,
+      enforce,
+      depts,
+      grants,
+      bypass: bypassDeptAcl,
+      inheritDown: skipDeptIo
+        ? undefined
+        : resolveDeptInheritDown(parseDeptInheritDownFromConfig(kb?.configJson ?? null)),
+    }),
+    { userId, bypass: bypassDeptAcl },
+  );
 
   if (allowed.length === 0) return [];
 
@@ -155,15 +159,18 @@ export async function hasRetrievableDocs(
         loadDeptGrants(tenantId, userId),
       ]);
   return (
-    filterDocsForDeptAcl(dual, {
-      assignments,
-      enforce,
-      depts,
-      grants,
-      bypass: bypassDeptAcl,
-      inheritDown: skipDeptIo
-        ? undefined
-        : resolveDeptInheritDown(parseDeptInheritDownFromConfig(kb?.configJson ?? null)),
-    }).length > 0
+    filterDocsForAclPrincipals(
+      filterDocsForDeptAcl(dual, {
+        assignments,
+        enforce,
+        depts,
+        grants,
+        bypass: bypassDeptAcl,
+        inheritDown: skipDeptIo
+          ? undefined
+          : resolveDeptInheritDown(parseDeptInheritDownFromConfig(kb?.configJson ?? null)),
+      }),
+      { userId, bypass: bypassDeptAcl },
+    ).length > 0
   );
 }

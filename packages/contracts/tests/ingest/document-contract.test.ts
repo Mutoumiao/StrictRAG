@@ -2,7 +2,7 @@
  * 目标：文档 / 知识库 DTO 与完成上传、补丁元数据必须接受合法部门可见级并拒非法值。
  * 需求：入库 HTTP
  * 被测：CreateKbBodySchema · KnowledgeBaseListItemSchema · VisibilityLevelSchema · CompleteUploadBodySchema · PatchDocumentMetaBodySchema · DocumentDetailSchema · DocumentListItemSchema
- * 简介：文档 DTO 与可见级 / 部门字段。
+ * 简介：文档 DTO 与可见级 / 部门字段 / aclPrincipals 三态。
  */
 
 import { describe, expect, it } from 'vitest';
@@ -159,6 +159,29 @@ describe('PatchDocumentMetaBodySchema', () => {
   it('rejects empty docType string', () => {
     expect(PatchDocumentMetaBodySchema.safeParse({ docType: '' }).success).toBe(false);
   });
+
+  it('aclPrincipals: omit 其它字段仍成功；null / [] / uuid 列表成功', () => {
+    expect(PatchDocumentMetaBodySchema.safeParse({ ownerDeptId: null }).success).toBe(true);
+    expect(PatchDocumentMetaBodySchema.safeParse({ aclPrincipals: null }).success).toBe(true);
+    expect(PatchDocumentMetaBodySchema.safeParse({ aclPrincipals: [] }).success).toBe(true);
+    expect(
+      PatchDocumentMetaBodySchema.safeParse({
+        aclPrincipals: ['01900000-0000-7000-8000-0000000000e1'],
+      }).success,
+    ).toBe(true);
+  });
+
+  it('aclPrincipals 非法 uuid / 超长 257 / 空对象失败', () => {
+    expect(
+      PatchDocumentMetaBodySchema.safeParse({ aclPrincipals: ['not-a-uuid'] }).success,
+    ).toBe(false);
+    expect(
+      PatchDocumentMetaBodySchema.safeParse({
+        aclPrincipals: Array.from({ length: 257 }, () => '01900000-0000-7000-8000-0000000000e1'),
+      }).success,
+    ).toBe(false);
+    expect(PatchDocumentMetaBodySchema.safeParse({}).success).toBe(false);
+  });
 });
 
 describe('DocumentDetailSchema / list item', () => {
@@ -173,11 +196,12 @@ describe('DocumentDetailSchema / list item', () => {
     ).toBe(true);
   });
 
-  it('list item schema has ownerDeptId / visibilityLevel', () => {
+  it('list item schema has ownerDeptId / visibilityLevel / aclPrincipals', () => {
     const keys = Object.keys(DocumentListItemSchema.shape);
     expect(keys).toContain('ownerDeptId');
     expect(keys).toContain('visibilityLevel');
     expect(keys).toContain('docType');
+    expect(keys).toContain('aclPrincipals');
     const parsed = DocumentListItemSchema.parse({
       id: DETAIL_BASE.id,
       title: DETAIL_BASE.title,
@@ -192,5 +216,6 @@ describe('DocumentDetailSchema / list item', () => {
     });
     expect(parsed.ownerDeptId).toBeNull();
     expect(parsed.visibilityLevel).toBe(20);
+    expect(parsed.aclPrincipals).toBeNull();
   });
 });

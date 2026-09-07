@@ -51,6 +51,9 @@ export const documents = pgTable('documents', {
   ownerDeptId: uuid('owner_dept_id'), // 可空 = 库级
   visibilityLevel: integer('visibility_level').notNull().default(20),
 
+  /** P3b：用户 uuid 名单。SQL NULL=未设；'{}'=显式空。禁止 default [] */
+  aclPrincipals: uuid('acl_principals').array(),
+
   effectiveFrom: text('effective_from'),
   effectiveTo: text('effective_to'),
   supersedesDocId: uuid('supersedes_doc_id'),

@@ -17,6 +17,7 @@ import {
   chunksRepo,
   type ChunkRow,
   type ChunksRepo,
+  type DocChunkContext,
 } from '../services/chunks.js';
 import { documentRepo } from '../services/documents.js';
 import {
@@ -31,6 +32,7 @@ import {
   loadDeptGrants,
   loadDeptNodes,
 } from '../services/retrieve/dept-acl.js';
+import { isDocVisibleForAclPrincipals } from '../services/retrieve/doc-acl.js';
 
 export type ChunkRouteDeps = {
   chunks?: ChunksRepo;
@@ -46,6 +48,53 @@ function toListItem(row: ChunkRow): ChunkListItem {
     indexVersion: row.indexVersion,
     tokenCount: row.tokenCount,
   };
+}
+
+/** 部门闸之后 principals；不可见返回 403 文案。不跟 DEPT_ACL_ENFORCE。 */
+async function deniedDocReadMessage(
+  doc: DocChunkContext,
+  kb: { configJson?: Record<string, unknown> | null } | null,
+  auth: { userId?: string; roles?: string[] } | null | undefined,
+): Promise<string | null> {
+  const enforce = resolveDeptAclEnforce(
+    parseDeptAclEnforceFromConfig(kb?.configJson ?? null),
+  );
+  const bypass = roleBypassesKbMembership(auth?.roles ?? []);
+  if (enforce) {
+    if (bypass) {
+      logger.info(
+        { event: 'dept_acl_bypass', userId: auth?.userId, docId: doc.id },
+        'dept acl bypass',
+      );
+    } else {
+      const [assignments, depts, grants] = await Promise.all([
+        loadDeptAssignments(doc.tenantId, auth?.userId),
+        loadDeptNodes(doc.tenantId),
+        loadDeptGrants(doc.tenantId, auth?.userId),
+      ]);
+      const inheritDown = resolveDeptInheritDown(
+        parseDeptInheritDownFromConfig(kb?.configJson ?? null),
+      );
+      if (
+        !isDocVisibleForDeptAcl(
+          doc,
+          assignments,
+          true,
+          depts,
+          grants,
+          undefined,
+          undefined,
+          inheritDown,
+        )
+      ) {
+        return 'department acl denied';
+      }
+    }
+  }
+  if (!isDocVisibleForAclPrincipals(doc, { userId: auth?.userId, bypass })) {
+    return 'document acl denied';
+  }
+  return null;
 }
 
 /**
@@ -73,41 +122,9 @@ export function createChunkRoutes(deps: ChunkRouteDeps = {}): Hono<{ Variables: 
       return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
     }
     const kb = doc.kbId ? await documentRepo.getKb(doc.kbId) : null;
-    const enforce = resolveDeptAclEnforce(
-      parseDeptAclEnforceFromConfig(kb?.configJson ?? null),
-    );
-    if (enforce) {
-      const auth = c.get('auth');
-      const bypass = roleBypassesKbMembership(auth?.roles ?? []);
-      if (bypass) {
-        logger.info(
-          { event: 'dept_acl_bypass', userId: auth?.userId, docId: doc.id },
-          'dept acl bypass',
-        );
-      } else {
-        const [assignments, depts, grants] = await Promise.all([
-          loadDeptAssignments(doc.tenantId, auth?.userId),
-          loadDeptNodes(doc.tenantId),
-          loadDeptGrants(doc.tenantId, auth?.userId),
-        ]);
-        const inheritDown = resolveDeptInheritDown(
-          parseDeptInheritDownFromConfig(kb?.configJson ?? null),
-        );
-        if (
-          !isDocVisibleForDeptAcl(
-            doc,
-            assignments,
-            true,
-            depts,
-            grants,
-            undefined,
-            undefined,
-            inheritDown,
-          )
-        ) {
-          return fail(c, BizCode.FORBIDDEN, 'department acl denied', 403);
-        }
-      }
+    const denied = await deniedDocReadMessage(doc, kb, c.get('auth'));
+    if (denied) {
+      return fail(c, BizCode.FORBIDDEN, denied, 403);
     }
 
     const rows = await repo.listByDocVersion({
@@ -142,41 +159,9 @@ export function createChunkRoutes(deps: ChunkRouteDeps = {}): Hono<{ Variables: 
       return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
     }
     const kb = doc.kbId ? await documentRepo.getKb(doc.kbId) : null;
-    const enforce = resolveDeptAclEnforce(
-      parseDeptAclEnforceFromConfig(kb?.configJson ?? null),
-    );
-    if (enforce) {
-      const auth = c.get('auth');
-      const bypass = roleBypassesKbMembership(auth?.roles ?? []);
-      if (bypass) {
-        logger.info(
-          { event: 'dept_acl_bypass', userId: auth?.userId, docId: doc.id },
-          'dept acl bypass',
-        );
-      } else {
-        const [assignments, depts, grants] = await Promise.all([
-          loadDeptAssignments(doc.tenantId, auth?.userId),
-          loadDeptNodes(doc.tenantId),
-          loadDeptGrants(doc.tenantId, auth?.userId),
-        ]);
-        const inheritDown = resolveDeptInheritDown(
-          parseDeptInheritDownFromConfig(kb?.configJson ?? null),
-        );
-        if (
-          !isDocVisibleForDeptAcl(
-            doc,
-            assignments,
-            true,
-            depts,
-            grants,
-            undefined,
-            undefined,
-            inheritDown,
-          )
-        ) {
-          return fail(c, BizCode.FORBIDDEN, 'department acl denied', 403);
-        }
-      }
+    const denied = await deniedDocReadMessage(doc, kb, c.get('auth'));
+    if (denied) {
+      return fail(c, BizCode.FORBIDDEN, denied, 403);
     }
 
     const row = await repo.getById(docId, chunkId, doc.indexVersion);

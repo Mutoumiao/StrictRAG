@@ -2,7 +2,7 @@
  * 目标：文档列表薄页必须按码控制详情/保存/部门列，失败则运营交互与权限不符。
  * 需求：文档运营 UI
  * 被测：DocumentsWorkspace · deptLabel / readyColLabel / visibilityLabel
- * 简介：部门列展示。
+ * 简介：部门列展示；行展开可编辑 aclPrincipals 名单。
  */
 
 import { within } from '@testing-library/react';
@@ -122,6 +122,7 @@ const listDoc = {
   ownerDeptId: null as string | null,
   visibilityLevel: 20 as const,
   docType: null as string | null,
+  aclPrincipals: null as string[] | null,
 };
 
 const detailDoc = {
@@ -255,6 +256,8 @@ describe('DocumentsWorkspace', () => {
     await user.click(await screen.findByText('请假制度'));
 
     expect(await screen.findByLabelText('归属部门')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: '仅名单可见' })).toBeInTheDocument();
+    expect(screen.getByLabelText('可见用户 uuid')).toBeInTheDocument();
     expect(detailVisibility()).toBeInTheDocument();
     expect(within(detailVisibility()).getByRole('option', { name: '20 部门成员' })).toBeInTheDocument();
     expect(within(detailVisibility()).getByRole('option', { name: '30 负责人' })).toBeInTheDocument();
@@ -276,6 +279,8 @@ describe('DocumentsWorkspace', () => {
     expect(await screen.findByLabelText('归属部门')).toBeInTheDocument();
     expect(detailVisibility()).toBeInTheDocument();
     expect(screen.getByLabelText('归属部门')).toBeDisabled();
+    expect(screen.getByRole('checkbox', { name: '仅名单可见' })).toBeDisabled();
+    expect(screen.getByLabelText('可见用户 uuid')).toBeDisabled();
     expect(detailVisibility()).toBeDisabled();
     expect(screen.queryByRole('button', { name: '保存' })).not.toBeInTheDocument();
   });
@@ -303,6 +308,7 @@ describe('DocumentsWorkspace', () => {
         ownerDeptId: DEPT_ID,
         visibilityLevel: 30,
         docType: null,
+        aclPrincipals: null,
       });
     });
     expect(screen.getByLabelText('归属部门')).toHaveValue(DEPT_ID);
@@ -380,9 +386,37 @@ describe('DocumentsWorkspace', () => {
         ownerDeptId: DEPT_ID,
         visibilityLevel: 20,
         docType: null,
+        aclPrincipals: null,
       });
     });
     expect(screen.getByText('已保存')).toBeInTheDocument();
+  });
+
+  it('勾选仅名单可见且名单空 → PATCH []', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', 'kb-1');
+    me.permissions = ['admin.shell', 'doc.view', 'doc.editor'];
+    loadDocumentList.mockResolvedValue({ ok: true, rows: [listDoc] });
+    loadDocumentDetail.mockResolvedValue({ ok: true, detail: detailDoc });
+    saveDocumentMeta.mockResolvedValue({
+      ok: true,
+      detail: { ...detailDoc, aclPrincipals: [] },
+    });
+
+    render(<DocumentsWorkspace />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByText('请假制度'));
+    await screen.findByLabelText('可见用户 uuid');
+    await user.click(screen.getByRole('checkbox', { name: '仅名单可见' }));
+    await user.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(saveDocumentMeta).toHaveBeenCalledWith(DOC_ID, {
+        ownerDeptId: null,
+        visibilityLevel: 20,
+        docType: null,
+        aclPrincipals: [],
+      });
+    });
   });
 
   it('有 dept.manage 无 doc.editor：下拉只读、无保存', async () => {

@@ -27,6 +27,7 @@ export type DocChunkContext = {
   kbId?: string;
   ownerDeptId?: string | null;
   visibilityLevel?: number | null;
+  aclPrincipals?: string[] | null;
 };
 
 export type ListChunksInput = {
@@ -59,6 +60,7 @@ export const chunksRepo: ChunksRepo = {
         kbId: documents.kbId,
         ownerDeptId: documents.ownerDeptId,
         visibilityLevel: documents.visibilityLevel,
+        aclPrincipals: documents.aclPrincipals,
       })
       .from(documents)
       .where(eq(documents.id, docId))

@@ -7,6 +7,8 @@ export {
   isDeptAclEnforced,
   isDocVisibleForDeptAcl,
 } from './dept-acl.js';
+export { filterDocsForAclPrincipals, isDocVisibleForAclPrincipals } from './doc-acl.js';
+export type { AclPrincipalDoc } from './doc-acl.js';
 export {
   searchSparseEs,
   ensureSparseIndex,
