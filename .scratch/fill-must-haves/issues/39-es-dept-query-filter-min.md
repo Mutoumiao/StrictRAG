@@ -2,7 +2,7 @@
 
 Type: task
 Label: wayfinder:task
-Status: claimed
+Status: resolved
 Assignee: grok
 Triage: ready-for-agent
 Blocked by: 38
@@ -37,6 +37,16 @@ Blocked by: 38
 收工：`.trellis/spec/` api/worker；`docs/module-status/api.md` worker.md；coverage 02-acl 若有对应行则回写。禁止 push。禁止 `task.py create`。
 
 写代码前读 `.trellis/spec/api/backend/` 检索相关与 `dept-acl.ts`。测例落 `tests/<能力>/`，文件头简体中文，登记 index。
+
+## Answer
+
+api `ensureSparseIndex` / `bulkIndexSparse` 与 worker 入库主路径同样写入 keyword `ownerDeptId`；文档无部门则不写该字段（缺字段不得当全员可见）。
+
+`buildAclFilter` 可接收可选 `ownerDeptIds`。`DEPT_ACL_ENFORCE` 开且非超管：`runRetrieve` 传入 `collectVisibleOwnerDeptIds`（归属精确 ∪ inherit 子孙 + 有效 grant 精确 ∪ 祖先部门子树）。enforce 关或超管 bypass：不加部门 terms，仍只 tenantId+kbId。PG `filterDocsForDeptAcl` 保留，可见级 / 过期 grant / inherit 精确语义仍以 PG 为准。
+
+仓库默认 `DEPT_ACL_ENFORCE` 仍为 false。未做敏感解禁、aclPrincipals 用户数组、用 ES 替换 PG 可见级闸。未 `task.py create`。未 push。
+
+证据：`apps/api/src/services/retrieve/es-sparse.ts` · `dept-acl.ts` · `retrieve.ts` · `apps/worker/src/ingest/es-http.ts` · `pipeline.ts` · `apps/api/tests/ask/es-dept-query-filter.test.ts` · `apps/worker/tests/ingest/es-http.test.ts`。
 
 ## Comments
 
