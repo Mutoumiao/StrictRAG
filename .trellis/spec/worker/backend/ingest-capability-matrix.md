@@ -14,7 +14,7 @@
 | **parse** | **stub** | `extract-text` + `loadObjectBytes` + 字数闸 | 仅 UTF-8 **txt/md** 当文本层；其它无文本层 / 过短 → `needs_ocr` + `NO_TEXT_LAYER`；有 `MONGODB_URL` 写 `document_bodies`（`upsertDocumentBody`） | OCR · PDF 文本层（HALF-PDF）· 复杂版式 |
 | **chunk** | **done\*** | `splitByChunkStrategy` · manifests | 仅 `structure_paragraph`；幂等 resume（X-04-impl） | 多策略切分器；结构感知进阶 |
 | **embed** | **stub** | `INGEST_EMBED_MODE` mock\|fail | 伪向量 dims=8；同 version skip 已有行 | 真 embedding 网关 |
-| **es_index** | **stub** | `mockEsStore` · `INGEST_ES_MODE` | 进程内 Map 对账；无 live 枚举 | 真 ES+IK bulk（B8） |
+| **es_index** | **stub** | `mockEsStore` · `INGEST_ES_MODE` · `es-http` | 进程内 Map 对账；`http` 时 mapping/bulk 写 `tenantId`/`kbId`/`docId`/`chunkId`/`sparseText`/`ownerDeptId`（无部门不写该字段） | 真 ES+IK bulk（B8） · 多租户 Router |
 | **activate / lifecycle** | **partial** | dual-ready → `status=ready` · `lifecycle=draft` | **不**自动 active；检索第二闸在 api | 运营 activate API 全流程（产品侧） |
 | **ingest_jobs 账本** | **partial** | schema + `job-ledger.ts` | stage 边界写 running→succeeded/failed；无 api 写 / 无查询面 | 运维查询 · 入队侧 queued |
 | **失败 Webhook** | **partial** | `failure-webhook.ts` · `recordStageEnd` | 账本 `errorCode` 时 POST `ingest.failed` JSON；空 URL 不发；~3s 只一次；失败 warn 不阻断 | HMAC / 重试队列 / admin·KB URL / ask webhook |
@@ -79,7 +79,7 @@ api.enqueue({ docId, stage: 'scan', indexVersion? })
 | **PG `ingest_reports`** | **worker** `ingest-report.ts` | api GET 库级报告 | 双就绪 / 去重清空 / 对账失败 | 不含跨 doc / L1 / Hit@k |
 | **对象存储** | api 上传写文件 | worker `loadObjectBytes` | 默认 `STORAGE_LOCAL_DIR`；`STORAGE_MODE=s3` 走 S3 SDK → compose `rustfs` | 默认 **本地目录**；operable 为 **真 RustFS**（ADR-012） |
 | **Mongo 正文** | （目标 parse） | （目标） | 仅写 `mongoDocId=local:{docId}` 标记 | **无**真 Mongo 客户端 |
-| **ES 稀疏索引** | **worker** `es_index` | api `RETRIEVE_ES_MODE=http`（可选） | worker：`mockEsStore`；api 侧另有 ES 客户端切片 | worker **仅 mock\|fail** |
+| **ES 稀疏索引** | **worker** `es_index` | api `RETRIEVE_ES_MODE=http`（可选） | worker：默认 `mockEsStore`；`INGEST_ES_MODE=http` 写 mapping/bulk（含可选 `ownerDeptId`） | 默认 mock；http ≠ IK / Router |
 | **Redis 队列 + doc 锁** | api 入队 · worker 持锁 | worker BullMQ / `doc-lock` | `sr-ingest` · `sr:ingest:doc-lock:{docId}` | **真 Redis**；锁=最小 SET NX |
 | **向量生产服务** | worker embed | retrieve dense | mock float[] | **stub** |
 

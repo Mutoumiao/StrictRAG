@@ -5,15 +5,15 @@
 | 路径 | `apps/api` |
 | 端口 | 4000 |
 | 成熟度 | **可演示**（已包含：P0/P1 入库 + S2 最小问答 + B1–B6 最小运营 API + B10 L1 工程 seed + B12 策略闸 + B13 反馈 API；演示依赖 mock ES / 通常走 mock Gateway；L1 **≠** 业务签字门禁） |
-| 默认依赖模式 | 检索：`RETRIEVE_ES_MODE=mock`（默认 mock ES；`http` 须 `ELASTICSEARCH_URL`）；鉴权：临时双 JWT，`AUTH_ENFORCE` **默认 `false`**；rewrite：`SESSION_REWRITE_ENABLED` **默认 false**（图边已落；dogfood 可开；**≠** 准出）；对象存储：默认 `local`（`STORAGE_MODE=s3` 走 RustFS / S3 兼容）；Gateway：`GATEWAY_MODE=''`（空按 `GATEWAY_BASE_URL` 推断，缺 URL 走 mock）；上传上限 `INGEST_MAX_FILE_BYTES=52_428_800`（50 MiB）/ 天花板 `INGEST_MAX_FILE_BYTES_CEILING=209_715_200`（200 MiB）；`LANGFUSE_ENABLED=false`；`OBS_MEMORY_TRACE=true`。**B3-W/B2-W**：ask 读取 platform 绑定 + **KB scope 绑定覆盖（只读 list，无 PUT KB 绑定 HTTP）**；**B4-W**：每请求从 DB `user_roles` hydrate；`DEPT_ACL_ENFORCE` **默认 `false`**（开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤且列表项带部门字段；`DEPT_INHERIT_DOWN` 默认 true；KB `deptInheritDown` 可覆盖 env；KB `deptAclEnforce` 可覆盖 env，未写跟 env，GET 未写回读 false；设置页可勾选，未改不写回；ES 查询期已强制 tenantId+kbId（共享索引安全隔离），部门/ACL principals 查询期对称仍无）；`MONGODB_URL` 空（非空时检索融合后批取 Mongo `chunk_bodies` 权威正文，缺块 fail-closed）；`ASK_RATE_LIMIT_RPM=0`；`INGEST_RATE_LIMIT_RPM=0`（ask/ingest 分 store 试点限流；aux 只留常量）；`SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` **可选**（无 active 超管时缺一则 **index.ts listen 前**失败；`createApp()` 不跑引导）；L1 CLI 需显式指定 `L1_KB_ID`（可选 `L1_PERSIST_EVAL`） |
+| 默认依赖模式 | 检索：`RETRIEVE_ES_MODE=mock`（默认 mock ES；`http` 须 `ELASTICSEARCH_URL`）；鉴权：临时双 JWT，`AUTH_ENFORCE` **默认 `false`**；rewrite：`SESSION_REWRITE_ENABLED` **默认 false**（图边已落；dogfood 可开；**≠** 准出）；对象存储：默认 `local`（`STORAGE_MODE=s3` 走 RustFS / S3 兼容）；Gateway：`GATEWAY_MODE=''`（空按 `GATEWAY_BASE_URL` 推断，缺 URL 走 mock）；上传上限 `INGEST_MAX_FILE_BYTES=52_428_800`（50 MiB）/ 天花板 `INGEST_MAX_FILE_BYTES_CEILING=209_715_200`（200 MiB）；`LANGFUSE_ENABLED=false`；`OBS_MEMORY_TRACE=true`。**B3-W/B2-W**：ask 读取 platform 绑定 + **KB scope 绑定覆盖（只读 list，无 PUT KB 绑定 HTTP）**；**B4-W**：每请求从 DB `user_roles` hydrate；`DEPT_ACL_ENFORCE` **默认 `false`**（开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤且列表项带部门字段；`DEPT_INHERIT_DOWN` 默认 true；KB `deptInheritDown` 可覆盖 env；KB `deptAclEnforce` 可覆盖 env，未写跟 env，GET 未写回读 false；设置页可勾选，未改不写回；ES 查询期强制 tenantId+kbId；enforce 开且非超管可追加 `ownerDeptId` terms（缺字段不得当全员可见；PG 可见级闸仍保留）；aclPrincipals 全文仍无）；`MONGODB_URL` 空（非空时检索融合后批取 Mongo `chunk_bodies` 权威正文，缺块 fail-closed）；`ASK_RATE_LIMIT_RPM=0`；`INGEST_RATE_LIMIT_RPM=0`（ask/ingest 分 store 试点限流；aux 只留常量）；`SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` **可选**（无 active 超管时缺一则 **index.ts listen 前**失败；`createApp()` 不跑引导）；L1 CLI 需显式指定 `L1_KB_ID`（可选 `L1_PERSIST_EVAL`） |
 | 关联模块 | 入库演示还需要 `worker` + PostgreSQL + Redis；契约 `@strict-rag/contracts`（含 `IMPLEMENTED_CHUNK_STRATEGIES` / `IngestJobData`）；schema `@strict-rag/db`（含 `eval_runs`）；L1 gold / RACI 在仓根 `fixtures/l1/`；L2 题面草案在 `fixtures/l2/` |
-| 最近更新 | 2026-09-07（ask/ingest 分平面限流 + `plane` 指标；aux 不跑；KB settings 修改日志仍落表） |
+| 最近更新 | 2026-09-07（ES 查询期 `ownerDeptId` terms 收窄；默认仍关 DEPT_ACL_ENFORCE；PG 可见级闸保留） |
 | Spec | `.trellis/spec/api/backend/`（含 [dashboard](../../.trellis/spec/api/backend/dashboard.md) · [l1-eval](../../.trellis/spec/api/backend/l1-eval.md) · [l2-eval](../../.trellis/spec/api/backend/l2-eval.md) · [l3-metrics](../../.trellis/spec/api/backend/l3-metrics.md)） |
 | PRD | `prds/05-api` · `04-pipelines` · `08-quality` · `09-security` |
 
 ## 一句话状态
 
-基于 Hono 的 HTTP 后端：入库 API、临时双 JWT 鉴权、**listen 前启动引导超管**（env 创建，不是页）、单轮问答图 / **AI SDK UI Message Stream** 流式输出以及会话外壳均已落地；另有 **L1 黄金集工程 seed**（文件 gold + CLI 批跑 `executeAsk(skipTrace)` + 2×2 报告）与 **L2 多轮题面 + 工程 runner + 可选 persist**（`fixtures/l2/` + `run-l2-golden`；可写 `eval_runs`；**≠** 准出）。检索默认 **mock ES**，鉴权**不是**生产级 IdP；**mock L1 数字禁止当业务签字**；**rewrite 图边已落、默认关**；**显式回溯加深部分**；**文档回溯检索加码部分**；**库外文档回溯抑制部分**；**四态派生部分**（**≠** 准出 / **≠** 对外连续追问）。文档部门字段 **可存可回读**（含 complete 可写、列表项同带）；`DEPT_ACL_ENFORCE` **默认关**（开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤；`DEPT_INHERIT_DOWN` 默认 true；KB `deptInheritDown` 可覆盖 env；KB `deptAclEnforce` 可覆盖 env，未写跟 env，GET 未写回读 false；设置页可勾选，未改不写回；ES 查询期已强制 tenantId+kbId，部门/ACL principals 查询期对称仍无）；敏感 KB complete **fail-closed**（**无**解禁）。
+基于 Hono 的 HTTP 后端：入库 API、临时双 JWT 鉴权、**listen 前启动引导超管**（env 创建，不是页）、单轮问答图 / **AI SDK UI Message Stream** 流式输出以及会话外壳均已落地；另有 **L1 黄金集工程 seed**（文件 gold + CLI 批跑 `executeAsk(skipTrace)` + 2×2 报告）与 **L2 多轮题面 + 工程 runner + 可选 persist**（`fixtures/l2/` + `run-l2-golden`；可写 `eval_runs`；**≠** 准出）。检索默认 **mock ES**，鉴权**不是**生产级 IdP；**mock L1 数字禁止当业务签字**；**rewrite 图边已落、默认关**；**显式回溯加深部分**；**文档回溯检索加码部分**；**库外文档回溯抑制部分**；**四态派生部分**（**≠** 准出 / **≠** 对外连续追问）。文档部门字段 **可存可回读**（含 complete 可写、列表项同带）；`DEPT_ACL_ENFORCE` **默认关**（开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤；`DEPT_INHERIT_DOWN` 默认 true；KB `deptInheritDown` 可覆盖 env；KB `deptAclEnforce` 可覆盖 env，未写跟 env，GET 未写回读 false；设置页可勾选，未改不写回；ES 查询期强制 tenantId+kbId，enforce 开且非超管可追加 `ownerDeptId` terms；aclPrincipals 全文仍无）；敏感 KB complete **fail-closed**（**无**解禁）。
 
 ---
 
@@ -86,7 +86,7 @@
 - 数据表：`departments` / `user_departments`；migration `0005_b5_departments`；测试用内存仓库
 - 文档 `ownerDeptId` / `visibilityLevel` **已落库可回读**（`PATCH /documents/:docId` · complete body 可选同写 · `doc.editor` 始终验码；migration `0007`）
 - `GET/POST/DELETE /admin/dept-cross-grants`（`dept.manage` 始终验；migration `0008`）；enforce 开时 retrieve/预览/**列表**读未过期 grant（精确 ∪ 祖先部门子树；无树/缺节点只精确；不读 inheritDown）
-- `DEPT_ACL_ENFORCE` **默认 false**：开时 `filterDocsForDeptAcl` 为精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树（预览、列表、retrieve 同函数；grant 子树不读 inheritDown）；超管 `roleBypassesKbMembership` 绕过；`DEPT_INHERIT_DOWN` 默认 true（仅 `'false'` 关祖先）；KB `config_json.deptInheritDown` 可覆盖 env（未写跟 env）；KB `config_json.deptAclEnforce` 可覆盖 env（未写跟 env；GET 未写回读 false；设置页可勾选，未改不写回）；列表项带 `ownerDeptId` / `visibilityLevel`；设置页可勾选 inherit（未改不写回）；**无** ES 查询期对称 / **无** 默认开 / **无** 解禁
+- `DEPT_ACL_ENFORCE` **默认 false**：开时 `filterDocsForDeptAcl` 为精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树（预览、列表、retrieve 同函数；grant 子树不读 inheritDown）；超管 `roleBypassesKbMembership` 绕过；`DEPT_INHERIT_DOWN` 默认 true（仅 `'false'` 关祖先）；KB `config_json.deptInheritDown` 可覆盖 env（未写跟 env）；KB `config_json.deptAclEnforce` 可覆盖 env（未写跟 env；GET 未写回读 false；设置页可勾选，未改不写回）；列表项带 `ownerDeptId` / `visibilityLevel`；设置页可勾选 inherit（未改不写回）；ES http 检索 enforce 开且非超管时 `ownerDeptId` terms 收窄（缺字段不得当全员可见；PG `filterDocsForDeptAcl` 仍把关）；**无** 默认开 / **无** 解禁 / **无** aclPrincipals 全文
 - KB `dataClass`（`internal`|`sensitive`，缺省 internal）：`sensitive` complete 在 ACL 未就绪时 400 `RULE_VIOLATION`（**≠**解禁）
 
 ### 数据面板（B6 · 薄壳 · 只读）
@@ -106,7 +106,7 @@
 - 反馈提交 / 管理队列 API（`routes/feedback`）；queue 接口的 query 参数绑定 `FeedbackQueueQuerySchema` 校验
 - Gateway 切片（`GATEWAY_MODE` mock/http；ask 走 `getGatewayForTenant`；Key 不进日志）；rerank 双节点：`GATEWAY_RERANK_FALLBACK_URL` + `RERANK_MIN_NODES`（staging/prod 默认 2；`services/gateway/resolve.ts`；QUAL-3 测）
 - **B2-W**：ask 入口校验 `mode∈allowedModes` / `defaultMode`；settings `docTypes` 读写 + scope 子集闸；τ 字段仍拒绝写入
-- 检索适配层（dense∥sparse → RRF → rerank；`RETRIEVE_ES_MODE` **默认 mock**；`http` = ES BM25 sparse **切片**（`es-sparse.ts`；查询期强制 tenantId+kbId `buildAclFilter`；ES 检索失败 → `sparse_unavailable`，缺 URL → `internal_guard`，**禁止**回落 mock）；服务端按 mode 注入 `retrieveK/rerankTopN`（fast 60/10，balanced/strict 150/20，客户端禁止透传）；`MONGODB_URL` 非空时融合后从 Mongo `chunk_bodies` 批取权威正文（`mongo-body.ts`；缺块 fail-closed），空 = 演示回退 PG `body_text`；**不等于**生产 ES+IK / 多租户 Router（B8））
+- 检索适配层（dense∥sparse → RRF → rerank；`RETRIEVE_ES_MODE` **默认 mock**；`http` = ES BM25 sparse **切片**（`es-sparse.ts`；查询期强制 tenantId+kbId `buildAclFilter`，enforce 开且非超管可追加 `ownerDeptId` terms；ES 检索失败 → `sparse_unavailable`，缺 URL → `internal_guard`，**禁止**回落 mock）；服务端按 mode 注入 `retrieveK/rerankTopN`（fast 60/10，balanced/strict 150/20，客户端禁止透传）；`MONGODB_URL` 非空时融合后从 Mongo `chunk_bodies` 批取权威正文（`mongo-body.ts`；缺块 fail-closed），空 = 演示回退 PG `body_text`；**不等于**生产 ES+IK / 多租户 Router（B8））
 - 观测骨架：进程内 metrics、内存 tracer、**三平面配额最小闭环**（ask `ASK_RATE_LIMIT_RPM` / ingest `INGEST_RATE_LIMIT_RPM` 默认 0 即关闭；分 store / 分前缀；触顶 429 `RATE_LIMITED`，ask `details` 含 `plane=ask` + `ask_quota_exhausted`；complete 入队前打 ingest 闸；`recordAskResult` / llm / rerank 带 `plane=ask`，complete 成功或限流带 `plane=ingest`；aux 只留常量不跑）、`/metrics` 端点**无鉴权**（生产保护策略见 `docs/ops/rate-limit-and-metrics.md` · ARCH-P2-4；**≠** 把进程内全局限流当生产方案 / **≠** Redis 集群配额 / **≠** embed TPM）
 - **L3 打点+告警+进程内熔断部分**（P2.5-L3 / L3A / L3F / L2S）：`recordL3Ask` 记六键 + `l3_topic_complaint_total` + `l3_guard_alert_total{kind}`（`coref_fail_rate` / `rewrite_dogfood` / `topic_complaint` / `l2_stale`）；超阈或 dogfood 开 env 时 Pino warn（每 kind 每进程一闩）；`executeAsk` 传 `rewriteEnvOn`；`coref_fail_rate` / `topic_complaint` / `l2_stale` 闩后后续 ask 强制 `rewriteEnabled=false`（`isL3RewriteFused`；即使 env true 也 `rewriteUsed=false`；会话壳仍落 transcript）；`rewrite_dogfood` **不**熔；**无**写 env / **无**收窄窗 / **无**面板 / **≠** 准出（`obs/metrics.ts` · `services/ask/execute.ts` · `tests/obs/l3-rewrite-fuse.test.ts`）
 - **P0 红线单测已挂账**（清单见 `docs/testing/p0-redlines.md`；**不是** L1 黄金集评测、**也不是**远程 CI 门禁）：
@@ -149,7 +149,7 @@
 | CRAG / multi_hop | 未进入本阶段范围 |
 | 按 `requestId` 断线重拉 | `GET /ask/:requestId` 只回审计 snapshot+trace，**不是** AskResponse 重放 |
 | 审计管理台 | 无搜索 / 过滤 / 导出；Langfuse 仍 mock 日志 |
-| 完整 ACL / 部门强制隔离 | 开关有、默认关；开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤且带列；可关继承（env + KB 覆盖 + 设置页勾选，未改不写回）；ES 查询期已强制 tenantId+kbId，部门/ACL principals 查询期对称仍无 / **无** 默认开 |
+| 完整 ACL / 部门强制隔离 | 开关有、默认关；开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤且带列；可关继承（env + KB 覆盖 + 设置页勾选，未改不写回）；ES 查询期强制 tenantId+kbId，enforce 开且非超管可追加 `ownerDeptId` terms；aclPrincipals 全文仍无 / **无** 默认开 |
 | 生产 IdP | 仍是临时双 JWT；**B4-W** 已读 `user_roles` hydrate（≠ Better Auth / 密码登录）。启动引导只写 `password_hash`，**无**验密 HTTP。超管绑码写路径已锁全码 |
 | 成员 `allowedDocIds` / 检索 ACL 闸 | PUT 只改 `role`；`GET /me/permissions` 无 `byKb` |
 | 入库报告完整语义 | 库级 GET 已有最小事实行；**无** 跨 doc 冲突对 / `pending_review` / L0 vs L1 Hit@k |
@@ -162,7 +162,7 @@
 | 知识库设置 admin 全量 UI（分片策略弹窗 / KB 模型绑定写 UI） | API：**docTypes + mode 闸 + KB 绑定读路径已接线**；admin 写 UI 可 defer |
 | 按历史 indexVersion 浏览分片 | ADR-052 明确 P2 阶段不做 |
 | Mongo 作为正文权威存储 | 检索路径已支持 `MONGODB_URL` 非空时融合后批取 Mongo `chunk_bodies`（缺块 fail-closed）；空 URL 仍演示回退 PG `body_text`；chunks 详情接口仍读 PG（ADR-052）；生产 Mongo 基础设施见 B9 |
-| 跨部门授权、DEPT_ACL 强制 | grant 可存可配；过滤默认关；开时 grant 进检索（精确 ∪ 祖先部门子树）；超管可绕过；列表同滤；可关继承；KB 可覆盖 enforce（未写跟 env；设置页可勾选，未改不写回）；ADR-057 全文未上（无 ES 查询期 / 无解禁 / 无默认开） |
+| 跨部门授权、DEPT_ACL 强制 | grant 可存可配；过滤默认关；开时 grant 进检索（精确 ∪ 祖先部门子树）；超管可绕过；列表同滤；可关继承；KB 可覆盖 enforce（未写跟 env；设置页可勾选，未改不写回）；ADR-057 全文未上（ES 部门 terms 已落、仍默认关；无解禁 / 无 aclPrincipals 全文） |
 | APM / 时序观测大盘 | B6 仅为 `GET /admin/dashboard/summary` 只读计数 + processReady，**不是**观测生产向 |
 | 反馈 API / UI | **本包 API 已有** `routes/feedback`；web 答后 + admin 队列 UI 见各自包文；SLA `docs/ops/feedback-sla.md` |
 | L1 业务签字门禁 / live 覆盖率闸 / 真跑数字 | 文件账本 + 可选 `eval_runs`；live 全量 30/30 已跑（`signoffEligible=true`）；ADR-046 快照可绑定；本跑 coverage=0 **不**宣称 L1 门禁 PASS；人签见 **B10-followup** 余量 |

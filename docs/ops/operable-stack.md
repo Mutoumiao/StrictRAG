@@ -70,6 +70,6 @@ pnpm smoke:half
 ## 5. 明确不是
 
 - QUAL-2 真杀毒  
-- ES IK / 多租户独立索引 / 部门 ACL 查询期对称  
+- ES IK / 多租户独立索引 / aclPrincipals 全文 / 仓库默认开 `DEPT_ACL_ENFORCE`  
 - 仓库默认 `AUTH_ENFORCE` / `DEPT_ACL_ENFORCE` / rewrite  
 - 生产 IdP、盘上加密五面全绿  

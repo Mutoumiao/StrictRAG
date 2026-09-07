@@ -113,7 +113,7 @@
 | AE5 | 同上 M：可见 D_staff 与 D_mgr | P3 / 开强制后 | 单测 | 部分测 | api | apps/api/tests/acl/retrieve-dept-acl.test.ts（同部门负责人可见 30） | 默认关；无 M ask HTTP |
 | AE6 | 用户 X 无人事归属、无 grant → 不可见人事部门密级文档 | P3 / 开强制后 | 单测 | 部分测 | api | apps/api/tests/acl/retrieve-dept-acl.test.ts（无归属只见空部门；开+无归属列表省略他部门） | 默认关 |
 | AE7 | 给 X 跨部门 grant level≥30 → X 可见 D_mgr；审计有记录 | P3 / 开强制后 | 单测 | 部分测 | api | apps/api/tests/acl/retrieve-dept-acl.test.ts（未过期 grant≥级别可见）；apps/api/tests/acl/dept-grants-http.test.ts（POST/GET/DELETE 可回读，无 `dept.manage` 403） | 默认关；grant 写审计未专断言 |
-| AE8 | dense 与 ES filter 均含部门条件；禁止单路泄漏 | P3 / 开强制后 | 单测 | 部分测 | api | apps/api/src/services/retrieve/corpus.ts（PG 语料先 `filterDocsForDeptAcl`，dense∥sparse 共用）；apps/api/tests/acl/retrieve-dept-acl.test.ts | 默认关；**无 ES 查询期对称**（module-status 已写）；稀疏 HTTP 仅 `kbId` |
+| AE8 | dense 与 ES filter 均含部门条件；禁止单路泄漏 | P3 / 开强制后 | 单测 | 部分测 | api | apps/api/src/services/retrieve/corpus.ts（PG 语料先 `filterDocsForDeptAcl`）；`es-sparse.ts` `buildAclFilter` 可追加 `ownerDeptId` terms；apps/api/tests/ask/es-dept-query-filter.test.ts；apps/api/tests/acl/retrieve-dept-acl.test.ts | 默认关；可见级/过期 grant 仍以 PG 为准；无 E ask 端到端泄漏；无 aclPrincipals 全文 |
 | AE9 | 无 `dept.manage` 改树 → 403 | P2必签 | 单测 | 已测 | api | apps/api/tests/acl/departments-http.test.ts（kb_admin 无 `dept.manage` → 403）；apps/api/tests/acl/dept-grants-http.test.ts（无码 403） | — |
 | AE10 | 上级「公司」成员 U（非人事）；子部门人事 D_staff=20；enforce=true → U 可见（上级看下级） | P3 / 开强制后 | 单测 | 部分测 | api | apps/api/tests/acl/retrieve-dept-acl.test.ts（祖先成员可见子孙 20）；apps/api/tests/kb/dept-inherit-down.test.ts | 默认关；inheritDown=false 时此 Then 不成立（另有关继承测） |
 | AE11 | 同上 U 非负责人；人事 D_mgr=30 → U 不可见（级别仍约束） | P3 / 开强制后 | 单测 | 部分测 | api | apps/api/tests/acl/retrieve-dept-acl.test.ts（祖先成员不可见子孙 30；祖先负责人可见 30） | 默认关 |
