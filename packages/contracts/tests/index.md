@@ -32,6 +32,7 @@
 | `ingest/document-contract.test.ts` | 文档 / 知识库 DTO 与完成上传、补丁元数据必须接受合法部门可见级并拒非法值。 | 入库 HTTP | `CreateKbBodySchema · KnowledgeBaseListItemSchema · VisibilityLevelSchema · CompleteUploadBodySchema · PatchDocumentMetaBodySchema · DocumentDetailSchema · DocumentListItemSchema` | 文档 DTO 含列表 docType；PATCH 可写类型。 | 现行 |
 | `ingest/ingest-report-contract.test.ts` | 入库报告 DTO 只含已发生事实，拒绝跨 doc / Hit@k。 | prds/05-api GET ingest-report · 功能表 §5.2 | `IngestReportItemSchema` | 最小闭环形状；不是去重引擎。 | 现行 |
 | `kb/settings-contract.test.ts` | KB 设置 PATCH 仅白名单且拒阈值字段，GET 必须锁定 rewrite 关闭；成员档位口不得夹带 τ。 | B2 · 功能表 §3 问答档位 | `PatchKbSettingsBodySchema · KbSettingsSchema · AskModesSchema` | KB 设置形状与 sessionRewrite 锁定；ask-modes 仅 allowedModes/defaultMode。 | 现行 |
+| `kb/settings-audit-contract.test.ts` | 知识库设置修改日志 DTO 只含 id / kbId / actorUserId / createdAt / diff，拒绝密钥字段。 | 功能表 §4.2 | `KbSettingsAuditItemSchema` | 最小闭环形状；不是 admin_write 全路径落表。 | 现行 |
 | `system/dashboard-contract.test.ts` | 面板 summary 必须含四项指标，拒绝未知字段。 | B6 | `DashboardSummarySchema` | 面板 summary 形状。 | 现行 |
 | `system/departments-contract.test.ts` | 部门创建 / 补丁 / 用户部门绑定 DTO 必须严格字段且补丁非空。 | B5 | `CreateDepartmentBodySchema · PatchDepartmentBodySchema · PutUserDepartmentsBodySchema` | 部门 DTO 形状。 | 现行 |
 | `system/dept-grants-contract.test.ts` | 跨部门 grant DTO 只接受合法可见级、uuid 与本地时间 expiresAt。 | DEPT_ACL | `CreateDeptCrossGrantBodySchema · ListDeptCrossGrantsQuerySchema` | grant DTO 形状。 | 现行 |
