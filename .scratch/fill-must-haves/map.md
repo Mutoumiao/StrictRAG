@@ -13,7 +13,7 @@ Status: open
 - 每轮先读：本图、`docs/agents/issue-tracker.md`、`docs/agents/domain.md`、功能表、相关包的 `docs/module-status/`。写代码前读 `.trellis/spec/` 对应包。执行完成后跑 skill `update-module-status`。
 - **覆盖「只做决策」**：工单可以动手补缺口，不只锁决策。
 - **本图是执行面**：缺口只在 `.scratch/fill-must-haves/` 工单上做完。`.trellis/tasks/08-06-project-backlog/` 只留指针和勾选。同一缺口禁止再 `task.py create` 平行实现任务。这只覆盖本图，不改全仓其它流程。
-- 顺序：本图 P2 语义已收官（第三批）；P2.5 出口走 **L2 归档准出**（工程路径 [L2 归档底线](./issues/14-l2-archive-floor.md) 已齐，人签仍图外）。鉴权/成员余量、入库报告、库选择器、admin 顶栏、web 关闭列表、启动引导超管、写路径锁超管全码、修改日志、三平面配额、失败 Webhook 已齐。在线编写留雾（P2.x）。本图已转向 P3b；ES 查询期部门对称、aclPrincipals 用户 uuid 最小闭环、ES principals 对称已齐。下一张裁定开放。P3a 仍等该出口。不默认开 `DEPT_ACL_ENFORCE`。不敏感解禁。
+- 顺序：本图 P2 语义已收官（第三批）；P2.5 出口走 **L2 归档准出**（工程路径 [L2 归档底线](./issues/14-l2-archive-floor.md) 已齐，人签仍图外）。鉴权/成员余量、入库报告、库选择器、admin 顶栏、web 关闭列表、启动引导超管、写路径锁超管全码、修改日志、三平面配额、失败 Webhook 已齐。在线编写留雾（P2.x）。本图已转向 P3b；ES 查询期部门对称、aclPrincipals 用户 uuid 最小闭环、ES principals 对称已齐。本批敏感解禁（complete ACL 就绪）。P3a 仍等该出口。不默认开 `DEPT_ACL_ENFORCE`。不加角色 principal。
 - **站规（UI）**：web / admin 新下拉必须基于 `@strict-rag/ui` 关闭列表，禁止浏览器原生 `<select>` 外壳（含现有 ui `Select`）。`Button` / `Input` / `Textarea` 仍走 ui 包。本规不改 GET / 鉴权语义。
 - 人签（B10 业务 PASS）不是代码缺口，不进本图执行工单。
 - 引用工单用标题，不要只写编号。一回合只解决一张工单（research 除外）。
@@ -64,13 +64,14 @@ Status: open
 - [aclPrincipals 全文最小闭环](./issues/41-acl-principals-min.md) — 可空用户 uuid 数组；null=成员可读；`[]`=非超管不可读；列表/详情/chunks/retrieve 同滤；不跟部门强制。无角色码 / 无 ES terms / 无默认开。
 - [裁定 aclPrincipals 全文最小闭环后下一步](./issues/42-after-acl-principals-order.md) — 在线编写留雾；继续 P3b；本批只做 ES 查询期 principals 对称。不默认开强制、不解禁、不加角色码、不跳 P4、不等人签。
 - [ES 查询期 principals 对称最小闭环](./issues/43-es-principals-query-filter-min.md) — mapping/bulk 写 keyword；null 不写；`[]` 写哨兵；非超管 should 收窄；不跟部门强制。PG 闸保留。无角色码 / 无默认开。
+- [裁定 ES 查询期 principals 对称后下一步](./issues/44-after-es-principals-order.md) — 在线编写留雾；继续 P3b；本批只做敏感解禁。不默认开强制、不加角色码、不跳 P4、不等人签。
 
 ## Not yet specified
 
 - 剩余 P2 半接线（P2 代码真空已出雾）：在线编写（完整体验 P2.x）
 - LangGraph 编排重构：技术栈冻结为 LangGraph.js（硬性标准）；源码现为线性状态机（`apps/api/src/graph/run.ts`），需后续重构为官方 LangGraph.js。另起路线
 - P3a Full 图（CRAG / multi_hop）；硬门在 L2 归档准出（工程路径是 L2 归档底线；人签不进本图）
-- P3b 尚未齐的强制检索面：敏感解禁、仓库默认开 `DEPT_ACL_ENFORCE`、角色 principal
+- P3b 尚未齐的强制检索面：仓库默认开 `DEPT_ACL_ENFORCE`、角色 principal
 - P4：L1 门禁包签字与再认证、多模型 fallback、双轨看板、数据面板增强
 - P5：OCR 开闸、容量、熔断生产调优、在线抽样常态化、CoVe / 超长异步
 - 基础设施缺口的切入时机：B8 / B9 / QUAL-2（不挡更早语义，但最终产品仍须收）
