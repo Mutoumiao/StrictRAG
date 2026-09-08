@@ -72,7 +72,7 @@ export function createKbSettingsRoutes(deps?: {
 | `deptAclEnforce?` | 布尔；GET 未写 / 旧行 default **false**；运行时未写跟 env；admin 设置页可勾选，**未改不得带该键**（禁止把 GET 缺省 false 写回钉成显式关） |
 
 **禁止** body 键：`tauClaim` · `crag*` · `allowDegradedGenerate` · `sessionRewrite*` · `retrieveK` · `route` · 密钥等 → Zod 失败 → 400。  
-**仍不放开** τ / rewrite 写键。`dataClass=sensitive` **≠** 敏感已解禁。
+**仍不放开** τ / rewrite 写键。`dataClass=sensitive` complete 须 ACL 就绪（部门路径：`deptAclEnforce` ∧ 非空 `ownerDeptId`；或名单路径：`aclPrincipals != null`）。**≠** 仓库默认开强制 / **≠** 角色 principal。
 
 **GET/PATCH data**（`KbSettings`）：
 
@@ -103,7 +103,7 @@ export function createKbSettingsRoutes(deps?: {
 
 - **Good**：kb_admin 成员 PATCH name/modes → 200 回读一致；GET 见 τ 与 rewrite 锁  
 - **Base**：config_json 空 → 默认全 modes + `balanced` + `dataClass=internal`  
-- **Bad**：PATCH `tauClaim`；列表/设置 UI 提供 rewrite 开关；`requirePermissionWhenEnforced`；宣称敏感已解禁
+- **Bad**：PATCH `tauClaim`；列表/设置 UI 提供 rewrite 开关；`requirePermissionWhenEnforced`；把 `aclPrincipals == null` 当 ACL 就绪；宣称仓库默认已开强制
 
 ### 6. Tests Required
 
@@ -112,6 +112,8 @@ export function createKbSettingsRoutes(deps?: {
 | `tests/kb/settings-http.test.ts` | doc_operator 403；非成员 403；GET quality+锁+`dataClass=internal`；PATCH 回读；PATCH `dataClass`；非法 `dataClass` 400；τ/sessionRewrite 400；defaultMode 越界 400；未知 KB 404 |
 | `tests/kb/settings-audit-http.test.ts` | PATCH 有 diff → GET 见该行；空 diff 不增行；失败 PATCH 不写；无码 403；空列表 200；缺库 404 |
 | `packages/contracts/tests/kb/settings-contract.test.ts` | strict 拒禁字段；modes 去重；sessionRewrite 形状；`dataClass` 缺省 internal |
+| `tests/kb/data-class-complete.test.ts` | internal 不挡；sensitive 关强制 + null 挡；`[]` / uuid 名单放行；enforce + owner 仍放行 |
+| `tests/ingest/sensitive-complete.test.ts` | 关强制 + 已有 `[]` 200；complete 带名单 200；显式 null 400；非法 uuid 400 |
 
 ### 7. Wrong vs Correct
 

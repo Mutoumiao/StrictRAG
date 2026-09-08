@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（支撑 P0/P1 入库 + S2 问答/会话/反馈/成员 + B1–B6 运营契约 + **B12 策略码 / ingest job**；**非**全量 OpenAPI） |
 | 默认依赖模式 | 纯库；无运行时开关 |
 | 关联模块 | 被 `api` · `worker` · `web` · `admin` 消费；是全仓错误码、响应信封、队列名与 **可写分片策略集** 的唯一来源 |
-| 最近更新 | 2026-09-07（DocumentListItem / PatchDocumentMetaBody 可回读/写 `aclPrincipals`；omit / null / [] 三态） |
+| 最近更新 | 2026-09-08（CompleteUploadBody 可选 `aclPrincipals` 三态；非法 uuid / 超长 256 拒） |
 | Spec | `.trellis/spec/contracts/library/` |
 | PRD | `prds/05-api` · 各域契约与 PRD 短名对齐 |
 
@@ -66,7 +66,7 @@
 - **`KbSettingsAuditItemSchema`**：`id` / `kbId` / `actorUserId` / `createdAt` / `diff`；`.strict()` 拒密钥键（`kb/settings-audit.contract.ts` · `tests/kb/settings-audit-contract.test.ts`）
 - `DocumentListItem` 含 `ownerDeptId` / `visibilityLevel` / `aclPrincipals`（缺省 null / 20 / null；详情 inherit 列表项）
 - `DeptCrossGrant` / `CreateDeptCrossGrantBodySchema`（`system/dept-grants.contract`）
-- `CompleteUploadBody` 可选 `ownerDeptId` / `visibilityLevel`（P3b-UPL；旧 `{}` 仍合法）
+- `CompleteUploadBody` 可选 `ownerDeptId` / `visibilityLevel` / `aclPrincipals`（omit 不改；`null` 清回未设；`[]` 显式空；元素 uuid，最长 256；旧 `{}` 仍合法）
 - `qualitySnapshot` · `sessionRewrite` 锁定形状；禁止 τ / rewrite 写键
 
 ### 模型网关（B3）
