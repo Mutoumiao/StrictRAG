@@ -13,7 +13,7 @@ Status: open
 - 每轮先读：本图、`docs/agents/issue-tracker.md`、`docs/agents/domain.md`、功能表、相关包的 `docs/module-status/`。写代码前读 `.trellis/spec/` 对应包。执行完成后跑 skill `update-module-status`。
 - **覆盖「只做决策」**：工单可以动手补缺口，不只锁决策。
 - **本图是执行面**：缺口只在 `.scratch/fill-must-haves/` 工单上做完。`.trellis/tasks/08-06-project-backlog/` 只留指针和勾选。同一缺口禁止再 `task.py create` 平行实现任务。这只覆盖本图，不改全仓其它流程。
-- 顺序：本图 P2 语义已收官（第三批）；P2.5 出口走 **L2 归档准出**（工程路径 [L2 归档底线](./issues/14-l2-archive-floor.md) 已齐，人签仍图外）。鉴权/成员余量、入库报告、库选择器、admin 顶栏、web 关闭列表、启动引导超管、写路径锁超管全码、修改日志、三平面配额、失败 Webhook 已齐。在线编写留雾（P2.x）。本图已转向 P3b；ES 查询期部门对称、aclPrincipals 用户 uuid 最小闭环、ES principals 对称已齐。本批敏感解禁（complete ACL 就绪）。P3a 仍等该出口。不默认开 `DEPT_ACL_ENFORCE`。不加角色 principal。
+- 顺序：本图 P2 语义已收官（第三批）；P2.5 出口走 **L2 归档准出**（工程路径 [L2 归档底线](./issues/14-l2-archive-floor.md) 已齐，人签仍图外）。鉴权/成员余量、入库报告、库选择器、admin 顶栏、web 关闭列表、启动引导超管、写路径锁超管全码、修改日志、三平面配额、失败 Webhook 已齐。在线编写留雾（P2.x）。本图已转向 P3b；ES 查询期部门对称、aclPrincipals 用户 uuid 最小闭环、ES principals 对称、敏感解禁（complete ACL 就绪）已齐。下一张裁定开放。P3a 仍等该出口。不默认开 `DEPT_ACL_ENFORCE`。不加角色 principal。
 - **站规（UI）**：web / admin 新下拉必须基于 `@strict-rag/ui` 关闭列表，禁止浏览器原生 `<select>` 外壳（含现有 ui `Select`）。`Button` / `Input` / `Textarea` 仍走 ui 包。本规不改 GET / 鉴权语义。
 - 人签（B10 业务 PASS）不是代码缺口，不进本图执行工单。
 - 引用工单用标题，不要只写编号。一回合只解决一张工单（research 除外）。
@@ -65,6 +65,7 @@ Status: open
 - [裁定 aclPrincipals 全文最小闭环后下一步](./issues/42-after-acl-principals-order.md) — 在线编写留雾；继续 P3b；本批只做 ES 查询期 principals 对称。不默认开强制、不解禁、不加角色码、不跳 P4、不等人签。
 - [ES 查询期 principals 对称最小闭环](./issues/43-es-principals-query-filter-min.md) — mapping/bulk 写 keyword；null 不写；`[]` 写哨兵；非超管 should 收窄；不跟部门强制。PG 闸保留。无角色码 / 无默认开。
 - [裁定 ES 查询期 principals 对称后下一步](./issues/44-after-es-principals-order.md) — 在线编写留雾；继续 P3b；本批只做敏感解禁。不默认开强制、不加角色码、不跳 P4、不等人签。
+- [敏感解禁最小闭环](./issues/45-sensitive-complete-unlock-min.md) — sensitive complete 须 ACL 就绪：部门路径或显式名单（含 `[]`）；`null` 仍挡。complete 可同写名单。无默认开 / 无角色码。
 
 ## Not yet specified
 

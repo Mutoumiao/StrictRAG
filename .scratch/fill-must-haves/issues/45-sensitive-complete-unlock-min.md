@@ -2,7 +2,8 @@
 
 Type: task
 Label: wayfinder:task
-Status: open
+Status: resolved
+Assignee: grok
 Triage: ready-for-agent
 Blocked by: 44
 
@@ -44,3 +45,22 @@ ACL 就绪 = 下列任一：
 收工：`.trellis/spec/` api / contracts / admin；`docs/module-status/` 对应包；coverage 能指到的 Then 回写。禁止 push。禁止 `task.py create`。
 
 写代码前读 `.trellis/spec/api/backend/kb-settings.md`、`departments.md`、`.trellis/spec/guides/testing.md`。测例落 `tests/<能力>/`，文件头简体中文，登记 index。
+
+## Answer
+
+敏感 complete 解禁已落地。
+
+- ACL 就绪 = 部门路径（`deptAclEnforce` ∧ 非空 `ownerDeptId`）**或** 名单路径（`aclPrincipals` 为数组，含 `[]`）。`null` / 缺字段仍挡。
+- complete body 可选 `aclPrincipals`（omit 不改；`null` 清回未设；`[]` 显式空；uuid 列表最长 256）。与部门字段一样可本请求先 `patchMeta` 再过闸。
+- 回读失败 / KB 行缺失 → 404，不回退旧快照、不把缺库当 `internal` 放行。
+- 挡时仍 400 `RULE_VIOLATION`。admin 设置页说明改为 complete 须 ACL 就绪。
+- 测例：api `data-class-complete` 5；`sensitive-complete` 16；contracts complete body 三态；admin 设置文案。
+
+未做：默认开 `DEPT_ACL_ENFORCE`、角色 principal、上传表单名单、改检索过滤。未 `task.py create`。未 push。
+
+证据：`apps/api/src/services/kb-settings.ts` · `apps/api/src/routes/documents/index.ts` · `packages/contracts/src/ingest/document.contract.ts` · `apps/api/tests/kb/data-class-complete.test.ts` · `apps/api/tests/ingest/sensitive-complete.test.ts`。
+
+## Comments
+
+- 2026-09-08 认领并执行。权威切边见 [裁定 ES 查询期 principals 对称后下一步](./44-after-es-principals-order.md)。
+- 审查指出 patch 后 `getDoc` 失败回退旧值、缺 KB 当 internal 会 fail-open；改为 404 且不 markComplete。
