@@ -17,6 +17,10 @@ export type EsSparseSearchInput = {
   size: number;
   /** enforce 开且非超管时传入；空/缺省不加部门 terms */
   ownerDeptIds?: string[];
+  /** 非超管名单闸；缺省不加 principals clause。不跟 DEPT_ACL_ENFORCE。 */
+  applyAclPrincipals?: boolean;
+  /** apply 时写入 term；空则只 must_not exists */
+  aclPrincipalUserId?: string;
 };
 
 export type SparseBulkDoc = {
@@ -26,16 +30,43 @@ export type SparseBulkDoc = {
   docId: string;
   sparseText: string;
   ownerDeptId?: string | null;
+  /** null/缺省不写字段；[] 写哨兵（ES exists 不认空数组）；非空写 uuid 列表 */
+  aclPrincipals?: string[] | null;
+};
+
+/** ES exists 不认空数组。显式空写入此哨兵，使字段存在且对真实 userId 无 term 命中。 */
+export const ACL_PRINCIPALS_NONE_SENTINEL = '__acl_none__';
+
+const SPARSE_INDEX_PROPERTIES = {
+  chunkId: { type: 'keyword' as const },
+  tenantId: { type: 'keyword' as const },
+  kbId: { type: 'keyword' as const },
+  docId: { type: 'keyword' as const },
+  ownerDeptId: { type: 'keyword' as const },
+  aclPrincipals: { type: 'keyword' as const },
+  sparseText: { type: 'text' as const },
+};
+
+export type EsAclPrincipalsShould =
+  | { bool: { must_not: { exists: { field: 'aclPrincipals' } } } }
+  | { term: { aclPrincipals: string } };
+
+export type EsAclPrincipalsClause = {
+  bool: {
+    should: EsAclPrincipalsShould[];
+    minimum_should_match: 1;
+  };
 };
 
 export type EsAclFilterClause =
   | { term: { tenantId: string } }
   | { term: { kbId: string } }
-  | { terms: { ownerDeptId: string[] } };
+  | { terms: { ownerDeptId: string[] } }
+  | EsAclPrincipalsClause;
 
-/** 有值才写入；空/缺省不出现该字段（缺字段不得当全员可见）。 */
-export function sparseBulkSource(d: SparseBulkDoc): Record<string, string> {
-  const source: Record<string, string> = {
+/** 有值才写入 ownerDeptId。aclPrincipals：null 不写；[] 写哨兵；非空写 uuid 列表。 */
+export function sparseBulkSource(d: SparseBulkDoc): Record<string, string | string[]> {
+  const source: Record<string, string | string[]> = {
     chunkId: d.chunkId,
     tenantId: d.tenantId,
     kbId: d.kbId,
@@ -44,14 +75,32 @@ export function sparseBulkSource(d: SparseBulkDoc): Record<string, string> {
   };
   const owner = typeof d.ownerDeptId === 'string' ? d.ownerDeptId.trim() : '';
   if (owner) source.ownerDeptId = owner;
+  if (Array.isArray(d.aclPrincipals)) {
+    const ids = d.aclPrincipals.filter((id) => typeof id === 'string' && id.length > 0);
+    source.aclPrincipals = ids.length > 0 ? ids : [ACL_PRINCIPALS_NONE_SENTINEL];
+  }
   return source;
+}
+
+/** 未设（缺字段）可读；名单含 userId 可读；[] 与未命中不可读。 */
+export function aclPrincipalsFilterClause(userId?: string): EsAclPrincipalsClause {
+  const uid = typeof userId === 'string' ? userId.trim() : '';
+  const should: EsAclPrincipalsShould[] = [
+    { bool: { must_not: { exists: { field: 'aclPrincipals' } } } },
+  ];
+  if (uid) {
+    should.push({ term: { aclPrincipals: uid } });
+  }
+  return { bool: { should, minimum_should_match: 1 } };
 }
 
 /**
  * 检索期 ACL 对称 filter（ES 查询共用，禁止两路各写）。
  * P2 在 ES 查询期强制 tenantId + kbId（共享索引安全隔离，不得事后交 PG）。
- * 非空 ownerDeptIds 时追加 terms 收窄；空/缺省仍只 tenantId+kbId。
- * 缺 ownerDeptId 字段不得当全员可见。精确可见级仍由 PG filterDocsForDeptAcl 把关。
+ * 非空 ownerDeptIds 时追加 terms 收窄；空/缺省不加部门 terms。
+ * applyAclPrincipals 时追加名单 should（缺字段可读；[] 不可命中）。
+ * 缺 ownerDeptId / 缺 aclPrincipals 字段不得把「显式空」当成全员可见。
+ * 精确可见级仍由 PG filterDocsForDeptAcl / filterDocsForAclPrincipals 把关。
  * status/lifecycle/indexVersion 闸门由 PG corpus（loadCorpusFromDb）对称承载；
  * 生产级 ES 索引字段与 IK/Router 属 B8 分层，不在本窗。
  */
@@ -59,6 +108,8 @@ export function buildAclFilter(input: {
   tenantId: string;
   kbId: string;
   ownerDeptIds?: string[];
+  applyAclPrincipals?: boolean;
+  aclPrincipalUserId?: string;
 }): EsAclFilterClause[] {
   const filter: EsAclFilterClause[] = [
     { term: { tenantId: input.tenantId } },
@@ -67,6 +118,9 @@ export function buildAclFilter(input: {
   const ownerDeptIds = (input.ownerDeptIds ?? []).filter((id) => id.trim().length > 0);
   if (ownerDeptIds.length > 0) {
     filter.push({ terms: { ownerDeptId: ownerDeptIds } });
+  }
+  if (input.applyAclPrincipals) {
+    filter.push(aclPrincipalsFilterClause(input.aclPrincipalUserId));
   }
   return filter;
 }
@@ -94,7 +148,10 @@ export async function ensureSparseIndex(cfg: EsSparseConfig): Promise<void> {
     method: 'HEAD',
     signal: AbortSignal.timeout(timeoutMs),
   });
-  if (head.ok) return;
+  if (head.ok) {
+    await putSparseAclMapping(cfg, base, timeoutMs);
+    return;
+  }
   if (head.status !== 404) {
     throw new EsSparseError(`ES HEAD index failed: ${head.status}`, 'http');
   }
@@ -104,20 +161,36 @@ export async function ensureSparseIndex(cfg: EsSparseConfig): Promise<void> {
     signal: AbortSignal.timeout(timeoutMs),
     body: JSON.stringify({
       mappings: {
-        properties: {
-          chunkId: { type: 'keyword' },
-          tenantId: { type: 'keyword' },
-          kbId: { type: 'keyword' },
-          docId: { type: 'keyword' },
-          ownerDeptId: { type: 'keyword' },
-          sparseText: { type: 'text' },
-        },
+        properties: SPARSE_INDEX_PROPERTIES,
       },
     }),
   });
   if (!put.ok) {
     const body = await put.text().catch(() => '');
     throw new EsSparseError(`ES create index failed: ${put.status} ${body.slice(0, 200)}`, 'http');
+  }
+}
+
+/** 已有索引补 keyword，避免 dynamic 把 uuid 映成 text 导致 term 静默不命中。 */
+async function putSparseAclMapping(
+  cfg: EsSparseConfig,
+  base: string,
+  timeoutMs: number,
+): Promise<void> {
+  const put = await fetch(`${base}/${encodeURIComponent(cfg.index)}/_mapping`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    signal: AbortSignal.timeout(timeoutMs),
+    body: JSON.stringify({
+      properties: {
+        ownerDeptId: { type: 'keyword' },
+        aclPrincipals: { type: 'keyword' },
+      },
+    }),
+  });
+  if (!put.ok) {
+    const body = await put.text().catch(() => '');
+    throw new EsSparseError(`ES put mapping failed: ${put.status} ${body.slice(0, 200)}`, 'http');
   }
 }
 
@@ -186,7 +259,7 @@ export async function searchSparseEs(
   return out;
 }
 
-/** bulk 索引文档；每项 _id=chunkId。ownerDeptId 有值才写入。 */
+/** bulk 索引文档；每项 _id=chunkId。ownerDeptId 有值才写入；aclPrincipals 数组（含空）才写入。 */
 export async function bulkIndexSparse(
   cfg: EsSparseConfig,
   docs: SparseBulkDoc[],

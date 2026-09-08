@@ -663,6 +663,7 @@ async function runIngestStageCore(
               docId: doc.id,
               sparseText: sparseTextForChunk(row.contextPrefix, row.bodyText),
               ownerDeptId: doc.ownerDeptId,
+              aclPrincipals: doc.aclPrincipals,
             })),
           );
           const indexed = await listIndexedChunkIds(cfg, doc.id);

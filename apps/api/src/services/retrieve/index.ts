@@ -14,6 +14,8 @@ export {
   ensureSparseIndex,
   bulkIndexSparse,
   buildAclFilter,
+  aclPrincipalsFilterClause,
+  ACL_PRINCIPALS_NONE_SENTINEL,
   esConfigFromEnv,
   sparseBulkSource,
   EsSparseError,

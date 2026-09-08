@@ -2,7 +2,7 @@
  * 目标：稀疏检索 HTTP 切片按 env 解析，失败不得静默回 mock。
  * 需求：OPS-1
  * 被测：esConfigFromEnv / searchSparseEs / buildAclFilter
- * 简介：稀疏检索 HTTP 切片；ACL filter 默认可选部门 terms。
+ * 简介：稀疏检索 HTTP 切片；ACL filter 默认可选部门 terms；名单 clause 另见 es-principals-query-filter。
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';

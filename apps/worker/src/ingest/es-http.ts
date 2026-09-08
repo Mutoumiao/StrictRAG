@@ -1,5 +1,5 @@
 /**
- * Worker 真 ES bulk（与 api es-sparse 映射对齐：chunkId/kbId/docId/ownerDeptId/sparseText）。
+ * Worker 真 ES bulk（与 api es-sparse 映射对齐：chunkId/kbId/docId/ownerDeptId/aclPrincipals/sparseText）。
  * 无新包；fetch。IK / 多租户 Router 不在本窗。
  */
 
@@ -35,11 +35,26 @@ export type SparseBulkDoc = {
   docId: string;
   sparseText: string;
   ownerDeptId?: string | null;
+  /** null/缺省不写字段；[] 写哨兵（ES exists 不认空数组）；非空写 uuid 列表 */
+  aclPrincipals?: string[] | null;
 };
 
-/** 有值才写入；空/缺省不出现该字段（缺字段不得当全员可见）。 */
-export function sparseBulkSource(d: SparseBulkDoc): Record<string, string> {
-  const source: Record<string, string> = {
+/** ES exists 不认空数组。显式空写入此哨兵，使字段存在且对真实 userId 无 term 命中。 */
+export const ACL_PRINCIPALS_NONE_SENTINEL = '__acl_none__';
+
+const SPARSE_INDEX_PROPERTIES = {
+  chunkId: { type: 'keyword' as const },
+  tenantId: { type: 'keyword' as const },
+  kbId: { type: 'keyword' as const },
+  docId: { type: 'keyword' as const },
+  ownerDeptId: { type: 'keyword' as const },
+  aclPrincipals: { type: 'keyword' as const },
+  sparseText: { type: 'text' as const },
+};
+
+/** 有值才写入 ownerDeptId。aclPrincipals：null 不写；[] 写哨兵；非空写 uuid 列表。 */
+export function sparseBulkSource(d: SparseBulkDoc): Record<string, string | string[]> {
+  const source: Record<string, string | string[]> = {
     chunkId: d.chunkId,
     tenantId: d.tenantId,
     kbId: d.kbId,
@@ -48,6 +63,10 @@ export function sparseBulkSource(d: SparseBulkDoc): Record<string, string> {
   };
   const owner = typeof d.ownerDeptId === 'string' ? d.ownerDeptId.trim() : '';
   if (owner) source.ownerDeptId = owner;
+  if (Array.isArray(d.aclPrincipals)) {
+    const ids = d.aclPrincipals.filter((id) => typeof id === 'string' && id.length > 0);
+    source.aclPrincipals = ids.length > 0 ? ids : [ACL_PRINCIPALS_NONE_SENTINEL];
+  }
   return source;
 }
 
@@ -65,6 +84,29 @@ function trimUrl(url: string): string {
   return url.replace(/\/$/, '');
 }
 
+/** 已有索引补 keyword，避免 dynamic 把 uuid 映成 text 导致 term 静默不命中。 */
+async function putSparseAclMapping(
+  cfg: EsHttpConfig,
+  base: string,
+  timeoutMs: number,
+): Promise<void> {
+  const put = await fetch(`${base}/${encodeURIComponent(cfg.index)}/_mapping`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    signal: AbortSignal.timeout(timeoutMs),
+    body: JSON.stringify({
+      properties: {
+        ownerDeptId: { type: 'keyword' },
+        aclPrincipals: { type: 'keyword' },
+      },
+    }),
+  });
+  if (!put.ok) {
+    const body = await put.text().catch(() => '');
+    throw new Error(`ES put mapping failed: ${put.status} ${body.slice(0, 200)}`);
+  }
+}
+
 export async function ensureSparseIndex(cfg: EsHttpConfig): Promise<void> {
   const base = trimUrl(cfg.baseUrl);
   const timeoutMs = cfg.timeoutMs ?? 10_000;
@@ -72,7 +114,10 @@ export async function ensureSparseIndex(cfg: EsHttpConfig): Promise<void> {
     method: 'HEAD',
     signal: AbortSignal.timeout(timeoutMs),
   });
-  if (head.ok) return;
+  if (head.ok) {
+    await putSparseAclMapping(cfg, base, timeoutMs);
+    return;
+  }
   if (head.status !== 404) {
     throw new Error(`ES HEAD index failed: ${head.status}`);
   }
@@ -82,14 +127,7 @@ export async function ensureSparseIndex(cfg: EsHttpConfig): Promise<void> {
     signal: AbortSignal.timeout(timeoutMs),
     body: JSON.stringify({
       mappings: {
-        properties: {
-          chunkId: { type: 'keyword' },
-          tenantId: { type: 'keyword' },
-          kbId: { type: 'keyword' },
-          docId: { type: 'keyword' },
-          ownerDeptId: { type: 'keyword' },
-          sparseText: { type: 'text' },
-        },
+        properties: SPARSE_INDEX_PROPERTIES,
       },
     }),
   });

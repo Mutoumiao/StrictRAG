@@ -1,16 +1,17 @@
 /**
- * 目标：ES 查询期按部门 ownerDeptId 收窄，缺字段不得当全员可见。
- * 需求：DEPT_ACL · 工单 ES 查询期部门对称最小闭环
- * 被测：buildAclFilter / searchSparseEs / collectVisibleOwnerDeptIds / runRetrieve http sparse
- * 简介：enforce 默认关。开且非超管才追加 terms；PG filterDocsForDeptAcl 仍保留。
+ * 目标：ES 查询期按文档 aclPrincipals 收窄，缺字段=未设可读，空数组不可命中。
+ * 需求：P3b 文档 ACL · 工单 ES 查询期 principals 对称最小闭环
+ * 被测：buildAclFilter / aclPrincipalsFilterClause / searchSparseEs / sparseBulkSource / runRetrieve
+ * 简介：不跟 DEPT_ACL_ENFORCE。超管不加 clause。PG 名单闸仍保留。显式空写哨兵，因 ES exists 不认空数组。
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { mockEmbedVector } from '../../src/services/gateway/mock-client.js';
-import { collectVisibleOwnerDeptIds } from '../../src/services/retrieve/dept-acl.js';
 import {
+  aclPrincipalsFilterClause,
   buildAclFilter,
+  ACL_PRINCIPALS_NONE_SENTINEL,
   bulkIndexSparse,
   ensureSparseIndex,
   searchSparseEs,
@@ -20,29 +21,13 @@ import { runRetrieve } from '../../src/services/retrieve/retrieve.js';
 import { sparseOverlapScore } from '../../src/services/retrieve/scoring.js';
 import type { CorpusChunk, RetrieveDeps } from '../../src/services/retrieve/types.js';
 
-const DEPT_A = '01900000-0000-7000-8000-0000000000a1';
-const DEPT_B = '01900000-0000-7000-8000-0000000000b1';
-const DEPT_C = '01900000-0000-7000-8000-0000000000c1';
+const USER_A = '01900000-0000-7000-8000-0000000000a1';
+const USER_B = '01900000-0000-7000-8000-0000000000b1';
 const TENANT = 'tenant-a';
 const KB = 'kb-1';
 const dims = 8;
 
-const tree = [
-  { id: DEPT_A, path: `/${DEPT_A}/` },
-  { id: DEPT_B, path: `/${DEPT_A}/${DEPT_B}/` },
-  { id: DEPT_C, path: `/${DEPT_A}/${DEPT_C}/` },
-];
-
 const retrieveKb = { configJson: {} as Record<string, unknown> };
-const deptState = {
-  assignments: [] as Array<{ deptId: string; isLeader: number }>,
-  depts: [] as Array<{ id: string; path: string }>,
-};
-const grantState = [] as Array<{
-  deptId: string;
-  maxVisibilityLevel: number;
-  expiresAt: string | null;
-}>;
 
 vi.mock('../../src/services/kb-settings.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/services/kb-settings.js')>();
@@ -61,25 +46,21 @@ vi.mock('../../src/services/kb-settings.js', async (importOriginal) => {
 
 vi.mock('../../src/services/departments.js', () => ({
   departmentsRepo: {
-    listUserDepartments: async () => deptState.assignments,
-    listDepartments: async () => deptState.depts,
-    getDepartment: async (_tenantId: string, id: string) =>
-      deptState.depts.find((d) => d.id === id) ?? null,
+    listUserDepartments: async () => [],
+    listDepartments: async () => [],
+    getDepartment: async () => null,
   },
 }));
 
 vi.mock('../../src/services/dept-grants.js', () => ({
   deptGrantsRepo: {
-    listGrants: async () => grantState,
+    listGrants: async () => [],
   },
 }));
 
 afterEach(() => {
   vi.unstubAllGlobals();
   retrieveKb.configJson = {};
-  deptState.assignments = [];
-  deptState.depts = [];
-  grantState.length = 0;
 });
 
 function chunk(id: string, text: string): CorpusChunk {
@@ -112,31 +93,47 @@ function retrieveDeps(
   };
 }
 
-describe('buildAclFilter ownerDeptId', () => {
-  it('缺省 / 空列表：只有 tenantId+kbId', () => {
+describe('buildAclFilter aclPrincipals', () => {
+  it('缺省 / 不 apply：只有 tenantId+kbId', () => {
     expect(buildAclFilter({ tenantId: TENANT, kbId: KB })).toEqual([
       { term: { tenantId: TENANT } },
       { term: { kbId: KB } },
     ]);
-    expect(buildAclFilter({ tenantId: TENANT, kbId: KB, ownerDeptIds: [] })).toEqual([
+    expect(buildAclFilter({ tenantId: TENANT, kbId: KB, applyAclPrincipals: false })).toEqual([
       { term: { tenantId: TENANT } },
       { term: { kbId: KB } },
     ]);
   });
 
-  it('非空 ownerDeptIds：追加 terms', () => {
+  it('apply + userId：must_not exists ∪ term', () => {
     expect(
-      buildAclFilter({ tenantId: TENANT, kbId: KB, ownerDeptIds: [DEPT_A, DEPT_B] }),
+      buildAclFilter({
+        tenantId: TENANT,
+        kbId: KB,
+        applyAclPrincipals: true,
+        aclPrincipalUserId: USER_A,
+      }),
     ).toEqual([
       { term: { tenantId: TENANT } },
       { term: { kbId: KB } },
-      { terms: { ownerDeptId: [DEPT_A, DEPT_B] } },
+      aclPrincipalsFilterClause(USER_A),
+    ]);
+  });
+
+  it('apply 无 userId：只有 must_not exists', () => {
+    expect(buildAclFilter({ tenantId: TENANT, kbId: KB, applyAclPrincipals: true })).toEqual([
+      { term: { tenantId: TENANT } },
+      { term: { kbId: KB } },
+      aclPrincipalsFilterClause(),
+    ]);
+    expect(aclPrincipalsFilterClause().bool.should).toEqual([
+      { bool: { must_not: { exists: { field: 'aclPrincipals' } } } },
     ]);
   });
 });
 
-describe('searchSparseEs ownerDeptId', () => {
-  it('传入 ownerDeptIds 时 POST filter 含 terms', async () => {
+describe('searchSparseEs aclPrincipals', () => {
+  it('apply 时 POST filter 含 should clause', async () => {
     let capturedBody: unknown;
     vi.stubGlobal(
       'fetch',
@@ -153,7 +150,8 @@ describe('searchSparseEs ownerDeptId', () => {
         kbId: KB,
         question: '年假',
         size: 10,
-        ownerDeptIds: [DEPT_A],
+        applyAclPrincipals: true,
+        aclPrincipalUserId: USER_A,
       },
     );
 
@@ -164,7 +162,7 @@ describe('searchSparseEs ownerDeptId', () => {
             filter: [
               { term: { tenantId: TENANT } },
               { term: { kbId: KB } },
-              { terms: { ownerDeptId: [DEPT_A] } },
+              aclPrincipalsFilterClause(USER_A),
             ],
             must: [{ match: { sparseText: '年假' } }],
           },
@@ -174,34 +172,22 @@ describe('searchSparseEs ownerDeptId', () => {
   });
 });
 
-describe('sparse mapping / bulk', () => {
-  it('ensureSparseIndex mapping 含 keyword ownerDeptId', async () => {
-    let putBody: unknown;
+describe('sparse mapping / bulk aclPrincipals', () => {
+  it('ensureSparseIndex mapping 含 keyword aclPrincipals', async () => {
+    let putBody: { mappings?: { properties?: { aclPrincipals?: unknown } } } = {};
     vi.stubGlobal(
       'fetch',
       vi.fn(async (_url: string, init?: RequestInit) => {
         if (init?.method === 'HEAD') return { ok: false, status: 404 };
-        putBody = JSON.parse(String(init?.body ?? '{}'));
+        putBody = JSON.parse(String(init?.body ?? '{}')) as typeof putBody;
         return { ok: true, text: async () => '' };
       }),
     );
     await ensureSparseIndex({ baseUrl: 'http://es:9200', index: 'ix' });
-    expect(putBody).toEqual({
-      mappings: {
-        properties: {
-          chunkId: { type: 'keyword' },
-          tenantId: { type: 'keyword' },
-          kbId: { type: 'keyword' },
-          docId: { type: 'keyword' },
-          ownerDeptId: { type: 'keyword' },
-          aclPrincipals: { type: 'keyword' },
-          sparseText: { type: 'text' },
-        },
-      },
-    });
+    expect(putBody.mappings?.properties?.aclPrincipals).toEqual({ type: 'keyword' });
   });
 
-  it('bulk 有值才写 ownerDeptId', async () => {
+  it('bulk：null 不写；[] 写哨兵；非空写列表', () => {
     expect(
       sparseBulkSource({
         chunkId: 'c1',
@@ -209,9 +195,9 @@ describe('sparse mapping / bulk', () => {
         kbId: KB,
         docId: 'd1',
         sparseText: 'x',
-        ownerDeptId: DEPT_A,
-      }).ownerDeptId,
-    ).toBe(DEPT_A);
+        aclPrincipals: null,
+      }),
+    ).not.toHaveProperty('aclPrincipals');
     expect(
       sparseBulkSource({
         chunkId: 'c2',
@@ -219,9 +205,9 @@ describe('sparse mapping / bulk', () => {
         kbId: KB,
         docId: 'd1',
         sparseText: 'y',
-        ownerDeptId: null,
-      }),
-    ).not.toHaveProperty('ownerDeptId');
+        aclPrincipals: [],
+      }).aclPrincipals,
+    ).toEqual([ACL_PRINCIPALS_NONE_SENTINEL]);
     expect(
       sparseBulkSource({
         chunkId: 'c3',
@@ -229,9 +215,12 @@ describe('sparse mapping / bulk', () => {
         kbId: KB,
         docId: 'd1',
         sparseText: 'z',
-      }),
-    ).not.toHaveProperty('ownerDeptId');
+        aclPrincipals: [USER_A, USER_B],
+      }).aclPrincipals,
+    ).toEqual([USER_A, USER_B]);
+  });
 
+  it('bulk ndjson 三态', async () => {
     let ndjson = '';
     vi.stubGlobal(
       'fetch',
@@ -249,7 +238,7 @@ describe('sparse mapping / bulk', () => {
           kbId: KB,
           docId: 'd1',
           sparseText: 'x',
-          ownerDeptId: DEPT_A,
+          aclPrincipals: null,
         },
         {
           chunkId: 'c2',
@@ -257,92 +246,63 @@ describe('sparse mapping / bulk', () => {
           kbId: KB,
           docId: 'd1',
           sparseText: 'y',
-          ownerDeptId: null,
+          aclPrincipals: [],
+        },
+        {
+          chunkId: 'c3',
+          tenantId: TENANT,
+          kbId: KB,
+          docId: 'd1',
+          sparseText: 'z',
+          aclPrincipals: [USER_A],
         },
       ],
     );
     const lines = ndjson.trim().split('\n');
-    expect(JSON.parse(lines[1] ?? '{}')).toMatchObject({ ownerDeptId: DEPT_A });
-    expect(JSON.parse(lines[3] ?? '{}')).not.toHaveProperty('ownerDeptId');
+    expect(JSON.parse(lines[1] ?? '{}')).not.toHaveProperty('aclPrincipals');
+    expect(JSON.parse(lines[3] ?? '{}')).toMatchObject({
+      aclPrincipals: [ACL_PRINCIPALS_NONE_SENTINEL],
+    });
+    expect(JSON.parse(lines[5] ?? '{}')).toMatchObject({ aclPrincipals: [USER_A] });
+  });
+
+  it('已有索引 PUT _mapping 补 aclPrincipals keyword', async () => {
+    const calls: Array<{ url: string; method?: string; body?: string }> = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        calls.push({ url, method: init?.method, body: String(init?.body ?? '') });
+        return { ok: true, text: async () => '' };
+      }),
+    );
+    await ensureSparseIndex({ baseUrl: 'http://es:9200', index: 'ix' });
+    expect(calls[0]?.method).toBe('HEAD');
+    expect(calls[1]?.url).toContain('/_mapping');
+    expect(calls[1]?.method).toBe('PUT');
+    expect(JSON.parse(calls[1]?.body ?? '{}')).toEqual({
+      properties: {
+        ownerDeptId: { type: 'keyword' },
+        aclPrincipals: { type: 'keyword' },
+      },
+    });
   });
 });
 
-describe('collectVisibleOwnerDeptIds', () => {
-  it('精确 ∪ inherit 子孙；grant 并入子树', () => {
-    expect(
-      collectVisibleOwnerDeptIds({
-        assignments: [{ deptId: DEPT_A, isLeader: false }],
-        depts: tree,
-        inheritDown: true,
-      }),
-    ).toEqual([DEPT_A, DEPT_B, DEPT_C].sort());
-
-    expect(
-      collectVisibleOwnerDeptIds({
-        assignments: [{ deptId: DEPT_B, isLeader: false }],
-        depts: tree,
-        inheritDown: true,
-      }),
-    ).toEqual([DEPT_B]);
-
-    expect(
-      collectVisibleOwnerDeptIds({
-        assignments: [],
-        depts: tree,
-        grants: [{ deptId: DEPT_A, maxVisibilityLevel: 20, expiresAt: null }],
-      }),
-    ).toEqual([DEPT_A, DEPT_B, DEPT_C].sort());
-  });
-
-  it('inherit false：归属只精确；grant 子树仍在', () => {
-    expect(
-      collectVisibleOwnerDeptIds({
-        assignments: [{ deptId: DEPT_A, isLeader: true }],
-        depts: tree,
-        inheritDown: false,
-      }),
-    ).toEqual([DEPT_A]);
-    expect(
-      collectVisibleOwnerDeptIds({
-        assignments: [{ deptId: DEPT_A, isLeader: true }],
-        depts: tree,
-        grants: [{ deptId: DEPT_A, maxVisibilityLevel: 20, expiresAt: null }],
-        inheritDown: false,
-      }),
-    ).toEqual([DEPT_A, DEPT_B, DEPT_C].sort());
-  });
-
-  it('过期 grant 不入；无树只精确', () => {
-    expect(
-      collectVisibleOwnerDeptIds({
-        assignments: [],
-        depts: tree,
-        grants: [{ deptId: DEPT_A, maxVisibilityLevel: 40, expiresAt: '2000-01-01 00:00:00' }],
-        now: '2026-08-17 12:00:00',
-      }),
-    ).toEqual([]);
-    expect(
-      collectVisibleOwnerDeptIds({
-        assignments: [{ deptId: DEPT_A, isLeader: false }],
-        inheritDown: true,
-      }),
-    ).toEqual([DEPT_A]);
-  });
-});
-
-describe('runRetrieve http 传入 ownerDeptIds', () => {
+describe('runRetrieve http 传入 applyAclPrincipals', () => {
   const corpus = [chunk('c1', 'employee leave policy allows 15 days annual leave')];
 
-  it('enforce 关：sparseSearch 不带 ownerDeptIds', async () => {
+  it('成员：带 apply 与 userId，不跟 enforce', async () => {
     retrieveKb.configJson = {};
-    let captured: { ownerDeptIds?: string[] } | undefined;
+    let captured:
+      | { applyAclPrincipals?: boolean; aclPrincipalUserId?: string; ownerDeptIds?: string[] }
+      | undefined;
     const r = await runRetrieve(
       {
         tenantId: TENANT,
         kbId: KB,
         question: 'annual leave',
         membership: 'member',
-        userId: 'u1',
+        userId: USER_A,
         rerankTopN: 2,
       },
       retrieveDeps(corpus, async (input) => {
@@ -351,21 +311,19 @@ describe('runRetrieve http 传入 ownerDeptIds', () => {
       }),
     );
     expect(r.ok).toBe(true);
+    expect(captured?.applyAclPrincipals).toBe(true);
+    expect(captured?.aclPrincipalUserId).toBe(USER_A);
     expect(captured?.ownerDeptIds).toBeUndefined();
   });
 
-  it('enforce 开非超管：含可见部门 terms 列表', async () => {
-    retrieveKb.configJson = { deptAclEnforce: true };
-    deptState.assignments = [{ deptId: DEPT_A, isLeader: 0 }];
-    deptState.depts = tree;
-    let captured: { ownerDeptIds?: string[] } | undefined;
+  it('成员无 userId：apply 仍开，不传 userId', async () => {
+    let captured: { applyAclPrincipals?: boolean; aclPrincipalUserId?: string } | undefined;
     const r = await runRetrieve(
       {
         tenantId: TENANT,
         kbId: KB,
         question: 'annual leave',
         membership: 'member',
-        userId: 'u1',
         rerankTopN: 2,
       },
       retrieveDeps(corpus, async (input) => {
@@ -374,21 +332,42 @@ describe('runRetrieve http 传入 ownerDeptIds', () => {
       }),
     );
     expect(r.ok).toBe(true);
-    expect(captured?.ownerDeptIds?.slice().sort()).toEqual([DEPT_A, DEPT_B, DEPT_C].sort());
+    expect(captured?.applyAclPrincipals).toBe(true);
+    expect(captured?.aclPrincipalUserId).toBeUndefined();
   });
 
-  it('超管：无部门 terms', async () => {
+  it('enforce 开也不改变 principals（仍 apply）', async () => {
     retrieveKb.configJson = { deptAclEnforce: true };
-    deptState.assignments = [{ deptId: DEPT_A, isLeader: 0 }];
-    deptState.depts = tree;
-    let captured: { ownerDeptIds?: string[] } | undefined;
+    let captured: { applyAclPrincipals?: boolean; aclPrincipalUserId?: string } | undefined;
+    const r = await runRetrieve(
+      {
+        tenantId: TENANT,
+        kbId: KB,
+        question: 'annual leave',
+        membership: 'member',
+        userId: USER_A,
+        rerankTopN: 2,
+      },
+      retrieveDeps(corpus, async (input) => {
+        captured = input;
+        return ['c1'];
+      }),
+    );
+    expect(r.ok).toBe(true);
+    expect(captured?.applyAclPrincipals).toBe(true);
+    expect(captured?.aclPrincipalUserId).toBe(USER_A);
+  });
+
+  it('超管：无 principals clause', async () => {
+    retrieveKb.configJson = { deptAclEnforce: true };
+    let captured: { applyAclPrincipals?: boolean; aclPrincipalUserId?: string } | undefined;
     const r = await runRetrieve(
       {
         tenantId: TENANT,
         kbId: KB,
         question: 'annual leave',
         membership: 'super_admin',
-        userId: 'u1',
+        userId: USER_A,
         rerankTopN: 2,
       },
       retrieveDeps(corpus, async (input) => {
@@ -397,6 +376,7 @@ describe('runRetrieve http 传入 ownerDeptIds', () => {
       }),
     );
     expect(r.ok).toBe(true);
-    expect(captured?.ownerDeptIds).toBeUndefined();
+    expect(captured?.applyAclPrincipals).toBeUndefined();
+    expect(captured?.aclPrincipalUserId).toBeUndefined();
   });
 });

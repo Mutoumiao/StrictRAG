@@ -74,6 +74,7 @@ function fail(reason: AskReason, message?: string): RetrieveResult {
 /**
  * ES 收窄用部门 id。enforce 关或超管 bypass：不传。
  * 精确可见级仍走 PG filterDocsForDeptAcl。
+ * 名单闸不走此函数：非超管始终 applyAclPrincipals，不跟 DEPT_ACL_ENFORCE。
  */
 async function ownerDeptIdsForSparseSearch(
   input: RetrieveInput,
@@ -175,6 +176,12 @@ export async function runRetrieve(
         question: input.question,
         size: retrieveK,
         ...(ownerDeptIds ? { ownerDeptIds } : {}),
+        ...(!bypassDeptAcl
+          ? {
+              applyAclPrincipals: true,
+              ...(input.userId ? { aclPrincipalUserId: input.userId } : {}),
+            }
+          : {}),
       });
       // 仅保留语料内 id（status/lifecycle/indexVersion 闸门以 PG corpus 为准）
       sparseRanked = sparseRanked.filter((id) => byId.has(id)).slice(0, retrieveK);
