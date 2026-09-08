@@ -88,9 +88,9 @@
 | `env/ready-hard-deps.test.ts` | GET /ready 在 PG 或 Redis 不可用时必须 503 且 ready 为 false。 | 剧本 H3 · prds/10-delivery/03-acceptance-scenarios.md | `GET /ready · runReadyChecks（postgres/redis 硬依赖）` | mock createDb 抛错或 ioredis ping 失败 → 503；不停本机 PG。 | 现行 |
 | `env/ready-soft-gateway.test.ts` | Gateway 不可用时 GET /ready 仍 200，不得因软依赖否决。 | 剧本 H4 · prds/10-delivery/03-acceptance-scenarios.md · ADR-028 | `GET /ready · checkGateway` | PG/Redis mock 为 up、Gateway fetch 失败时 checks.gateway 为 down 且 ready 为 true。 | 现行 |
 | `eval/adr046-snapshot.test.ts` | 评测快照绑定硬门不得松于试点。 | ADR-046 | `evaluateAdr046Bind / bindQualitySnapshotToEval` | 评测快照绑定硬门。 | 现行 |
-| `eval/http-eval-runs.test.ts` | POST eval/runs 只入队；空题集拒绝；L2 不依赖 gold_questions；内口靠口令并可带窗。 | prds/05-api §2.8 · 功能表 §5.2 · 覆盖 C4 | `POST/GET …/eval/runs · POST /internal/eval/execute-ask` | 请求线程不跑批；内口回 evidenceDocIds；GET 可带 Hit@k。 | 现行 |
+| `eval/http-eval-runs.test.ts` | POST eval/runs 只入队；空题集拒绝；L2 不依赖 gold_questions；内口靠口令并可带窗。 | prds/05-api §2.8 · 功能表 §5.2 · 覆盖 C4 · 覆盖 C2 | `POST/GET …/eval/runs · POST /internal/eval/execute-ask` | 请求线程不跑批；内口回 evidenceDocIds / minSupport；GET 可带 Hit@k / tauStar。 | 现行 |
 | `eval/http-gold-questions.test.ts` | 有 eval.run 才能维护黄金集；重复题号冲突。 | prds/05-api §2.8 · 功能表 §4.1 | `GET/POST/PATCH/DELETE …/gold-questions` | 运营题面落库；不是 CLI seed。 | 现行 |
-| `eval/l1-cli.test.ts` | L1 CLI 注入路径可跑且 skipTrace，不打 live。 | B10 · 覆盖 C4 | `runL1Golden / loadGold / writeL1Report` | 注入路径可跑且跳过落库 trace；有 expectedDocIds 时写 Hit@k。 | 现行 |
+| `eval/l1-cli.test.ts` | L1 CLI 注入路径可跑且 skipTrace，不打 live。 | B10 · 覆盖 C4 · 覆盖 C2 | `runL1Golden / loadGold / writeL1Report` | 注入路径可跑且跳过落库 trace；有 expectedDocIds 时写 Hit@k；有 minSupport 时写 tauStar。 | 现行 |
 | `eval/l1-matrix.test.ts` | L1 2×2 纯函数累计与覆盖计算正确，且不得当作签字。 | B10 | `cellFor / accumulate / coverage / computeSignoffEligible` | ≠ 签字；error 出格。 | 现行 |
 | `eval/l2-cli.test.ts` | L2 CLI 注入可跑；signoffEligible 走工程公式，mock 必 false。 | P2.5-L2 | `runL2Golden / parseL2CliEnv` | 工程可签字 ≠ 准出 PASS。 | 现行 |
 | `eval/l2-fingerprint.test.ts` | rewrite 指纹纯函数稳定，且不因此打开 rewrite。 | ADR-046 相关 | `l2RewriteFingerprint` | 非开 rewrite。 | 现行 |

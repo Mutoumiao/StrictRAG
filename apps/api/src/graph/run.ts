@@ -117,7 +117,8 @@ function finalize(
     answerKind:
       reason === 'chitchat' ? 'chitchat' : status === 'answered' ? 'knowledge' : undefined,
     citations: status === 'answered' && reason === 'verified' ? s.citations : [],
-    minSupport: reason === 'verified' ? s.minSupport : undefined,
+    minSupport:
+      reason === 'verified' || reason === 'unsupported_claims' ? s.minSupport : undefined,
     reason,
     userMessage,
     suggestedActions: s.suggestedActions.length ? s.suggestedActions : pres.suggestedActions,

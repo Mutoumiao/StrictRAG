@@ -118,6 +118,7 @@ function abstained(): ExecuteAskResult {
       answer: '',
       reason: 'unsupported_claims',
       userMessage: '拒答',
+      minSupport: undefined,
     },
   };
 }
@@ -200,6 +201,7 @@ describe('persistEvalRun gate', () => {
     });
     expect(report.evalRunId).toBeUndefined();
     expect(report.matrix.B).toBe(1);
+    expect(report.tauStar).toBeNull();
   });
 });
 
@@ -218,6 +220,8 @@ describe('buildEvalRunInsert / evalRunDbRanAt', () => {
       hitAtK: null,
       hitAtKHits: 0,
       hitAtKScored: 0,
+      tauStar: null,
+      tauSweep: [],
       errorCount: 0,
       cases: [],
       kbId: '01900000-0000-7000-8000-0000000000aa',
@@ -256,6 +260,8 @@ describe('buildEvalRunInsert / evalRunDbRanAt', () => {
       hitAtK: null,
       hitAtKHits: 0,
       hitAtKScored: 0,
+      tauStar: null,
+      tauSweep: [],
       errorCount: 0,
       cases: [],
       kbId: 'k',
@@ -393,6 +399,42 @@ describe('runL1Golden mock graphDeps path', () => {
     expect(md).toContain('0.5');
   });
 
+  it('有 minSupport 时离线扫网格写 tauStar；本跑 2×2 仍按真实 outcome', async () => {
+    const dir = tmp();
+    const goldPath = goldFile(dir, [
+      { id: 'a-high', question: 'ah', type: 'answerable' },
+      { id: 'a-low', question: 'al', type: 'answerable' },
+      { id: 'u1', question: 'u1', type: 'unanswerable' },
+      { id: 'u2', question: 'u2', type: 'unanswerable' },
+    ]);
+    const withMin = (status: 'answered' | 'abstained', minSupport: number): ExecuteAskResult => {
+      const base = status === 'answered' ? answered() : abstained();
+      return {
+        ...base,
+        response: { ...base.response, status, minSupport },
+        graph: { ...base.graph, status, minSupport },
+      };
+    };
+    const execute = async (params: ExecuteAskParams): Promise<ExecuteAskResult> => {
+      if (params.body.question === 'ah') return withMin('answered', 0.8);
+      if (params.body.question === 'al') return withMin('abstained', 0.4);
+      return withMin('abstained', 0.2);
+    };
+    const report = await runL1Golden({
+      goldPath,
+      outDir: path.join(dir, 'out'),
+      kbId: 'kb',
+      persistEval: false,
+      execute,
+    });
+    expect(report.matrix).toEqual({ A: 1, B: 1, C: 0, D: 2 });
+    expect(report.tauStar).toBe(0.8);
+    expect(report.signoffEligible).toBe(false);
+    const md = readFileSync(path.join(dir, 'out', 'l1-last-run.md'), 'utf8');
+    expect(md).toContain('tauStar');
+    expect(md).toContain('0.8');
+  });
+
   it('live + 各≥30 → signoffEligible；同规模 mock → false', async () => {
     const dir = tmp();
     const cases = [
@@ -455,6 +497,8 @@ describe('writeL1Report', () => {
       hitAtK: null,
       hitAtKHits: 0,
       hitAtKScored: 0,
+      tauStar: null,
+      tauSweep: [],
       errorCount: 0,
       cases: [],
       kbId: 'k',

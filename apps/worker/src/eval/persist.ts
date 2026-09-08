@@ -128,6 +128,8 @@ export const evalPersist: EvalPersist = {
           hitAtK: report.hitAtK,
           hitAtKHits: report.hitAtKHits,
           hitAtKScored: report.hitAtKScored,
+          tauStar: report.tauStar,
+          tauSweep: report.tauSweep,
           errorCount: report.errorCount,
           cases: report.cases,
           kbId: report.kbId,

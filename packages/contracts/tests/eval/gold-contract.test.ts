@@ -72,6 +72,8 @@ describe('eval run contract', () => {
       0.5,
     );
     expect(EvalRunSchema.parse({ ...run, hitAtK: null }).hitAtK).toBeNull();
+    expect(EvalRunSchema.parse({ ...run, tauStar: 0.55 }).tauStar).toBe(0.55);
+    expect(EvalRunSchema.parse({ ...run, tauStar: null }).tauStar).toBeNull();
     expect(EvalRunSchema.safeParse({ ...run, tauClaim: 0.3 }).success).toBe(false);
   });
 });

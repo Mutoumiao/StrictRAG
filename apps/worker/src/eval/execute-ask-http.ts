@@ -18,6 +18,7 @@ type ExecuteAskJson = {
     rewriteUsed?: boolean;
     evidenceTexts?: string[];
     evidenceDocIds?: string[];
+    minSupport?: number | null;
     answer?: string;
   };
   error?: { message?: string };
@@ -62,12 +63,14 @@ export function createEvalHttpExecute(opts: EvalHttpExecuteOpts): EvalCaseExecut
     const status = payload.data?.status;
     if (status === 'answered' || status === 'abstained') {
       const ids = payload.data?.evidenceDocIds;
+      const minRaw = payload.data?.minSupport;
       return {
         outcome: status,
         reason: payload.data?.reason,
         evidenceDocIds: Array.isArray(ids)
           ? ids.filter((id): id is string => typeof id === 'string' && id.length > 0)
           : [],
+        minSupport: typeof minRaw === 'number' && Number.isFinite(minRaw) ? minRaw : null,
       };
     }
     return { outcome: 'error', errorMessage: `unexpected ask status: ${String(status)}` };

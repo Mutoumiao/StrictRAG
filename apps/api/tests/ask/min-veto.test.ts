@@ -31,5 +31,6 @@ describe('runAskGraph M3 verify+min+budget', () => {
     );
     expect(r).toMatchObject({ status: 'abstained', reason: 'unsupported_claims' });
     expect(r.answer).toBe('');
+    expect(r.minSupport).toBe(0.1);
   });
 });

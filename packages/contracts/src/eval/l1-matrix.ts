@@ -136,3 +136,108 @@ export function hitAtKRate(acc: HitAtKAccum): number | null {
   if (acc.scored === 0) return null;
   return acc.hits / acc.scored;
 }
+
+/** C 率 = C/(C+D)；分母 0 → null。不进 signoffEligible。 */
+export function cRate(matrix: L1Matrix): number | null {
+  const den = matrix.C + matrix.D;
+  if (den === 0) return null;
+  return matrix.C / den;
+}
+
+/**
+ * 运行时分数加载：缺 / 非有限 / 越界 → null（该题不参与随 τ 翻转）。
+ * 与 gold 名单不同：脏分数不当抛错，避免一次坏 judge 拖垮整批扫描。
+ */
+export function parseMinSupport(raw: unknown): number | null {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return null;
+  if (raw < 0 || raw > 1) return null;
+  return raw;
+}
+
+/**
+ * 有 minSupport 才按 τ 重阈（min 否决：minSupport≥τ → answered）。
+ * 无分数保持原 outcome（未进 judge 的拒答不得因降 τ 变成 answered）。
+ * error 在每一档仍是 error。
+ */
+export function outcomeAtTau(
+  original: L1Outcome,
+  minSupport: number | null,
+  tau: number,
+): L1Outcome {
+  if (original === 'error') return 'error';
+  if (minSupport === null) return original;
+  return minSupport >= tau ? 'answered' : 'abstained';
+}
+
+/** 0.30…0.90 步长 0.05（含端点）。升序；取最大合格 τ。 */
+export const TAU_SWEEP_GRID: readonly number[] = [
+  0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9,
+];
+
+/** 与试点硬门 coverageMin / cRateMax 对齐；不从 api adr046 反引。 */
+export const TAU_STAR_COVERAGE_MIN = 0.4;
+export const TAU_STAR_C_RATE_MAX = 0.05;
+
+export type TauSweepCase = {
+  type: GoldType;
+  outcome: L1Outcome;
+  minSupport?: number | null;
+};
+
+export type TauSweepPoint = {
+  tau: number;
+  matrix: L1Matrix;
+  coverage: number | null;
+  cRate: number | null;
+};
+
+export type TauSweepResult = {
+  grid: TauSweepPoint[];
+  tauStar: number | null;
+};
+
+export type TauStarGates = {
+  coverageMin?: number;
+  cRateMax?: number;
+};
+
+/**
+ * 离线扫网格。本跑真实 2×2 不在这里改。
+ * tau* = 同时满足 coverage≥coverageMin 且 cRate≤cRateMax 的最大 τ；没有 → null。
+ * 整批无有效 minSupport → tauStar 必 null（禁止把原格碰巧过门写成网格上沿）。
+ */
+export function sweepTau(
+  cases: readonly TauSweepCase[],
+  grid: readonly number[] = TAU_SWEEP_GRID,
+  gates: TauStarGates = {},
+): TauSweepResult {
+  const coverageMin = gates.coverageMin ?? TAU_STAR_COVERAGE_MIN;
+  const cRateMax = gates.cRateMax ?? TAU_STAR_C_RATE_MAX;
+  const points: TauSweepPoint[] = [];
+  let scored = 0;
+  for (const c of cases) {
+    if (parseMinSupport(c.minSupport) !== null) scored += 1;
+  }
+  let tauStar: number | null = null;
+  for (const tau of grid) {
+    const matrix = emptyMatrix();
+    for (const c of cases) {
+      const min = parseMinSupport(c.minSupport);
+      accumulate(matrix, c.type, outcomeAtTau(c.outcome, min, tau));
+    }
+    const cov = coverage(matrix);
+    const cr = cRate(matrix);
+    points.push({ tau, matrix, coverage: cov, cRate: cr });
+    if (
+      cov !== null &&
+      cr !== null &&
+      cov >= coverageMin &&
+      cr <= cRateMax &&
+      (tauStar === null || tau > tauStar)
+    ) {
+      tauStar = tau;
+    }
+  }
+  if (scored === 0) tauStar = null;
+  return { grid: points, tauStar };
+}

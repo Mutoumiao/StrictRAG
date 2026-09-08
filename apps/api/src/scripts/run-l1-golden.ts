@@ -28,10 +28,13 @@ import {
   hitAtKCase,
   hitAtKRate,
   parseExpectedDocIds,
+  parseMinSupport,
+  sweepTau,
   type GoldType,
   type L1Cell,
   type L1Matrix,
   type L1Outcome,
+  type TauSweepPoint,
   cellFor,
 } from '../eval/l1-matrix.js';
 import { env } from '../env.js';
@@ -61,6 +64,8 @@ export type L1CaseRow = {
   errorMessage?: string;
   /** null = 本题无 expectedDocIds，不计分 */
   hitAtK?: boolean | null;
+  /** 进 judge 后的 min 分；未进 judge → 缺省 */
+  minSupport?: number | null;
 };
 
 export type L1Report = {
@@ -81,6 +86,9 @@ export type L1Report = {
   hitAtK: number | null;
   hitAtKHits: number;
   hitAtKScored: number;
+  /** 离线网格上满足试点硬门的最大 τ；没有 → null。不改本跑 2×2 / signoffEligible */
+  tauStar: number | null;
+  tauSweep: TauSweepPoint[];
   errorCount: number;
   cases: L1CaseRow[];
   kbId: string;
@@ -292,6 +300,7 @@ export function formatReportMd(report: L1Report): string {
     `| hitAtK | ${
       report.hitAtK === null ? 'null' : String(Math.round(report.hitAtK * 1000) / 1000)
     } (${report.hitAtKHits}/${report.hitAtKScored}) |`,
+    `| tauStar | ${report.tauStar === null ? 'null' : String(report.tauStar)} |`,
     `| gate_bundle | ${report.gateSnapshot?.gate_bundle ?? '—'} |`,
     `| signedPackage | ${report.gateVerdict?.signedPackage ?? false} |`,
     `| businessPass | ${report.gateVerdict?.businessPass ?? false} |`,
@@ -342,6 +351,7 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
     let reason: string | undefined;
     let errorMessage: string | undefined;
     let evidenceDocIds: string[] = [];
+    let minSupport: number | null = null;
     try {
       const result = await run(params, {
         skipTrace: true,
@@ -352,6 +362,7 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
       evidenceDocIds = (result.graph.evidence_snapshot ?? [])
         .map((e) => e.docId)
         .filter((id): id is string => typeof id === 'string' && id.length > 0);
+      minSupport = parseMinSupport(result.graph.minSupport);
     } catch (err) {
       outcome = 'error';
       errorMessage = err instanceof Error ? err.message : String(err);
@@ -367,11 +378,13 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
       reason,
       errorMessage,
       hitAtK: hit,
+      minSupport,
     });
   }
 
   const mode = resolveEvalMode(opts.esMode);
   const counts = goldTypeCounts(cases);
+  const swept = sweepTau(rows);
   const report: L1Report = {
     mode,
     retrieve_mode: mode,
@@ -386,6 +399,8 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
     hitAtK: hitAtKRate(hitAcc),
     hitAtKHits: hitAcc.hits,
     hitAtKScored: hitAcc.scored,
+    tauStar: swept.tauStar,
+    tauSweep: swept.grid,
     errorCount,
     cases: rows,
     kbId: opts.kbId,
@@ -476,6 +491,7 @@ async function main(): Promise<void> {
           hitAtK: report.hitAtK,
           hitAtKHits: report.hitAtKHits,
           hitAtKScored: report.hitAtKScored,
+          tauStar: report.tauStar,
           errorCount: report.errorCount,
           outDir,
         },

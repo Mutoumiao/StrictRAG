@@ -132,4 +132,58 @@ describe('EvalWorkspace', () => {
     render(<EvalWorkspace />);
     expect(await screen.findByText(/Hit@k 50%/)).toBeInTheDocument();
   });
+
+  it('L1 run 有 tauStar 时展示该阈值', async () => {
+    me.permissions = ['admin.shell', 'eval.run'];
+    localStorage.setItem('strict-rag:admin:last-kb-id', KB);
+    loadEvalBoard.mockResolvedValue({
+      ok: true,
+      questions: [],
+      runs: [
+        {
+          runId: '01900000-0000-7000-8000-0000000000c2',
+          kbId: KB,
+          status: 'succeeded',
+          runType: 'golden_2x2',
+          retrieveMode: 'mock',
+          signoffEligible: false,
+          caseCount: 4,
+          matrix: { A: 1, B: 1, C: 0, D: 2 },
+          coverage: 0.5,
+          tauStar: 0.55,
+          errorCount: 0,
+          ranAt: '2026-09-08 12:00:00',
+        },
+      ],
+    });
+    render(<EvalWorkspace />);
+    expect(await screen.findByText(/tau\* 0\.55/)).toBeInTheDocument();
+  });
+
+  it('L1 run tauStar 为 null 时展示无', async () => {
+    me.permissions = ['admin.shell', 'eval.run'];
+    localStorage.setItem('strict-rag:admin:last-kb-id', KB);
+    loadEvalBoard.mockResolvedValue({
+      ok: true,
+      questions: [],
+      runs: [
+        {
+          runId: '01900000-0000-7000-8000-0000000000c3',
+          kbId: KB,
+          status: 'succeeded',
+          runType: 'golden_2x2',
+          retrieveMode: 'mock',
+          signoffEligible: false,
+          caseCount: 2,
+          matrix: { A: 1, B: 0, C: 0, D: 1 },
+          coverage: 1,
+          tauStar: null,
+          errorCount: 0,
+          ranAt: '2026-09-08 12:00:00',
+        },
+      ],
+    });
+    render(<EvalWorkspace />);
+    expect(await screen.findByText(/tau\* 无/)).toBeInTheDocument();
+  });
 });

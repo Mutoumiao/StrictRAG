@@ -334,6 +334,10 @@ export function createEvalRoutes(deps: EvalRouteDeps = {}) {
       evidenceDocIds: (result.graph.evidence_snapshot ?? [])
         .map((e) => e.docId)
         .filter((id): id is string => typeof id === 'string' && id.length > 0),
+      minSupport:
+        typeof result.graph.minSupport === 'number' && Number.isFinite(result.graph.minSupport)
+          ? result.graph.minSupport
+          : null,
       answer: result.graph.answer || result.graph.userMessage || '',
     });
   });

@@ -34,6 +34,7 @@ export type EvalRunRow = {
   hitAtK?: number | null;
   hitAtKHits?: number;
   hitAtKScored?: number;
+  tauStar?: number | null;
   cases?: EvalRunCaseRow[];
 };
 
@@ -62,13 +63,14 @@ function asMode(raw: string): EvalRetrieveMode {
   return 'unknown';
 }
 
-function extraStatsFromReport(report: unknown): {
+export function extraStatsFromReport(report: unknown): {
   passCount?: number;
   failCount?: number;
   zeroToleranceHits?: number;
   hitAtK?: number | null;
   hitAtKHits?: number;
   hitAtKScored?: number;
+  tauStar?: number | null;
 } {
   if (!report || typeof report !== 'object') return {};
   const row = report as Record<string, unknown>;
@@ -79,6 +81,7 @@ function extraStatsFromReport(report: unknown): {
     hitAtK?: number | null;
     hitAtKHits?: number;
     hitAtKScored?: number;
+    tauStar?: number | null;
   } = {};
   if (typeof row.passCount === 'number') out.passCount = row.passCount;
   if (typeof row.failCount === 'number') out.failCount = row.failCount;
@@ -87,6 +90,8 @@ function extraStatsFromReport(report: unknown): {
   else if (typeof row.hitAtK === 'number') out.hitAtK = row.hitAtK;
   if (typeof row.hitAtKHits === 'number') out.hitAtKHits = row.hitAtKHits;
   if (typeof row.hitAtKScored === 'number') out.hitAtKScored = row.hitAtKScored;
+  if (row.tauStar === null) out.tauStar = null;
+  else if (typeof row.tauStar === 'number' && Number.isFinite(row.tauStar)) out.tauStar = row.tauStar;
   return out;
 }
 
@@ -178,6 +183,7 @@ export function toEvalRunDto(row: EvalRunRow, includeCases: boolean): EvalRun {
     hitAtK: row.hitAtK,
     hitAtKHits: row.hitAtKHits,
     hitAtKScored: row.hitAtKScored,
+    tauStar: row.tauStar,
     ranAt: row.ranAt,
     jobId: row.jobId,
     errorMessage: row.errorMessage,

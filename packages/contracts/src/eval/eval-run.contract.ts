@@ -43,6 +43,7 @@ export const EvalRunSchema = z
     hitAtK: z.number().nullable().optional(),
     hitAtKHits: z.number().int().nonnegative().optional(),
     hitAtKScored: z.number().int().nonnegative().optional(),
+    tauStar: z.number().nullable().optional(),
     errorCount: z.number().int().nonnegative(),
     passCount: z.number().int().nonnegative().optional(),
     failCount: z.number().int().nonnegative().optional(),

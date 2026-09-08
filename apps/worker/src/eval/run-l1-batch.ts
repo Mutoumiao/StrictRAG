@@ -9,11 +9,14 @@ import {
   goldTypeCounts,
   hitAtKCase,
   hitAtKRate,
+  parseMinSupport,
+  sweepTau,
   type EvalRetrieveMode,
   type GoldType,
   type L1Cell,
   type L1Matrix,
   type L1Outcome,
+  type TauSweepPoint,
 } from '@strict-rag/contracts';
 
 export type EvalGoldCase = {
@@ -24,7 +27,12 @@ export type EvalGoldCase = {
 };
 
 export type EvalCaseExecuteResult =
-  | { outcome: 'answered' | 'abstained'; reason?: string; evidenceDocIds?: string[] }
+  | {
+      outcome: 'answered' | 'abstained';
+      reason?: string;
+      evidenceDocIds?: string[];
+      minSupport?: number | null;
+    }
   | { outcome: 'error'; errorMessage?: string };
 
 export type EvalCaseExecute = (input: {
@@ -40,6 +48,7 @@ export type L1BatchCaseRow = {
   reason?: string;
   errorMessage?: string;
   hitAtK?: boolean | null;
+  minSupport?: number | null;
 };
 
 export type L1BatchReport = {
@@ -54,6 +63,8 @@ export type L1BatchReport = {
   hitAtK: number | null;
   hitAtKHits: number;
   hitAtKScored: number;
+  tauStar: number | null;
+  tauSweep: TauSweepPoint[];
   errorCount: number;
   cases: L1BatchCaseRow[];
   kbId: string;
@@ -79,6 +90,7 @@ export async function runL1Batch(opts: {
     let reason: string | undefined;
     let errorMessage: string | undefined;
     let evidenceDocIds: string[] = [];
+    let minSupport: number | null = null;
     try {
       const result = await opts.execute({ caseKey: c.caseKey, question: c.question });
       outcome = result.outcome;
@@ -87,6 +99,7 @@ export async function runL1Batch(opts: {
       } else {
         reason = result.reason;
         evidenceDocIds = result.evidenceDocIds ?? [];
+        minSupport = parseMinSupport(result.minSupport);
       }
     } catch (err) {
       outcome = 'error';
@@ -103,11 +116,13 @@ export async function runL1Batch(opts: {
       reason,
       errorMessage,
       hitAtK: hit,
+      minSupport,
     });
   }
 
   const counts = goldTypeCounts(sliced);
   const retrieveMode = opts.retrieveMode;
+  const swept = sweepTau(rows);
   return {
     retrieveMode,
     signoffEligible: computeSignoffEligible(retrieveMode, counts),
@@ -120,6 +135,8 @@ export async function runL1Batch(opts: {
     hitAtK: hitAtKRate(hitAcc),
     hitAtKHits: hitAcc.hits,
     hitAtKScored: hitAcc.scored,
+    tauStar: swept.tauStar,
+    tauSweep: swept.grid,
     errorCount,
     cases: rows,
     kbId: opts.kbId,

@@ -298,6 +298,12 @@ export function EvalWorkspace() {
                       typeof run.hitAtKScored === 'number' && run.hitAtKScored > 0
                         ? ` · Hit@k ${coverageLabel(run.hitAtK ?? null)}`
                         : ''
+                    }${
+                      run.tauStar === null
+                        ? ' · tau* 无'
+                        : typeof run.tauStar === 'number'
+                          ? ` · tau* ${run.tauStar}`
+                          : ''
                     }`}
                 {run.signoffEligible ? ' · 工程可签字（仍须人签，≠准出）' : ''}
               </p>

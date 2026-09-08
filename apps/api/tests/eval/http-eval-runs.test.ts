@@ -15,7 +15,7 @@ import { issueTokenPair } from '../../src/auth/identity/token-service.js';
 import { requestIdMiddleware } from '../../src/middleware/request-id.js';
 import { createEvalRoutes, type EvalRouteDeps } from '../../src/routes/eval.js';
 import type { ExecuteAskResult } from '../../src/services/ask/index.js';
-import type { EvalRunRepo, EvalRunRow } from '../../src/services/eval-runs.js';
+import { extraStatsFromReport, type EvalRunRepo, type EvalRunRow } from '../../src/services/eval-runs.js';
 import type { GoldQuestionRow, GoldRepo } from '../../src/services/gold-questions.js';
 
 const KB = '01900000-0000-7000-8000-0000000000aa';
@@ -213,6 +213,37 @@ describe('eval runs HTTP', () => {
     expect(body.data.hitAtKScored).toBe(2);
   });
 
+  it('GET 回读 tauStar 字段', async () => {
+    const { userId, accessToken } = await token(['kb_admin']);
+    const runs = memoryRuns();
+    const row = await runs.createQueued({
+      tenantId: TENANT,
+      kbId: KB,
+      retrieveMode: 'mock',
+    });
+    row.status = 'succeeded';
+    row.tauStar = 0.55;
+    const app = buildApp({
+      members: new Set([userId]),
+      gold: memoryGold(),
+      evalRuns: runs,
+      enqueue: async () => 'j',
+    });
+    const got = await app.request(`/api/v1/knowledge-bases/${KB}/eval/runs/${row.id}`, {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    expect(got.status).toBe(200);
+    const body = (await got.json()) as { data: { tauStar: number | null } };
+    expect(body.data.tauStar).toBe(0.55);
+  });
+
+  it('tauStar 从 reportJson 映出：数字与 null；非法省略', () => {
+    expect(extraStatsFromReport({ tauStar: 0.55 }).tauStar).toBe(0.55);
+    expect(extraStatsFromReport({ tauStar: null }).tauStar).toBeNull();
+    expect(extraStatsFromReport({}).tauStar).toBeUndefined();
+    expect(extraStatsFromReport({ tauStar: Number.NaN }).tauStar).toBeUndefined();
+  });
+
   it('internal execute-ask 口令对才跑；空口令 503；错口令 401', async () => {
     const app = buildApp({
       members: new Set(),
@@ -242,10 +273,11 @@ describe('eval runs HTTP', () => {
     });
     expect(okRes.status).toBe(200);
     const okBody = (await okRes.json()) as {
-      data: { status: string; reason?: string; evidenceDocIds?: string[] };
+      data: { status: string; reason?: string; evidenceDocIds?: string[]; minSupport?: number | null };
     };
     expect(okBody.data.status).toBe('abstained');
     expect(okBody.data.evidenceDocIds).toEqual(['doc-a']);
+    expect(okBody.data.minSupport).toBeNull();
 
     const bad = await app.request('/api/v1/internal/eval/execute-ask', {
       method: 'POST',
@@ -276,6 +308,40 @@ describe('eval runs HTTP', () => {
       }),
     });
     expect(off.status).toBe(503);
+  });
+
+  it('internal execute-ask 带回 graph.minSupport', async () => {
+    const app = buildApp({
+      members: new Set(),
+      gold: memoryGold(),
+      evalRuns: memoryRuns(),
+      enqueue: async () => 'j',
+      internalToken: () => 'secret-eval',
+      execute: async () =>
+        ({
+          httpStatus: 200,
+          graph: {
+            status: 'abstained',
+            reason: 'unsupported_claims',
+            minSupport: 0.1,
+            evidence_snapshot: [],
+          },
+        }) as ExecuteAskResult,
+    });
+    const res = await app.request('/api/v1/internal/eval/execute-ask', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-eval-internal-token': 'secret-eval' },
+      body: JSON.stringify({
+        kbId: KB,
+        tenantId: TENANT,
+        userId: uuidv7(),
+        question: '年假？',
+      }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { minSupport: number | null; status: string } };
+    expect(body.data.status).toBe('abstained');
+    expect(body.data.minSupport).toBe(0.1);
   });
 
   it('POST session_multiturn 不依赖 gold_questions；空 L2 题面 400', async () => {

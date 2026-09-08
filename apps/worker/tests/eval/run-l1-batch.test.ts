@@ -27,6 +27,7 @@ describe('runL1Batch', () => {
     expect(report.errorCount).toBe(0);
     expect(report.signoffEligible).toBe(false);
     expect(report.cases[0].cell).toBe('A');
+    expect(report.tauStar).toBeNull();
   });
 
   it('execute throw 记 error 且不进格', async () => {
@@ -68,5 +69,26 @@ describe('runL1Batch', () => {
     expect(report.cases[0]?.hitAtK).toBe(true);
     expect(report.cases[1]?.hitAtK).toBe(false);
     expect(report.cases[2]?.hitAtK).toBeNull();
+  });
+
+  it('有 minSupport 时离线扫网格写 tauStar；本跑 2×2 仍按真实 outcome', async () => {
+    const report = await runL1Batch({
+      kbId: 'k',
+      retrieveMode: 'mock',
+      cases: [
+        { caseKey: 'a-high', question: 'ah', type: 'answerable' },
+        { caseKey: 'a-low', question: 'al', type: 'answerable' },
+        { caseKey: 'u1', question: 'u1', type: 'unanswerable' },
+        { caseKey: 'u2', question: 'u2', type: 'unanswerable' },
+      ],
+      execute: async ({ caseKey }) => {
+        if (caseKey === 'a-high') return { outcome: 'answered', minSupport: 0.8 };
+        if (caseKey === 'a-low') return { outcome: 'abstained', minSupport: 0.4 };
+        return { outcome: 'abstained', minSupport: 0.2 };
+      },
+    });
+    expect(report.matrix).toEqual({ A: 1, B: 1, C: 0, D: 2 });
+    expect(report.tauStar).toBe(0.8);
+    expect(report.signoffEligible).toBe(false);
   });
 });
