@@ -2,8 +2,9 @@
 
 Type: grilling
 Label: wayfinder:grilling
-Status: open
-Triage: ready-for-human
+Status: resolved
+Assignee: grok
+Triage: ready-for-agent
 Blocked by: 49
 
 ## Question
@@ -28,3 +29,24 @@ Blocked by: 49
 4. **本图暂停执行**，等图外 L2 人签
 
 本工单只锁顺序与切边，不写产品代码。
+
+## Answer
+
+τ 扫描之后，**在线编写留雾**（P2.x，不并进）。P3b 余量仍锁（默认开强制会打破 AE3；角色 principal 命名空间仍雾）。**不暂停**等人签。本图继续 **P4**。本批只做 Judge AUROC 最小闭环。不做再认证流程 / 多模型 fallback / 双轨看板 / 数据面板增强。不把 gold `type` 或 ask outcome 当 supported 真值。不新开 `verifier_calib` HTTP 入队。不把实测 AUROC 接入 `signoffEligible` / `signedPackage`。P3a / 人签 / 准出 PASS / 默认开 rewrite 仍不进执行。
+
+本批一张：
+
+- [Judge AUROC 最小闭环](./51-l1-judge-auroc-min.md) — 开放前沿。独立校准集 `(claim, evidence, label)` + Mann-Whitney 纯函数 + 可注入打分器写出 `judgeAuroc`；无双侧样本或无分数 → null。切边见该工单正文。
+
+仍留雾：仓库默认开强制、角色 principal、在线编写、P4 其余（再认证 / fallback / 双轨看板 / 面板增强 / 把 tau* 接到运行时 / claim 级 live 校准 PASS）。
+
+未改产品代码。
+
+## Comments
+
+- 2026-09-08 按图顺序认领。用户授权本图全程自行决策。
+- Q1：选 1。继续 P4。在线编写留雾。不回头解 P3b 站规。不暂停。
+- Q2：本批只做 Judge AUROC。人签仍图外。不做再认证 HTTP / 多模型 fallback / 双轨看板 / 数据面板。
+- Q3：一张工单。纯函数 + 独立校准 fixture + 挂现有 L1 报告字段（可注入打分器）。不新开校准入队。不用黄金题型冒充 label。
+- Q4：Mann-Whitney；正负类都要有有效分数否则 null。不改本跑 2×2 / `signoffEligible`。不对 `judgeAurocMin` 自动翻签字。
+- Q5：默认开强制 / 角色码仍锁。不写 `TAU_CLAIM`。
