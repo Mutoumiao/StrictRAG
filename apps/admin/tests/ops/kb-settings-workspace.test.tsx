@@ -170,15 +170,16 @@ describe('SettingsWorkspace', () => {
     });
   });
 
-  it('页上可见 sensitive 不是已解禁的说明', async () => {
+  it('页上可见 sensitive complete 须 ACL 就绪的说明', async () => {
     localStorage.setItem('strict-rag:admin:last-kb-id', KB_ID);
     me.permissions = ['admin.shell', 'kb.config.write'];
     loadKbSettings.mockResolvedValue({ ok: true, settings });
 
     render(<SettingsWorkspace />);
 
-    expect(await screen.findByText(/不是已解禁/)).toBeInTheDocument();
-    expect(screen.getAllByText(/解禁/).length).toBeGreaterThan(0);
+    expect(await screen.findByText(/ACL 就绪/)).toBeInTheDocument();
+    expect(screen.getByText(/complete 解禁条件/)).toBeInTheDocument();
+    expect(screen.getByText(/角色 principal/)).toBeInTheDocument();
   });
 
   it('页上可见继承勾选不是打开强制隔离的说明', async () => {

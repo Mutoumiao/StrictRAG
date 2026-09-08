@@ -25,7 +25,7 @@ export const AskModesSchema = z
   });
 export type AskModes = z.infer<typeof AskModesSchema>;
 
-/** KB 语料分级；缺省 / 旧行 = internal。sensitive 入池闸见 complete，≠ 已解禁 */
+/** KB 语料分级；缺省 / 旧行 = internal。sensitive complete 须 ACL 就绪（部门路径或显式名单） */
 export const DataClassSchema = z.enum(['internal', 'sensitive']);
 export type DataClass = z.infer<typeof DataClassSchema>;
 

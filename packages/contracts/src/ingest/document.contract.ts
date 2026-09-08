@@ -79,6 +79,8 @@ export const CompleteUploadBodySchema = z.object({
   chunkStrategy: z.string().min(1).max(64).optional(),
   ownerDeptId: z.string().uuid().nullable().optional(),
   visibilityLevel: VisibilityLevelSchema.optional(),
+  /** omit 不改；null 清回未设；[] 显式空 */
+  aclPrincipals: z.array(z.string().uuid()).max(256).nullable().optional(),
 });
 export type CompleteUploadBody = z.infer<typeof CompleteUploadBodySchema>;
 

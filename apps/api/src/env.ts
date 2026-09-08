@@ -100,7 +100,7 @@ const EnvSchema = z
       .transform((v) => v === 'true'),
     /**
      * 检索/预览/列表部门过滤（ADR-057 子集：精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过）。
-     * 仓库默认 false。**禁止**默认 true / 宣称全文隔离（principals 用户 uuid 名单最小已落，ES 查询期 should 收窄；仍无角色 principal / 无解禁）。
+     * 仓库默认 false。**禁止**默认 true / 宣称全文隔离（principals 用户 uuid 名单最小已落，ES 查询期 should 收窄；sensitive complete 须 ACL 就绪；仍无角色 principal）。
      */
     DEPT_ACL_ENFORCE: z
       .enum(['true', 'false'])

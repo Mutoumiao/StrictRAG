@@ -2,7 +2,7 @@
 
 /**
  * 知识库设置薄页：基本信息 / 语料分级 / 部门强制 / 部门继承 / 问答档位 / 质量只读 / rewrite 锁 / 修改日志。
- * 禁止 τ 滑块与 rewrite 开关。sensitive ≠ 解禁。强制勾选 ≠ 仓库默认开 / 解禁 / ES。
+ * 禁止 τ 滑块与 rewrite 开关。sensitive complete 须 ACL 就绪。强制勾选 ≠ 仓库默认开。
  * 未改 inherit 勾选不得 PATCH deptInheritDown（GET 缺省 true 不可写回盖 env）。
  * 未改强制勾选不得 PATCH deptAclEnforce（GET 缺省 false 不可写回钉成显式关）。
  */
@@ -235,7 +235,8 @@ export function SettingsWorkspace() {
               </select>
             </div>
             <p className="text-xs text-muted-foreground">
-              sensitive 只加严 complete 闸，不是已解禁。
+              sensitive complete 须 ACL 就绪：本库部门强制且文档有归属部门，或文档已设显式名单（含空名单）。这是
+              complete 解禁条件，不等于仓库默认打开部门强制，也不是角色 principal。
             </p>
           </section>
 

@@ -61,4 +61,61 @@ describe('P3b-SENS dataClass / complete 闸', () => {
       }),
     ).toBe(false);
   });
+
+  it('sensitive + 关强制：显式名单就绪，null 仍挡', () => {
+    const owner = '01900000-0000-7000-8000-0000000000de';
+    const user = '01900000-0000-7000-8000-0000000000a1';
+    expect(
+      isSensitiveCompleteBlocked({
+        dataClass: 'sensitive',
+        ownerDeptId: owner,
+        deptAclEnforce: false,
+        aclPrincipals: null,
+      }),
+    ).toBe(true);
+    expect(
+      isSensitiveCompleteBlocked({
+        dataClass: 'sensitive',
+        ownerDeptId: null,
+        deptAclEnforce: false,
+        aclPrincipals: [],
+      }),
+    ).toBe(false);
+    expect(
+      isSensitiveCompleteBlocked({
+        dataClass: 'sensitive',
+        ownerDeptId: null,
+        deptAclEnforce: false,
+        aclPrincipals: [user],
+      }),
+    ).toBe(false);
+  });
+
+  it('sensitive + 开强制无 owner：名单仍可解禁；部门路径不依赖名单', () => {
+    const owner = '01900000-0000-7000-8000-0000000000de';
+    expect(
+      isSensitiveCompleteBlocked({
+        dataClass: 'sensitive',
+        ownerDeptId: null,
+        deptAclEnforce: true,
+        aclPrincipals: null,
+      }),
+    ).toBe(true);
+    expect(
+      isSensitiveCompleteBlocked({
+        dataClass: 'sensitive',
+        ownerDeptId: null,
+        deptAclEnforce: true,
+        aclPrincipals: [],
+      }),
+    ).toBe(false);
+    expect(
+      isSensitiveCompleteBlocked({
+        dataClass: 'sensitive',
+        ownerDeptId: owner,
+        deptAclEnforce: true,
+        aclPrincipals: null,
+      }),
+    ).toBe(false);
+  });
 });

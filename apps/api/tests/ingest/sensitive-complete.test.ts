@@ -18,17 +18,30 @@ const KB = '01900000-0000-7000-8000-0000000000aa';
 const TENANT = '01900000-0000-7000-8000-000000000001';
 const DEPT = '01900000-0000-7000-8000-0000000000de';
 
+const USER_A = '01900000-0000-7000-8000-0000000000a1';
+
 const completeState = {
   dataClass: 'internal' as string | undefined,
   deptAclEnforce: undefined as boolean | undefined,
   ownerDeptId: null as string | null,
+  aclPrincipals: null as string[] | null,
   markCalls: [] as Array<{ id: string; size: number }>,
+  getDocCalls: 0,
+  failGetDocAfter: 0,
+  kbMissing: false,
 };
 
 vi.mock('../../src/services/documents.js', () => ({
   documentRepo: {
-    getDoc: async (id: string) =>
-      id === DOC
+    getDoc: async (id: string) => {
+      completeState.getDocCalls += 1;
+      if (
+        completeState.failGetDocAfter > 0 &&
+        completeState.getDocCalls > completeState.failGetDocAfter
+      ) {
+        return null;
+      }
+      return id === DOC
         ? {
             id: DOC,
             kbId: KB,
@@ -39,10 +52,13 @@ vi.mock('../../src/services/documents.js', () => ({
             status: 'uploaded',
             byteSize: null,
             ownerDeptId: completeState.ownerDeptId,
+            aclPrincipals: completeState.aclPrincipals,
           }
-        : null,
-    getKb: async (id: string) =>
-      id === KB
+        : null;
+    },
+    getKb: async (id: string) => {
+      if (completeState.kbMissing) return null;
+      return id === KB
         ? {
             id: KB,
             tenantId: TENANT,
@@ -55,15 +71,21 @@ vi.mock('../../src/services/documents.js', () => ({
                 : { deptAclEnforce: completeState.deptAclEnforce }),
             },
           }
-        : null,
+        : null;
+    },
     markCompletePending: async (id: string, size: number) => {
       completeState.markCalls.push({ id, size });
     },
     patchMeta: async (
       _id: string,
-      patch: { ownerDeptId?: string | null; visibilityLevel?: number },
+      patch: {
+        ownerDeptId?: string | null;
+        visibilityLevel?: number;
+        aclPrincipals?: string[] | null;
+      },
     ) => {
       if (patch.ownerDeptId !== undefined) completeState.ownerDeptId = patch.ownerDeptId;
+      if (patch.aclPrincipals !== undefined) completeState.aclPrincipals = patch.aclPrincipals;
     },
   },
 }));
@@ -113,7 +135,11 @@ describe('P3b-SENS complete 敏感闸', () => {
     completeState.dataClass = 'internal';
     completeState.deptAclEnforce = undefined;
     completeState.ownerDeptId = null;
+    completeState.aclPrincipals = null;
     completeState.markCalls = [];
+    completeState.getDocCalls = 0;
+    completeState.failGetDocAfter = 0;
+    completeState.kbMissing = false;
     vi.unstubAllEnvs();
   });
 
@@ -200,6 +226,80 @@ describe('P3b-SENS complete 敏感闸', () => {
 
   it('非法 ownerDeptId → 400，不 markComplete', async () => {
     const res = await postComplete({ ownerDeptId: 'not-a-uuid' });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: { code: string } };
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+    expect(completeState.markCalls).toHaveLength(0);
+  });
+
+  it('sensitive + 关强制 + 已有显式空名单 → 放行本闸并 markComplete', async () => {
+    completeState.dataClass = 'sensitive';
+    completeState.aclPrincipals = [];
+    vi.stubEnv('DEPT_ACL_ENFORCE', 'false');
+    const res = await postComplete();
+    expect(res.status).toBe(200);
+    expect(completeState.markCalls).toEqual([{ id: DOC, size: 12 }]);
+  });
+
+  it('sensitive + 关强制 + complete 同请求带显式空名单 → 200 且写入', async () => {
+    completeState.dataClass = 'sensitive';
+    completeState.aclPrincipals = null;
+    vi.stubEnv('DEPT_ACL_ENFORCE', 'false');
+    const res = await postComplete({ aclPrincipals: [] });
+    expect(res.status).toBe(200);
+    expect(completeState.aclPrincipals).toEqual([]);
+    expect(completeState.markCalls).toEqual([{ id: DOC, size: 12 }]);
+  });
+
+  it('sensitive + 关强制 + complete 同请求带 uuid 名单 → 200 且写入', async () => {
+    completeState.dataClass = 'sensitive';
+    completeState.aclPrincipals = null;
+    vi.stubEnv('DEPT_ACL_ENFORCE', 'false');
+    const res = await postComplete({ aclPrincipals: [USER_A] });
+    expect(res.status).toBe(200);
+    expect(completeState.aclPrincipals).toEqual([USER_A]);
+    expect(completeState.markCalls).toEqual([{ id: DOC, size: 12 }]);
+  });
+
+  it('sensitive + 关强制 + 已有名单 + complete 显式 null → 仍 400', async () => {
+    completeState.dataClass = 'sensitive';
+    completeState.aclPrincipals = [USER_A];
+    vi.stubEnv('DEPT_ACL_ENFORCE', 'false');
+    const res = await postComplete({ aclPrincipals: null });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: { code: string } };
+    expect(body.error.code).toBe('RULE_VIOLATION');
+    expect(completeState.aclPrincipals).toBeNull();
+    expect(completeState.markCalls).toHaveLength(0);
+  });
+
+  it('patch 后回读文档失败 → 404，不 markComplete', async () => {
+    completeState.dataClass = 'sensitive';
+    completeState.failGetDocAfter = 1;
+    vi.stubEnv('DEPT_ACL_ENFORCE', 'false');
+    const res = await postComplete({ aclPrincipals: [USER_A] });
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as { error: { code: string } };
+    expect(body.error.code).toBe('NOT_FOUND');
+    expect(completeState.markCalls).toHaveLength(0);
+  });
+
+  it('KB 行缺失 → 404，不因缺库当 internal 放行', async () => {
+    completeState.dataClass = 'sensitive';
+    completeState.aclPrincipals = [];
+    completeState.kbMissing = true;
+    vi.stubEnv('DEPT_ACL_ENFORCE', 'false');
+    const res = await postComplete();
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as { error: { code: string } };
+    expect(body.error.code).toBe('NOT_FOUND');
+    expect(completeState.markCalls).toHaveLength(0);
+  });
+
+  it('非法 aclPrincipals → 400 VALIDATION_ERROR，不 markComplete', async () => {
+    completeState.dataClass = 'sensitive';
+    vi.stubEnv('DEPT_ACL_ENFORCE', 'false');
+    const res = await postComplete({ aclPrincipals: ['not-a-uuid'] });
     expect(res.status).toBe(400);
     const body = (await res.json()) as { error: { code: string } };
     expect(body.error.code).toBe('VALIDATION_ERROR');

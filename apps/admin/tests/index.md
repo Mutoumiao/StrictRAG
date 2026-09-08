@@ -39,7 +39,7 @@
 | `ops/eval-workspace.test.tsx` | 评测薄页无码须 403；有码才列出题目并入队 L1/L2。 | 功能表 §4.1 · prds/05-api §2.8 | `EvalWorkspace` | HTTP 真值在 api；本页不跑批。 | 现行 |
 | `ops/feedback-comment-escape.test.tsx` | 反馈 comment 含 `<script>` 必须当文本展示，不得当 HTML 解析。 | 剧本 K6 · prds/10-delivery/03-acceptance-scenarios.md | `FeedbackWorkspace` | comment 走 React 文本节点原样可见。 | 现行 |
 | `ops/kb-settings-services.test.ts` | 设置服务必须正确解析文档类型输入，失败则 PATCH 写出错误 docTypes。 | KB settings | `parseDocTypesInput` | 不写 URL。 | 现行 |
-| `ops/kb-settings-workspace.test.tsx` | KB 设置薄页必须按 kb.config.write 显隐，未改勾选不得 PATCH 强制/继承。 | B2 设置 UI | `SettingsWorkspace` | mode 真值在 api。 | 现行 |
+| `ops/kb-settings-workspace.test.tsx` | KB 设置薄页必须按 kb.config.write 显隐，未改勾选不得 PATCH 强制/继承。 | B2 设置 UI | `SettingsWorkspace` | mode 真值在 api；sensitive 说明为 ACL 就绪。 | 现行 |
 | `ops/settings-audit.test.tsx` | 知识库设置页必须展示本库修改日志；无行时须出「暂无修改日志」。 | 功能表 §4.2 | `SettingsWorkspace` | mock services；有行展示时间 / 操作者 / 字段旧→新。 | 现行 |
 | `ops/members-workspace.test.tsx` | 成员页有 member.manage 才能改角色；改下拉须走 PUT 用例。 | prds/05-api §2.2 · 功能表 §5.2 成员 | `MembersWorkspace` | HTTP 真值在 api。 | 现行 |
 | `ops/last-superadmin-hint.test.tsx` | 用户页唯一在职超管的禁用和剥超管角色必须不可点并出说明。 | 功能表 §4.4 · ADR-056 | `UsersWorkspace · isLastActiveSuperAdmin` | HTTP 真值在 api 400 闸。 | 现行 |

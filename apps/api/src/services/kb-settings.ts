@@ -107,17 +107,21 @@ export function resolveDeptAclEnforce(kbValue: boolean | undefined): boolean {
 
 /**
  * P3b-SENS：sensitive 且 ACL 未就绪则挡 complete。
- * 未就绪 = enforce 关或 ownerDeptId 空。吃解析后的 boolean。
+ * 就绪 = 部门路径（enforce ∧ 非空 ownerDeptId）或名单路径（aclPrincipals 为数组，含 []）。
+ * null / 缺字段不算名单就绪。吃解析后的 boolean。
  */
 export function isSensitiveCompleteBlocked(params: {
   dataClass: DataClass;
   ownerDeptId: string | null | undefined;
   deptAclEnforce: boolean;
+  aclPrincipals?: string[] | null;
 }): boolean {
   if (params.dataClass !== 'sensitive') return false;
   const hasOwner =
     typeof params.ownerDeptId === 'string' && params.ownerDeptId.trim().length > 0;
-  return !params.deptAclEnforce || !hasOwner;
+  const deptReady = params.deptAclEnforce && hasOwner;
+  const principalsReady = Array.isArray(params.aclPrincipals);
+  return !deptReady && !principalsReady;
 }
 
 /**

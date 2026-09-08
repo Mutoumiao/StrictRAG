@@ -118,6 +118,28 @@ describe('CompleteUploadBodySchema', () => {
     expect(CompleteUploadBodySchema.safeParse({ visibilityLevel: 41 }).success).toBe(false);
     expect(CompleteUploadBodySchema.safeParse({ visibilityLevel: 15 }).success).toBe(false);
   });
+
+  it('accepts aclPrincipals omit / null / empty / uuid list', () => {
+    expect(CompleteUploadBodySchema.safeParse({}).success).toBe(true);
+    expect(CompleteUploadBodySchema.safeParse({ aclPrincipals: null }).success).toBe(true);
+    expect(CompleteUploadBodySchema.safeParse({ aclPrincipals: [] }).success).toBe(true);
+    expect(
+      CompleteUploadBodySchema.safeParse({
+        aclPrincipals: ['01900000-0000-7000-8000-0000000000a1'],
+      }).success,
+    ).toBe(true);
+  });
+
+  it('rejects invalid or overlong aclPrincipals', () => {
+    expect(CompleteUploadBodySchema.safeParse({ aclPrincipals: ['not-a-uuid'] }).success).toBe(
+      false,
+    );
+    expect(
+      CompleteUploadBodySchema.safeParse({
+        aclPrincipals: Array.from({ length: 257 }, () => '01900000-0000-7000-8000-0000000000a1'),
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe('PatchDocumentMetaBodySchema', () => {

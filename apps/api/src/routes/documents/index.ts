@@ -278,33 +278,47 @@ documentRoutes.post(
     const strategyParams = await paramsSnapshotFor(kbId, strategyGate.code);
 
     let ownerDeptId = doc.ownerDeptId;
-    if (body.data.ownerDeptId !== undefined || body.data.visibilityLevel !== undefined) {
+    let aclPrincipals = doc.aclPrincipals ?? null;
+    if (
+      body.data.ownerDeptId !== undefined ||
+      body.data.visibilityLevel !== undefined ||
+      body.data.aclPrincipals !== undefined
+    ) {
       await documentRepo.patchMeta(docId, {
         ownerDeptId: body.data.ownerDeptId,
         visibilityLevel: body.data.visibilityLevel,
+        aclPrincipals: body.data.aclPrincipals,
       });
       const latest = await documentRepo.getDoc(docId);
-      // ponytail: 不用 ??，否则显式 null 会回退成旧部门、SENS fail-open
-      ownerDeptId = latest ? latest.ownerDeptId : doc.ownerDeptId;
+      if (!latest) {
+        return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
+      }
+      // ponytail: 认回读行，禁止回退 patch 前快照（显式 null 清名单/部门不得 fail-open）
+      ownerDeptId = latest.ownerDeptId;
+      aclPrincipals = latest.aclPrincipals ?? null;
     }
 
-    // P3b-SENS：策略闸之后、markComplete 之前。敏感闸有、解禁无。
+    // P3b-SENS：策略闸之后、markComplete 之前。ACL 就绪 = 部门路径或显式名单。
     const kb = await documentRepo.getKb(kbId);
-    const dataClass = parseDataClassFromConfig(kb?.configJson ?? null);
+    if (!kb) {
+      return fail(c, BizCode.NOT_FOUND, 'knowledge base not found', 404);
+    }
+    const dataClass = parseDataClassFromConfig(kb.configJson ?? null);
     const enforce = resolveDeptAclEnforce(
-      parseDeptAclEnforceFromConfig(kb?.configJson ?? null),
+      parseDeptAclEnforceFromConfig(kb.configJson ?? null),
     );
     if (
       isSensitiveCompleteBlocked({
         dataClass,
         ownerDeptId,
         deptAclEnforce: enforce,
+        aclPrincipals,
       })
     ) {
       return fail(
         c,
         BizCode.RULE_VIOLATION,
-        'sensitive knowledge base cannot complete until department ACL is ready',
+        'sensitive knowledge base cannot complete until ACL is ready',
       );
     }
 
