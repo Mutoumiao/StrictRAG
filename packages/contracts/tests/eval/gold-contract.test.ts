@@ -2,7 +2,7 @@
  * 目标：黄金集与评测 run DTO 必须严格字段，拒绝 τ 与空补丁。
  * 需求：prds/05-api §2.8 · 功能表 §4.1 / §5.2
  * 被测：GoldQuestionSchema · CreateGoldQuestionBodySchema · PatchGoldQuestionBodySchema · CreateEvalRunBodySchema · EvalRunSchema
- * 简介：P2 评测底线 wire 形状；不是签字包。
+ * 简介：P2 评测底线 wire 形状；可带 Hit@k / tauStar / judgeAuroc；不是签字包。
  */
 
 import { describe, expect, it } from 'vitest';
@@ -74,6 +74,8 @@ describe('eval run contract', () => {
     expect(EvalRunSchema.parse({ ...run, hitAtK: null }).hitAtK).toBeNull();
     expect(EvalRunSchema.parse({ ...run, tauStar: 0.55 }).tauStar).toBe(0.55);
     expect(EvalRunSchema.parse({ ...run, tauStar: null }).tauStar).toBeNull();
+    expect(EvalRunSchema.parse({ ...run, judgeAuroc: 0.8 }).judgeAuroc).toBe(0.8);
+    expect(EvalRunSchema.parse({ ...run, judgeAuroc: null }).judgeAuroc).toBeNull();
     expect(EvalRunSchema.safeParse({ ...run, tauClaim: 0.3 }).success).toBe(false);
   });
 });

@@ -63,7 +63,7 @@
 | [platform-users-roles](./platform-users-roles.md) | **B4 用户/角色** · `user.manage` / `role.perm.manage` · 最后超管 · codes ⊆ catalog |
 | [departments](./departments.md) | **B5 部门壳** · grant 可存可配 · 过滤默认关（开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤；可关继承；grant 子树不读 inheritDown） · **≠** 全文隔离 |
 | [dashboard](./dashboard.md) | **B6 数据面板薄壳** · `dashboard.view` · 只读 summary ≤5 · **≠** APM |
-| [l1-eval](./l1-eval.md) | **B10** L1 工程 seed + eval_runs · **P2 底线** gold-questions / `eval/runs` 入队 · Hit@k（有 expectedDocIds）· τ 扫描得 tau*（离线网格，不写 env）· OPS-1 `retrieve_mode` · **≠** 业务签字真跑 |
+| [l1-eval](./l1-eval.md) | **B10** L1 工程 seed + eval_runs · **P2 底线** gold-questions / `eval/runs` 入队 · Hit@k（有 expectedDocIds）· τ 扫描得 tau*（离线网格，不写 env）· Judge AUROC（独立校准集，注入打分器）· OPS-1 `retrieve_mode` · **≠** 业务签字真跑 |
 | [l2-eval](./l2-eval.md) | **P2.5-L2/L2R/L2P** 多轮题面 + 工程 runner + 可选 persist · **≠** 准出 / **≠** 默认开 rewrite |
 | [l3-metrics](./l3-metrics.md) | **P2.5-L3/L3A/L3F/L2S** 多轮护栏打点+告警+主题投诉 + L2 过期闩 + **进程内熔断** · **≠** 准出 / **≠** 写 env / **≠** 面板 |
 

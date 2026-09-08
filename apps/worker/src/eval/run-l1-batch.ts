@@ -9,10 +9,12 @@ import {
   goldTypeCounts,
   hitAtKCase,
   hitAtKRate,
+  judgeAurocFromScored,
   parseMinSupport,
   sweepTau,
   type EvalRetrieveMode,
   type GoldType,
+  type JudgeCalibCase,
   type L1Cell,
   type L1Matrix,
   type L1Outcome,
@@ -65,6 +67,8 @@ export type L1BatchReport = {
   hitAtKScored: number;
   tauStar: number | null;
   tauSweep: TauSweepPoint[];
+  judgeAuroc: number | null;
+  judgeAurocScored: number;
   errorCount: number;
   cases: L1BatchCaseRow[];
   kbId: string;
@@ -77,6 +81,8 @@ export async function runL1Batch(opts: {
   execute: EvalCaseExecute;
   maxCases?: number;
   now?: () => Date;
+  judgeCalibCases?: readonly JudgeCalibCase[];
+  scoreJudge?: (cases: readonly JudgeCalibCase[]) => Promise<Array<number | null>>;
 }): Promise<L1BatchReport> {
   const sliced =
     opts.maxCases && opts.maxCases > 0 ? opts.cases.slice(0, opts.maxCases) : opts.cases;
@@ -123,6 +129,22 @@ export async function runL1Batch(opts: {
   const counts = goldTypeCounts(sliced);
   const retrieveMode = opts.retrieveMode;
   const swept = sweepTau(rows);
+  let judgeAuroc: number | null = null;
+  let judgeAurocScored = 0;
+  if (opts.scoreJudge && opts.judgeCalibCases && opts.judgeCalibCases.length > 0) {
+    const calib = opts.judgeCalibCases;
+    const scores = await opts.scoreJudge(calib);
+    if (scores.length !== calib.length) {
+      throw new Error(
+        `scoreJudge length ${scores.length} !== calibration cases ${calib.length}`,
+      );
+    }
+    const scored = judgeAurocFromScored(
+      calib.map((c, i) => ({ label: c.label, score: scores[i] })),
+    );
+    judgeAuroc = scored.auroc;
+    judgeAurocScored = scored.scored;
+  }
   return {
     retrieveMode,
     signoffEligible: computeSignoffEligible(retrieveMode, counts),
@@ -137,6 +159,8 @@ export async function runL1Batch(opts: {
     hitAtKScored: hitAcc.scored,
     tauStar: swept.tauStar,
     tauSweep: swept.grid,
+    judgeAuroc,
+    judgeAurocScored,
     errorCount,
     cases: rows,
     kbId: opts.kbId,

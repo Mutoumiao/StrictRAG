@@ -304,6 +304,12 @@ export function EvalWorkspace() {
                         : typeof run.tauStar === 'number'
                           ? ` · tau* ${run.tauStar}`
                           : ''
+                    }${
+                      run.judgeAuroc === null
+                        ? ' · auroc 无'
+                        : typeof run.judgeAuroc === 'number'
+                          ? ` · auroc ${run.judgeAuroc}`
+                          : ''
                     }`}
                 {run.signoffEligible ? ' · 工程可签字（仍须人签，≠准出）' : ''}
               </p>

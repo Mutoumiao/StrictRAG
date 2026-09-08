@@ -242,6 +242,10 @@ describe('eval runs HTTP', () => {
     expect(extraStatsFromReport({ tauStar: null }).tauStar).toBeNull();
     expect(extraStatsFromReport({}).tauStar).toBeUndefined();
     expect(extraStatsFromReport({ tauStar: Number.NaN }).tauStar).toBeUndefined();
+    expect(extraStatsFromReport({ judgeAuroc: 0.8 }).judgeAuroc).toBe(0.8);
+    expect(extraStatsFromReport({ judgeAuroc: null }).judgeAuroc).toBeNull();
+    expect(extraStatsFromReport({}).judgeAuroc).toBeUndefined();
+    expect(extraStatsFromReport({ judgeAuroc: Number.NaN }).judgeAuroc).toBeUndefined();
   });
 
   it('internal execute-ask 口令对才跑；空口令 503；错口令 401', async () => {

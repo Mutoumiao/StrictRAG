@@ -6,13 +6,13 @@
 
 ## 剧本 C · 可复现评测与签字
 
-工程绿（vitest + mock/注入）**≠** 签字 PASS。C1 的 2×2 纯函数与 CLI 注入可部分测；C2 τ 扫描 / C4 Hit@k 为部分测；C3 校准仍缺实现；C5 为人签 UAT。在线抽样分不得作为本剧通过条件。
+工程绿（vitest + mock/注入）**≠** 签字 PASS。C1 的 2×2 纯函数与 CLI 注入可部分测；C2 τ 扫描 / C3 Judge AUROC / C4 Hit@k 为部分测；C5 为人签 UAT。在线抽样分不得作为本剧通过条件。
 
 | ID | 期望摘要 | 阶段 | 形态 | 覆盖 | 主包 | 证据 | 缺口 |
 |----|----------|------|------|------|------|------|------|
 | C1 | 黄金集 1:1、seed 固定，产出 2×2 | 签字剧；工程 seed 可测 | 单测+注入 | 部分测 | api · worker | apps/api/tests/eval/l1-matrix.test.ts · apps/api/tests/eval/l1-cli.test.ts · apps/api/tests/eval/http-eval-runs.test.ts · apps/worker/tests/eval/run-l1-batch.test.ts · fixtures/l1/gold.yaml | 已断言 A–D 格、error 出格、coverage=A/(A+B)、mock 时 `signoffEligible=false`、gold≥30+30、HTTP 入队。缺：live 固定 seed 真跑 2×2 数字、业务题面人审。 |
 | C2 | τ 扫描得 tau* | 签字剧 | 单测 | 部分测 | api · worker · contracts | packages/contracts/tests/eval/l1-tau-sweep.test.ts · apps/api/tests/eval/l1-cli.test.ts · apps/worker/tests/eval/run-l1-batch.test.ts | 挂现有 L1 批跑离线扫网格；有 minSupport 才翻转；tau* = 试点硬门最大 τ；不改本跑 2×2 / 不写 env。缺：live 真跑数字、把 tau* 接到运行时、独立 `tau_sweep` 入队。 |
-| C3 | Judge 校准产出 AUROC 报告 | 签字剧 | UAT | 缺实现 | api | apps/api/src/eval/adr046-snapshot.ts（`judgeAurocMin` 硬门数字） | 门槛常量在快照，无校准集 runner、无 AUROC 计算/报告。 |
+| C3 | Judge 校准产出 AUROC 报告 | 签字剧 | 单测 | 部分测 | api · worker · contracts | packages/contracts/tests/eval/l1-judge-auroc.test.ts · apps/api/tests/eval/l1-cli.test.ts · apps/worker/tests/eval/run-l1-batch.test.ts · fixtures/l1/judge-calibration.json | 独立校准集 + Mann-Whitney；注入打分器才有数；单类/无分 → null。不用 gold type 当 label。不进 2×2 / signoffEligible。缺：live judge 真跑、把实测 AUROC 接到签字公式、独立 `verifier_calib` 入队。 |
 | C4 | 有 expectedDocIds 时算 Hit@k | 签字剧 | 单测 | 部分测 | api · worker · contracts | packages/contracts/tests/eval/l1-hit-at-k.test.ts · apps/api/tests/eval/l1-cli.test.ts · apps/worker/tests/eval/run-l1-batch.test.ts | 有非空 expected 按 evidence.docId 交集计分；无名单不计分；不进 2×2 / signoffEligible。逻辑 id→uuid 映射仍缺口。 |
 | C5 | 签字页对照试点门禁，RACI 人签 | 签字剧；工程绿≠PASS | UAT | UAT | api | apps/api/tests/eval/l1-matrix.test.ts（`computeSignoffEligible`）· apps/api/tests/eval/adr046-snapshot.test.ts · fixtures/l1/RACI.md | 工程可算 `signoffEligible`；签字 PASS 须 live + 四要素 + RACI 人签。mock coverage 禁进签字叙事。 |
 
@@ -180,7 +180,7 @@ Phase 4 建议，**不挡 P2** → 默认延后。I2 指标可部分测。
 
 | 剧本 | 步骤数 | 已测 | 部分测 | 缺测 | 缺实现 | 延后 | UAT |
 |------|--------|------|--------|------|--------|------|-----|
-| C | 5 | 0 | 3 | 0 | 1 | 0 | 1 |
+| C | 5 | 0 | 4 | 0 | 0 | 0 | 1 |
 | G | 3 | 0 | 2 | 0 | 1 | 0 | 0 |
 | N | 9 | 0 | 0 | 1 | 0 | 0 | 8 |
 | O | 11 | 1 | 1 | 0 | 1 | 8 | 0 |
@@ -191,6 +191,6 @@ Phase 4 建议，**不挡 P2** → 默认延后。I2 指标可部分测。
 | AC | 9 | 5 | 3 | 0 | 1 | 0 | 0 |
 | AD | 10 | 4 | 4 | 0 | 2 | 0 | 0 |
 | I | 5 | 0 | 1 | 0 | 0 | 4 | 0 |
-| **合计** | **93** | **21** | **27** | **1** | **11** | **24** | **9** |
+| **合计** | **93** | **21** | **28** | **1** | **10** | **24** | **9** |
 
 ID 闭集（93）：C1–C5；G1–G3；N1–N9；O1–O11；P1–P11；R1–R12；T1–T10；AB1–AB8；AC1–AC9；AD1–AD10；I1–I5。

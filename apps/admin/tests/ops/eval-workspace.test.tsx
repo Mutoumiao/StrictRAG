@@ -1,8 +1,8 @@
 /**
  * 目标：评测薄页无码须 403；有码才列出题目并入队。
- * 需求：功能表 §4.1 · prds/05-api §2.8
+ * 需求：功能表 §4.1 · prds/05-api §2.8 · 覆盖 C4 · 覆盖 C2 · 覆盖 C3
  * 被测：EvalWorkspace
- * 简介：HTTP 真值在 api；本页不跑 L1。
+ * 简介：HTTP 真值在 api；本页不跑 L1；L1 有 scored 时展示 Hit@k；有 tauStar / judgeAuroc 时展示该值。
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -185,5 +185,59 @@ describe('EvalWorkspace', () => {
     });
     render(<EvalWorkspace />);
     expect(await screen.findByText(/tau\* 无/)).toBeInTheDocument();
+  });
+
+  it('L1 run 有 judgeAuroc 时展示该值', async () => {
+    me.permissions = ['admin.shell', 'eval.run'];
+    localStorage.setItem('strict-rag:admin:last-kb-id', KB);
+    loadEvalBoard.mockResolvedValue({
+      ok: true,
+      questions: [],
+      runs: [
+        {
+          runId: '01900000-0000-7000-8000-0000000000c4',
+          kbId: KB,
+          status: 'succeeded',
+          runType: 'golden_2x2',
+          retrieveMode: 'mock',
+          signoffEligible: false,
+          caseCount: 2,
+          matrix: { A: 1, B: 0, C: 0, D: 1 },
+          coverage: 1,
+          judgeAuroc: 0.8,
+          errorCount: 0,
+          ranAt: '2026-09-08 12:00:00',
+        },
+      ],
+    });
+    render(<EvalWorkspace />);
+    expect(await screen.findByText(/auroc 0\.8/)).toBeInTheDocument();
+  });
+
+  it('L1 run judgeAuroc 为 null 时展示无', async () => {
+    me.permissions = ['admin.shell', 'eval.run'];
+    localStorage.setItem('strict-rag:admin:last-kb-id', KB);
+    loadEvalBoard.mockResolvedValue({
+      ok: true,
+      questions: [],
+      runs: [
+        {
+          runId: '01900000-0000-7000-8000-0000000000c5',
+          kbId: KB,
+          status: 'succeeded',
+          runType: 'golden_2x2',
+          retrieveMode: 'mock',
+          signoffEligible: false,
+          caseCount: 2,
+          matrix: { A: 1, B: 0, C: 0, D: 1 },
+          coverage: 1,
+          judgeAuroc: null,
+          errorCount: 0,
+          ranAt: '2026-09-08 12:00:00',
+        },
+      ],
+    });
+    render(<EvalWorkspace />);
+    expect(await screen.findByText(/auroc 无/)).toBeInTheDocument();
   });
 });

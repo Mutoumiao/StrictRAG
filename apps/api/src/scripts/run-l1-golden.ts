@@ -27,10 +27,13 @@ import {
   goldTypeCounts,
   hitAtKCase,
   hitAtKRate,
+  judgeAurocFromScored,
   parseExpectedDocIds,
+  parseJudgeCalibration,
   parseMinSupport,
   sweepTau,
   type GoldType,
+  type JudgeCalibCase,
   type L1Cell,
   type L1Matrix,
   type L1Outcome,
@@ -89,6 +92,9 @@ export type L1Report = {
   /** 离线网格上满足试点硬门的最大 τ；没有 → null。不改本跑 2×2 / signoffEligible */
   tauStar: number | null;
   tauSweep: TauSweepPoint[];
+  /** 独立校准集 Mann-Whitney；无打分器或单类 → null。不进签字公式 */
+  judgeAuroc: number | null;
+  judgeAurocScored: number;
   errorCount: number;
   cases: L1CaseRow[];
   kbId: string;
@@ -122,6 +128,15 @@ export type RunL1Options = {
     businessR?: boolean;
     productA?: boolean;
   };
+  /** 校准集路径；默认仓根 fixtures/l1/judge-calibration.json */
+  judgeCalibPath?: string;
+  /** 预解析校准题；有则不再读文件 */
+  judgeCalibCases?: readonly JudgeCalibCase[];
+  /**
+   * 按校准题打分。缺省不跑 live judge → judgeAuroc=null。
+   * 返回与 cases 等长；缺/越界分数跳过。
+   */
+  scoreJudge?: (cases: readonly JudgeCalibCase[]) => Promise<Array<number | null>>;
 };
 
 /** 报告 ranAt(ISO) → 写库本地格式串；纯函数便于单测 */
@@ -193,6 +208,54 @@ export function defaultGoldPath(repoRoot = resolveRepoRoot()): string {
 
 export function defaultOutDir(repoRoot = resolveRepoRoot()): string {
   return path.join(repoRoot, 'artifacts');
+}
+
+export function defaultJudgeCalibPath(repoRoot = resolveRepoRoot()): string {
+  return path.join(repoRoot, 'fixtures/l1/judge-calibration.json');
+}
+
+export function loadJudgeCalib(calibPath: string): JudgeCalibCase[] {
+  let raw: string;
+  try {
+    raw = readFileSync(calibPath, 'utf8');
+  } catch (err) {
+    throw new GoldLoadError(`cannot read judge calibration: ${calibPath}: ${(err as Error).message}`);
+  }
+  let data: unknown;
+  try {
+    data = JSON.parse(raw);
+  } catch (err) {
+    throw new GoldLoadError(`invalid judge calibration JSON in ${calibPath}: ${(err as Error).message}`);
+  }
+  try {
+    return parseJudgeCalibration(data);
+  } catch (err) {
+    throw new GoldLoadError(
+      `invalid judge calibration in ${calibPath}: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+}
+
+async function scoreJudgeAuroc(opts: RunL1Options): Promise<{
+  judgeAuroc: number | null;
+  judgeAurocScored: number;
+}> {
+  if (!opts.scoreJudge) return { judgeAuroc: null, judgeAurocScored: 0 };
+  const cases =
+    opts.judgeCalibCases !== undefined
+      ? [...opts.judgeCalibCases]
+      : loadJudgeCalib(opts.judgeCalibPath ?? defaultJudgeCalibPath());
+  if (cases.length === 0) return { judgeAuroc: null, judgeAurocScored: 0 };
+  const scores = await opts.scoreJudge(cases);
+  if (scores.length !== cases.length) {
+    throw new GoldLoadError(
+      `scoreJudge length ${scores.length} !== calibration cases ${cases.length}`,
+    );
+  }
+  const scored = judgeAurocFromScored(
+    cases.map((c, i) => ({ label: c.label, score: scores[i] })),
+  );
+  return { judgeAuroc: scored.auroc, judgeAurocScored: scored.scored };
 }
 
 export function resolveEvalMode(
@@ -301,6 +364,9 @@ export function formatReportMd(report: L1Report): string {
       report.hitAtK === null ? 'null' : String(Math.round(report.hitAtK * 1000) / 1000)
     } (${report.hitAtKHits}/${report.hitAtKScored}) |`,
     `| tauStar | ${report.tauStar === null ? 'null' : String(report.tauStar)} |`,
+    `| judgeAuroc | ${
+      report.judgeAuroc === null ? 'null' : String(Math.round(report.judgeAuroc * 1000) / 1000)
+    } (${report.judgeAurocScored}) |`,
     `| gate_bundle | ${report.gateSnapshot?.gate_bundle ?? '—'} |`,
     `| signedPackage | ${report.gateVerdict?.signedPackage ?? false} |`,
     `| businessPass | ${report.gateVerdict?.businessPass ?? false} |`,
@@ -385,6 +451,7 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
   const mode = resolveEvalMode(opts.esMode);
   const counts = goldTypeCounts(cases);
   const swept = sweepTau(rows);
+  const calib = await scoreJudgeAuroc(opts);
   const report: L1Report = {
     mode,
     retrieve_mode: mode,
@@ -401,6 +468,8 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
     hitAtKScored: hitAcc.scored,
     tauStar: swept.tauStar,
     tauSweep: swept.grid,
+    judgeAuroc: calib.judgeAuroc,
+    judgeAurocScored: calib.judgeAurocScored,
     errorCount,
     cases: rows,
     kbId: opts.kbId,
@@ -492,6 +561,8 @@ async function main(): Promise<void> {
           hitAtKHits: report.hitAtKHits,
           hitAtKScored: report.hitAtKScored,
           tauStar: report.tauStar,
+          judgeAuroc: report.judgeAuroc,
+          judgeAurocScored: report.judgeAurocScored,
           errorCount: report.errorCount,
           outDir,
         },

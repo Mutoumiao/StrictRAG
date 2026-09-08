@@ -1,8 +1,8 @@
 /**
  * 目标：worker L1 批跑必须串行入 2×2，error 出格，mock 不得 signoffEligible。
- * 需求：prds/08-quality §2 · 功能表 §5.2
+ * 需求：prds/08-quality §2 · 功能表 §5.2 · 覆盖 C4 · 覆盖 C2 · 覆盖 C3
  * 被测：runL1Batch
- * 简介：注入 execute；≠ 业务签字 PASS。
+ * 简介：注入 execute；有 expectedDocIds 计 Hit@k；有 minSupport 计 tauStar；注入校准打分器计 judgeAuroc；≠ 签字 PASS。
  */
 
 import { describe, expect, it } from 'vitest';
@@ -90,5 +90,52 @@ describe('runL1Batch', () => {
     expect(report.matrix).toEqual({ A: 1, B: 1, C: 0, D: 2 });
     expect(report.tauStar).toBe(0.8);
     expect(report.signoffEligible).toBe(false);
+  });
+
+  it('注入校准打分器写 judgeAuroc；不注入则 null', async () => {
+    const scored = await runL1Batch({
+      kbId: 'k',
+      retrieveMode: 'mock',
+      cases: [
+        { caseKey: 'a1', question: 'q', type: 'answerable' },
+        { caseKey: 'u1', question: 'u', type: 'unanswerable' },
+      ],
+      execute: async () => ({ outcome: 'abstained' }),
+      judgeCalibCases: [
+        { id: 'p', claim: 'c1', evidence: 'e1', label: 1 },
+        { id: 'n', claim: 'c2', evidence: 'e2', label: 0 },
+      ],
+      scoreJudge: async () => [0.9, 0.1],
+    });
+    expect(scored.judgeAuroc).toBe(1);
+    expect(scored.judgeAurocScored).toBe(2);
+    expect(scored.signoffEligible).toBe(false);
+
+    const unlabeled = await runL1Batch({
+      kbId: 'k',
+      retrieveMode: 'mock',
+      cases: [{ caseKey: 'a1', question: 'q', type: 'answerable' }],
+      execute: async () => ({ outcome: 'abstained' }),
+    });
+    expect(unlabeled.judgeAuroc).toBeNull();
+    expect(unlabeled.judgeAurocScored).toBe(0);
+  });
+
+  it('打分数组短于校准题 → 抛错，不得用子集写成 1', async () => {
+    await expect(
+      runL1Batch({
+        kbId: 'k',
+        retrieveMode: 'mock',
+        cases: [{ caseKey: 'a1', question: 'q', type: 'answerable' }],
+        execute: async () => ({ outcome: 'abstained' }),
+        judgeCalibCases: [
+          { id: 'p1', claim: 'c1', evidence: 'e1', label: 1 },
+          { id: 'p2', claim: 'c2', evidence: 'e2', label: 1 },
+          { id: 'n1', claim: 'c3', evidence: 'e3', label: 0 },
+          { id: 'n2', claim: 'c4', evidence: 'e4', label: 0 },
+        ],
+        scoreJudge: async () => [0.99, 0.98, 0.01],
+      }),
+    ).rejects.toThrow(/scoreJudge length/);
   });
 });

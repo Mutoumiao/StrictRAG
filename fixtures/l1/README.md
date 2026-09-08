@@ -7,6 +7,7 @@
 | 路径 | 说明 |
 |------|------|
 | `gold.yaml` | ≥30 题 SSOT（内容为 JSON 形，零依赖解析；扩展名按 design 冻结） |
+| `judge-calibration.json` | Judge AUROC 校准集：`claim` + `evidence` + `supported\|unsupported`；**不是** gold 题型 |
 | `RACI.md` | **B10-RACI**：业务/测试 owner + 题面审核记录；**挡业务签字页** |
 | `sample-report.md` | 可提交样例报告（非真实 live 签字数字） |
 | 仓根 `artifacts/l1-last-run.{json,md}` | 最近一次 CLI 输出（gitignore） |

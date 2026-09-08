@@ -31,7 +31,7 @@
 
 - Trigger：新增 CLI 入口、env 键、跨层（fixture → script → `executeAsk` → graph）、可执行错误矩阵。
 - 目标：串行批跑黄金题，产出 **mode 标注** 的 2×2 矩阵与覆盖率；CI 只钉 **纯函数 + mock 注入**，不跑 live LLM。
-- 非目标：B6 看板增强、L2/L3 准出、写 `TAU_CLAIM`、在线抽样；题面已扩≥30+30，**live 真跑数字**仍见 B10-followup 余量。L1 批跑可离线扫 τ 得 tau*（**不**改本跑 2×2 / **不**进签字公式 / **不**新开 `tau_sweep` 入队）。  
+- 非目标：B6 看板增强、L2/L3 准出、写 `TAU_CLAIM`、在线抽样；题面已扩≥30+30，**live 真跑数字**仍见 B10-followup 余量。L1 批跑可离线扫 τ 得 tau*（**不**改本跑 2×2 / **不**进签字公式 / **不**新开 `tau_sweep` 入队）。独立校准集可算 Judge AUROC（**不**用 gold type 当 label / **不**进签字公式 / **不**新开 `verifier_calib` 入队；无打分器 → null）。  
 - **P2 底线（本窗已接）**：`gold-questions` CRUD + `POST eval/runs` 入队 `sr-eval`；worker 串行跑 L1；`GET eval/runs/:runId` 回读。CLI 仍直调 `executeAsk`。
 
 ### 2. Signatures
@@ -44,6 +44,7 @@
 | `hitAtKCase(expected, evidence)` | 同上 | 无非空 expected → `null`；否则交集 |
 | `accumulateHitAtK` / `hitAtKRate` | 同上 | scored=0 → `null`；不进签字公式 |
 | `sweepTau(cases)` | 同上 | 按 minSupport 离线扫网格；tau* = 满足试点 coverageMin∧cRateMax 的最大 τ；无分母或全不及格 → `null` |
+| `auroc(pairs)` / `judgeAurocFromScored` | 同上 | Mann-Whitney；独立校准集 `(score, label)`；单类或无分 → `null` |
 | `goldTypeCounts(cases)` | 同上 | `{ answerable, unanswerableClass }` |
 | `computeSignoffEligible(mode, counts)` | 同上 | live ∧ 各≥`SIGNOFF_MIN_PER_CLASS`(30) |
 | `bindQualitySnapshotToEval(input)` | `eval/adr046-snapshot.ts` | ADR-046 快照绑定 eval 身份；硬门放宽 / 缺四要素 → 不得 `signedPackage`；coverage=0 / `internal_guard` → 不得 `businessPass` |
@@ -89,6 +90,7 @@ Seed 规模：可答 30 + 不可答类 30（含 `false_premise`）；**mock 数�
 - `false_premise` **不**单独成格。
 - **Hit@k**（P4 最小）：只对非空 `expectedDocIds` 计分；hit = 该题 `evidence_snapshot.docId` 与 expected 有交集；k = 该列表长度；总率 = hits/scored，scored=0 → `null`。**不**进 `signoffEligible`，**不**改 2×2。逻辑 id→uuid 映射仍由跑批前人工处理。
 - **τ 扫描**（P4 最小）：挂现有 L1 批跑。有 `minSupport` 才按网格重阈（min 否决：`minSupport≥τ` → answered）；无分数保持原 outcome（未进 judge 不得因降 τ 变成 answered）；error 出格。网格 `0.30…0.90` 步长 `0.05`。`cRate=C/(C+D)`。**tau\*** = coverage≥0.4 ∧ cRate≤0.05 的最大 τ；没有 → `null`。本跑 2×2 仍按 env `TAU_CLAIM` 的真实 outcome。**不**写 env、**不**让公开 ask 传 τ、**不**进 `signoffEligible`。`unsupported_claims` 的图结果必须带回 `minSupport`。
+- **Judge AUROC**（P4 最小）：独立 `fixtures/l1/judge-calibration.json`（`claim` + `evidence` + `supported|unsupported`）。**禁止**用 gold `type` / ask outcome 当 label。Mann-Whitney；注入打分器才计分；无打分器 / 单类 / 无有效分 → `judgeAuroc=null`。**不**进 `signoffEligible`，**不**拿实测值比 `judgeAurocMin` 翻签字，**不**新开 `verifier_calib` 入队。
 
 #### `L1Report`（写出 `artifacts/l1-last-run.json` + `.md`）
 
@@ -104,6 +106,7 @@ Seed 规模：可答 30 + 不可答类 30（含 `false_premise`）；**mock 数�
 | `caseCount` / `errorCount` | number |
 | `hitAtK` / `hitAtKHits` / `hitAtKScored` | 有 expected 的题的命中率；无计分题 `hitAtK=null` 且 hits/scored=0 |
 | `tauStar` / `tauSweep` | 离线网格；`tauStar=null` 表示没有 τ 同时满足试点硬门。不改本跑 matrix |
+| `judgeAuroc` / `judgeAurocScored` | 独立校准集；无打分器或单类 `judgeAuroc=null`。不进签字公式 |
 | `matrix` | `{ A,B,C,D }` |
 | `coverage` | `number \| null` |
 | `cases[]` | 每题 `id,type,outcome,cell,reason?,errorMessage?,hitAtK?,minSupport?` |
@@ -305,7 +308,7 @@ for (const c of cases) {
 - IS：`docs/module-status/api.md` · backlog B10 挂账 `08-06-project-backlog`  
 - 已做（工程）：`eval_runs` 表 + `persistEvalRun` / `L1_PERSIST_EVAL` · gold≥60 · OPS-1 `retrieve_mode`/`signoffEligible` · B10-RACI `fixtures/l1/RACI.md`  
 - **P2 底线 HTTP**：`routes/eval.ts` · `eval.run` · 空题集 400 · 入队不跑完；内口 `POST /internal/eval/execute-ask`（`x-eval-internal-token`，`skipTrace`）；矩阵函数在 `@strict-rag/contracts`  
-- 未做：业务人签 · 校准 / 在线抽样 · GET `/jobs/:id` 通用账本 · 反馈回流黄金集；L2 题面 + runner + 可选 persist（≠ 准出）→ [l2-eval](./l2-eval.md)。τ 扫描已挂 L1 批跑（不写 env、不新开 `tau_sweep` 入队、不进签字公式）  
+- 未做：业务人签 · 在线抽样 · GET `/jobs/:id` 通用账本 · 反馈回流黄金集；L2 题面 + runner + 可选 persist（≠ 准出）→ [l2-eval](./l2-eval.md)。τ 扫描已挂 L1 批跑（不写 env、不新开 `tau_sweep` 入队、不进签字公式）。Judge AUROC 已挂独立校准集（注入打分器；不写签字公式、不新开 `verifier_calib` 入队；live judge 真跑仍缺口）  
 - ADR-046 快照：`runL1Golden` 写 `l1-gate-snapshot.json` 并挂 `gateSnapshot`/`gateVerdict`；默认不代签 → `signedPackage=false`；coverage=0 / 全 `internal_guard` → `businessPass=false`  
 - 签字禁令：`signoffEligible=true` = `retrieve_mode=live` **且** 两类各≥30；**≠** 自动业务 PASS；coverage=0 / 全 `internal_guard`（无真实 Gateway）**禁止**当成绩单；人审仍禁「仅 env Gateway 绿灯」（见 live profile §4.5）  
 

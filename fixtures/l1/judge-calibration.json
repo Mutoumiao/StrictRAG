@@ -1,0 +1,52 @@
+{
+  "cases": [
+    {
+      "id": "jc-pos-1",
+      "claim": "请假须提前一个工作日提交书面申请。",
+      "evidence": "员工手册第3条：请假须提前一个工作日提交书面申请。",
+      "label": "supported"
+    },
+    {
+      "id": "jc-pos-2",
+      "claim": "年假每次不超过五个工作日。",
+      "evidence": "员工手册第3条：年假每次不超过5个工作日。",
+      "label": "supported"
+    },
+    {
+      "id": "jc-pos-3",
+      "claim": "差旅报销须附原始发票。",
+      "evidence": "财务制度：差旅费报销必须附原始发票，缺票不得报销。",
+      "label": "supported"
+    },
+    {
+      "id": "jc-pos-4",
+      "claim": "敏感知识库上架前须完成审批。",
+      "evidence": "入库规范：sensitive 文档在 scan 前必须有审批记录。",
+      "label": "supported"
+    },
+    {
+      "id": "jc-neg-1",
+      "claim": "年假最多可以一次请六十天。",
+      "evidence": "员工手册第3条：年假每次不超过5个工作日。",
+      "label": "unsupported"
+    },
+    {
+      "id": "jc-neg-2",
+      "claim": "请假可以事后口头补报，无需书面。",
+      "evidence": "员工手册第3条：请假须提前一个工作日提交书面申请。",
+      "label": "unsupported"
+    },
+    {
+      "id": "jc-neg-3",
+      "claim": "差旅可以只凭聊天记录报销。",
+      "evidence": "财务制度：差旅费报销必须附原始发票，缺票不得报销。",
+      "label": "unsupported"
+    },
+    {
+      "id": "jc-neg-4",
+      "claim": "敏感文档无需审批即可 scan。",
+      "evidence": "入库规范：sensitive 文档在 scan 前必须有审批记录。",
+      "label": "unsupported"
+    }
+  ]
+}

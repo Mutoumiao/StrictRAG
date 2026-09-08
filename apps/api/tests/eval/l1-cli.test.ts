@@ -1,8 +1,8 @@
 /**
  * 目标：L1 CLI 注入路径可跑且 skipTrace，不打 live。
- * 需求：B10
+ * 需求：B10 · 覆盖 C4 · 覆盖 C2 · 覆盖 C3
  * 被测：runL1Golden / loadGold / writeL1Report
- * 简介：注入路径可跑且跳过落库 trace，不打 live。
+ * 简介：注入路径可跑且跳过落库 trace；有 expectedDocIds 时写 Hit@k；有 minSupport 时写 tauStar；注入校准打分器时写 judgeAuroc。
  */
 
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -17,7 +17,9 @@ import {
   GoldLoadError,
   buildEvalRunInsert,
   evalRunDbRanAt,
+  defaultJudgeCalibPath,
   loadGold,
+  loadJudgeCalib,
   resolveEvalMode,
   runL1Golden,
   writeL1Report,
@@ -179,6 +181,19 @@ describe('loadGold', () => {
   });
 });
 
+describe('loadJudgeCalib', () => {
+  it('仓根夹具两侧 label 都有', () => {
+    const cases = loadJudgeCalib(defaultJudgeCalibPath());
+    expect(cases.length).toBeGreaterThanOrEqual(2);
+    expect(cases.some((c) => c.label === 1)).toBe(true);
+    expect(cases.some((c) => c.label === 0)).toBe(true);
+  });
+
+  it('缺文件 → GoldLoadError', () => {
+    expect(() => loadJudgeCalib(path.join(tmp(), 'missing.json'))).toThrow(GoldLoadError);
+  });
+});
+
 describe('resolveEvalMode', () => {
   it('maps mock|http|other', () => {
     expect(resolveEvalMode('mock')).toBe('mock');
@@ -202,6 +217,7 @@ describe('persistEvalRun gate', () => {
     expect(report.evalRunId).toBeUndefined();
     expect(report.matrix.B).toBe(1);
     expect(report.tauStar).toBeNull();
+    expect(report.judgeAuroc).toBeNull();
   });
 });
 
@@ -222,6 +238,8 @@ describe('buildEvalRunInsert / evalRunDbRanAt', () => {
       hitAtKScored: 0,
       tauStar: null,
       tauSweep: [],
+      judgeAuroc: null,
+      judgeAurocScored: 0,
       errorCount: 0,
       cases: [],
       kbId: '01900000-0000-7000-8000-0000000000aa',
@@ -262,6 +280,8 @@ describe('buildEvalRunInsert / evalRunDbRanAt', () => {
       hitAtKScored: 0,
       tauStar: null,
       tauSweep: [],
+      judgeAuroc: null,
+      judgeAurocScored: 0,
       errorCount: 0,
       cases: [],
       kbId: 'k',
@@ -435,6 +455,79 @@ describe('runL1Golden mock graphDeps path', () => {
     expect(md).toContain('0.8');
   });
 
+  it('注入校准打分器写 judgeAuroc；不注入则 null；不改 2×2', async () => {
+    const dir = tmp();
+    const goldPath = goldFile(dir, [
+      { id: 'a1', question: 'q', type: 'answerable' },
+      { id: 'u1', question: 'u', type: 'unanswerable' },
+    ]);
+    const calib = [
+      { id: 'p', claim: 'c1', evidence: 'e1', label: 1 as const },
+      { id: 'n', claim: 'c2', evidence: 'e2', label: 0 as const },
+    ];
+    const scored = await runL1Golden({
+      goldPath,
+      outDir: path.join(dir, 'out-auroc'),
+      kbId: 'kb',
+      persistEval: false,
+      execute: async () => abstained(),
+      judgeCalibCases: calib,
+      scoreJudge: async () => [0.9, 0.1],
+    });
+    expect(scored.matrix).toEqual({ A: 0, B: 1, C: 0, D: 1 });
+    expect(scored.judgeAuroc).toBe(1);
+    expect(scored.judgeAurocScored).toBe(2);
+    expect(scored.signoffEligible).toBe(false);
+    const md = readFileSync(path.join(dir, 'out-auroc', 'l1-last-run.md'), 'utf8');
+    expect(md).toContain('judgeAuroc');
+    expect(md).toContain('1');
+
+    const unlabeled = await runL1Golden({
+      goldPath,
+      outDir: path.join(dir, 'out-none'),
+      kbId: 'kb',
+      persistEval: false,
+      execute: async () => abstained(),
+    });
+    expect(unlabeled.judgeAuroc).toBeNull();
+    expect(unlabeled.judgeAurocScored).toBe(0);
+  });
+
+  it('校准仅一类有效分 → judgeAuroc null', async () => {
+    const dir = tmp();
+    const goldPath = goldFile(dir, [{ id: '1', question: 'q', type: 'answerable' }]);
+    const report = await runL1Golden({
+      goldPath,
+      outDir: path.join(dir, 'out'),
+      kbId: 'kb',
+      persistEval: false,
+      execute: async () => abstained(),
+      judgeCalibCases: [
+        { id: 'p', claim: 'c1', evidence: 'e1', label: 1 },
+        { id: 'n', claim: 'c2', evidence: 'e2', label: 0 },
+      ],
+      scoreJudge: async () => [0.9, null],
+    });
+    expect(report.judgeAuroc).toBeNull();
+    expect(report.judgeAurocScored).toBe(1);
+  });
+
+  it('显式空校准集即使有打分器也不回落仓根夹具', async () => {
+    const dir = tmp();
+    const goldPath = goldFile(dir, [{ id: '1', question: 'q', type: 'answerable' }]);
+    const report = await runL1Golden({
+      goldPath,
+      outDir: path.join(dir, 'out'),
+      kbId: 'kb',
+      persistEval: false,
+      execute: async () => abstained(),
+      judgeCalibCases: [],
+      scoreJudge: async () => [0.9, 0.1],
+    });
+    expect(report.judgeAuroc).toBeNull();
+    expect(report.judgeAurocScored).toBe(0);
+  });
+
   it('live + 各≥30 → signoffEligible；同规模 mock → false', async () => {
     const dir = tmp();
     const cases = [
@@ -499,6 +592,8 @@ describe('writeL1Report', () => {
       hitAtKScored: 0,
       tauStar: null,
       tauSweep: [],
+      judgeAuroc: null,
+      judgeAurocScored: 0,
       errorCount: 0,
       cases: [],
       kbId: 'k',

@@ -2,6 +2,7 @@
  * L1 2×2 矩阵纯函数（评测 PRD §2）。
  * error 不进 A–D，由调用方累计 errorCount。
  * api CLI 与 worker eval 消费者共用。
+ * Judge AUROC 用独立校准集，不用 gold type 冒充 label。
  */
 
 export const GOLD_TYPES = ['answerable', 'unanswerable', 'false_premise'] as const;
@@ -240,4 +241,102 @@ export function sweepTau(
   }
   if (scored === 0) tauStar = null;
   return { grid: points, tauStar };
+}
+
+/** 1 = 证据支持该 claim；0 = 不支持。脏值抛错（与 expectedDocIds 同纪律）。 */
+export type JudgeLabel = 0 | 1;
+
+export function parseJudgeLabel(raw: unknown): JudgeLabel {
+  if (raw === 1 || raw === 'supported') return 1;
+  if (raw === 0 || raw === 'unsupported') return 0;
+  throw new TypeError('judge label must be supported|unsupported (or 0|1)');
+}
+
+export type JudgeCalibCase = {
+  id: string;
+  claim: string;
+  evidence: string;
+  label: JudgeLabel;
+};
+
+/**
+ * 校准集 JSON：`{ cases: [{ id, claim, evidence, label }] }`。
+ * 缺字段 / 空串 / 非数组 → 抛错。禁止把 gold type 塞进来当 label。
+ */
+export function parseJudgeCalibration(raw: unknown): JudgeCalibCase[] {
+  if (!raw || typeof raw !== 'object') {
+    throw new TypeError('judge calibration must be an object');
+  }
+  const cases = (raw as { cases?: unknown }).cases;
+  if (!Array.isArray(cases) || cases.length === 0) {
+    throw new TypeError('judge calibration cases must be a non-empty array');
+  }
+  const out = cases.map((item, i) => {
+    if (!item || typeof item !== 'object') {
+      throw new TypeError(`judge calibration cases[${i}] must be an object`);
+    }
+    const row = item as Record<string, unknown>;
+    const id = typeof row.id === 'string' ? row.id.trim() : '';
+    const claim = typeof row.claim === 'string' ? row.claim.trim() : '';
+    const evidence = typeof row.evidence === 'string' ? row.evidence.trim() : '';
+    if (!id) throw new TypeError(`judge calibration cases[${i}].id required`);
+    if (!claim) throw new TypeError(`judge calibration cases[${i}].claim required`);
+    if (!evidence) throw new TypeError(`judge calibration cases[${i}].evidence required`);
+    return { id, claim, evidence, label: parseJudgeLabel(row.label) };
+  });
+  const hasPos = out.some((c) => c.label === 1);
+  const hasNeg = out.some((c) => c.label === 0);
+  if (!hasPos || !hasNeg) {
+    throw new TypeError('judge calibration must include both supported and unsupported labels');
+  }
+  return out;
+}
+
+export type JudgeAurocPair = { score: number; label: JudgeLabel };
+
+/**
+ * Mann-Whitney AUROC。任一类为空 → null（禁止写成 1 或 0.5）。
+ * 平局计 0.5。
+ */
+export function auroc(pairs: readonly JudgeAurocPair[]): number | null {
+  const pos: number[] = [];
+  const neg: number[] = [];
+  for (const p of pairs) {
+    if (p.label === 1) pos.push(p.score);
+    else neg.push(p.score);
+  }
+  if (pos.length === 0 || neg.length === 0) return null;
+  let gt = 0;
+  let eq = 0;
+  for (const p of pos) {
+    for (const n of neg) {
+      if (p > n) gt += 1;
+      else if (p === n) eq += 1;
+    }
+  }
+  return (gt + 0.5 * eq) / (pos.length * neg.length);
+}
+
+export type JudgeAurocScoredCase = {
+  label: unknown;
+  score: unknown;
+};
+
+/**
+ * 有 label 才计；脏 label 抛错。
+ * 分数缺 / 非有限 / 越界 → 跳过（与 parseMinSupport 同）。
+ * 跳过后任一类为空 → auroc null。
+ */
+export function judgeAurocFromScored(cases: readonly JudgeAurocScoredCase[]): {
+  auroc: number | null;
+  scored: number;
+} {
+  const pairs: JudgeAurocPair[] = [];
+  for (const c of cases) {
+    const label = parseJudgeLabel(c.label);
+    const score = parseMinSupport(c.score);
+    if (score === null) continue;
+    pairs.push({ score, label });
+  }
+  return { auroc: auroc(pairs), scored: pairs.length };
 }
