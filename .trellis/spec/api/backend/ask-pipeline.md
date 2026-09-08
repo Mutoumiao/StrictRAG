@@ -430,7 +430,7 @@ return c.json(okEnvelope(response), httpStatus);
 **Context**：共享索引必须在 ES 查询期强制租户隔离，不能事后交 PG；证据正文权威在 Mongo，不能单点读 PG 演示正文。
 
 **Decision**：
-- `buildAclFilter({tenantId, kbId, ownerDeptIds?})`（`services/retrieve/es-sparse.ts`）供 ES 查询共用；始终 tenantId+kbId。`DEPT_ACL_ENFORCE` 开且非超管时追加 `ownerDeptId` terms（收窄；缺字段不得当全员可见）。精确可见级 / 过期 grant / inherit 仍由 PG `filterDocsForDeptAcl` 把关。`status/lifecycle/indexVersion` 闸门仍由 PG corpus（`loadCorpusFromDb`）对称承载；dense 侧不做 pgvector 查询期 WHERE（B8 分层）。**禁止**默认开 enforce / 用 ES 替换 PG 可见级闸 / ES 写 aclPrincipals terms（PG 名单闸已落）。
+- `buildAclFilter({tenantId, kbId, ownerDeptIds?, applyAclPrincipals?, aclPrincipalUserId?})`（`services/retrieve/es-sparse.ts`）供 ES 查询共用；始终 tenantId+kbId。`DEPT_ACL_ENFORCE` 开且非超管时追加 `ownerDeptId` terms（收窄；缺字段不得当全员可见）。非超管始终 `applyAclPrincipals`（**不**跟部门强制）：should = 缺字段 `must_not exists` ∪（有 userId 时）`term aclPrincipals`。显式空 bulk 写哨兵 `__acl_none__`（ES exists 不认空数组）。已有索引 PUT `_mapping` 补 keyword。精确可见级 / 过期 grant / inherit / 名单仍由 PG `filterDocsForDeptAcl` / `filterDocsForAclPrincipals` 把关。`status/lifecycle/indexVersion` 闸门仍由 PG corpus（`loadCorpusFromDb`）对称承载；dense 侧不做 pgvector 查询期 WHERE（B8 分层）。**禁止**默认开 enforce / 用 ES 替换 PG 可见级闸 / 改名单自动 reindex。
 - RRF 融合后按 chunkIds 批取 Mongo `chunk_bodies`（`services/retrieve/mongo-body.ts`），切片口径 `contextPrefix + "\n" + text`；缺块/拉取失败 → `internal_guard`，**禁止**回退 PG。`MONGODB_URL` 空 = 演示回退 PG `body_text`。
 
 **Related**：`services/retrieve/retrieve.ts` · `graph/budget.ts` `retrieveBudgetForMode`。
