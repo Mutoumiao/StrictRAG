@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { L2GoldLoadError, parseL2Gold, type L2Case } from '@strict-rag/contracts';
+import { L2GoldLoadError, parseExpectedDocIds, parseL2Gold, type L2Case } from '@strict-rag/contracts';
 import { evalRuns, formatLocalDateTime, goldQuestions } from '@strict-rag/db';
 import { eq } from 'drizzle-orm';
 
@@ -47,7 +47,20 @@ export const evalPersist: EvalPersist = {
     for (const r of rows) {
       const type = asGoldType(r.type);
       if (!type) continue;
-      out.push({ caseKey: r.caseKey, question: r.question, type });
+      let expectedDocIds: string[] | null;
+      try {
+        expectedDocIds = parseExpectedDocIds(r.expectedDocIds);
+      } catch (err) {
+        throw new Error(
+          `gold ${r.caseKey} expectedDocIds ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+      out.push({
+        caseKey: r.caseKey,
+        question: r.question,
+        type,
+        expectedDocIds,
+      });
     }
     return out;
   },
@@ -112,6 +125,9 @@ export const evalPersist: EvalPersist = {
           unanswerableClassCount: report.unanswerableClassCount,
           matrix: report.matrix,
           coverage: report.coverage,
+          hitAtK: report.hitAtK,
+          hitAtKHits: report.hitAtKHits,
+          hitAtKScored: report.hitAtKScored,
           errorCount: report.errorCount,
           cases: report.cases,
           kbId: report.kbId,

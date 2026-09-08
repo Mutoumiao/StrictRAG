@@ -40,7 +40,35 @@ describe('createEvalHttpExecute', () => {
         })) as typeof fetch,
     });
     const r = await execute({ caseKey: 'g1', question: 'q' });
-    expect(r).toEqual({ outcome: 'abstained', reason: 'low_retrieval' });
+    expect(r).toEqual({ outcome: 'abstained', reason: 'low_retrieval', evidenceDocIds: [] });
+  });
+
+  it('200 带 evidenceDocIds 原样带回', async () => {
+    const execute = createEvalHttpExecute({
+      baseUrl: 'http://api.test',
+      token: 'tok',
+      kbId: '01900000-0000-7000-8000-0000000000aa',
+      tenantId: '01900000-0000-7000-8000-000000000001',
+      userId: '01900000-0000-7000-8000-0000000000e1',
+      fetchImpl: (async () =>
+        new Response(
+          JSON.stringify({
+            ok: true,
+            data: {
+              status: 'answered',
+              reason: 'verified',
+              evidenceDocIds: ['doc-a', 'doc-b'],
+            },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        )) as typeof fetch,
+    });
+    const r = await execute({ caseKey: 'g1', question: 'q' });
+    expect(r).toEqual({
+      outcome: 'answered',
+      reason: 'verified',
+      evidenceDocIds: ['doc-a', 'doc-b'],
+    });
   });
 
   it('L2 执行器带 sessionId 与窗', async () => {

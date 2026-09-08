@@ -19,10 +19,15 @@ import {
 } from '../eval/adr046-snapshot.js';
 import {
   accumulate,
+  accumulateHitAtK,
   computeSignoffEligible,
   coverage,
+  emptyHitAtK,
   emptyMatrix,
   goldTypeCounts,
+  hitAtKCase,
+  hitAtKRate,
+  parseExpectedDocIds,
   type GoldType,
   type L1Cell,
   type L1Matrix,
@@ -54,6 +59,8 @@ export type L1CaseRow = {
   cell: L1Cell | null;
   reason?: string;
   errorMessage?: string;
+  /** null = 本题无 expectedDocIds，不计分 */
+  hitAtK?: boolean | null;
 };
 
 export type L1Report = {
@@ -70,6 +77,10 @@ export type L1Report = {
   unanswerableClassCount: number;
   matrix: L1Matrix;
   coverage: number | null;
+  /** 有 expectedDocIds 的题：evidence.docId 交集率；无计分题 → null。不进 signoffEligible */
+  hitAtK: number | null;
+  hitAtKHits: number;
+  hitAtKScored: number;
   errorCount: number;
   cases: L1CaseRow[];
   kbId: string;
@@ -226,13 +237,19 @@ export function loadGold(goldPath: string): GoldCase[] {
         `cases[${i}].type must be answerable|unanswerable|false_premise`,
       );
     }
+    let expectedDocIds: string[] | undefined;
+    try {
+      expectedDocIds = parseExpectedDocIds(row.expectedDocIds) ?? undefined;
+    } catch (err) {
+      throw new GoldLoadError(
+        `cases[${i}].expectedDocIds ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
     out.push({
       id,
       question,
       type: type as GoldType,
-      expectedDocIds: Array.isArray(row.expectedDocIds)
-        ? (row.expectedDocIds as string[])
-        : undefined,
+      expectedDocIds,
       expectedChunkIds: Array.isArray(row.expectedChunkIds)
         ? (row.expectedChunkIds as string[])
         : undefined,
@@ -272,6 +289,9 @@ export function formatReportMd(report: L1Report): string {
     `| signoffEligible | ${report.signoffEligible} |`,
     `| errorCount | ${report.errorCount} |`,
     `| coverage | ${cov} |`,
+    `| hitAtK | ${
+      report.hitAtK === null ? 'null' : String(Math.round(report.hitAtK * 1000) / 1000)
+    } (${report.hitAtKHits}/${report.hitAtKScored}) |`,
     `| gate_bundle | ${report.gateSnapshot?.gate_bundle ?? '—'} |`,
     `| signedPackage | ${report.gateVerdict?.signedPackage ?? false} |`,
     `| businessPass | ${report.gateVerdict?.businessPass ?? false} |`,
@@ -285,11 +305,11 @@ export function formatReportMd(report: L1Report): string {
     '',
     '## cases',
     '',
-    '| id | type | outcome | cell | reason |',
-    '|----|------|---------|------|--------|',
+    '| id | type | outcome | cell | hitAtK | reason |',
+    '|----|------|---------|------|--------|--------|',
     ...report.cases.map(
       (c) =>
-        `| ${c.id} | ${c.type} | ${c.outcome} | ${c.cell ?? '—'} | ${c.reason ?? c.errorMessage ?? ''} |`,
+        `| ${c.id} | ${c.type} | ${c.outcome} | ${c.cell ?? '—'} | ${c.hitAtK === null || c.hitAtK === undefined ? '—' : String(c.hitAtK)} | ${c.reason ?? c.errorMessage ?? ''} |`,
     ),
     '',
   ];
@@ -302,6 +322,7 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
   const cases = opts.maxCases && opts.maxCases > 0 ? all.slice(0, opts.maxCases) : all;
   const run = opts.execute ?? executeAsk;
   const matrix = emptyMatrix();
+  const hitAcc = emptyHitAtK();
   let errorCount = 0;
   const rows: L1CaseRow[] = [];
   const tenantId = opts.tenantId ?? process.env.L1_TENANT_ID ?? '01900000-0000-7000-8000-000000000001';
@@ -320,6 +341,7 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
     let outcome: L1Outcome;
     let reason: string | undefined;
     let errorMessage: string | undefined;
+    let evidenceDocIds: string[] = [];
     try {
       const result = await run(params, {
         skipTrace: true,
@@ -327,11 +349,16 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
       });
       outcome = result.graph.status;
       reason = result.graph.reason;
+      evidenceDocIds = (result.graph.evidence_snapshot ?? [])
+        .map((e) => e.docId)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0);
     } catch (err) {
       outcome = 'error';
       errorMessage = err instanceof Error ? err.message : String(err);
     }
     errorCount += accumulate(matrix, c.type, outcome);
+    const hit = hitAtKCase(c.expectedDocIds, evidenceDocIds);
+    accumulateHitAtK(hitAcc, hit);
     rows.push({
       id: c.id,
       type: c.type,
@@ -339,6 +366,7 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
       cell: cellFor(c.type, outcome),
       reason,
       errorMessage,
+      hitAtK: hit,
     });
   }
 
@@ -355,6 +383,9 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
     unanswerableClassCount: counts.unanswerableClass,
     matrix,
     coverage: coverage(matrix),
+    hitAtK: hitAtKRate(hitAcc),
+    hitAtKHits: hitAcc.hits,
+    hitAtKScored: hitAcc.scored,
     errorCount,
     cases: rows,
     kbId: opts.kbId,
@@ -442,6 +473,9 @@ async function main(): Promise<void> {
           unanswerableClassCount: report.unanswerableClassCount,
           matrix: report.matrix,
           coverage: report.coverage,
+          hitAtK: report.hitAtK,
+          hitAtKHits: report.hitAtKHits,
+          hitAtKScored: report.hitAtKScored,
           errorCount: report.errorCount,
           outDir,
         },

@@ -19,7 +19,7 @@
 |---------|----------|
 | `ingest-samples/01-doc` … `10-doc` | `fixtures/ingest-samples/01-doc.txt` … `10-doc.txt` |
 
-入库后真实 `documents.id`（uuid）因环境而异。live 跑批前请按本表把 gold 中逻辑 id **替换/映射** 为当前 KB 内文档 uuid；本窗 **不对 A 格命中率设下限**，映射缺失不影响工程底座验收。
+入库后真实 `documents.id`（uuid）因环境而异。live 跑批前请按本表把 gold 中逻辑 id **替换/映射** 为当前 KB 内文档 uuid。报告可写 Hit@k（字符串全等）；**不对 A 格命中率设下限**，映射缺失只让 Hit@k 变低，不影响工程底座 2×2 验收。
 
 ## 题型比例（本窗 seed）
 

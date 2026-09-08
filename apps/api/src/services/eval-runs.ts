@@ -31,6 +31,9 @@ export type EvalRunRow = {
   passCount?: number;
   failCount?: number;
   zeroToleranceHits?: number;
+  hitAtK?: number | null;
+  hitAtKHits?: number;
+  hitAtKScored?: number;
   cases?: EvalRunCaseRow[];
 };
 
@@ -59,10 +62,13 @@ function asMode(raw: string): EvalRetrieveMode {
   return 'unknown';
 }
 
-function l2StatsFromReport(report: unknown): {
+function extraStatsFromReport(report: unknown): {
   passCount?: number;
   failCount?: number;
   zeroToleranceHits?: number;
+  hitAtK?: number | null;
+  hitAtKHits?: number;
+  hitAtKScored?: number;
 } {
   if (!report || typeof report !== 'object') return {};
   const row = report as Record<string, unknown>;
@@ -70,10 +76,17 @@ function l2StatsFromReport(report: unknown): {
     passCount?: number;
     failCount?: number;
     zeroToleranceHits?: number;
+    hitAtK?: number | null;
+    hitAtKHits?: number;
+    hitAtKScored?: number;
   } = {};
   if (typeof row.passCount === 'number') out.passCount = row.passCount;
   if (typeof row.failCount === 'number') out.failCount = row.failCount;
   if (typeof row.zeroToleranceHits === 'number') out.zeroToleranceHits = row.zeroToleranceHits;
+  if (row.hitAtK === null) out.hitAtK = null;
+  else if (typeof row.hitAtK === 'number') out.hitAtK = row.hitAtK;
+  if (typeof row.hitAtKHits === 'number') out.hitAtKHits = row.hitAtKHits;
+  if (typeof row.hitAtKScored === 'number') out.hitAtKScored = row.hitAtKScored;
   return out;
 }
 
@@ -105,6 +118,7 @@ function casesFromReport(report: unknown): EvalRunCaseRow[] | undefined {
     if (!outcome) continue;
     const cell =
       row.cell === 'A' || row.cell === 'B' || row.cell === 'C' || row.cell === 'D' ? row.cell : undefined;
+    const hitAtK = row.hitAtK === true || row.hitAtK === false || row.hitAtK === null ? row.hitAtK : undefined;
     out.push({
       id: row.id,
       type: row.type,
@@ -113,6 +127,7 @@ function casesFromReport(report: unknown): EvalRunCaseRow[] | undefined {
       verdict,
       reason: typeof row.reason === 'string' ? row.reason : undefined,
       errorMessage: typeof row.errorMessage === 'string' ? row.errorMessage : undefined,
+      hitAtK,
     });
   }
   return out;
@@ -140,7 +155,7 @@ function mapRow(r: typeof evalRuns.$inferSelect, withCases: boolean): EvalRunRow
     jobId: r.jobId ?? null,
     errorMessage: r.errorMessage ?? null,
     notes: r.notes ?? null,
-    ...l2StatsFromReport(r.reportJson),
+    ...extraStatsFromReport(r.reportJson),
     cases: withCases ? casesFromReport(r.reportJson) : undefined,
   };
 }
@@ -160,6 +175,9 @@ export function toEvalRunDto(row: EvalRunRow, includeCases: boolean): EvalRun {
     passCount: row.passCount,
     failCount: row.failCount,
     zeroToleranceHits: row.zeroToleranceHits,
+    hitAtK: row.hitAtK,
+    hitAtKHits: row.hitAtKHits,
+    hitAtKScored: row.hitAtKScored,
     ranAt: row.ranAt,
     jobId: row.jobId,
     errorMessage: row.errorMessage,

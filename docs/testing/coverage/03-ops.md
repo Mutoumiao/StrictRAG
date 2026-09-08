@@ -13,7 +13,7 @@
 | C1 | 黄金集 1:1、seed 固定，产出 2×2 | 签字剧；工程 seed 可测 | 单测+注入 | 部分测 | api · worker | apps/api/tests/eval/l1-matrix.test.ts · apps/api/tests/eval/l1-cli.test.ts · apps/api/tests/eval/http-eval-runs.test.ts · apps/worker/tests/eval/run-l1-batch.test.ts · fixtures/l1/gold.yaml | 已断言 A–D 格、error 出格、coverage=A/(A+B)、mock 时 `signoffEligible=false`、gold≥30+30、HTTP 入队。缺：live 固定 seed 真跑 2×2 数字、业务题面人审。 |
 | C2 | τ 扫描得 tau* | 签字剧 | UAT | 缺实现 | api | packages/db/src/schema/ask/eval-runs.ts（`run_type` 枚举含 `tau_sweep`） | 仅 schema 字面量；无扫描 runner、无 tau* 报告。 |
 | C3 | Judge 校准产出 AUROC 报告 | 签字剧 | UAT | 缺实现 | api | apps/api/src/eval/adr046-snapshot.ts（`judgeAurocMin` 硬门数字） | 门槛常量在快照，无校准集 runner、无 AUROC 计算/报告。 |
-| C4 | 有 expectedDocIds 时算 Hit@k | 签字剧 | 单测 | 缺实现 | api | fixtures/l1/gold.yaml · apps/api/src/scripts/run-l1-golden.ts（只加载字段） | gold 带 `expectedDocIds`；runner 报告无 Hit@k，测例不断言命中率。 |
+| C4 | 有 expectedDocIds 时算 Hit@k | 签字剧 | 单测 | 部分测 | api · worker · contracts | packages/contracts/tests/eval/l1-hit-at-k.test.ts · apps/api/tests/eval/l1-cli.test.ts · apps/worker/tests/eval/run-l1-batch.test.ts | 有非空 expected 按 evidence.docId 交集计分；无名单不计分；不进 2×2 / signoffEligible。逻辑 id→uuid 映射仍缺口。 |
 | C5 | 签字页对照试点门禁，RACI 人签 | 签字剧；工程绿≠PASS | UAT | UAT | api | apps/api/tests/eval/l1-matrix.test.ts（`computeSignoffEligible`）· apps/api/tests/eval/adr046-snapshot.test.ts · fixtures/l1/RACI.md | 工程可算 `signoffEligible`；签字 PASS 须 live + 四要素 + RACI 人签。mock coverage 禁进签字叙事。 |
 
 ## 剧本 G · 反馈闭环
@@ -180,7 +180,7 @@ Phase 4 建议，**不挡 P2** → 默认延后。I2 指标可部分测。
 
 | 剧本 | 步骤数 | 已测 | 部分测 | 缺测 | 缺实现 | 延后 | UAT |
 |------|--------|------|--------|------|--------|------|-----|
-| C | 5 | 0 | 1 | 0 | 3 | 0 | 1 |
+| C | 5 | 0 | 2 | 0 | 2 | 0 | 1 |
 | G | 3 | 0 | 2 | 0 | 1 | 0 | 0 |
 | N | 9 | 0 | 0 | 1 | 0 | 0 | 8 |
 | O | 11 | 1 | 1 | 0 | 1 | 8 | 0 |
@@ -191,6 +191,6 @@ Phase 4 建议，**不挡 P2** → 默认延后。I2 指标可部分测。
 | AC | 9 | 5 | 3 | 0 | 1 | 0 | 0 |
 | AD | 10 | 4 | 4 | 0 | 2 | 0 | 0 |
 | I | 5 | 0 | 1 | 0 | 0 | 4 | 0 |
-| **合计** | **93** | **21** | **25** | **1** | **13** | **24** | **9** |
+| **合计** | **93** | **21** | **26** | **1** | **12** | **24** | **9** |
 
 ID 闭集（93）：C1–C5；G1–G3；N1–N9；O1–O11；P1–P11；R1–R12；T1–T10；AB1–AB8；AC1–AC9；AD1–AD10；I1–I5。

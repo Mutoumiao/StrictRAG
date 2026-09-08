@@ -24,7 +24,7 @@
 | `ingest/dual-ready-index.test.ts` | 未 ready∧active 不得进 mock ES 索引。 | 质量红线双就绪（入库期；R7 主锚仍在 api corpus） | `mockEsStore 双就绪` | mock ES 对账缺块失败；集合一致才 ok；文档间不污染。 | 现行 |
 | `eval/consumer.test.ts` | eval 消费者须写 running→succeeded，空题集 failed。 | prds/06-async eval.run · 功能表 §5.2 | `handleEvalJob` | 注入 persist/execute；不打 live。 | 现行 |
 | `eval/execute-ask-http.test.ts` | worker 调 api 内口必须带口令；失败不得假装 answered。 | prds/06-async eval.run | `createEvalHttpExecute` | mock fetch；空 token 记 error。 | 现行 |
-| `eval/run-l1-batch.test.ts` | worker L1 批跑必须串行入 2×2，error 出格。 | prds/08-quality §2 | `runL1Batch` | 注入 execute；≠ 签字 PASS。 | 现行 |
+| `eval/run-l1-batch.test.ts` | worker L1 批跑必须串行入 2×2，error 出格。 | prds/08-quality §2 · 覆盖 C4 | `runL1Batch` | 注入 execute；有 expectedDocIds 计 Hit@k；≠ 签字 PASS。 | 现行 |
 | `eval/run-l2-batch.test.ts` | worker L2 批跑必须串行多轮窗，泄漏计零容忍，mock 不得 signoffEligible。 | prds/08-quality §6.2 · 功能表 §10.2 | `runL2Batch` | 注入 executeTurn；≠ 准出 PASS。 | 现行 |
 | `ingest/embed-es-serial.test.ts` | embed 与稀疏索引串行就绪，禁并行假完成。 | X-03 · prds/04-pipelines | `pipeline 串行就绪` | embedReady 与 esReady 须同时为 1。 | 现行 |
 | `ingest/embed-http.test.ts` | embed HTTP 客户端须按 Gateway 契约取向量。 | prds/07-models | `embedTextsHttp · mockEmbedVector` | mock 维数稳定；POST /embeddings；空 baseUrl 失败。 | 现行 |

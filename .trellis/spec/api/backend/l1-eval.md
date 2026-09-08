@@ -41,6 +41,8 @@
 | `cellFor(type, outcome)` | `eval/l1-matrix.ts` | → `'A'\|'B'\|'C'\|'D'\|null` |
 | `accumulate(matrix, type, outcome)` | 同上 | 就地 +1 格；error → 返回 `1`（error 增量） |
 | `coverage(matrix)` | 同上 | `A/(A+B)`；分母 0 → `null` |
+| `hitAtKCase(expected, evidence)` | 同上 | 无非空 expected → `null`；否则交集 |
+| `accumulateHitAtK` / `hitAtKRate` | 同上 | scored=0 → `null`；不进签字公式 |
 | `goldTypeCounts(cases)` | 同上 | `{ answerable, unanswerableClass }` |
 | `computeSignoffEligible(mode, counts)` | 同上 | live ∧ 各≥`SIGNOFF_MIN_PER_CLASS`(30) |
 | `bindQualitySnapshotToEval(input)` | `eval/adr046-snapshot.ts` | ADR-046 快照绑定 eval 身份；硬门放宽 / 缺四要素 → 不得 `signedPackage`；coverage=0 / `internal_guard` → 不得 `businessPass` |
@@ -68,7 +70,7 @@ await executeAsk(params, { skipTrace: true, ...opts.executeDeps });
 | `id` | string | 必填非空 |
 | `question` | string | 必填非空 |
 | `type` | enum | **仅** `answerable` \| `unanswerable` \| `false_premise` |
-| `expectedDocIds?` | string[] | 逻辑 id（见 fixtures README）；本窗不设 A 格命中下限 |
+| `expectedDocIds?` | string[] | 逻辑 id（见 fixtures README）；有非空名单时计 Hit@k（字符串全等）；**不**设 A 格命中下限 |
 | `expectedChunkIds?` | string[] | 可选 |
 | `rubric?` | string | 可选 |
 
@@ -84,6 +86,7 @@ Seed 规模：可答 30 + 不可答类 30（含 `false_premise`）；**mock 数�
 
 - **覆盖率** `coverage = A / (A+B)`；无 answerable 样本 → `null`（勿当 0）。
 - `false_premise` **不**单独成格。
+- **Hit@k**（P4 最小）：只对非空 `expectedDocIds` 计分；hit = 该题 `evidence_snapshot.docId` 与 expected 有交集；k = 该列表长度；总率 = hits/scored，scored=0 → `null`。**不**进 `signoffEligible`，**不**改 2×2。逻辑 id→uuid 映射仍由跑批前人工处理。
 
 #### `L1Report`（写出 `artifacts/l1-last-run.json` + `.md`）
 
@@ -97,6 +100,7 @@ Seed 规模：可答 30 + 不可答类 30（含 `false_premise`）；**mock 数�
 | `gateSnapshot?` / `gateVerdict?` | ADR-046：配置快照绑定 `evalBindId`；`signedPackage` 须四要素且硬门未放宽；`businessPass` 另须 signoffEligible ∧ coverage>0 ∧ 非全 `internal_guard` |
 | `ranAt` | ISO 字符串（artifact / report_json）；**写库** `eval_runs.ran_at` 用 `formatLocalDateTime`（`evalRunDbRanAt`） |
 | `caseCount` / `errorCount` | number |
+| `hitAtK` / `hitAtKHits` / `hitAtKScored` | 有 expected 的题的命中率；无计分题 `hitAtK=null` 且 hits/scored=0 |
 | `matrix` | `{ A,B,C,D }` |
 | `coverage` | `number \| null` |
 | `cases[]` | 每题 `id,type,outcome,cell,reason?,errorMessage?` |

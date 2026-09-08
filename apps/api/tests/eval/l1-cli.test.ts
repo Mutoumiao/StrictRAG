@@ -41,7 +41,7 @@ function tmp(): string {
 
 function goldFile(
   dir: string,
-  cases: Array<{ id: string; question: string; type: string }>,
+  cases: Array<{ id: string; question: string; type: string; expectedDocIds?: string[] }>,
 ): string {
   const p = path.join(dir, 'gold.yaml');
   writeFileSync(p, JSON.stringify({ cases }), 'utf8');
@@ -80,6 +80,23 @@ function answered(): ExecuteAskResult {
       rewriteUsed: false,
       sessionDeepened: false,
       evidence_snapshot: [],
+    },
+  };
+}
+
+function answeredWithDocs(docIds: string[]): ExecuteAskResult {
+  const base = answered();
+  return {
+    ...base,
+    graph: {
+      ...base.graph,
+      evidence_snapshot: docIds.map((docId) => ({
+        chunkId: `c-${docId}`,
+        docId,
+        text: 't',
+        lifecycle: 'active',
+        preview: 'p',
+      })),
     },
   };
 }
@@ -146,6 +163,19 @@ describe('loadGold', () => {
     writeFileSync(p, JSON.stringify({ cases: [{ id: 'x', question: 'q' }] }), 'utf8');
     expect(() => loadGold(p)).toThrow(/type/);
   });
+
+  it('expectedDocIds 非数组 → GoldLoadError，不得当无名单', () => {
+    const dir = tmp();
+    const p = path.join(dir, 'g.yaml');
+    writeFileSync(
+      p,
+      JSON.stringify({
+        cases: [{ id: 'x', question: 'q', type: 'answerable', expectedDocIds: 'doc-a' }],
+      }),
+      'utf8',
+    );
+    expect(() => loadGold(p)).toThrow(/expectedDocIds/);
+  });
 });
 
 describe('resolveEvalMode', () => {
@@ -185,6 +215,9 @@ describe('buildEvalRunInsert / evalRunDbRanAt', () => {
       unanswerableClassCount: 1,
       matrix: { A: 1, B: 0, C: 0, D: 1 },
       coverage: 1,
+      hitAtK: null,
+      hitAtKHits: 0,
+      hitAtKScored: 0,
       errorCount: 0,
       cases: [],
       kbId: '01900000-0000-7000-8000-0000000000aa',
@@ -220,6 +253,9 @@ describe('buildEvalRunInsert / evalRunDbRanAt', () => {
       unanswerableClassCount: 30,
       matrix: { A: 0, B: 0, C: 0, D: 0 },
       coverage: null,
+      hitAtK: null,
+      hitAtKHits: 0,
+      hitAtKScored: 0,
       errorCount: 0,
       cases: [],
       kbId: 'k',
@@ -262,6 +298,8 @@ describe('runL1Golden mock graphDeps path', () => {
     expect(report.matrix).toEqual({ A: 1, B: 1, C: 0, D: 2 });
     expect(report.errorCount).toBe(1);
     expect(report.coverage).toBe(0.5);
+    expect(report.hitAtK).toBeNull();
+    expect(report.hitAtKScored).toBe(0);
     expect(report.mode).toMatch(/mock|live|unknown/);
     expect(report.retrieve_mode).toBe(report.mode);
     expect(report.answerableCount).toBe(3);
@@ -323,6 +361,38 @@ describe('runL1Golden mock graphDeps path', () => {
     expect(report.signoffEligible).toBe(false);
   });
 
+  it('有 expectedDocIds 且 snapshot 含该 docId → hitAtK=1；不含 → 0；无名单总率 null 且 2×2 不变', async () => {
+    const dir = tmp();
+    const goldPath = goldFile(dir, [
+      { id: 'hit', question: 'h', type: 'answerable', expectedDocIds: ['doc-a'] },
+      { id: 'miss', question: 'm', type: 'answerable', expectedDocIds: ['doc-a'] },
+      { id: 'none', question: 'n', type: 'unanswerable' },
+    ]);
+    const execute = async (params: ExecuteAskParams): Promise<ExecuteAskResult> => {
+      if (params.body.question === 'h') return answeredWithDocs(['doc-a', 'doc-z']);
+      if (params.body.question === 'm') return answeredWithDocs(['doc-z']);
+      return abstained();
+    };
+    const report = await runL1Golden({
+      goldPath,
+      outDir: path.join(dir, 'out'),
+      kbId: 'kb',
+      persistEval: false,
+      execute,
+    });
+    expect(report.matrix).toEqual({ A: 2, B: 0, C: 0, D: 1 });
+    expect(report.hitAtK).toBe(0.5);
+    expect(report.hitAtKHits).toBe(1);
+    expect(report.hitAtKScored).toBe(2);
+    expect(report.signoffEligible).toBe(false);
+    expect(report.cases.find((c) => c.id === 'hit')?.hitAtK).toBe(true);
+    expect(report.cases.find((c) => c.id === 'miss')?.hitAtK).toBe(false);
+    expect(report.cases.find((c) => c.id === 'none')?.hitAtK).toBeNull();
+    const md = readFileSync(path.join(dir, 'out', 'l1-last-run.md'), 'utf8');
+    expect(md).toContain('hitAtK');
+    expect(md).toContain('0.5');
+  });
+
   it('live + 各≥30 → signoffEligible；同规模 mock → false', async () => {
     const dir = tmp();
     const cases = [
@@ -382,6 +452,9 @@ describe('writeL1Report', () => {
       unanswerableClassCount: 0,
       matrix: { A: 0, B: 0, C: 0, D: 0 },
       coverage: null,
+      hitAtK: null,
+      hitAtKHits: 0,
+      hitAtKScored: 0,
       errorCount: 0,
       cases: [],
       kbId: 'k',

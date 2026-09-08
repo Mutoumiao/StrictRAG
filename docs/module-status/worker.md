@@ -7,7 +7,7 @@
 | 成熟度 | **可联调**（P1 入库状态机；**仅** development/test + mock 栈可起；**staging/production 当前无合法扫描配置**） |
 | 默认依赖模式 | `APP_ENV=development` · 启动探针 `WORKER_PROBE_ON_START=true` · 扫描 = `mock_clean` · 向量 = `mock`（dims=8，枚举 `mock\|fail`）· ES 索引 = `mock`（枚举 `mock\|fail\|http`，**默认 mock**；`http` 须 `ELASTICSEARCH_URL`）· 对象存储 = 默认本地目录；`STORAGE_MODE=s3` 走 RustFS（S3 兼容） · `S3_BUCKET=strict-rag` · Mongo URL 空则 `mongoDocId=local:` · `INGEST_MIN_EXTRACTED_CHARS=40` · `INGEST_FAILURE_WEBHOOK_URL` **空=不发** · **可运行叠加** `.env.operable.example`（http/s3/mongo；**不**改 Zod 默认） |
 | 关联模块 | 由 `api` 入队触发；写库走 `@strict-rag/db`；队列名 / job payload / 可执行策略集来自 `@strict-rag/contracts`；运行需要 Redis + PostgreSQL |
-| 最近更新 | 2026-09-08（sparse bulk 写入可选 `ownerDeptId` 与 `aclPrincipals`；null 不写字段、`[]` 写哨兵 `__acl_none__`） |
+| 最近更新 | 2026-09-08（L1 批跑写 Hit@k；HTTP execute 读 evidenceDocIds） |
 | Spec | `.trellis/spec/worker/backend/` |
 | PRD | `prds/06-async` · `prds/04-pipelines/01-offline-ingest.md` |
 
@@ -45,9 +45,9 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 - 对象路径：`{STORAGE_LOCAL_DIR}/{S3_BUCKET}/{objectKey}`
 
 ### 评测消费者（P2 底线 + L2 归档底线）
-- sr-eval concurrency=1：L1 读 gold_questions → runL1Batch；L2 读 fixtures/l2 → runL2Batch 多轮窗；回写 eval_runs（eval/consumer.ts）
-- 默认 execute：HTTP POST /api/v1/internal/eval/execute-ask（EVAL_ASK_BASE_URL + EVAL_INTERNAL_TOKEN）；L2 可带 sessionId/sessionWindow；空 token 记 error
-- **禁止** import apps/api；**禁止** mock 覆盖率当签字 PASS；工程 signoffEligible ≠ 准出；无 τ 扫描 / 在线抽样
+- sr-eval concurrency=1：L1 读 gold_questions（含 `expectedDocIds`）→ runL1Batch（2×2 + Hit@k）；L2 读 fixtures/l2 → runL2Batch 多轮窗；回写 eval_runs（eval/consumer.ts）
+- 默认 execute：HTTP POST /api/v1/internal/eval/execute-ask（EVAL_ASK_BASE_URL + EVAL_INTERNAL_TOKEN）；读 `evidenceDocIds` 计 Hit@k；L2 可带 sessionId/sessionWindow；空 token 记 error
+- **禁止** import apps/api；**禁止** mock 覆盖率当签字 PASS；工程 signoffEligible ≠ 准出；Hit@k **不**进签字公式；无 τ 扫描 / 在线抽样
 
 ### 幂等 / 重试（X-04 最小）
 - `idempotency.ts`：带 `indexVersion` + 有 manifest → **resume_embed，禁重分块**；有 version 无 manifest → `NO_MANIFEST`

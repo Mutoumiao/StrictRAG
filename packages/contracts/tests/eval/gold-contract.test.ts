@@ -68,6 +68,10 @@ describe('eval run contract', () => {
       ranAt: '2026-08-29 12:00:00',
     };
     expect(EvalRunSchema.parse(run).matrix.A).toBe(1);
+    expect(EvalRunSchema.parse({ ...run, hitAtK: 0.5, hitAtKHits: 1, hitAtKScored: 2 }).hitAtK).toBe(
+      0.5,
+    );
+    expect(EvalRunSchema.parse({ ...run, hitAtK: null }).hitAtK).toBeNull();
     expect(EvalRunSchema.safeParse({ ...run, tauClaim: 0.3 }).success).toBe(false);
   });
 });

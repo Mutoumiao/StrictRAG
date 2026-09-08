@@ -183,6 +183,36 @@ describe('eval runs HTTP', () => {
     expect(runBody.data.signoffEligible).toBe(false);
   });
 
+  it('GET 回读 hitAtK 字段', async () => {
+    const { userId, accessToken } = await token(['kb_admin']);
+    const runs = memoryRuns();
+    const row = await runs.createQueued({
+      tenantId: TENANT,
+      kbId: KB,
+      retrieveMode: 'mock',
+    });
+    row.status = 'succeeded';
+    row.hitAtK = 0.5;
+    row.hitAtKHits = 1;
+    row.hitAtKScored = 2;
+    const app = buildApp({
+      members: new Set([userId]),
+      gold: memoryGold(),
+      evalRuns: runs,
+      enqueue: async () => 'j',
+    });
+    const got = await app.request(`/api/v1/knowledge-bases/${KB}/eval/runs/${row.id}`, {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    expect(got.status).toBe(200);
+    const body = (await got.json()) as {
+      data: { hitAtK: number | null; hitAtKHits?: number; hitAtKScored?: number };
+    };
+    expect(body.data.hitAtK).toBe(0.5);
+    expect(body.data.hitAtKHits).toBe(1);
+    expect(body.data.hitAtKScored).toBe(2);
+  });
+
   it('internal execute-ask 口令对才跑；空口令 503；错口令 401', async () => {
     const app = buildApp({
       members: new Set(),
@@ -193,7 +223,11 @@ describe('eval runs HTTP', () => {
       execute: async () =>
         ({
           httpStatus: 200,
-          graph: { status: 'abstained', reason: 'low_retrieval' },
+          graph: {
+            status: 'abstained',
+            reason: 'low_retrieval',
+            evidence_snapshot: [{ docId: 'doc-a', chunkId: 'c1', text: 't' }],
+          },
         }) as ExecuteAskResult,
     });
     const okRes = await app.request('/api/v1/internal/eval/execute-ask', {
@@ -207,8 +241,11 @@ describe('eval runs HTTP', () => {
       }),
     });
     expect(okRes.status).toBe(200);
-    const okBody = (await okRes.json()) as { data: { status: string; reason?: string } };
+    const okBody = (await okRes.json()) as {
+      data: { status: string; reason?: string; evidenceDocIds?: string[] };
+    };
     expect(okBody.data.status).toBe('abstained');
+    expect(okBody.data.evidenceDocIds).toEqual(['doc-a']);
 
     const bad = await app.request('/api/v1/internal/eval/execute-ask', {
       method: 'POST',

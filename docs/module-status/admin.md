@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（S2c 运营薄壳：文档 / 审批 / 成员 / 分片 / 设置 / 模型 + 用户 / 角色 / 部门 + **数据面板** + **反馈队列** + **评测底线**） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT + admin **dev-login**（经 api）· 知识库 = 顶栏关闭列表（本次 GET 可见库，禁止粘贴 uuid）· 菜单 = `clipMenuForShell` 裁剪（catalog 为 SSOT）· API 默认 `http://127.0.0.1:4000` |
 | 关联模块 | API 依赖：`api` 的文档 / 审批 / 成员 / 分片 / 设置 / 模型 / 用户角色 / 部门 / dashboard / **feedback-queue** / **gold-questions · eval/runs**；菜单与权限码：`admin-catalog`；类型：`contracts`；样式：`ui` |
-| 最近更新 | 2026-09-08（设置页 sensitive 说明改为 complete 须 ACL 就绪；**≠** 仓库默认开 / 角色 principal） |
+| 最近更新 | 2026-09-08（评测账本有 scored 时展示 Hit@k） |
 | Spec | `.trellis/spec/admin/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · 审批 / 成员相关 API |
 
@@ -87,7 +87,7 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 - **无** 专用 RTL 工作区测试（comment 转义测除外）
 
 ### 评测底线
-- `/eval`：黄金集增删 + 「跑一批」入队 L1 + 「跑 L2」入队 session_multiturn + 列出账本；需要 eval.run；工程可签字文案 ≠ 准出 PASS
+- `/eval`：黄金集增删 + 「跑一批」入队 L1 + 「跑 L2」入队 session_multiturn + 列出账本；L1 有 scored 时展示 Hit@k；需要 eval.run；工程可签字文案 ≠ 准出 PASS
 - 分层：`page → services → api.ts`；**不**在浏览器跑 L1；**不是**签字包 / 看板增强 / 反馈回流
 - RTL：`tests/ops/eval-workspace.test.tsx`
 

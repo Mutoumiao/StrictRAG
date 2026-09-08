@@ -24,6 +24,7 @@ export const EvalRunCaseRowSchema = z
     verdict: z.enum(['pass', 'fail', 'error']).optional(),
     reason: z.string().optional(),
     errorMessage: z.string().optional(),
+    hitAtK: z.boolean().nullable().optional(),
   })
   .strict();
 export type EvalRunCaseRow = z.infer<typeof EvalRunCaseRowSchema>;
@@ -39,6 +40,9 @@ export const EvalRunSchema = z
     caseCount: z.number().int().nonnegative(),
     matrix: L1MatrixDtoSchema,
     coverage: z.number().nullable(),
+    hitAtK: z.number().nullable().optional(),
+    hitAtKHits: z.number().int().nonnegative().optional(),
+    hitAtKScored: z.number().int().nonnegative().optional(),
     errorCount: z.number().int().nonnegative(),
     passCount: z.number().int().nonnegative().optional(),
     failCount: z.number().int().nonnegative().optional(),

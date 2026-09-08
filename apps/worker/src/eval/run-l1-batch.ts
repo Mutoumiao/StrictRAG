@@ -1,10 +1,14 @@
 import {
   accumulate,
+  accumulateHitAtK,
   cellFor,
   computeSignoffEligible,
   coverage,
+  emptyHitAtK,
   emptyMatrix,
   goldTypeCounts,
+  hitAtKCase,
+  hitAtKRate,
   type EvalRetrieveMode,
   type GoldType,
   type L1Cell,
@@ -16,10 +20,11 @@ export type EvalGoldCase = {
   caseKey: string;
   question: string;
   type: GoldType;
+  expectedDocIds?: string[] | null;
 };
 
 export type EvalCaseExecuteResult =
-  | { outcome: 'answered' | 'abstained'; reason?: string }
+  | { outcome: 'answered' | 'abstained'; reason?: string; evidenceDocIds?: string[] }
   | { outcome: 'error'; errorMessage?: string };
 
 export type EvalCaseExecute = (input: {
@@ -34,6 +39,7 @@ export type L1BatchCaseRow = {
   cell: L1Cell | null;
   reason?: string;
   errorMessage?: string;
+  hitAtK?: boolean | null;
 };
 
 export type L1BatchReport = {
@@ -45,6 +51,9 @@ export type L1BatchReport = {
   unanswerableClassCount: number;
   matrix: L1Matrix;
   coverage: number | null;
+  hitAtK: number | null;
+  hitAtKHits: number;
+  hitAtKScored: number;
   errorCount: number;
   cases: L1BatchCaseRow[];
   kbId: string;
@@ -61,6 +70,7 @@ export async function runL1Batch(opts: {
   const sliced =
     opts.maxCases && opts.maxCases > 0 ? opts.cases.slice(0, opts.maxCases) : opts.cases;
   const matrix = emptyMatrix();
+  const hitAcc = emptyHitAtK();
   let errorCount = 0;
   const rows: L1BatchCaseRow[] = [];
 
@@ -68,6 +78,7 @@ export async function runL1Batch(opts: {
     let outcome: L1Outcome;
     let reason: string | undefined;
     let errorMessage: string | undefined;
+    let evidenceDocIds: string[] = [];
     try {
       const result = await opts.execute({ caseKey: c.caseKey, question: c.question });
       outcome = result.outcome;
@@ -75,12 +86,15 @@ export async function runL1Batch(opts: {
         errorMessage = result.errorMessage;
       } else {
         reason = result.reason;
+        evidenceDocIds = result.evidenceDocIds ?? [];
       }
     } catch (err) {
       outcome = 'error';
       errorMessage = err instanceof Error ? err.message : String(err);
     }
     errorCount += accumulate(matrix, c.type, outcome);
+    const hit = hitAtKCase(c.expectedDocIds, evidenceDocIds);
+    accumulateHitAtK(hitAcc, hit);
     rows.push({
       id: c.caseKey,
       type: c.type,
@@ -88,6 +102,7 @@ export async function runL1Batch(opts: {
       cell: cellFor(c.type, outcome),
       reason,
       errorMessage,
+      hitAtK: hit,
     });
   }
 
@@ -102,6 +117,9 @@ export async function runL1Batch(opts: {
     unanswerableClassCount: counts.unanswerableClass,
     matrix,
     coverage: coverage(matrix),
+    hitAtK: hitAtKRate(hitAcc),
+    hitAtKHits: hitAcc.hits,
+    hitAtKScored: hitAcc.scored,
     errorCount,
     cases: rows,
     kbId: opts.kbId,

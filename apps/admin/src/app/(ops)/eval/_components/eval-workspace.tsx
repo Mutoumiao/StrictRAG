@@ -294,7 +294,11 @@ export function EvalWorkspace() {
               <p className="mt-1 mb-0 text-muted-foreground">
                 {run.runType === 'session_multiturn'
                   ? `pass ${run.passCount ?? '—'} · fail ${run.failCount ?? '—'} · 零容忍 ${run.zeroToleranceHits ?? '—'} · ${run.caseCount} 题`
-                  : `A${run.matrix.A} B${run.matrix.B} C${run.matrix.C} D${run.matrix.D} · 覆盖${coverageLabel(run.coverage)} · ${run.caseCount} 题`}
+                  : `A${run.matrix.A} B${run.matrix.B} C${run.matrix.C} D${run.matrix.D} · 覆盖${coverageLabel(run.coverage)} · ${run.caseCount} 题${
+                      typeof run.hitAtKScored === 'number' && run.hitAtKScored > 0
+                        ? ` · Hit@k ${coverageLabel(run.hitAtK ?? null)}`
+                        : ''
+                    }`}
                 {run.signoffEligible ? ' · 工程可签字（仍须人签，≠准出）' : ''}
               </p>
               <Button
@@ -321,6 +325,7 @@ export function EvalWorkspace() {
                 <li key={row.id}>
                   <span className="font-mono text-xs">{row.id}</span> · {row.type} · {row.outcome}
                   {row.cell ? ` · ${row.cell}` : ''}
+                  {row.hitAtK === true ? ' · Hit@k 命中' : row.hitAtK === false ? ' · Hit@k 未中' : ''}
                 </li>
               ))}
             </ul>

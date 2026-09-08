@@ -17,6 +17,7 @@ type ExecuteAskJson = {
     reason?: string;
     rewriteUsed?: boolean;
     evidenceTexts?: string[];
+    evidenceDocIds?: string[];
     answer?: string;
   };
   error?: { message?: string };
@@ -60,7 +61,14 @@ export function createEvalHttpExecute(opts: EvalHttpExecuteOpts): EvalCaseExecut
     }
     const status = payload.data?.status;
     if (status === 'answered' || status === 'abstained') {
-      return { outcome: status, reason: payload.data?.reason };
+      const ids = payload.data?.evidenceDocIds;
+      return {
+        outcome: status,
+        reason: payload.data?.reason,
+        evidenceDocIds: Array.isArray(ids)
+          ? ids.filter((id): id is string => typeof id === 'string' && id.length > 0)
+          : [],
+      };
     }
     return { outcome: 'error', errorMessage: `unexpected ask status: ${String(status)}` };
   };

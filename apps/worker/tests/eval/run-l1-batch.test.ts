@@ -44,4 +44,29 @@ describe('runL1Batch', () => {
     expect(report.signoffEligible).toBe(false);
     expect(report.cases[0].outcome).toBe('error');
   });
+
+  it('有 expectedDocIds 按 evidenceDocIds 计 Hit@k；无名单不计分', async () => {
+    const report = await runL1Batch({
+      kbId: 'k',
+      retrieveMode: 'mock',
+      cases: [
+        { caseKey: 'h', question: 'h', type: 'answerable', expectedDocIds: ['doc-a'] },
+        { caseKey: 'm', question: 'm', type: 'answerable', expectedDocIds: ['doc-a'] },
+        { caseKey: 'n', question: 'n', type: 'unanswerable' },
+      ],
+      execute: async ({ caseKey }) => {
+        if (caseKey === 'h') return { outcome: 'answered', evidenceDocIds: ['doc-a'] };
+        if (caseKey === 'm') return { outcome: 'answered', evidenceDocIds: ['doc-z'] };
+        return { outcome: 'abstained' };
+      },
+    });
+    expect(report.matrix).toEqual({ A: 2, B: 0, C: 0, D: 1 });
+    expect(report.hitAtK).toBe(0.5);
+    expect(report.hitAtKHits).toBe(1);
+    expect(report.hitAtKScored).toBe(2);
+    expect(report.signoffEligible).toBe(false);
+    expect(report.cases[0]?.hitAtK).toBe(true);
+    expect(report.cases[1]?.hitAtK).toBe(false);
+    expect(report.cases[2]?.hitAtK).toBeNull();
+  });
 });
