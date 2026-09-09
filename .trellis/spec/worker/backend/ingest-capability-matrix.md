@@ -11,7 +11,8 @@
 | 逻辑 stage | 状态 | 源码锚点 | 行为摘要 | 明确未做 |
 |------------|:----:|----------|----------|----------|
 | **scan** | **stub** | `pipeline` `case 'scan'` · `scan-mode-policy` | mock_clean / mock_infected / off；`on` 拒 | 真 ClamAV（QUAL-2） |
-| **parse** | **stub** | `extract-text` + `loadObjectBytes` + 字数闸 | 仅 UTF-8 **txt/md** 当文本层；其它无文本层 / 过短 → `needs_ocr` + `NO_TEXT_LAYER`；有 `MONGODB_URL` 写 `document_bodies`（`upsertDocumentBody`） | OCR · PDF 文本层（HALF-PDF）· 复杂版式 |
+| **parse** | **stub** | `extract-text` + `loadObjectBytes` + 字数闸 | 仅 UTF-8 **txt/md** 当文本层；PDF 最小文本层；无层 / 过短 → `needs_ocr` + `NO_TEXT_LAYER`；开闸时无层 enqueue `ocr` | 复杂版式 |
+| **ocr** | **stub** | `pipeline` `case 'ocr'` · `ocr-policy` | `INGEST_OCR_ENABLED` 默认 false；可注入抽取器；低置信 `needs_review`；无引擎 `OCR_UNAVAILABLE` | 真 Tesseract / Cloud OCR · 历史 needs_ocr 重跑 |
 | **chunk** | **done\*** | `splitByChunkStrategy` · manifests | 仅 `structure_paragraph`；幂等 resume（X-04-impl） | 多策略切分器；结构感知进阶 |
 | **embed** | **stub** | `INGEST_EMBED_MODE` mock\|fail | 伪向量 dims=8；同 version skip 已有行 | 真 embedding 网关 |
 | **es_index** | **stub** | `mockEsStore` · `INGEST_ES_MODE` · `es-http` | 进程内 Map 对账；`http` 时 mapping/bulk 写 `tenantId`/`kbId`/`docId`/`chunkId`/`sparseText`/`ownerDeptId`（无部门不写该字段）/`aclPrincipals`（null 不写；`[]` 写哨兵 `__acl_none__`） | 真 ES+IK bulk（B8） · 多租户 Router |
@@ -29,7 +30,7 @@
 | 层 | 名称 / 字段 | 今日 IS | 目标（未做） |
 |----|-------------|---------|--------------|
 | **物理队列** | BullMQ `sr-ingest`（`QUEUE_NAMES.ingest`） | **唯一**入库队列 | 可选拆 `ingest.scan` 等独立队列 |
-| **逻辑 stage** | job payload `stage`：`scan`→`parse`→`chunk`→`embed`→`es_index` | 单队列内状态机折叠 | 与物理队列 1:1 时再 ADR |
+| **逻辑 stage** | job payload `stage`：`scan`→`parse`→`ocr?`→`chunk`→`embed`→`es_index` | 单队列内状态机折叠；`ocr` 仅开闸且无文本层时入队 | 与物理队列 1:1 时再 ADR |
 | **探针** | `sr-probe` | 与入库隔离 | — |
 
 | 规则 | 说明 |
@@ -49,7 +50,8 @@ api.enqueue({ docId, stage: 'scan', indexVersion? })
 | 阶段成功推进 | 典型 status | 失败 errorCode 例 |
 |--------------|-------------|-------------------|
 | 入队后 scan | `scanning` | `NOT_APPROVED` · `MALWARE` · `SCAN_ENGINE_UNAVAILABLE` |
-| parse | `parsing` → 有文本 | `NO_TEXT_LAYER`（`needs_ocr`） |
+| parse | `parsing` → 有文本 | `NO_TEXT_LAYER`（`needs_ocr`）；开闸无层则交 `ocr` |
+| ocr | `needs_ocr` → 抽取成功交 chunk | `OCR_UNAVAILABLE` · `OCR_LOW_CONFIDENCE`（`needs_review`） · `OCR_EMPTY` · `OCR_TOO_SHORT` |
 | chunk | `chunking` | `UNSUPPORTED_CHUNK_STRATEGY` · `EMPTY_CHUNKS` · `NO_MANIFEST` |
 | embed | `embedding` | `EMBED_FAILED` · `NO_MANIFEST` |
 | es | `indexing_es` | `ES_INDEX_FAILED` · `ES_RECONCILE_FAILED` · `EMBED_NOT_READY` |
@@ -60,7 +62,7 @@ api.enqueue({ docId, stage: 'scan', indexVersion? })
 | PRD 能力（摘要） | 本仓 | 说明 |
 |------------------|:----:|------|
 | 审批后扫描 | stub | mock；fail-closed 启动闸已焊 |
-| 解析 + OCR | partial | 仅纯文本层；OCR deferred |
+| 解析 + OCR | partial | 纯文本层 + PDF 最小层；OCR **opt-in 注入**，默认关；≠ 真引擎 |
 | 冻结 manifest | **done** | `chunk_manifests.frozen` |
 | 稠密向量 | stub | mock 向量 |
 | 稀疏 ES | stub | 进程内 mock；worker **无** `INGEST_ES_MODE=live` |

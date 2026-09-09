@@ -13,7 +13,7 @@ Status: open
 - 每轮先读：本图、`docs/agents/issue-tracker.md`、`docs/agents/domain.md`、功能表、相关包的 `docs/module-status/`。写代码前读 `.trellis/spec/` 对应包。执行完成后跑 skill `update-module-status`。
 - **覆盖「只做决策」**：工单可以动手补缺口，不只锁决策。
 - **本图是执行面**：缺口只在 `.scratch/fill-must-haves/` 工单上做完。`.trellis/tasks/08-06-project-backlog/` 只留指针和勾选。同一缺口禁止再 `task.py create` 平行实现任务。这只覆盖本图，不改全仓其它流程。
-- 顺序：本图 P2 语义已收官（第三批）；P2.5 出口走 **L2 归档准出**（工程路径 [L2 归档底线](./issues/14-l2-archive-floor.md) 已齐，人签仍图外）。鉴权/成员余量、入库报告、库选择器、admin 顶栏、web 关闭列表、启动引导超管、写路径锁超管全码、修改日志、三平面配额、失败 Webhook 已齐。在线编写留雾（P2.x）。P3b 可动手最小闭环已齐（ES 部门对称、aclPrincipals、ES principals、敏感解禁）。本图已转向 P4；L1 Hit@k、τ 扫描、Judge AUROC、generate fallback 与双轨看板已齐。下一张裁定开放。P3a 仍等 L2 人签。不默认开 `DEPT_ACL_ENFORCE`。不加角色 principal。
+- 顺序：本图 P2 语义已收官（第三批）；P2.5 出口走 **L2 归档准出**（工程路径 [L2 归档底线](./issues/14-l2-archive-floor.md) 已齐，人签仍图外）。鉴权/成员余量、入库报告、库选择器、admin 顶栏、web 关闭列表、启动引导超管、写路径锁超管全码、修改日志、三平面配额、失败 Webhook 已齐。在线编写留雾（P2.x）。P3b 可动手最小闭环已齐。P4 可动手代码真空已尽。本图已转向 P5；OCR 开闸已齐（默认关）。下一张裁定开放。P3a 仍等 L2 人签。不默认开 `DEPT_ACL_ENFORCE`。不加角色 principal。不默认开 OCR。
 - **站规（UI）**：web / admin 新下拉必须基于 `@strict-rag/ui` 关闭列表，禁止浏览器原生 `<select>` 外壳（含现有 ui `Select`）。`Button` / `Input` / `Textarea` 仍走 ui 包。本规不改 GET / 鉴权语义。
 - 人签（B10 业务 PASS）不是代码缺口，不进本图执行工单。
 - 引用工单用标题，不要只写编号。一回合只解决一张工单（research 除外）。
@@ -76,6 +76,8 @@ Status: open
 - [generate 多模型 fallback 最小闭环](./issues/53-generate-fallback-min.md) — 绑定 generate fallbacks 运行时 opt-in 切链；切到备用才 `fallbackUsed=true`。无 `GENERATE_MIN_NODES`；图层不二次计费。
 - [裁定 generate fallback 后下一步](./issues/54-after-generate-fallback-order.md) — 在线编写留雾；P3b 站规仍锁；继续 P4；本批只做双轨看板。不做再认证 / 数据面板增强。不改 B6 信封。
 - [双轨看板最小闭环](./issues/55-dual-dashboard-tracks-min.md) — 独立 tracks GET；质量=最近一笔 L1 工程账本；延迟=24h avg/p95。不改 B6 summary。≠ APM / ≠ 准出。
+- [裁定双轨看板后下一步](./issues/56-after-dual-dashboard-order.md) — P4 可动手真空已尽；在线编写留雾；P3b 站规仍锁；不暂停；转向 P5；本批只做 OCR 开闸。不默认开、不加真引擎。
+- [OCR 开闸最小闭环](./issues/57-ocr-gate-min.md) — `INGEST_OCR_ENABLED` 默认关；逻辑 stage `ocr`；可注入抽取器；低置信 `needs_review` 且不留可 chunk 正文。无真引擎。
 
 ## Not yet specified
 
@@ -84,7 +86,7 @@ Status: open
 - P3a Full 图（CRAG / multi_hop）；硬门在 L2 归档准出（工程路径是 L2 归档底线；人签不进本图）
 - P3b 尚未齐的强制检索面：仓库默认开 `DEPT_ACL_ENFORCE`、角色 principal
 - P4 其余：L1 门禁包人签与再认证、数据面板增强；独立 `tau_sweep` / `verifier_calib` 入队、把 tau* 接到运行时、live judge 真跑、Grafana 时序仍缺口
-- P5：OCR 开闸、容量、熔断生产调优、在线抽样常态化、CoVe / 超长异步
+- P5 其余：OCR 真引擎 / 历史 needs_ocr 重跑 / Cloud OCR、容量、熔断生产调优、在线抽样常态化、CoVe / 超长异步
 - 基础设施缺口的切入时机：B8 / B9 / QUAL-2（不挡更早语义，但最终产品仍须收）
 
 ## Out of scope

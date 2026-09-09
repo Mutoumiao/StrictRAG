@@ -2,8 +2,9 @@
 
 Type: grilling
 Label: wayfinder:grilling
-Status: open
-Triage: ready-for-human
+Status: resolved
+Assignee: grok
+Triage: ready-for-agent
 Blocked by: 55
 
 ## Question
@@ -29,3 +30,26 @@ Blocked by: 55
 5. **转向 P5**（OCR 开闸等；须先确认功能表入场是否已到）
 
 本工单只锁顺序与切边，不写产品代码。
+
+## Answer
+
+双轨看板之后，**P4 可动手代码真空已尽**：再认证仍是图外人签（零钩子）；数据面板增强是 Grafana/时序雾（B6 信封已冻）。**在线编写留雾**。P3b 余量仍锁。**不暂停**等人签（人签不挡本图其余入场项）。
+
+本图 **转向 P5**。本批只做 OCR 开闸最小闭环。功能表入场：目的地已含 P5 OCR；ADR-043 默认 P5 开闸（不是提前启用）。默认开关仍关；无引擎不得假抽正文；不接 Cloud OCR；不加真 Tesseract 依赖。
+
+本批一张：
+
+- [OCR 开闸最小闭环](./57-ocr-gate-min.md) — 开放前沿。`INGEST_OCR_ENABLED` 默认 false；逻辑 stage `ocr`；可注入抽取器。切边见该工单正文。
+
+仍留雾：仓库默认开强制、角色 principal、在线编写、P4 其余（再认证 / 面板增强 / tau* 接运行时 / live judge / Grafana）、P5 其余（容量、熔断生产调优、在线抽样、CoVe / 超长异步、真 OCR 引擎）。
+
+未改产品代码。
+
+## Comments
+
+- 2026-09-09 按图顺序认领。用户授权本图全程自行决策。
+- Q1：选 5。转向 P5。不继续 P4 余量（人签/雾）。在线编写留雾。不回头解 P3b。不暂停。
+- Q2：本批只做 OCR 开闸。不是真引擎、不是 Cloud OCR、不是默认开。
+- Q3：一张工单。开关 + 逻辑 stage + 注入抽取器。关路径保持 `needs_ocr` + `NO_TEXT_LAYER`。
+- Q4：低置信 → `needs_review` + `OCR_LOW_CONFIDENCE`，不得 ready。无抽取器 → `OCR_UNAVAILABLE`，不得假正文。
+- Q5：staging/prod 开闸无 `INGEST_OCR_ADR_REF` 只告警可启动（对照缺引擎不挡 P2 启动）。默认开强制 / 角色码仍锁。

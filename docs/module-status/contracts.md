@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（支撑 P0/P1 入库 + S2 问答/会话/反馈/成员 + B1–B6 运营契约 + **B12 策略码 / ingest job**；**非**全量 OpenAPI） |
 | 默认依赖模式 | 纯库；无运行时开关 |
 | 关联模块 | 被 `api` · `worker` · `web` · `admin` 消费；是全仓错误码、响应信封、队列名与 **可写分片策略集** 的唯一来源 |
-| 最近更新 | 2026-09-09（DashboardTracksSchema 独立信封；summary 仍 ≤5） |
+| 最近更新 | 2026-09-09（INGEST_STAGES 含逻辑 stage ocr；DashboardTracks 独立信封） |
 | Spec | `.trellis/spec/contracts/library/` |
 | PRD | `prds/05-api` · 各域契约与 PRD 短名对齐 |
 
@@ -26,7 +26,7 @@
 - health / ready 响应 schema（`system/health.contract`）
 - session 鉴权契约：AuthMe / TokenPair / **MePermissions**（`auth/session.contract`；`GET /me/permissions` 只含 `permissions`）
 - 队列名 SSOT：`QUEUE_NAMES.PROBE` · `INGEST` · sr-eval（`async/queues.ts`；BullMQ 禁 `:`）
-- **入库 job payload（08-12）**：`IngestJobDataSchema`（`docId` · `kbId` · `tenantId` · `stage` ∈ scan/parse/chunk/embed/es_index · 可选 `indexVersion` / `requestId` / `attemptHint`）；默认 `INGEST_JOB_DEFAULT_ATTEMPTS=3` · `INGEST_JOB_BACKOFF_MS=2000`（`async/ingest-job.ts`，经 `async/queues` 再导出）
+- **入库 job payload（08-12）**：`IngestJobDataSchema`（`docId` · `kbId` · `tenantId` · `stage` ∈ scan/parse/ocr/chunk/embed/es_index · 可选 `indexVersion` / `requestId` / `attemptHint`）；默认 `INGEST_JOB_DEFAULT_ATTEMPTS=3` · `INGEST_JOB_BACKOFF_MS=2000`（`async/ingest-job.ts`，经 `async/queues` 再导出）
 - **评测 job payload**：`EvalJobDataSchema`（`tenantId`/`kbId`/`runId`/`userId`/`retrieveMode` · 可选 `maxCases`）；`EVAL_JOB_NAME=golden_2x2` · `EVAL_JOB_DEFAULT_ATTEMPTS=1`
 - **黄金集 / run DTO**：eval/gold.contract.ts · eval/eval-run.contract.ts；2×2、Hit@k、τ 扫描与 Judge AUROC 纯函数 eval/l1-matrix.ts；EvalRun 可选 `hitAtK` / `hitAtKHits` / `hitAtKScored` / `tauStar` / `judgeAuroc`；L2 解析 eval/l2-gold.ts · 工程公式 eval/l2-matrix.ts
 
