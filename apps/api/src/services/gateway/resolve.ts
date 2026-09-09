@@ -44,12 +44,19 @@ export type GatewayConfig = {
   /** rerank 节点 URL 列表（mock 为 mock://…） */
   rerankEndpoints: string[];
   rerankMinNodes: number;
+  /**
+   * generate 备用 chat 节点（opt-in；空 = 不切链）。
+   * 与 rerankEndpoints 不同：这里是 ModelRef 解析出的 model+endpoint，不是第二 URL。
+   */
+  generateFallbacks?: PurposeEndpoint[];
 };
 
 /** DB 绑定快照（与 model-gateway 表同源，非第二 map） */
 export type BindingSnapshotRow = {
   purpose: string;
   primaryRef: string;
+  /** generate 等 purpose 的备用 ModelRef；快照不得丢 */
+  fallbackRefs?: string[];
 };
 
 export type ProviderSnapshotRow = {
@@ -139,7 +146,7 @@ export function buildGatewayConfig(env: GatewayEnvSlice): GatewayConfig {
 function findEnabledModel(
   providers: ProviderSnapshotRow[],
   ref: string,
-): { provider: ProviderSnapshotRow; modelName: string; dimensions?: number } | null {
+): { provider: ProviderSnapshotRow; modelName: string; dimensions?: number; type: string } | null {
   const parsed = parseModelRef(ref);
   if (!parsed) return null;
   const provider = providers.find((p) => p.id === parsed.providerId && p.enabled === 1);
@@ -150,7 +157,37 @@ function findEnabledModel(
     provider,
     modelName: model.name,
     dimensions: model.dimensions,
+    type: model.type,
   };
+}
+
+function endpointKey(ep: PurposeEndpoint): string {
+  return `${ep.baseUrl}|${ep.model}`;
+}
+
+/** 解析 generate 绑定上的备用 ModelRef；无效/非 llm/与 primary 重复则跳过。 */
+function resolveGenerateFallbacks(
+  providers: ProviderSnapshotRow[],
+  primary: PurposeEndpoint | undefined,
+  fallbackRefs: string[] | undefined,
+): PurposeEndpoint[] {
+  if (!primary || !fallbackRefs?.length) return [];
+  const seen = new Set([endpointKey(primary)]);
+  const out: PurposeEndpoint[] = [];
+  for (const ref of fallbackRefs) {
+    const found = findEnabledModel(providers, ref);
+    if (!found || found.type !== 'llm') continue;
+    const ep: PurposeEndpoint = {
+      baseUrl: found.provider.baseUrl.replace(/\/$/, ''),
+      apiKey: found.provider.apiKeyEnc ?? '',
+      model: found.modelName,
+    };
+    const key = endpointKey(ep);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(ep);
+  }
+  return out;
 }
 
 /**
@@ -165,7 +202,7 @@ export function applyBindingsToGatewayConfig(
   },
 ): GatewayConfig {
   if (!input.bindings.length || !input.providers.length) {
-    return { ...envCfg, bindingSource: 'env' };
+    return { ...envCfg, bindingSource: 'env', generateFallbacks: undefined };
   }
 
   const byPurpose = new Map(input.bindings.map((b) => [b.purpose, b.primaryRef]));
@@ -216,7 +253,7 @@ export function applyBindingsToGatewayConfig(
   applyChannel('rerank', 'rerank');
 
   if (hit === 0) {
-    return { ...envCfg, bindingSource: 'env' };
+    return { ...envCfg, bindingSource: 'env', generateFallbacks: undefined };
   }
 
   const models = { ...envCfg.models };
@@ -250,6 +287,13 @@ export function applyBindingsToGatewayConfig(
     rerankEndpoints = [primary, ...rest];
   }
 
+  const genRow = input.bindings.find((b) => b.purpose === 'generate');
+  const generateFallbacks = resolveGenerateFallbacks(
+    input.providers,
+    purposeEndpoints.chat,
+    genRow?.fallbackRefs,
+  );
+
   return {
     ...envCfg,
     baseUrl,
@@ -260,6 +304,7 @@ export function applyBindingsToGatewayConfig(
     purposeEndpoints,
     embedDims,
     rerankEndpoints,
+    generateFallbacks: generateFallbacks.length ? generateFallbacks : undefined,
     bindingSource: envCfg.bindingSource === 'env' ? 'mixed' : 'db',
   };
 }
@@ -267,6 +312,33 @@ export function applyBindingsToGatewayConfig(
 export function resolveChatModel(cfg: GatewayConfig, purpose: ChatPurpose, override?: string): string {
   if (override) return override;
   return cfg.purposeModels?.[purpose] ?? cfg.models.chat;
+}
+
+/**
+ * chat 节点链：仅 generate 且无 model 覆盖时带上 generateFallbacks。
+ * 其它 purpose / 显式 override 只有 primary。
+ */
+export function resolveChatNodes(
+  cfg: GatewayConfig,
+  purpose: ChatPurpose,
+  override?: string,
+): PurposeEndpoint[] {
+  const primary: PurposeEndpoint = {
+    ...resolveEndpoint(cfg, 'chat'),
+    model: resolveChatModel(cfg, purpose, override),
+  };
+  if (override || purpose !== 'generate') return [primary];
+  const extras = cfg.generateFallbacks ?? [];
+  if (extras.length === 0) return [primary];
+  const seen = new Set([endpointKey(primary)]);
+  const out: PurposeEndpoint[] = [primary];
+  for (const fb of extras) {
+    const key = endpointKey(fb);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(fb);
+  }
+  return out;
 }
 
 export function resolveEmbedModel(cfg: GatewayConfig, override?: string): string {

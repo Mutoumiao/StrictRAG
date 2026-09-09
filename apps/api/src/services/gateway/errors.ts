@@ -36,6 +36,14 @@ export class GatewayError extends Error {
   }
 }
 
+/**
+ * generate 备用 ModelRef：仅在同模型重试耗尽或仍属可恢复失败时切。
+ * auth / bad_request / content_filter 不盲切（请求本身或密钥问题）。
+ */
+export function canTryGenerateFallback(err: GatewayError): boolean {
+  return err.retryable || err.kind === 'exhausted' || err.kind === 'unavailable';
+}
+
 export class GatewayConfigError extends Error {
   readonly name = 'GatewayConfigError';
   constructor(message: string) {

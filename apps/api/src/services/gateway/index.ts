@@ -3,6 +3,7 @@ export {
   GatewayConfigError,
   mapGatewayFailureToAskReason,
   kindFromHttpStatus,
+  canTryGenerateFallback,
   type GatewayErrorKind,
   type GatewayPurpose,
 } from './errors.js';
@@ -11,6 +12,7 @@ export {
   buildGatewayConfig,
   applyBindingsToGatewayConfig,
   resolveChatModel,
+  resolveChatNodes,
   resolveEmbedModel,
   resolveRerankModel,
   resolveEndpoint,

@@ -1,6 +1,6 @@
-import { GatewayError } from './errors.js';
+import { canTryGenerateFallback, GatewayError } from './errors.js';
 import type { GatewayConfig } from './resolve.js';
-import { resolveChatModel, resolveEmbedModel, resolveRerankModel } from './resolve.js';
+import { resolveChatNodes, resolveEmbedModel, resolveRerankModel } from './resolve.js';
 import { withSameModelRetry } from './retry.js';
 import type { ChatRequest, ChatResult, GatewayClient, RerankHit } from './types.js';
 
@@ -27,8 +27,8 @@ function overlapScore(query: string, passage: string): number {
 }
 
 export type MockGatewayHooks = {
-  /** 注入失败：按 purpose + attempt 抛错或返回 */
-  failChat?: (attempt: number) => GatewayError | null;
+  /** 注入失败：attempt 为节点内同模型重试序号；nodeIndex 为 generate 链档位（0=primary） */
+  failChat?: (attempt: number, nodeIndex?: number) => GatewayError | null;
   failEmbed?: (attempt: number) => GatewayError | null;
   failRerank?: (attempt: number, endpointIndex: number) => GatewayError | null;
 };
@@ -40,31 +40,48 @@ export type MockGatewayHooks = {
 export function createMockGateway(cfg: GatewayConfig, hooks: MockGatewayHooks = {}): GatewayClient {
   return {
     async chat(req: ChatRequest): Promise<ChatResult> {
-      const model = resolveChatModel(cfg, req.purpose, req.model);
+      const nodes = resolveChatNodes(cfg, req.purpose, req.model);
       const started = Date.now();
-      return withSameModelRetry({
-        purpose: 'chat',
-        maxAttempts: cfg.maxAttempts,
-        run: async (attempt) => {
-          const fail = hooks.failChat?.(attempt);
-          if (fail) throw fail;
-          const lastUser = [...req.messages].reverse().find((m) => m.role === 'user');
-          const text = lastUser?.content?.trim()
-            ? `[mock:${req.purpose}] ${lastUser.content.slice(0, 200)}`
-            : `[mock:${req.purpose}] empty`;
-          return {
-            text,
-            usage: { promptTokens: 1, completionTokens: 1 },
-            meta: {
-              provider: 'mock',
-              model,
-              attempt,
-              fallbackUsed: false,
-              latencyMs: Date.now() - started,
+      let last: GatewayError | undefined;
+
+      for (let ni = 0; ni < nodes.length; ni++) {
+        const model = nodes[ni]!.model;
+        try {
+          return await withSameModelRetry({
+            purpose: 'chat',
+            maxAttempts: cfg.maxAttempts,
+            run: async (attempt) => {
+              const fail = hooks.failChat?.(attempt, ni);
+              if (fail) throw fail;
+              const lastUser = [...req.messages].reverse().find((m) => m.role === 'user');
+              const text = lastUser?.content?.trim()
+                ? `[mock:${req.purpose}] ${lastUser.content.slice(0, 200)}`
+                : `[mock:${req.purpose}] empty`;
+              return {
+                text,
+                usage: { promptTokens: 1, completionTokens: 1 },
+                meta: {
+                  provider: 'mock',
+                  model,
+                  attempt,
+                  fallbackUsed: ni > 0,
+                  latencyMs: Date.now() - started,
+                },
+              };
             },
-          };
-        },
-      });
+          });
+        } catch (err) {
+          if (!(err instanceof GatewayError)) throw err;
+          last = err;
+          if (ni + 1 < nodes.length && canTryGenerateFallback(err)) continue;
+          throw err;
+        }
+      }
+
+      throw (
+        last ??
+        new GatewayError('exhausted', 'chat: no nodes', 'chat')
+      );
     },
 
     async embed(texts: string[], model?: string): Promise<number[][]> {

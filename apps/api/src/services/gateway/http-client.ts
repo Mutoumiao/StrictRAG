@@ -1,11 +1,12 @@
 import {
+  canTryGenerateFallback,
   GatewayError,
   kindFromHttpStatus,
   type GatewayPurpose,
 } from './errors.js';
 import type { GatewayConfig } from './resolve.js';
 import {
-  resolveChatModel,
+  resolveChatNodes,
   resolveEmbedModel,
   resolveEndpoint,
   resolveRerankModel,
@@ -86,58 +87,76 @@ export function createHttpGateway(options: HttpGatewayOptions): GatewayClient {
 
   return {
     async chat(req: ChatRequest): Promise<ChatResult> {
-      const model = resolveChatModel(cfg, req.purpose, req.model);
-      const { baseUrl, apiKey } = resolveEndpoint(cfg, 'chat');
-      const base = baseUrl.replace(/\/$/, '');
+      const nodes = resolveChatNodes(cfg, req.purpose, req.model);
       const timeoutMs = req.timeoutMs ?? cfg.timeoutMs;
       const started = Date.now();
-      return withSameModelRetry({
-        purpose: 'chat',
-        maxAttempts: cfg.maxAttempts,
-        run: async (attempt) => {
-          const data = (await httpJson({
-            fetchImpl,
-            url: `${base}/chat/completions`,
-            apiKey,
-            timeoutMs,
+      let last: GatewayError | undefined;
+
+      for (let ni = 0; ni < nodes.length; ni++) {
+        const node = nodes[ni]!;
+        const model = node.model;
+        const base = node.baseUrl.replace(/\/$/, '');
+        const apiKey = node.apiKey;
+        try {
+          return await withSameModelRetry({
             purpose: 'chat',
-            attempt,
-            model,
-            body: {
-              model,
-              messages: req.messages,
-              temperature: req.temperature ?? 0,
-              max_tokens: req.maxTokens,
+            maxAttempts: cfg.maxAttempts,
+            run: async (attempt) => {
+              const data = (await httpJson({
+                fetchImpl,
+                url: `${base}/chat/completions`,
+                apiKey,
+                timeoutMs,
+                purpose: 'chat',
+                attempt,
+                model,
+                body: {
+                  model,
+                  messages: req.messages,
+                  temperature: req.temperature ?? 0,
+                  max_tokens: req.maxTokens,
+                },
+              })) as {
+                choices?: { message?: { content?: string } }[];
+                usage?: { prompt_tokens?: number; completion_tokens?: number };
+              };
+              const text = data.choices?.[0]?.message?.content ?? '';
+              if (!text) {
+                throw new GatewayError('unavailable', 'chat: empty content', 'chat', {
+                  attempt,
+                  model,
+                });
+              }
+              return {
+                text,
+                usage: data.usage
+                  ? {
+                      promptTokens: data.usage.prompt_tokens ?? 0,
+                      completionTokens: data.usage.completion_tokens ?? 0,
+                    }
+                  : undefined,
+                meta: {
+                  provider: 'http',
+                  model,
+                  attempt,
+                  fallbackUsed: ni > 0,
+                  latencyMs: Date.now() - started,
+                },
+              };
             },
-          })) as {
-            choices?: { message?: { content?: string } }[];
-            usage?: { prompt_tokens?: number; completion_tokens?: number };
-          };
-          const text = data.choices?.[0]?.message?.content ?? '';
-          if (!text) {
-            throw new GatewayError('unavailable', 'chat: empty content', 'chat', {
-              attempt,
-              model,
-            });
-          }
-          return {
-            text,
-            usage: data.usage
-              ? {
-                  promptTokens: data.usage.prompt_tokens ?? 0,
-                  completionTokens: data.usage.completion_tokens ?? 0,
-                }
-              : undefined,
-            meta: {
-              provider: 'http',
-              model,
-              attempt,
-              fallbackUsed: false,
-              latencyMs: Date.now() - started,
-            },
-          };
-        },
-      });
+          });
+        } catch (err) {
+          if (!(err instanceof GatewayError)) throw err;
+          last = err;
+          if (ni + 1 < nodes.length && canTryGenerateFallback(err)) continue;
+          throw err;
+        }
+      }
+
+      throw (
+        last ??
+        new GatewayError('exhausted', 'chat: no nodes', 'chat')
+      );
     },
 
     async embed(texts: string[], model?: string): Promise<number[][]> {

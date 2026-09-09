@@ -53,10 +53,12 @@ export async function loadPlatformBindingSnapshot(
   const platform = platformRows.map((b) => ({
     purpose: b.purpose,
     primaryRef: b.primaryRef,
+    fallbackRefs: [...(b.fallbackRefs ?? [])],
   }));
   const kb = kbRows.map((b) => ({
     purpose: b.purpose,
     primaryRef: b.primaryRef,
+    fallbackRefs: [...(b.fallbackRefs ?? [])],
   }));
   const data: BindingLoadResult = {
     bindings: mergeBindingRows(platform, kb),

@@ -15,7 +15,7 @@
 | `kb/` | 知识库列表与设置 | B2 / B2-W |
 | `sessions/` | 会话壳、近窗 | 历史≠evidence · rewrite 默认关 |
 | `feedback/` | 答案反馈 API | B13 |
-| `gateway/` | 模型绑定 / mock / 双节点 | B3 · QUAL-3 |
+| `gateway/` | 模型绑定 / mock / 双节点 / generate fallback | B3 · QUAL-3 · P4 generate fallback |
 | `eval/` | L1/L2 工程 seed | B10 · **≠ 准出** |
 | `obs/` | 指标、限流、三平面配额、写审计、L3 进程内熔断 | ARCH-P2-4 · ARCH-P1b-2 · P2.5-L3 · 剧本 R5/R8/R9 |
 | `env/` | env、health/ready、OpenAPI | P0 骨架 |
@@ -98,6 +98,7 @@
 | `eval/stricter-than-pilot-bind.test.ts` | 加严快照必须标 stricterThanPilot，并带相对默认 diff 与 evalRunId 关联。 | 剧本 T7 · prds/10-delivery/03-acceptance-scenarios.md · ADR-046 | `bindQualitySnapshotToEval` | coverageMin 上调后 stricterThanPilot 为 true，evalBindId 含该 evalRunId。不测人签/审计 HTTP。 | 现行 |
 | `feedback/http.test.ts` | 答案反馈 POST/PATCH 必须具备 kb 码。 | B13 | `createFeedbackRoutes` | 须 kb 码。 | 现行 |
 | `gateway/bindings-http.test.ts` | 供应商绑定 HTTP 按 B3 契约读写。 | B3 | `model-gateway routes` | 供应商绑定 HTTP。 | 现行 |
+| `gateway/generate-fallback.test.ts` | generate 绑定 fallbacks 必须在运行时切链，无备用行为不变。 | P4 多模型 fallback · B3-W | `applyBindingsToGatewayConfig / resolveChatNodes / mock+http chat` | opt-in 备用 ModelRef；auth 不盲切；judge 不走 generate 链。≠ GENERATE_MIN_NODES。 | 现行 |
 | `gateway/resolve-mock.test.ts` | 网关解析缺 URL 时走 mock，绑定覆盖与重试保持契约。 | B3 · QUAL-3 | `buildGatewayConfig / applyBindingsToGatewayConfig / mock+http retry` | 缺 URL → mock。 | 现行 |
 | `ingest/approval-scan.test.ts` | 审批未过不得 complete / 入扫描。 | 审批未过不得 complete | `canEnqueueScan / canBecomeActive / scanDeniedCode` | 审批扫描闸。 | 现行 |
 | `ingest/approve-then-scan.test.ts` | kb_admin 审批通过后必须可 scan 入队。 | 剧本 Y4 | `POST /documents/:docId/approve` · `POST /documents/:docId/scan` | approve 200 后 scan 200 且 enqueue stage=scan。AUTH_ENFORCE 默认关。不测禁自审。 | 现行 |
