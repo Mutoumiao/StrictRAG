@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（已包含：P0/P1 入库 + S2 最小问答 + B1–B6 最小运营 API + B10 L1 工程 seed + B12 策略闸 + B13 反馈 API；演示依赖 mock ES / 通常走 mock Gateway；L1 **≠** 业务签字门禁） |
 | 默认依赖模式 | 检索：`RETRIEVE_ES_MODE=mock`（默认 mock ES；`http` 须 `ELASTICSEARCH_URL`）；鉴权：临时双 JWT，`AUTH_ENFORCE` **默认 `false`**；rewrite：`SESSION_REWRITE_ENABLED` **默认 false**（图边已落；dogfood 可开；**≠** 准出）；对象存储：默认 `local`（`STORAGE_MODE=s3` 走 RustFS / S3 兼容）；Gateway：`GATEWAY_MODE=''`（空按 `GATEWAY_BASE_URL` 推断，缺 URL 走 mock）；上传上限 `INGEST_MAX_FILE_BYTES=52_428_800`（50 MiB）/ 天花板 `INGEST_MAX_FILE_BYTES_CEILING=209_715_200`（200 MiB）；`LANGFUSE_ENABLED=false`；`OBS_MEMORY_TRACE=true`。**B3-W/B2-W**：ask 读取 platform 绑定 + **KB scope 绑定覆盖（只读 list，无 PUT KB 绑定 HTTP）**；**B4-W**：每请求从 DB `user_roles` hydrate；`DEPT_ACL_ENFORCE` **默认 `false`**（开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤且列表项带部门字段；`DEPT_INHERIT_DOWN` 默认 true；KB `deptInheritDown` 可覆盖 env；KB `deptAclEnforce` 可覆盖 env，未写跟 env，GET 未写回读 false；设置页可勾选，未改不写回；ES 查询期强制 tenantId+kbId；enforce 开且非超管可追加 `ownerDeptId` terms（缺字段不得当全员可见；PG 可见级闸仍保留）；aclPrincipals 用户 uuid 名单最小已落（PG 把关；ES 查询期非超管 should 收窄；不跟 DEPT_ACL_ENFORCE；**≠** 角色 principal / 默认开））；`MONGODB_URL` 空（非空时检索融合后批取 Mongo `chunk_bodies` 权威正文，缺块 fail-closed）；`ASK_RATE_LIMIT_RPM=0`；`INGEST_RATE_LIMIT_RPM=0`（ask/ingest 分 store 试点限流；aux 只留常量）；`SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` **可选**（无 active 超管时缺一则 **index.ts listen 前**失败；`createApp()` 不跑引导）；L1 CLI 需显式指定 `L1_KB_ID`（可选 `L1_PERSIST_EVAL`） |
 | 关联模块 | 入库演示还需要 `worker` + PostgreSQL + Redis；契约 `@strict-rag/contracts`（含 `IMPLEMENTED_CHUNK_STRATEGIES` / `IngestJobData`）；schema `@strict-rag/db`（含 `eval_runs`）；L1 gold / RACI 在仓根 `fixtures/l1/`；L2 题面草案在 `fixtures/l2/` |
-| 最近更新 | 2026-09-09（generate 绑定 fallbacks 运行时 opt-in 切链；**无** GENERATE_MIN_NODES / **≠** 生产多活） |
+| 最近更新 | 2026-09-09（dashboard tracks 质量/延迟独立信封；**不**改 B6 summary / **≠** APM / **≠** 准出） |
 | Spec | `.trellis/spec/api/backend/`（含 [dashboard](../../.trellis/spec/api/backend/dashboard.md) · [l1-eval](../../.trellis/spec/api/backend/l1-eval.md) · [l2-eval](../../.trellis/spec/api/backend/l2-eval.md) · [l3-metrics](../../.trellis/spec/api/backend/l3-metrics.md)） |
 | PRD | `prds/05-api` · `04-pipelines` · `08-quality` · `09-security` |
 
@@ -93,6 +93,7 @@
 ### 数据面板（B6 · 薄壳 · 只读）
 - `GET /api/v1/admin/dashboard/summary`：始终 `requirePermission('dashboard.view')`
 - 指标 ≤5：`kbCount` / `documentCount` / `pendingApprovalCount` / `processReady`（`runReadyChecks`）/ `askCount24h`（`ask_traces` 24h count）
+- **I4 双轨** `GET /api/v1/admin/dashboard/tracks`：独立信封（不改 summary）。质量 = 最近一笔成功 L1 `golden_2x2`（2×2 / coverage / Hit@k / tau* / auroc；无则 null；**不含**签字字段）。延迟 = 近 24h `ask_traces` 次数 / avg / p95（无 `latency_ms` 样本 → null）。**≠** APM / **≠** 准出
 - SQL 在 `services/dashboard.ts`；memory repo 便于单测；**无**写路径、**无** schema 变更、**≠** APM
 
 ### 问答（S2 最小集）
@@ -164,7 +165,7 @@
 | 按历史 indexVersion 浏览分片 | ADR-052 明确 P2 阶段不做 |
 | Mongo 作为正文权威存储 | 检索路径已支持 `MONGODB_URL` 非空时融合后批取 Mongo `chunk_bodies`（缺块 fail-closed）；空 URL 仍演示回退 PG `body_text`；chunks 详情接口仍读 PG（ADR-052）；生产 Mongo 基础设施见 B9 |
 | 跨部门授权、DEPT_ACL 强制 | grant 可存可配；过滤默认关；开时 grant 进检索（精确 ∪ 祖先部门子树）；超管可绕过；列表同滤；可关继承；KB 可覆盖 enforce（未写跟 env；设置页可勾选，未改不写回）；ADR-057 全文未上（ES 部门 terms 已落、仍默认关；sensitive complete 须 ACL 就绪；aclPrincipals 用户 uuid 名单最小已落（PG + ES should）、**≠** 角色 principal） |
-| APM / 时序观测大盘 | B6 仅为 `GET /admin/dashboard/summary` 只读计数 + processReady，**不是**观测生产向 |
+| APM / 时序观测大盘 | B6 summary 只读计数 + processReady；I4 tracks 为最近 L1 账本 + 24h 延迟点值，**不是**观测生产向 / Grafana |
 | 反馈 API / UI | **本包 API 已有** `routes/feedback`；web 答后 + admin 队列 UI 见各自包文；SLA `docs/ops/feedback-sla.md` |
 | L1 业务签字门禁 / live 覆盖率闸 / 真跑数字 | 文件账本 + 可选 `eval_runs`；live 全量 30/30 已跑（`signoffEligible=true`）；ADR-046 快照可绑定；本跑 coverage=0 **不**宣称 L1 门禁 PASS；人签见 **B10-followup** 余量 |
 | 入库 ES 双写 / worker 真向量 | **本包不负责**；worker 侧仍 mock（见 [worker](./worker.md)） |
@@ -209,6 +210,7 @@
 | 模型网关 B3 | `apps/api/src/routes/model-gateway.ts` · `services/model-gateway.ts` · `tests/gateway/bindings-http.test.ts` |
 | generate fallback | `services/gateway/resolve.ts` `generateFallbacks` · `http-client.ts` / `mock-client.ts` chat 切链 · `tests/gateway/generate-fallback.test.ts` |
 | 数据面板 B6 | `apps/api/src/routes/dashboard.ts` · `services/dashboard.ts` · `tests/ops/dashboard-http.test.ts` |
+| I4 双轨 tracks | `GET /admin/dashboard/tracks` · `DashboardTracksSchema` · `tests/ops/dashboard-http.test.ts` |
 | 鉴权 / 成员 | `apps/api/src/auth/` · `routes/auth.ts` `meRoutes` · `routes/members.ts` · `tests/acl/me-permissions.test.ts` · `tests/acl/members-http.test.ts` |
 | 启动引导超管 | `index.ts` · `services/superadmin-bootstrap.ts` · `services/password-hash.ts` · `env.ts` `SUPER_ADMIN_*` · `tests/acl/superadmin-bootstrap.test.ts` |
 | 写路径锁超管全码 | `routes/platform-users-roles.ts` PUT/PATCH · `wouldChangeSuperAdminAwayFromFullCatalog` · `tests/acl/platform-users-roles.test.ts` |

@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（支撑 P0/P1 入库 + S2 问答/会话/反馈/成员 + B1–B6 运营契约 + **B12 策略码 / ingest job**；**非**全量 OpenAPI） |
 | 默认依赖模式 | 纯库；无运行时开关 |
 | 关联模块 | 被 `api` · `worker` · `web` · `admin` 消费；是全仓错误码、响应信封、队列名与 **可写分片策略集** 的唯一来源 |
-| 最近更新 | 2026-09-08（L1 Judge AUROC 纯函数；EvalRun 可选 judgeAuroc） |
+| 最近更新 | 2026-09-09（DashboardTracksSchema 独立信封；summary 仍 ≤5） |
 | Spec | `.trellis/spec/contracts/library/` |
 | PRD | `prds/05-api` · 各域契约与 PRD 短名对齐 |
 
@@ -83,6 +83,7 @@
 
 ### 数据面板（B6）
 - `DashboardSummarySchema`：`kbCount` / `documentCount` / `pendingApprovalCount` / `processReady` / 可选 `askCount24h`（`system/dashboard.contract`）
+- `DashboardTracksSchema`：`quality` + `latency` 独立信封（I4；禁止塞进 summary）
 
 ---
 

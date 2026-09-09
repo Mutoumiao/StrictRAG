@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（S2c 运营薄壳：文档 / 审批 / 成员 / 分片 / 设置 / 模型 + 用户 / 角色 / 部门 + **数据面板** + **反馈队列** + **评测底线**） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT + admin **dev-login**（经 api）· 知识库 = 顶栏关闭列表（本次 GET 可见库，禁止粘贴 uuid）· 菜单 = `clipMenuForShell` 裁剪（catalog 为 SSOT）· API 默认 `http://127.0.0.1:4000` |
 | 关联模块 | API 依赖：`api` 的文档 / 审批 / 成员 / 分片 / 设置 / 模型 / 用户角色 / 部门 / dashboard / **feedback-queue** / **gold-questions · eval/runs**；菜单与权限码：`admin-catalog`；类型：`contracts`；样式：`ui` |
-| 最近更新 | 2026-09-08（评测账本 L1 展示 Hit@k / tau* / auroc） |
+| 最近更新 | 2026-09-09（dashboard 质量/延迟两区块；**≠** APM / **≠** 准出） |
 | Spec | `.trellis/spec/admin/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · 审批 / 成员相关 API |
 
@@ -30,7 +30,7 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 - 当前 KB：`ClosedSelect` 消费本次 `GET /knowledge-bases`（展示名、值为 id）；`last-kb-id` 不在列表中则不采用、不自动选第一项；空态「当前身份没有可见知识库」；失败可重试无输入；运营页未选中「请在顶栏选择知识库」。有 `kb.create` 时顶栏显示「创建知识库」（名称 + 首位库管，预填当前用户可改），成功后选中新建库。**不是**独立二级菜单，**不是**建库向导，**不是** combobox
 
 ### 数据面板（B6 薄壳）
-- `/dashboard`：只读 3–5 指标（kb / 文档 / 待审 / processReady / 近 24h 问答）；`page → services → api` 分层
+- `/dashboard`：只读 3–5 指标（kb / 文档 / 待审 / processReady / 近 24h 问答）；其下 **质量 / 延迟** 两个只读区块（I4；读 tracks GET；质量=最近一笔 L1 工程账本，**不是**准出）；`page → services → api` 分层
 - 需要 `dashboard.view`；无码菜单隐藏、直链 **403 态**；**不是** APM / Grafana
 
 ### 文档

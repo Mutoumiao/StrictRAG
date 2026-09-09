@@ -164,14 +164,14 @@ P2 必签。api listen 前引导函数已接；createApp 不跑。
 
 ## 剧本 I · 观测边界
 
-Phase 4 建议，**不挡 P2** → 默认延后。I2 指标可部分测。
+Phase 4 建议，**不挡 P2** → 默认延后。I2 指标与 I4 双轨可部分测。
 
 | ID | 期望摘要 | 阶段 | 形态 | 覆盖 | 主包 | 证据 | 缺口 |
 |----|----------|------|------|------|------|------|------|
 | I1 | 未鉴权访问 `/metrics`（若启用）→ 拒绝（401/403/网络不可达），禁止公网裸奔 | P4建议 | 部署检查表 | 延后 | api | apps/api/src/app.ts（`GET /metrics` 无鉴权）· docs/ops/rate-limit-and-metrics.md | 现进程内裸奔；生产须网关保护。无 401/403 测。不挡 P2。 |
 | I2 | 一次 answered ask → Langfuse 有 span；可选指标 `ask_*` 递增 | P4建议 | 单测 | 部分测 | api | apps/api/tests/obs/tracer.test.ts（memory tracer 主链 span；executeAsk 接线）· apps/api/tests/obs/metrics.test.ts（`ask_total` / `llm_call_total` / `rerank_total`） | 进程内 tracer/指标已测。`LANGFUSE_ENABLED` 默认 false，真 Langfuse 未测。 |
 | I3 | `eval.online_sample` 干跑打低分 → 仅告警/报告；不自动撤销已签字 L1 门禁、不拦截灰度 | P4建议 | UAT | 延后 | api | — | `online_sample` 未启；不自动撤门禁无实现可测。 |
-| I4 | 质量看板 vs 延迟看板分开展示或分面板 | P4建议 | UAT | 延后 | admin | apps/api/tests/ops/dashboard-http.test.ts（B6 计数摘要，非双看板） | B6 ≠ 观测大盘。 |
+| I4 | 质量看板 vs 延迟看板分开展示或分面板 | P4建议 | 单测 | 部分测 | admin · api · contracts | packages/contracts/tests/system/dashboard-contract.test.ts · apps/api/tests/ops/dashboard-http.test.ts · apps/admin/tests/ops/dashboard-workspace.test.tsx | 独立 tracks 信封 + 两区块。质量=最近一笔 L1 工程账本（≠ 准出）。延迟=24h avg/p95。缺：Grafana / 时序大盘 / 生产观测签字。 |
 | I5 | 非成员 platform_admin 打开该 KB trace → 无 evidence 明文（与 K5 同纪律） | P4建议 | 单测 | 延后 | api | apps/api/tests/obs/tracer.test.ts（memory span，非鉴权面） | 无 Langfuse/审计侧信道测。可与剧本 K5 合并。 |
 
 ## 本分册计数
@@ -190,7 +190,7 @@ Phase 4 建议，**不挡 P2** → 默认延后。I2 指标可部分测。
 | AB | 8 | 3 | 4 | 0 | 1 | 0 | 0 |
 | AC | 9 | 5 | 3 | 0 | 1 | 0 | 0 |
 | AD | 10 | 4 | 4 | 0 | 2 | 0 | 0 |
-| I | 5 | 0 | 1 | 0 | 0 | 4 | 0 |
-| **合计** | **93** | **21** | **28** | **1** | **10** | **24** | **9** |
+| I | 5 | 0 | 2 | 0 | 0 | 3 | 0 |
+| **合计** | **93** | **21** | **29** | **1** | **10** | **23** | **9** |
 
 ID 闭集（93）：C1–C5；G1–G3；N1–N9；O1–O11；P1–P11；R1–R12；T1–T10；AB1–AB8；AC1–AC9；AD1–AD10；I1–I5。
