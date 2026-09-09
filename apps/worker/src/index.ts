@@ -13,6 +13,7 @@ import { Redis } from 'ioredis';
 import { closeDb } from './db.js';
 import { env } from './env.js';
 import { handleEvalJob } from './eval/consumer.js';
+import { ocrStartupWarning } from './ocr-policy.js';
 import { assertIngestBullOutcome } from './ingest/bull-outcome.js';
 import { createIoredisDocLock, withDocLock } from './ingest/doc-lock.js';
 import { runIngestStage } from './ingest/pipeline.js';
@@ -147,6 +148,15 @@ async function main() {
     await queue.close();
   }
 
+  const ocrWarn = ocrStartupWarning({
+    APP_ENV: env.APP_ENV,
+    INGEST_OCR_ENABLED: env.INGEST_OCR_ENABLED,
+    INGEST_OCR_ADR_REF: env.INGEST_OCR_ADR_REF,
+  });
+  if (ocrWarn) {
+    logger.warn(ocrWarn);
+  }
+
   logger.info(
     {
       queues: [QUEUE_NAMES.PROBE, QUEUE_NAMES.INGEST, QUEUE_NAMES.EVAL],
@@ -154,6 +164,7 @@ async function main() {
       esMode: env.INGEST_ES_MODE,
       embedMode: env.INGEST_EMBED_MODE,
       storageMode: env.STORAGE_MODE,
+      ocrEnabled: env.INGEST_OCR_ENABLED,
     },
     'worker running',
   );

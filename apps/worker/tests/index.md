@@ -8,7 +8,7 @@
 
 | 目录 | 能力 | 需求锚点 |
 |------|------|----------|
-| `ingest/` | 扫描→解析→分片→向量→稀疏索引 | `prds/04-pipelines/01-offline-ingest.md` |
+| `ingest/` | 扫描→解析→OCR 开闸→分片→向量→稀疏索引 | `prds/04-pipelines/01-offline-ingest.md` · ADR-043 |
 | `env/` | 启动闸、可运行环境 | X-01/X-02 · DEC-SCAN |
 | `eval/` | 评测消费者 L1 / L2 批跑 | `prds/06-async` eval.run |
 
@@ -37,6 +37,7 @@
 | `ingest/job-ledger.test.ts` | ingest_jobs 阶段账本须记录开始/结束与失败码。 | X-04 | `buildStageStartRow · buildStageEndPatch · recordStageStart · recordStageEnd` | 最小账本行、成功链、失败码、pipeline 接线。 | 现行 |
 | `ingest/mongo-body.test.ts` | 空 Mongo URL 不得真连，走 local id。 | prds/03-data | `localMongoDocId · upsertDocumentBody · findDocumentBody · pingMongo` | 空 url 返回 local:docId / null / false。 | 现行 |
 | `ingest/mock-clean-stage-chain.test.ts` | mock_clean 须从 scanning 走到双就绪 ready。 | 剧本 M3 · prds/10-delivery/03-acceptance-scenarios.md · ADR-039 | `runIngestStage` | 默认 mock ES；≠ 生产扫描 / ≠ 真杀毒。 | 现行 |
+| `ingest/ocr-gate.test.ts` | OCR 开闸后无文本层才进独立 ocr stage；关闸行为不变；低置信不得 ready。 | 剧本 Q5 · Q8 · Q9 · ADR-043 · P5 OCR 开闸 | `runIngestStage · ocrStartupWarning · assertIngestBullOutcome` | 默认关。注入抽取器才续跑。无引擎不得假正文。 | 现行 |
 | `ingest/object-store.test.ts` | 本地对象存储可读 utf8 与原始字节，缺 key 不得抛。 | STORAGE · prds/03-data | `readObjectText · readObjectBytes · storeConfigFromEnv` | 本地目录读写；s3 模式映射。 | 现行 |
 | `ingest/pdf-text.test.ts` | PDF 文本层可抽取；扫描件无文本层须返回空。 | prds/04-pipelines/01-offline-ingest.md | `isPdfObject · extractPdfTextLayer` | 本地 mini PDF fixture 抽 Tj 文本；无算子返回 null。 | 现行 |
 | `ingest/queue-names.test.ts` | 入库、探测与评测队列名常量不得漂移。 | prds/06-async | `QUEUE_NAMES` | 暴露 sr-probe / sr-ingest / sr-eval。 | 现行 |

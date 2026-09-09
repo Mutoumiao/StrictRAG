@@ -47,6 +47,17 @@ export type IngestStageResult = {
   errorCode?: string;
 };
 
+export type OcrExtractResult = { text: string; confidence: number };
+export type OcrExtractFn = (
+  buf: Buffer,
+  meta: { contentType: string | null; objectKey: string | null },
+) => Promise<OcrExtractResult | null>;
+
+export type IngestStageDeps = {
+  /** P5 开闸后注入；缺省无引擎 */
+  ocrExtract?: OcrExtractFn;
+};
+
 function failStage(errorCode: string): IngestStageResult {
   return { done: true, errorCode };
 }
@@ -130,7 +141,10 @@ export function splitByChunkStrategy(
   };
 }
 
-export async function runIngestStage(data: IngestJobData): Promise<IngestStageResult> {
+export async function runIngestStage(
+  data: IngestJobData,
+  deps: IngestStageDeps = {},
+): Promise<IngestStageResult> {
   const log = logger.child({ docId: data.docId, stage: data.stage });
   const doc = await getDoc(data.docId);
   if (!doc) {
@@ -163,7 +177,7 @@ export async function runIngestStage(data: IngestJobData): Promise<IngestStageRe
   const jobId = await recordStageStart(getDb(), ledgerCtx);
 
   try {
-    const result = await runIngestStageCore(data, doc, log);
+    const result = await runIngestStageCore(data, doc, log, deps);
     await recordStageEnd(
       getDb(),
       jobId,
@@ -185,10 +199,56 @@ export async function runIngestStage(data: IngestJobData): Promise<IngestStageRe
 }
 
 /** 状态机本体；账本由 runIngestStage 外层统一写 */
+async function persistExtractedText(
+  data: IngestJobData,
+  text: string,
+  extractMethod: string,
+  log: StageLog,
+): Promise<IngestStageResult> {
+  const mongoDocId = await upsertDocumentBody({
+    url: env.MONGODB_URL,
+    docId: data.docId,
+    kbId: data.kbId,
+    text,
+  });
+  await setDoc(data.docId, {
+    status: 'parsing',
+    parsedText: text,
+    extractMethod,
+    mongoDocId: env.MONGODB_URL.trim() ? mongoDocId : localMongoDocId(data.docId),
+    errorCode: null,
+    errorMessage: null,
+  });
+  log.info({ chars: text.length, extractMethod }, 'text ready');
+  return { next: enqueueNext(data, 'chunk') };
+}
+
+async function markNeedsOcr(
+  data: IngestJobData,
+  message: string,
+  extra: { parsedText?: string | null; extractMethod?: string },
+  log: StageLog,
+  handoffToOcr: boolean,
+): Promise<IngestStageResult> {
+  await setDoc(data.docId, {
+    status: 'needs_ocr',
+    errorCode: 'NO_TEXT_LAYER',
+    errorMessage: message,
+    parsedText: extra.parsedText ?? null,
+    extractMethod: extra.extractMethod ?? 'none',
+  });
+  log.warn(message);
+  if (handoffToOcr && env.INGEST_OCR_ENABLED) {
+    return { next: enqueueNext(data, 'ocr') };
+  }
+  return failStage('NO_TEXT_LAYER');
+}
+
 async function runIngestStageCore(
   data: IngestJobData,
   doc: DocRow,
   log: StageLog,
+  deps: IngestStageDeps,
 ): Promise<IngestStageResult> {
   switch (data.stage) {
     case 'scan': {
@@ -236,56 +296,119 @@ async function runIngestStageCore(
       } else if (isPdfObject(doc.contentType, doc.objectKey)) {
         const pdfText = extractPdfTextLayer(buf);
         if (!pdfText) {
-          await setDoc(data.docId, {
-            status: 'needs_ocr',
-            errorCode: 'NO_TEXT_LAYER',
-            errorMessage: 'pdf has no text layer',
-            parsedText: null,
-            extractMethod: 'none',
-          });
-          log.warn('needs_ocr — pdf no text layer');
-          return failStage('NO_TEXT_LAYER');
+          return markNeedsOcr(
+            data,
+            'pdf has no text layer',
+            { parsedText: null, extractMethod: 'none' },
+            log,
+            true,
+          );
         }
         text = pdfText.trim();
         extractMethod = 'pdf_text';
       } else {
+        return markNeedsOcr(
+          data,
+          `no utf8 text layer for ${doc.contentType ?? doc.objectKey ?? 'object'}`,
+          { parsedText: null, extractMethod: 'none' },
+          log,
+          true,
+        );
+      }
+      if (text.length < env.INGEST_MIN_EXTRACTED_CHARS) {
+        return markNeedsOcr(
+          data,
+          `extracted chars ${text.length} < ${env.INGEST_MIN_EXTRACTED_CHARS}`,
+          { parsedText: text || null, extractMethod: 'text' },
+          log,
+          false,
+        );
+      }
+      return persistExtractedText(data, text, extractMethod, log);
+    }
+
+    case 'ocr': {
+      if (!env.INGEST_OCR_ENABLED) {
+        return markNeedsOcr(
+          data,
+          'ocr stage reached while INGEST_OCR_ENABLED=false',
+          { parsedText: doc.parsedText, extractMethod: 'none' },
+          log,
+          false,
+        );
+      }
+      const buf = await loadObjectBytes(doc.objectKey);
+      const extract = deps.ocrExtract;
+      if (!extract) {
         await setDoc(data.docId, {
           status: 'needs_ocr',
-          errorCode: 'NO_TEXT_LAYER',
-          errorMessage: `no utf8 text layer for ${doc.contentType ?? doc.objectKey ?? 'object'}`,
+          errorCode: 'OCR_UNAVAILABLE',
+          errorMessage: 'INGEST_OCR_ENABLED=true but no OCR engine is wired',
           parsedText: null,
           extractMethod: 'none',
         });
-        log.warn('needs_ocr — not txt/md/pdf');
-        return failStage('NO_TEXT_LAYER');
+        log.warn('OCR_UNAVAILABLE');
+        return failStage('OCR_UNAVAILABLE');
       }
-      if (text.length < env.INGEST_MIN_EXTRACTED_CHARS) {
+      let out: OcrExtractResult | null;
+      try {
+        out = await extract(buf, {
+          contentType: doc.contentType,
+          objectKey: doc.objectKey,
+        });
+      } catch (err) {
         await setDoc(data.docId, {
           status: 'needs_ocr',
-          errorCode: 'NO_TEXT_LAYER',
-          errorMessage: `extracted chars ${text.length} < ${env.INGEST_MIN_EXTRACTED_CHARS}`,
-          parsedText: text || null,
-          extractMethod: 'text',
+          errorCode: 'OCR_UNAVAILABLE',
+          errorMessage: err instanceof Error ? err.message : 'OCR engine threw',
+          parsedText: null,
+          extractMethod: 'none',
         });
-        log.warn('needs_ocr — no text layer');
-        return failStage('NO_TEXT_LAYER');
+        log.warn({ err }, 'OCR_UNAVAILABLE');
+        return failStage('OCR_UNAVAILABLE');
       }
-      const mongoDocId = await upsertDocumentBody({
-        url: env.MONGODB_URL,
-        docId: data.docId,
-        kbId: doc.kbId,
-        text,
-      });
-      await setDoc(data.docId, {
-        parsedText: text,
-        extractMethod,
-        mongoDocId: env.MONGODB_URL.trim() ? mongoDocId : localMongoDocId(data.docId),
-      });
-      log.info({ chars: text.length }, 'parse done');
-      return { next: enqueueNext(data, 'chunk') };
+      if (!out || !out.text.trim()) {
+        await setDoc(data.docId, {
+          status: 'needs_ocr',
+          errorCode: 'OCR_EMPTY',
+          errorMessage: 'OCR returned empty text',
+          parsedText: null,
+          extractMethod: 'none',
+        });
+        log.warn('OCR_EMPTY');
+        return failStage('OCR_EMPTY');
+      }
+      if (!Number.isFinite(out.confidence) || out.confidence < env.INGEST_OCR_MIN_CONFIDENCE) {
+        await setDoc(data.docId, {
+          status: 'needs_review',
+          errorCode: 'OCR_LOW_CONFIDENCE',
+          errorMessage: `OCR confidence ${String(out.confidence)} < ${env.INGEST_OCR_MIN_CONFIDENCE}`,
+          parsedText: null,
+          extractMethod: 'none',
+        });
+        log.warn({ confidence: out.confidence }, 'OCR_LOW_CONFIDENCE');
+        return failStage('OCR_LOW_CONFIDENCE');
+      }
+      const ocrText = out.text.trim();
+      if (ocrText.length < env.INGEST_MIN_EXTRACTED_CHARS) {
+        await setDoc(data.docId, {
+          status: 'needs_ocr',
+          errorCode: 'OCR_TOO_SHORT',
+          errorMessage: `ocr chars ${ocrText.length} < ${env.INGEST_MIN_EXTRACTED_CHARS}`,
+          parsedText: null,
+          extractMethod: 'none',
+        });
+        log.warn('OCR_TOO_SHORT');
+        return failStage('OCR_TOO_SHORT');
+      }
+      return persistExtractedText(data, ocrText, 'ocr', log);
     }
 
     case 'chunk': {
+      if (doc.status === 'needs_review' || doc.status === 'needs_ocr') {
+        log.warn({ status: doc.status, errorCode: doc.errorCode }, 'chunk blocked: OCR/parse not ready');
+        return failStage(doc.errorCode ?? 'NO_TEXT_LAYER');
+      }
       await setDoc(data.docId, { status: 'chunking' });
       const db = getDb();
 

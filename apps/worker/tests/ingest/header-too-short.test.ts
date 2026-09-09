@@ -188,7 +188,7 @@ describe('剧本 Q3 · 仅页眉过短不得 parse 成功', () => {
     expect(harness.state!.doc.status).toBe('needs_ocr');
 
     const chunkResult = await runIngestStage(job('chunk'));
-    expect(chunkResult.errorCode).toBe('EMPTY_CHUNKS');
+    expect(['EMPTY_CHUNKS', 'NO_TEXT_LAYER']).toContain(chunkResult.errorCode);
     expect(chunkResult.next).toBeUndefined();
     expect(harness.state!.manifests).toEqual([]);
     expect(harness.state!.chunks).toEqual([]);

@@ -46,6 +46,14 @@ const EnvSchema = z
     INGEST_EMBED_MODE: z.enum(['mock', 'fail', 'http']).default('mock'),
     GATEWAY_EMBED_MODEL: z.string().optional().default('text-embedding-3-small'),
     INGEST_MIN_EXTRACTED_CHARS: z.coerce.number().int().positive().default(40),
+    /** P5 OCR 开闸；默认关。无引擎时不得假抽正文。 */
+    INGEST_OCR_ENABLED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((v) => v === 'true'),
+    /** staging/production 开闸时应有 ADR 痕迹；空则启动告警，不拒启动 */
+    INGEST_OCR_ADR_REF: z.string().optional().default(''),
+    INGEST_OCR_MIN_CONFIDENCE: z.coerce.number().min(0).max(1).default(0.7),
     STORAGE_MODE: z.enum(['local', 's3']).default('local'),
     STORAGE_LOCAL_DIR: z.string().default('.data/objects'),
     S3_ENDPOINT: z.string().optional().default(''),

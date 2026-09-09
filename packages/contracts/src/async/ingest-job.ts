@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /** 入库逻辑 stage（物理队列可折叠为单 `sr-ingest`） */
-export const INGEST_STAGES = ['scan', 'parse', 'chunk', 'embed', 'es_index'] as const;
+export const INGEST_STAGES = ['scan', 'parse', 'ocr', 'chunk', 'embed', 'es_index'] as const;
 export type IngestStage = (typeof INGEST_STAGES)[number];
 
 /**
