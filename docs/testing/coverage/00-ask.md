@@ -52,7 +52,7 @@
 | H2 | `GET /health` 进程存活 200 | P2必签 | 单测 | 已测 | apps/api | apps/api/tests/env/health-ready.test.ts | — |
 | H3 | `GET /ready`：停 PG 或 Redis → 503 或 status=fail | P2必签 | 单测 | 已测 | apps/api | apps/api/tests/env/ready-hard-deps.test.ts | mock createDb / ioredis，不停本机 PG |
 | H4 | Gateway 不可用（软依赖）：ready 可为 degraded 仍 200 | P2必签 | 单测 | 已测 | apps/api | apps/api/tests/env/ready-soft-gateway.test.ts | Gateway fetch 失败仍 200 / ready=true；checks.gateway=down |
-| H5 | Gateway 全链失败时 ask → `abstained` + `internal_guard`（或等价），无 knowledge 胡答 | P2必签 | 单测 | 部分测 | apps/api | apps/api/tests/gateway/resolve-mock.test.ts · apps/api/tests/ask/http-stream.test.ts | 失败映射 + SSE execute 抛错；无 generate 全链失败走图的夹具 |
+| H5 | Gateway 全链失败时 ask → `abstained` + `internal_guard`（或等价），无 knowledge 胡答 | P2必签 | 单测 | 部分测 | apps/api | apps/api/tests/gateway/resolve-mock.test.ts · apps/api/tests/gateway/generate-fallback.test.ts · apps/api/tests/ask/http-stream.test.ts | 失败映射 + SSE execute 抛错；generate ModelRef fallback 已在 gateway 层测（opt-in）。无 generate 全链失败走图的夹具；≠ 生产多活 |
 | H5b | staging/production 双节点：断 primary rerank，备用可达；ask 可走完；非仅因 primary 挂而全员 `rerank_unavailable` | P2必签 | 单测 | 部分测 | apps/api | apps/api/tests/gateway/resolve-mock.test.ts | mock 双节点 fallback；≠ staging/production 双节点签字 |
 | H5c | Rerank 全链失败 → `rerank_unavailable`，禁止无 rerank 的正常 answered | P2必签 | 单测 | 已测 | apps/api | apps/api/tests/ask/retrieve-outcomes.test.ts · apps/api/tests/ask/retrieve-run.test.ts · apps/api/tests/ask/http-stream.test.ts | — |
 | H5d | 配置链长 < `RERANK_MIN_NODES` → 启动失败 / 拒绝加载配置 | P2必签 | 单测 | 部分测 | apps/api | apps/api/tests/gateway/resolve-mock.test.ts | `buildGatewayConfig` 链长短于 min 抛错；非进程启动失败 |

@@ -82,7 +82,7 @@ return ok(c, toPublicProvider(row)); // hasApiKey only
 | 符号 | 路径 | 说明 |
 |------|------|------|
 | `loadPlatformBindingSnapshot` | `gateway/bindings.ts` | 读 `model_bindings` scope=platform + providers；≤5s 缓存 |
-| `applyBindingsToGatewayConfig` | `gateway/resolve.ts` | 单一 SSOT；DB primary → env 回退 |
+| `applyBindingsToGatewayConfig` | `gateway/resolve.ts` | 单一 SSOT；DB primary → env 回退；generate `fallbackRefs` → `generateFallbacks` |
 | `getGatewayForTenant` | `gateway/client.ts` | ask `executeAsk` 主路径 |
 | `bindingSource` | `GatewayConfig` | `env` \| `mixed` \| `db`；platform 叠 env 后为 **`mixed`**（`buildGatewayConfig` 恒 `env`，当前几乎不产出纯 `db`）；签字 profile **人审**禁「仅 env 绿灯」（§ docs/ops live §4.5）；**机读 `signoffEligible` 仅绑 retrieve live** |
 | 缓存 | `bindings.ts` ≤5s snapshot + `client.ts` tenant client ≤5s | 双层；改绑后最多约 5s 可见；测用 `resetGatewayForTests` / `clearBindingCache` |
@@ -118,11 +118,37 @@ return ok(c, toPublicProvider(row)); // hasApiKey only
 // Correct — mapGatewayFailureToAskReason → rerank_unavailable → abstained
 ```
 
+## 10. generate 多模型 fallback（opt-in）
+
+绑定 `fallbacks` 不只落库。快照保留 `fallbackRefs`；`applyBindingsToGatewayConfig` 解析 **generate** 备用为 `generateFallbacks`（`PurposeEndpoint[]`）。http/mock `chat` 按节点试；每节点内仍 `withSameModelRetry`。
+
+| 键 / 符号 | 说明 |
+|-----------|------|
+| `generateFallbacks` | opt-in；空/缺省 = 今日只 primary |
+| `resolveChatNodes` | 仅 `purpose=generate` 且无 `req.model` 覆盖时带备用；judge/claim_split/rewrite 只有 primary |
+| `canTryGenerateFallback` | `exhausted` / `unavailable` / retryable 才切；`auth` / `bad_request` / `content_filter` 不盲切 |
+| `fallbackUsed` | 切到备用成功才 `true` |
+| `GENERATE_MIN_NODES` | **不存在**；无备用仍可启动（≠ rerank 双节点闸） |
+
+图层一次 `chargeAndChat` 仍 +1（切链在 `gateway.chat` 内）。合法 draft 仍必须 verify。全链失败 → `internal_guard`，禁止假 answered。无效/禁用/非 llm/与 primary 重复的备用跳过。
+
+### Tests
+
+`tests/gateway/generate-fallback.test.ts`：有备用切链 · 无备用 exhausted · auth 不切 · judge 不切 · http 备用 URL 成功。
+
+### Wrong vs Correct
+
+```ts
+// Wrong — 快照丢掉 fallbackRefs；chat 写死 fallbackUsed:false
+// Wrong — 新增 GENERATE_MIN_NODES=2 让无备用无法启动
+// Correct — opt-in 切链；图层不二次计费
+```
+
 ## 实现备注
 
-- 测例注入 `createMemoryModelGatewayRepo`；runtime 单测见 `tests/gateway/resolve-mock.test.ts`  
+- 测例注入 `createMemoryModelGatewayRepo`；runtime 单测见 `tests/gateway/resolve-mock.test.ts` · `tests/gateway/generate-fallback.test.ts`  
 - 租户：`auth.tenantId` 或 `DEV_DEFAULT_TENANT`  
 - 日志：`model_provider_*` / `model_bindings_put`，**禁止**打 Key  
-- 已做：platform 写 API · runtime platform+KB resolve（B3-W/B2-W）· QUAL-3 双节点  
-- 未做：fetch-models 真代理、**admin KB 绑定写 UI**（schema/resolve 已支持）  
+- 已做：platform 写 API · runtime platform+KB resolve（B3-W/B2-W）· QUAL-3 双节点 · generate fallback opt-in  
+- 未做：fetch-models 真代理、**admin KB 绑定写 UI**（schema/resolve 已支持）、`fallbackUsed` 进 ask 图/trace、生产多活签字  
 

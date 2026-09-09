@@ -13,7 +13,7 @@ Status: open
 - 每轮先读：本图、`docs/agents/issue-tracker.md`、`docs/agents/domain.md`、功能表、相关包的 `docs/module-status/`。写代码前读 `.trellis/spec/` 对应包。执行完成后跑 skill `update-module-status`。
 - **覆盖「只做决策」**：工单可以动手补缺口，不只锁决策。
 - **本图是执行面**：缺口只在 `.scratch/fill-must-haves/` 工单上做完。`.trellis/tasks/08-06-project-backlog/` 只留指针和勾选。同一缺口禁止再 `task.py create` 平行实现任务。这只覆盖本图，不改全仓其它流程。
-- 顺序：本图 P2 语义已收官（第三批）；P2.5 出口走 **L2 归档准出**（工程路径 [L2 归档底线](./issues/14-l2-archive-floor.md) 已齐，人签仍图外）。鉴权/成员余量、入库报告、库选择器、admin 顶栏、web 关闭列表、启动引导超管、写路径锁超管全码、修改日志、三平面配额、失败 Webhook 已齐。在线编写留雾（P2.x）。P3b 可动手最小闭环已齐（ES 部门对称、aclPrincipals、ES principals、敏感解禁）。本图已转向 P4；L1 Hit@k、τ 扫描与 Judge AUROC 已齐。下一张裁定开放。P3a 仍等 L2 人签。不默认开 `DEPT_ACL_ENFORCE`。不加角色 principal。
+- 顺序：本图 P2 语义已收官（第三批）；P2.5 出口走 **L2 归档准出**（工程路径 [L2 归档底线](./issues/14-l2-archive-floor.md) 已齐，人签仍图外）。鉴权/成员余量、入库报告、库选择器、admin 顶栏、web 关闭列表、启动引导超管、写路径锁超管全码、修改日志、三平面配额、失败 Webhook 已齐。在线编写留雾（P2.x）。P3b 可动手最小闭环已齐（ES 部门对称、aclPrincipals、ES principals、敏感解禁）。本图已转向 P4；L1 Hit@k、τ 扫描、Judge AUROC 与 generate fallback 已齐。下一张裁定开放。P3a 仍等 L2 人签。不默认开 `DEPT_ACL_ENFORCE`。不加角色 principal。
 - **站规（UI）**：web / admin 新下拉必须基于 `@strict-rag/ui` 关闭列表，禁止浏览器原生 `<select>` 外壳（含现有 ui `Select`）。`Button` / `Input` / `Textarea` 仍走 ui 包。本规不改 GET / 鉴权语义。
 - 人签（B10 业务 PASS）不是代码缺口，不进本图执行工单。
 - 引用工单用标题，不要只写编号。一回合只解决一张工单（research 除外）。
@@ -72,6 +72,8 @@ Status: open
 - [L1 τ 扫描最小闭环](./issues/49-l1-tau-sweep-min.md) — 按 minSupport 离线扫网格得 tau*；无分数不得写成网格上沿。不改 2×2 / `signoffEligible`、不写 env。
 - [裁定 L1 τ 扫描后下一步](./issues/50-after-l1-tau-sweep-order.md) — 在线编写留雾；P3b 站规仍锁；继续 P4；本批只做 Judge AUROC。不用黄金题型当 label、不新开 `verifier_calib` 入队。
 - [Judge AUROC 最小闭环](./issues/51-l1-judge-auroc-min.md) — 独立校准集 Mann-Whitney 得 judgeAuroc；无打分器或单类为 null。不改 2×2 / `signoffEligible`、不接 `judgeAurocMin`。
+- [裁定 Judge AUROC 后下一步](./issues/52-after-l1-judge-auroc-order.md) — 在线编写留雾；P3b 站规仍锁；继续 P4；本批只做 generate fallback。不做再认证 / 双轨看板 / 数据面板。不加 `GENERATE_MIN_NODES`。
+- [generate 多模型 fallback 最小闭环](./issues/53-generate-fallback-min.md) — 绑定 generate fallbacks 运行时 opt-in 切链；切到备用才 `fallbackUsed=true`。无 `GENERATE_MIN_NODES`；图层不二次计费。
 
 ## Not yet specified
 
@@ -79,7 +81,7 @@ Status: open
 - LangGraph 编排重构：技术栈冻结为 LangGraph.js（硬性标准）；源码现为线性状态机（`apps/api/src/graph/run.ts`），需后续重构为官方 LangGraph.js。另起路线
 - P3a Full 图（CRAG / multi_hop）；硬门在 L2 归档准出（工程路径是 L2 归档底线；人签不进本图）
 - P3b 尚未齐的强制检索面：仓库默认开 `DEPT_ACL_ENFORCE`、角色 principal
-- P4 其余：L1 门禁包人签与再认证、多模型 fallback、双轨看板、数据面板增强；独立 `tau_sweep` / `verifier_calib` 入队、把 tau* 接到运行时、live judge 真跑仍缺口
+- P4 其余：L1 门禁包人签与再认证、双轨看板、数据面板增强；独立 `tau_sweep` / `verifier_calib` 入队、把 tau* 接到运行时、live judge 真跑仍缺口
 - P5：OCR 开闸、容量、熔断生产调优、在线抽样常态化、CoVe / 超长异步
 - 基础设施缺口的切入时机：B8 / B9 / QUAL-2（不挡更早语义，但最终产品仍须收）
 

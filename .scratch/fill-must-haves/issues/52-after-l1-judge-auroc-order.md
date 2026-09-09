@@ -2,8 +2,9 @@
 
 Type: grilling
 Label: wayfinder:grilling
-Status: open
-Triage: ready-for-human
+Status: resolved
+Assignee: grok
+Triage: ready-for-agent
 Blocked by: 51
 
 ## Question
@@ -28,3 +29,26 @@ Blocked by: 51
 4. **本图暂停执行**，等图外 L2 人签
 
 本工单只锁顺序与切边，不写产品代码。
+
+## Answer
+
+AUROC 之后，**在线编写留雾**（P2.x，不并进）。P3b 余量仍锁（默认开强制会打破 AE3；角色 principal 命名空间仍雾）。**不暂停**等人签。本图继续 **P4**。本批只做 generate 多模型 fallback 最小闭环。
+
+不做再认证流程（源码零钩子，本质图外人签）。不做双轨看板 / 数据面板增强（B6 信封冻结 ≤5；I4 是 P4 建议延后，质量数字已在 `/eval`）。不回头解 P3b 站规。不把 tau* 接到运行时、不写 `TAU_CLAIM`、不新开 `verifier_calib`、不接签字公式、不加 `GENERATE_MIN_NODES`。P3a / 人签 / 准出 PASS / 默认开 rewrite 仍不进执行。
+
+本批一张：
+
+- [generate 多模型 fallback 最小闭环](./53-generate-fallback-min.md) — 开放前沿。绑定已写的 generate `fallbacks` 在 ask 运行时真正切链；primary 同模型重试耗尽后 opt-in 试备用 ModelRef；切到备用才 `fallbackUsed=true`。切边见该工单正文。
+
+仍留雾：仓库默认开强制、角色 principal、在线编写、P4 其余（再认证 / 双轨看板 / 面板增强 / 把 tau* 接到运行时 / live judge 真跑 / 独立 `tau_sweep`·`verifier_calib` 入队）。
+
+未改产品代码。
+
+## Comments
+
+- 2026-09-09 按图顺序认领。用户授权本图全程自行决策。
+- Q1：选 1。继续 P4。在线编写留雾。不回头解 P3b 站规。不暂停。
+- Q2：本批只做 generate fallback。人签/再认证仍图外。不做双轨看板、数据面板增强。
+- Q3：一张工单。快照保留 fallbackRefs → resolve 建成 generate 备用节点 → chat 切链。无 fallbacks = 今日行为。不强制 GENERATE_MIN_NODES。
+- Q4：切链发生在 gateway.chat 内（图层仍一次 chargeAndChat）。auth / bad_request / content_filter 不盲切。judge / claim_split / rewrite / embed / rerank 不走 generate 链。
+- Q5：默认开强制 / 角色码仍锁。不写 TAU_CLAIM。不改 2×2 / signoffEligible。

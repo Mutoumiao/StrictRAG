@@ -16,7 +16,7 @@
 - [ ] `GET /ask/:requestId` 是否走该 trace 的 KB 成员闸、只回 snapshot+trace、**禁止**当断线重拉 / 禁止漏正文？  
 - [ ] `GET …/ask-modes` 是否成员闸、只回档位、**禁止**漏 τ（web 消费面读档；设置 GET 仍 `kb.config.write`）？  
 - [ ] complete/reindex 是否读 [chunk-strategies](./chunk-strategies.md)（多策略禁静默 default）？  
-- [ ] Gateway/rerank 是否读 [model-gateway](./model-gateway.md)（双节点 · 无假 answered）？  
+- [ ] Gateway/rerank 是否读 [model-gateway](./model-gateway.md)（双节点 · generate fallback opt-in · 无假 answered）？  
 - [ ] 新登录/refresh/会话/ask 字段是否改 contracts + 双端 http？  
 - [ ] DB 是否经 `@strict-rag/db`（禁止 app 私有 schema）？  
 - [ ] 是否避免 route 内 SQL / ES DSL / 长 Prompt？  
@@ -59,7 +59,7 @@
 | [chunk-readonly](./chunk-readonly.md) | **B1 分片只读** list/detail · `chunk.view` · UTF-8 64KiB |
 | [chunk-strategies](./chunk-strategies.md) | **B12 分片策略** 注册表 · complete/reindex 闸 · 旧文档不自动切 |
 | [kb-settings](./kb-settings.md) | **B2/B2-W** GET/PATCH · mode/docTypes 写生效 · ask 入口闸 · rewrite 锁 |
-| [model-gateway](./model-gateway.md) | **B3/B3-W** 供应商/绑定 · runtime resolve · **QUAL-3** rerank 双节点 |
+| [model-gateway](./model-gateway.md) | **B3/B3-W** 供应商/绑定 · runtime resolve · **QUAL-3** rerank 双节点 · generate fallback opt-in |
 | [platform-users-roles](./platform-users-roles.md) | **B4 用户/角色** · `user.manage` / `role.perm.manage` · 最后超管 · codes ⊆ catalog |
 | [departments](./departments.md) | **B5 部门壳** · grant 可存可配 · 过滤默认关（开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤；可关继承；grant 子树不读 inheritDown） · **≠** 全文隔离 |
 | [dashboard](./dashboard.md) | **B6 数据面板薄壳** · `dashboard.view` · 只读 summary ≤5 · **≠** APM |
