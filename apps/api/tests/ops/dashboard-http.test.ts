@@ -1,8 +1,8 @@
 /**
- * 目标：面板 summary HTTP 按 B6 返回聚合。
- * 需求：B6
- * 被测：createDashboardRoutes
- * 简介：面板 summary HTTP。
+ * 目标：面板 summary 按 B6 返回聚合；tracks 分开展示质量与延迟且不改 summary 信封。
+ * 需求：B6 · 剧本 I4
+ * 被测：createDashboardRoutes / summarizeLatencies
+ * 简介：summary HTTP + 双轨 tracks。
  */
 
 import { Hono } from 'hono';
@@ -12,7 +12,10 @@ import { uuidv7 } from 'uuidv7';
 import { attachAuthMiddleware, type AuthVariables } from '../../src/auth/middleware.js';
 import { issueTokenPair } from '../../src/auth/identity/token-service.js';
 import { requestIdMiddleware } from '../../src/middleware/request-id.js';
-import { createMemoryDashboardRepo } from '../../src/services/dashboard.js';
+import {
+  createMemoryDashboardRepo,
+  summarizeLatencies,
+} from '../../src/services/dashboard.js';
 import { createDashboardRoutes } from '../../src/routes/dashboard.js';
 
 async function token(roles: string[], userId = uuidv7()) {
@@ -82,5 +85,94 @@ describe('dashboard summary (B6 shell)', () => {
     const app = buildApp();
     const res = await app.request('/api/v1/admin/dashboard/summary');
     expect(res.status).toBe(401);
+  });
+});
+
+describe('dashboard tracks (I4)', () => {
+  it('无 dashboard.view → 403', async () => {
+    const { accessToken } = await token(['kb_admin']);
+    const app = buildApp();
+    const res = await app.request('/api/v1/admin/dashboard/tracks', {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    expect(res.status).toBe(403);
+  });
+
+  it('有码空账本 → 质量全 null、延迟零样本', async () => {
+    const { accessToken } = await token(['super_admin']);
+    const app = buildApp();
+    const res = await app.request('/api/v1/admin/dashboard/tracks', {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: {
+        quality: { evalRunId: string | null; matrix: null };
+        latency: { windowHours: number; askCount: number; scoredCount: number; avgMs: number | null };
+      };
+    };
+    expect(body.data.quality.evalRunId).toBeNull();
+    expect(body.data.quality.matrix).toBeNull();
+    expect(body.data.latency.windowHours).toBe(24);
+    expect(body.data.latency.scoredCount).toBe(0);
+    expect(body.data.latency.avgMs).toBeNull();
+    expect(body.data).not.toHaveProperty('kbCount');
+  });
+
+  it('注入 L1 与 p95 回读；summary 信封不变', async () => {
+    const runId = uuidv7();
+    const { accessToken } = await token(['super_admin']);
+    const repo = createMemoryDashboardRepo({
+      kbCount: 2,
+      quality: {
+        evalRunId: runId,
+        retrieveMode: 'mock',
+        matrix: { A: 10, B: 20, C: 0, D: 30 },
+        coverage: 0.33,
+        hitAtK: 0.5,
+        tauStar: 0.45,
+        judgeAuroc: 0.8,
+      },
+      latency: { askCount: 10, scoredCount: 8, avgMs: 120, p95Ms: 200 },
+    });
+    const app = buildApp(repo);
+    const tracksRes = await app.request('/api/v1/admin/dashboard/tracks', {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    expect(tracksRes.status).toBe(200);
+    const tracks = (await tracksRes.json()) as {
+      data: {
+        quality: { evalRunId: string; matrix: { A: number }; judgeAuroc: number };
+        latency: { p95Ms: number };
+      };
+    };
+    expect(tracks.data.quality.evalRunId).toBe(runId);
+    expect(tracks.data.quality.matrix.A).toBe(10);
+    expect(tracks.data.quality.judgeAuroc).toBe(0.8);
+    expect(tracks.data.latency.p95Ms).toBe(200);
+
+    const summaryRes = await app.request('/api/v1/admin/dashboard/summary', {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    const summary = (await summaryRes.json()) as { data: Record<string, unknown> };
+    expect(summary.data.kbCount).toBe(2);
+    expect(summary.data).not.toHaveProperty('quality');
+    expect(summary.data).not.toHaveProperty('latency');
+  });
+
+  it('无 Bearer tracks → 401', async () => {
+    const app = buildApp();
+    const res = await app.request('/api/v1/admin/dashboard/tracks');
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('summarizeLatencies', () => {
+  it('空样本为 null；有样本取平均与 p95', () => {
+    expect(summarizeLatencies([])).toEqual({ scoredCount: 0, avgMs: null, p95Ms: null });
+    const s = summarizeLatencies([100, 100, 100, 100, 200]);
+    expect(s.scoredCount).toBe(5);
+    expect(s.avgMs).toBe(120);
+    expect(s.p95Ms).toBeGreaterThanOrEqual(100);
   });
 });

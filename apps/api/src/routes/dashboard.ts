@@ -1,4 +1,4 @@
-import { DashboardSummarySchema } from '@strict-rag/contracts';
+import { DashboardSummarySchema, DashboardTracksSchema } from '@strict-rag/contracts';
 import { Hono } from 'hono';
 
 import { requirePermission, type AuthVariables } from '../auth/middleware.js';
@@ -6,6 +6,7 @@ import { ok } from '../lib/response.js';
 import {
   dashboardRepo,
   getDashboardSummary,
+  getDashboardTracks,
   type DashboardRepo,
 } from '../services/dashboard.js';
 
@@ -27,6 +28,12 @@ export function createDashboardRoutes(
   routes.get('/admin/dashboard/summary', view, async (c) => {
     const summary = await getDashboardSummary(repo);
     const data = DashboardSummarySchema.parse(summary);
+    return ok(c, data);
+  });
+
+  routes.get('/admin/dashboard/tracks', view, async (c) => {
+    const tracks = await getDashboardTracks(repo);
+    const data = DashboardTracksSchema.parse(tracks);
     return ok(c, data);
   });
 

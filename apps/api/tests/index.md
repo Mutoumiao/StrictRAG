@@ -136,7 +136,7 @@
 | `obs/quota-planes.test.ts` | ask 与 ingest 平面配额必须隔离，触顶不得 200 空答 answered。 | 剧本 R5 / R8 / R9 · ARCH-P2-4 | `POST ask / POST complete / 分 store / plane 指标` | ask 429 带 plane=ask 与 ask_quota_exhausted；ingest 429 带 plane=ingest；打满一侧不阻断另一侧。 | 现行 |
 | `obs/rate-limit.test.ts` | 超限必须返回 429 RATE_LIMITED。 | ARCH-P2-4 | `checkFixedWindowRateLimit / POST ask 429` | 超限返回 429 RATE_LIMITED；ask 路由走同一闸。 | 现行 |
 | `obs/tracer.test.ts` | memory tracer 记录主链 span，executeAsk 接线不得丢 span。 | ARCH-P2-4 | `createMemoryTracer / executeAsk` | 内存 tracer 记下主链 span；executeAsk 接线不得丢 span。 | 现行 |
-| `ops/dashboard-http.test.ts` | 面板 summary HTTP 按 B6 返回聚合。 | B6 | `createDashboardRoutes` | 面板 summary HTTP。 | 现行 |
+| `ops/dashboard-http.test.ts` | 面板 summary 按 B6 返回聚合；tracks 分开展示质量与延迟且不改 summary 信封。 | B6 · 剧本 I4 | `createDashboardRoutes / summarizeLatencies` | summary HTTP + 双轨 tracks。 | 现行 |
 | `sessions/http.test.ts` | 会话壳 HTTP 在 rewrite 默认关闭下可用。 | rewrite 默认关 | `createSessionRoutes` | 会话壳 HTTP。 | 现行 |
 | `sessions/session-window.test.ts` | 近窗裁剪后历史不得当作 citation。 | 历史≠evidence | `clipSessionWindow / resolveBackReference` | 不把历史当 citation。 | 现行 |
 

@@ -5,10 +5,14 @@
  * path 仅此处；禁止 services/UI 写 URL。
  */
 
-import type { DashboardSummary } from '@strict-rag/contracts';
+import type { DashboardSummary, DashboardTracks } from '@strict-rag/contracts';
 
 import { http } from '@/lib/http';
 
 export async function getDashboardSummary() {
   return http.get<DashboardSummary>('/api/v1/admin/dashboard/summary');
+}
+
+export async function getDashboardTracks() {
+  return http.get<DashboardTracks>('/api/v1/admin/dashboard/tracks');
 }
