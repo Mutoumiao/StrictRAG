@@ -63,7 +63,7 @@
 | Q4 | parse 后全文过短（< 阈值 / `minPassageChars` 量级）→ 不得进 chunk/ready | P2必签 | 单测 | 部分测 | worker | apps/worker/tests/ingest/split-paragraphs.test.ts（过短片段丢弃、空白壳 → `[]`）；源码全文 < 阈值走 `needs_ocr` | 无「全文 < `INGEST_MIN_EXTRACTED_CHARS` → 不得 chunk/ready」直测 |
 | Q5 | `ingest.scan` 与 `ingest.ocr` 逻辑 stage 隔离（interim 单物理队列不混 stage）；`MALWARE` 与 `OCR_*` / `NO_TEXT_LAYER` 不混用 | P2必签 | 契约+单测 | 部分测 | contracts · worker | packages/contracts/tests/async/ingest-job.test.ts（`INGEST_STAGES` 含 ocr）；apps/worker/tests/ingest/ocr-gate.test.ts（OCR_* 与 MALWARE / NO_TEXT_LAYER 分码）；queue-names 仍仅 `sr-ingest` | 无独立物理 `ingest.ocr` 队列（interim 折叠，非缺口）。≠ 真引擎 |
 | Q6 | 若启用 OCR：body 在 chunk_manifest 物化前定稿；禁 ready 后 patch body | 启用 OCR 或 P5 | 单测 | 延后 | worker | 无 OCR 引擎；无 ready 后 patch body 路径 | 待 OCR 开闸再签 |
-| Q7 | `needs_ocr` 文档 OCR 上线后重跑 → 新 indexVersion 全链路 + 双就绪 + 原子切换；旧 version 无脏残留 | 启用 OCR 或 P5 | 单测 | 延后 | worker | 无 OCR 重跑路径 | 待 OCR 开闸再签 |
+| Q7 | `needs_ocr` 文档 OCR 上线后重跑 → 新 indexVersion 全链路 + 双就绪 + 原子切换；旧 version 无脏残留 | 启用 OCR 或 P5 | 单测 | 部分测 | worker · api | apps/api/tests/ingest/ocr-rerun-http.test.ts（needs_ocr/needs_review reindex 入队 ocr）；apps/worker/tests/ingest/ocr-rerun.test.ts（注入全链 ready 且抬 version；失败不抬；utf8 拒抽） | 注入抽取器；≠ 真引擎。无启动自动全库。无旧 version 孤儿清理（L7 仍缺实现） |
 | Q8 | （OCR 已启）低置信夹具 → `failed` / `needs_review`，非 ready | 启用 OCR 或 P5 | 单测 | 部分测 | worker | apps/worker/tests/ingest/ocr-gate.test.ts（注入低置信 → `needs_review` + `OCR_LOW_CONFIDENCE`） | 注入抽取器；≠ 真引擎低置信。无 `failed` 终态（用 needs_review） |
 | Q9 | staging `INGEST_OCR_ENABLED=true` 无 `INGEST_OCR_ADR_REF` → 启动告警；dev 可 dogfood 标 `dogfood_ocr` | 启用 OCR 或 P5 | 单测 | 部分测 | worker | apps/worker/tests/ingest/ocr-gate.test.ts（`ocrStartupWarning`）；`index.ts` 启动 warn | 纯函数告警；无进程启动 listen 测。无 `dogfood_ocr` 标签字段 |
 | Q10 | P2 部署不因缺 OCR 引擎启动失败（对照缺杀毒引擎 fail closed） | P2必签 | 单测 | 部分测 | worker | worker env 无 OCR 必填；启动闸只约束 `INGEST_SCAN_MODE`（scan-startup-policy.test.ts）；extract-text / pdf-text 不依赖 OCR 引擎 | 无「缺 OCR 引擎仍可启动」与「缺杀毒 fail-closed」对照的显式启动单测 |
@@ -107,10 +107,10 @@
 | 覆盖 | 行数 | ID |
 |------|------|-----|
 | 已测 | 12 | E6 L6 L8 M3 M4 M9 Q3 AA2 AA3 AA4 AA5 AA7 |
-| 部分测 | 29 | E1 E2 E3 L1 L2 L3 L4 L5 L9 M1 M2 M5 M6 M8 M10 Q1 Q2 Q4 Q5 Q8 Q9 Q10 V1 V2 V4 V5 V6 V8 AA6 |
+| 部分测 | 30 | E1 E2 E3 L1 L2 L3 L4 L5 L9 M1 M2 M5 M6 M8 M10 Q1 Q2 Q4 Q5 Q7 Q8 Q9 Q10 V1 V2 V4 V5 V6 V8 AA6 |
 | 缺测 | 0 | — |
 | 缺实现 | 6 | E4 E5 L7 M7 V3 AA1 |
-| 延后 | 6 | Q6 Q7 Q11 Q12 V7 AA8 |
+| 延后 | 5 | Q6 Q11 Q12 V7 AA8 |
 | UAT | 0 | — |
 | **合计** | **53** | E1–E6 L1–L9 M1–M10 Q1–Q12 V1–V8 AA1–AA8 |
 

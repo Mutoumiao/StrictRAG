@@ -18,7 +18,7 @@
 | 增删 catalog / 扩实现 | contracts `IMPLEMENTED_*` 与 api REGISTRY 对齐 |
 | 旧文档策略 | **禁止**因注册表变更自动切换既有 `documents.chunkStrategy` |
 
-**不在范围**：平台注册表运营 CRUD 页；paramSchema 动态表单引擎；worker 新算法；OCR；自动全库 reindex。
+**不在范围**：平台注册表运营 CRUD 页；paramSchema 动态表单引擎；worker 新算法；真 OCR 引擎；worker 启动自动全库 reindex。
 
 ### 2. 两层集合（防假 SSOT）
 
@@ -61,7 +61,7 @@ resolveDocumentChunkStrategy({ existing, requested, requireExplicit? })
 | `GET …/chunk-strategies` · `/schema` · `PATCH` | `kb.config.write`；PATCH 写 `kb_chunk_strategies` |
 | `GET …/chunk-strategies/for-upload?contentType=` | 库启用 ∩ 文档族 ∩ **implemented**；仅 1 个 → `autoCode`；≥2 → `requireExplicit` |
 | complete | 走 for-upload available：仅 1 个可省略自动；≥2 未选 → 400；写入 `chunk_strategy` + `chunk_strategy_params` 快照。**ingest 平面闸**在落 pending 前（`INGEST_RATE_LIMIT_RPM`，默认 0）；触顶 429 `RATE_LIMITED` `details.plane=ingest` |
-| reindex | 同上 available 计数；既有已实现且仍 available 可省略保留；脏未实现省略 → 400 |
+| reindex | 同上 available 计数；既有已实现且仍 available 可省略保留；脏未实现省略 → 400。入队 stage：`needs_review` 或 `needs_ocr`（`extractMethod !== 'text'`）→ `ocr`；其余（含 ready、短 utf8 页眉）→ `chunk`。**不是**自动全库重跑；关闸由 worker 打回 |
 
 ### Wire 字段名（X-12 · ADR-059）
 

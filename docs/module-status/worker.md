@@ -7,7 +7,7 @@
 | 成熟度 | **可联调**（P1 入库状态机；**仅** development/test + mock 栈可起；**staging/production 当前无合法扫描配置**） |
 | 默认依赖模式 | `APP_ENV=development` · 启动探针 `WORKER_PROBE_ON_START=true` · 扫描 = `mock_clean` · 向量 = `mock`（dims=8，枚举 `mock\|fail`）· ES 索引 = `mock`（枚举 `mock\|fail\|http`，**默认 mock**；`http` 须 `ELASTICSEARCH_URL`）· 对象存储 = 默认本地目录；`STORAGE_MODE=s3` 走 RustFS（S3 兼容） · `S3_BUCKET=strict-rag` · Mongo URL 空则 `mongoDocId=local:` · `INGEST_MIN_EXTRACTED_CHARS=40` · `INGEST_OCR_ENABLED=false` · `INGEST_FAILURE_WEBHOOK_URL` **空=不发** · **可运行叠加** `.env.operable.example`（http/s3/mongo；**不**改 Zod 默认） |
 | 关联模块 | 由 `api` 入队触发；写库走 `@strict-rag/db`；队列名 / job payload / 可执行策略集来自 `@strict-rag/contracts`；运行需要 Redis + PostgreSQL |
-| 最近更新 | 2026-09-09（OCR 开闸 opt-in：逻辑 stage `ocr`；默认关；无引擎不得假正文） |
+| 最近更新 | 2026-09-10（历史 needs_ocr 可由 reindex 入队 ocr；utf8 文本层拒抽；默认关；≠ 真引擎 / ≠ 自动全库） |
 | Spec | `.trellis/spec/worker/backend/` |
 | PRD | `prds/06-async` · `prds/04-pipelines/01-offline-ingest.md` |
 
@@ -39,7 +39,7 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 - 阶段：`scan → parse → ocr? → chunk → embed → es_index`（`IngestJobData.stage`；`ocr` 仅 `INGEST_OCR_ENABLED` 且无文本层时入队）
 - **scan**：`mock_infected` 删本地对象 + `MALWARE`；`mock_clean` / `off` 放行；审批重检（ADR-048）在**任意阶段**入口先做，未通过 → `NOT_APPROVED`（非仅 scan）
 - **parse**：读对象（local 或 `STORAGE_MODE=s3`）；过短 → `needs_ocr` + `NO_TEXT_LAYER`（不交 ocr）；完全无文本层且 OCR 开闸 → enqueue `ocr`；有 `MONGODB_URL` 写 `document_bodies`（`upsertDocumentBody` / `findDocumentBody` / `pingMongo`），否则 `mongoDocId=local:{docId}`；冒烟 `pnpm --filter @strict-rag/worker smoke:mongo`
-- **ocr**（P5 开闸）：`INGEST_OCR_ENABLED` 默认 false。可注入 `ocrExtract`；无注入 → `OCR_UNAVAILABLE` 留 `needs_ocr`；低置信 → `needs_review` + `OCR_LOW_CONFIDENCE`；成功且字数达标 → `extractMethod=ocr` 交 chunk。staging/prod 开闸无 `INGEST_OCR_ADR_REF` 告警可启动。**≠** 真引擎 / Cloud OCR
+- **ocr**（P5 开闸）：`INGEST_OCR_ENABLED` 默认 false。可注入 `ocrExtract`；无注入 → `OCR_UNAVAILABLE` 留 `needs_ocr`；低置信 → `needs_review` + `OCR_LOW_CONFIDENCE`；成功且字数达标 → `extractMethod=ocr` 交 chunk。utf8 文本层入队 ocr 拒抽（短页眉不得洗 ready）。运营 reindex 可入队 ocr。staging/prod 开闸无 `INGEST_OCR_ADR_REF` 告警可启动。**≠** 真引擎 / Cloud OCR / 启动自动全库
 - **chunk**：**仅** `structure_paragraph`（contracts `IMPLEMENTED_*`）；未实现 → `UNSUPPORTED_CHUNK_STRATEGY`（**不**静默回落）；写 chunks（含 `mongoBodyId`）+ `chunk_manifests`；`MONGODB_URL` 非空时另写 Mongo `chunk_bodies`（`upsertChunkBodies`，`_id=chunkId`）；`indexVersion = doc.indexVersion+1` 并重置 `embedReady=0` / `esReady=0`
 - **embed**：mock 伪向量 dims=8 · `model=mock-embed`；缺 embedding 行才补写（幂等 skip）
 - **es_index**：默认 `mockEsStore`；`INGEST_ES_MODE=http` 时 `ensureSparseIndex` + bulk（写 `tenantId`/`kbId`/`docId`/`chunkId`/`sparseText`，有值才写 `ownerDeptId`；`aclPrincipals` 为数组才写，空数组写哨兵 `__acl_none__`）+ 按 doc 对账（映射对齐 api `es-sparse`）；要求 `embedReady`；双就绪 → `status=ready` **且 `lifecycle='draft'`**（**不是** `active`；默认检索闸 `ready∧active` 仍拦，须运营升 lifecycle）
@@ -74,7 +74,7 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 | 真实 embedding | 默认 `INGEST_EMBED_MODE=mock`；dims=8 与生产模型无关 |
 | 真实 ES + IK 索引 | 默认可 `INGEST_ES_MODE=http` bulk（标准分词，写 `tenantId`/`kbId`/`ownerDeptId`/`aclPrincipals` 供查询期隔离）；**无** IK 插件 / 多租户 Router |
 | 真 RustFS / Mongo 正文 | `STORAGE_MODE=s3` + `MONGODB_URL` 可写；默认仍本地 + `local:` |
-| OCR / 复杂版式 | 开闸 opt-in + 注入抽取器最小闭环；默认关；**无**真 Tesseract / Cloud |
+| OCR / 复杂版式 | 开闸 opt-in + 注入抽取器；历史 needs_ocr 可由 reindex 入队 ocr；默认关；**无**真 Tesseract / Cloud / 启动自动全库 |
 | HTTP API | **禁止**业务 HTTP |
 | `ingest_jobs` 完整运维账本 | **最小 stage 写已有**；无查询面 / 无 api 入队 `queued` |
 | 入库报告完整语义 | 最小事实行已落；**无** 跨 doc MinHash / `pending_review` / Hit@k |

@@ -319,7 +319,7 @@ async function runIngestStageCore(
         return markNeedsOcr(
           data,
           `extracted chars ${text.length} < ${env.INGEST_MIN_EXTRACTED_CHARS}`,
-          { parsedText: text || null, extractMethod: 'text' },
+          { parsedText: text || null, extractMethod },
           log,
           false,
         );
@@ -332,7 +332,16 @@ async function runIngestStageCore(
         return markNeedsOcr(
           data,
           'ocr stage reached while INGEST_OCR_ENABLED=false',
-          { parsedText: doc.parsedText, extractMethod: 'none' },
+          { parsedText: null, extractMethod: 'none' },
+          log,
+          false,
+        );
+      }
+      if (hasUtf8TextLayer(doc.contentType, doc.objectKey)) {
+        return markNeedsOcr(
+          data,
+          'ocr refused for utf8 text-layer objects',
+          { parsedText: null, extractMethod: 'text' },
           log,
           false,
         );

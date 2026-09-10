@@ -1,8 +1,8 @@
 /**
  * 目标：文档 / 知识库 DTO 与完成上传、补丁元数据必须接受合法部门可见级并拒非法值。
  * 需求：入库 HTTP
- * 被测：CreateKbBodySchema · KnowledgeBaseListItemSchema · VisibilityLevelSchema · CompleteUploadBodySchema · PatchDocumentMetaBodySchema · DocumentDetailSchema · DocumentListItemSchema
- * 简介：文档 DTO 与可见级 / 部门字段 / aclPrincipals 三态。
+ * 被测：CreateKbBodySchema · KnowledgeBaseListItemSchema · VisibilityLevelSchema · CompleteUploadBodySchema · PatchDocumentMetaBodySchema · DocumentDetailSchema · DocumentListItemSchema · ReindexDocumentResponseSchema
+ * 简介：文档 DTO 与可见级 / 部门字段 / aclPrincipals 三态；reindex stage 可 chunk 或 ocr。
  */
 
 import { describe, expect, it } from 'vitest';
@@ -14,6 +14,7 @@ import {
   DocumentListItemSchema,
   KnowledgeBaseListItemSchema,
   PatchDocumentMetaBodySchema,
+  ReindexDocumentResponseSchema,
   VisibilityLevelSchema,
 } from '../../src/ingest/document.contract.js';
 
@@ -239,5 +240,28 @@ describe('DocumentDetailSchema / list item', () => {
     expect(parsed.ownerDeptId).toBeNull();
     expect(parsed.visibilityLevel).toBe(20);
     expect(parsed.aclPrincipals).toBeNull();
+  });
+});
+
+describe('ReindexDocumentResponseSchema', () => {
+  const base = {
+    docId: '01900000-0000-7000-8000-0000000000d1',
+    enqueued: true as const,
+    jobId: 'job-1',
+    chunkStrategy: 'structure_paragraph',
+    strategyChanged: false,
+  };
+
+  it('接受 stage=chunk 与 stage=ocr', () => {
+    expect(ReindexDocumentResponseSchema.safeParse({ ...base, stage: 'chunk' }).success).toBe(
+      true,
+    );
+    expect(ReindexDocumentResponseSchema.safeParse({ ...base, stage: 'ocr' }).success).toBe(true);
+  });
+
+  it('拒绝 scan 等非 reindex 入队 stage', () => {
+    expect(ReindexDocumentResponseSchema.safeParse({ ...base, stage: 'scan' }).success).toBe(
+      false,
+    );
   });
 });

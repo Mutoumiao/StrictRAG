@@ -105,7 +105,8 @@ export const ReindexDocumentResponseSchema = z.object({
   docId: z.string().uuid(),
   enqueued: z.literal(true),
   jobId: z.string().min(1),
-  stage: z.literal('chunk'),
+  /** ready 等走 chunk；卡在 OCR 闸的扫描件走 ocr */
+  stage: z.enum(['chunk', 'ocr']),
   chunkStrategy: z.string().min(1),
   strategyChanged: z.boolean(),
 });

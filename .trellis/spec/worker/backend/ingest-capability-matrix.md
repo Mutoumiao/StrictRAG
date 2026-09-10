@@ -12,7 +12,7 @@
 |------------|:----:|----------|----------|----------|
 | **scan** | **stub** | `pipeline` `case 'scan'` · `scan-mode-policy` | mock_clean / mock_infected / off；`on` 拒 | 真 ClamAV（QUAL-2） |
 | **parse** | **stub** | `extract-text` + `loadObjectBytes` + 字数闸 | 仅 UTF-8 **txt/md** 当文本层；PDF 最小文本层；无层 / 过短 → `needs_ocr` + `NO_TEXT_LAYER`；开闸时无层 enqueue `ocr` | 复杂版式 |
-| **ocr** | **stub** | `pipeline` `case 'ocr'` · `ocr-policy` | `INGEST_OCR_ENABLED` 默认 false；可注入抽取器；低置信 `needs_review`；无引擎 `OCR_UNAVAILABLE` | 真 Tesseract / Cloud OCR · 历史 needs_ocr 重跑 |
+| **ocr** | **stub** | `pipeline` `case 'ocr'` · `ocr-policy` | `INGEST_OCR_ENABLED` 默认 false；可注入抽取器；低置信 `needs_review`；无引擎 `OCR_UNAVAILABLE`；utf8 文本层拒抽；运营 reindex 可入队 ocr | 真 Tesseract / Cloud OCR · 启动自动全库重跑 |
 | **chunk** | **done\*** | `splitByChunkStrategy` · manifests | 仅 `structure_paragraph`；幂等 resume（X-04-impl） | 多策略切分器；结构感知进阶 |
 | **embed** | **stub** | `INGEST_EMBED_MODE` mock\|fail | 伪向量 dims=8；同 version skip 已有行 | 真 embedding 网关 |
 | **es_index** | **stub** | `mockEsStore` · `INGEST_ES_MODE` · `es-http` | 进程内 Map 对账；`http` 时 mapping/bulk 写 `tenantId`/`kbId`/`docId`/`chunkId`/`sparseText`/`ownerDeptId`（无部门不写该字段）/`aclPrincipals`（null 不写；`[]` 写哨兵 `__acl_none__`） | 真 ES+IK bulk（B8） · 多租户 Router |
@@ -62,7 +62,7 @@ api.enqueue({ docId, stage: 'scan', indexVersion? })
 | PRD 能力（摘要） | 本仓 | 说明 |
 |------------------|:----:|------|
 | 审批后扫描 | stub | mock；fail-closed 启动闸已焊 |
-| 解析 + OCR | partial | 纯文本层 + PDF 最小层；OCR **opt-in 注入**，默认关；≠ 真引擎 |
+| 解析 + OCR | partial | 纯文本层 + PDF 最小层；OCR **opt-in 注入**，默认关；历史 `needs_ocr` 可由 reindex 入队 ocr；≠ 真引擎 |
 | 冻结 manifest | **done** | `chunk_manifests.frozen` |
 | 稠密向量 | stub | mock 向量 |
 | 稀疏 ES | stub | 进程内 mock；worker **无** `INGEST_ES_MODE=live` |

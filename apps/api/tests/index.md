@@ -113,6 +113,7 @@
 | `ingest/document-validation.test.ts` | 文档写入校验拒绝非法字段。 | 入库 HTTP | `documents validation` | 文档写入校验。 | 现行 |
 | `ingest/gates-live.test.ts` | live 闸组合在真实 handler 下拒绝未审批 complete。 | complete 闸 | `createApp document gates` | 无 Docker / not ready 时 skip。 | 现行 |
 | `ingest/jobs-query.test.ts` | 入库任务列表项映射保持查询契约。 | prds/06-async | `toIngestJobListItem` | 入队在 api，消费在 worker。 | 现行 |
+| `ingest/ocr-rerun-http.test.ts` | 卡在 OCR 闸的文档 reindex 必须入队 ocr；短 utf8 与 ready 仍入队 chunk。 | 剧本 Q7 · ADR-043 · P5 历史 needs_ocr 重跑 | `POST /documents/:docId/reindex` · `reindexEnqueueStage` | 无新 HTTP。不自动全库。≠ 真引擎。 | 现行 |
 | `ingest/ingest-report-http.test.ts` | 库级 GET ingest-report 须成员可读、空列表 200、缺库 404。 | prds/05-api GET ingest-report · 功能表 §5.2 | `GET /knowledge-bases/:kbId/ingest-report` | 只回已落库行；不是 doc 级路径。 | 现行 |
 | `ingest/ingest-report-map.test.ts` | 入库报告行映射不得把 null 对账填成 0 装齐。 | 功能表 §5.2 | `toIngestReportItem` | 查询契约；落库在 worker。 | 现行 |
 | `ingest/reindex-strategy.test.ts` | reindex / complete 按库可用策略计数：仅 1 个可自动，未实现 400。 | B12 · 功能表 §4.5 | `documents reindex / complete` | 未实现 400；选择规则走 available。 | 现行 |

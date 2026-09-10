@@ -53,6 +53,7 @@ apps/api/
     # secureHeaders / notFound 直接在 app.ts 内联
     services/
       documents.ts · kb-list.ts · chunks.ts · chunk-strategies.ts  # B12 注册表
+      ingest-reindex-stage.ts    # reindex 入队 chunk|ocr
       members.ts · sessions.ts · feedback.ts · kb-settings.ts · kb-settings-audit.ts · model-gateway.ts
       platform-users-roles.ts · superadmin-bootstrap.ts · password-hash.ts
       departments.ts · dashboard.ts

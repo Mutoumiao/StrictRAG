@@ -64,6 +64,7 @@ import {
   recordIngestComplete,
   type RateLimitResult,
 } from '../../obs/index.js';
+import { reindexEnqueueStage } from '../../services/ingest-reindex-stage.js';
 import { enqueueIngest } from '../../services/queue.js';
 import { effectiveMaxUploadBytes, getStorage } from '../../services/storage.js';
 import { toDetail, toListItem } from './mappers.js';
@@ -399,12 +400,16 @@ documentRoutes.post(
       await documentRepo.setChunkStrategy(docId, strategyGate.code, strategyParams);
     }
 
+    const stage = reindexEnqueueStage({
+      status: doc.status,
+      extractMethod: doc.extractMethod,
+    });
     const jobId =
       (await enqueueIngest({
         docId: doc.id,
         kbId: doc.kbId,
         tenantId: doc.tenantId,
-        stage: 'chunk',
+        stage,
       })) ?? `local-${docId}`;
 
     childLogger({ requestId: c.get('requestId') }).info(
@@ -415,6 +420,7 @@ documentRoutes.post(
         strategyChanged: strategyGate.changed,
         retained: strategyGate.retained,
         jobId,
+        stage,
       },
       'reindex enqueued with chunk strategy',
     );
@@ -423,7 +429,7 @@ documentRoutes.post(
       docId,
       enqueued: true,
       jobId,
-      stage: 'chunk',
+      stage,
       chunkStrategy: strategyGate.code,
       strategyChanged: strategyGate.changed,
     };
