@@ -33,6 +33,8 @@ export function shouldAuditAdminWrite(method: string, path: string): boolean {
   if (path.startsWith('/api/v1/admin/')) return true;
   // KB 设置写
   if (m === 'PATCH' && /\/knowledge-bases\/[^/]+\/settings\/?$/.test(path)) return true;
+  // 在线编写
+  if (m === 'POST' && /\/knowledge-bases\/[^/]+\/documents\/write\/?$/.test(path)) return true;
 
   return false;
 }

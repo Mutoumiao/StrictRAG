@@ -56,6 +56,9 @@ describe('shouldAuditAdminWrite', () => {
     expect(
       shouldAuditAdminWrite('PATCH', '/api/v1/knowledge-bases/kb1/settings'),
     ).toBe(true);
+    expect(
+      shouldAuditAdminWrite('POST', '/api/v1/knowledge-bases/kb1/documents/write'),
+    ).toBe(true);
   });
 
   it('GET / ask / auth / health → false', () => {

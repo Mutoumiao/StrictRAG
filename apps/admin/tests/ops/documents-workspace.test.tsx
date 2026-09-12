@@ -65,6 +65,17 @@ vi.mock('@/app/(ops)/documents/upload.services', async (importOriginal) => {
   };
 });
 
+const writeAdminDocument = vi.fn();
+const planWriteChunkStrategy = vi.fn();
+vi.mock('@/app/(ops)/documents/write.services', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/app/(ops)/documents/write.services')>();
+  return {
+    ...actual,
+    writeAdminDocument: (...args: unknown[]) => writeAdminDocument(...args),
+    planWriteChunkStrategy: (...args: unknown[]) => planWriteChunkStrategy(...args),
+  };
+});
+
 vi.mock('@/app/(ops)/documents/jobs.services', () => ({
   loadIngestJobs: async () => ({ ok: true, jobs: [] }),
 }));
@@ -150,6 +161,8 @@ describe('DocumentsWorkspace', () => {
     saveDocumentMeta.mockReset();
     loadDepartmentOptions.mockReset();
     uploadAdminDocument.mockReset();
+    writeAdminDocument.mockReset();
+    planWriteChunkStrategy.mockReset();
     planReindexChunkStrategy.mockReset();
     reindexAdminDocument.mockReset();
     setDocumentLifecycle.mockClear();
@@ -669,6 +682,48 @@ describe('readyColLabel', () => {
     me.permissions = ['admin.shell', 'doc.view', 'doc.upload'];
     rerender(<DocumentsWorkspace />);
     expect(screen.getByLabelText('上传文档')).toBeInTheDocument();
+  });
+});
+
+describe('DocumentsWorkspace 在线编写', () => {
+  beforeEach(() => {
+    me.permissions = [];
+    loadDocumentList.mockReset();
+    writeAdminDocument.mockReset();
+    planWriteChunkStrategy.mockReset();
+    localStorage.clear();
+  });
+
+  it('无 doc.editor 不显示在线编写', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', 'kb-1');
+    me.permissions = ['admin.shell', 'doc.view'];
+    loadDocumentList.mockResolvedValue({ ok: true, rows: [listDoc] });
+    render(<DocumentsWorkspace />);
+    await screen.findByText('请假制度');
+    expect(screen.queryByRole('button', { name: '在线编写' })).not.toBeInTheDocument();
+  });
+
+  it('有 doc.editor 可打开编写区；空正文提交按钮不可点', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', 'kb-1');
+    me.permissions = ['admin.shell', 'doc.view', 'doc.editor'];
+    loadDocumentList.mockResolvedValue({ ok: true, rows: [listDoc] });
+    planWriteChunkStrategy.mockResolvedValue({
+      ok: true,
+      plan: {
+        contentType: 'text/markdown',
+        family: 'md',
+        available: [{ code: 'structure_paragraph', name: '结构段落', implemented: true, recommended: true }],
+        recommendedCode: 'structure_paragraph',
+        requireExplicit: false,
+        autoCode: 'structure_paragraph',
+      },
+    });
+    render(<DocumentsWorkspace />);
+    await screen.findByText('请假制度');
+    await userEvent.click(screen.getByRole('button', { name: '在线编写' }));
+    await screen.findByLabelText('编写标题');
+    expect(screen.getByLabelText('编写正文')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '提交审批' })).toBeDisabled();
   });
 });
 

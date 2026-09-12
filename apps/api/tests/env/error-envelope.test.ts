@@ -8,7 +8,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createApp } from '../../src/app.js';
-import { isBodyLimitExcept } from '../../src/middleware/body-limit.js';
+import { isBodyLimitExcept, isWriteDocumentPath } from '../../src/middleware/body-limit.js';
 import { isAskTimeoutExcept } from '../../src/middleware/timeout.js';
 
 describe('ARCH-P0 error envelope', () => {
@@ -89,6 +89,12 @@ describe('ARCH-P0 path helpers', () => {
         'POST',
         '/api/v1/knowledge-bases/kb1/documents/doc1/complete',
       ),
+    ).toBe(true);
+    expect(
+      isBodyLimitExcept('POST', '/api/v1/knowledge-bases/kb1/documents/write'),
+    ).toBe(false);
+    expect(
+      isWriteDocumentPath('POST', '/api/v1/knowledge-bases/kb1/documents/write'),
     ).toBe(true);
     expect(isBodyLimitExcept('POST', '/api/v1/auth/dev-login')).toBe(false);
   });

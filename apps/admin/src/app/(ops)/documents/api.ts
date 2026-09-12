@@ -21,6 +21,8 @@ import type {
   ReindexDocumentResponse,
   UploadUrlBody,
   UploadUrlResponse,
+  WriteDocumentBody,
+  WriteDocumentResponse,
 } from '@strict-rag/contracts';
 
 import { readClientSession } from '@/auth/client-session';
@@ -80,6 +82,13 @@ export async function listIngestReports(kbId: string) {
 export async function completeUpload(kbId: string, docId: string, body: CompleteUploadBody) {
   return http.post<CompleteUploadResponse, CompleteUploadBody>(
     `/api/v1/knowledge-bases/${kbId}/documents/${docId}/complete`,
+    body,
+  );
+}
+
+export async function writeDocument(kbId: string, body: WriteDocumentBody) {
+  return http.post<WriteDocumentResponse, WriteDocumentBody>(
+    `/api/v1/knowledge-bases/${kbId}/documents/write`,
     body,
   );
 }

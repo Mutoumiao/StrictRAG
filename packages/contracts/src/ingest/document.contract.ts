@@ -95,6 +95,22 @@ export const CompleteUploadResponseSchema = z.object({
 });
 export type CompleteUploadResponse = z.infer<typeof CompleteUploadResponseSchema>;
 
+/** POST …/documents/write · 在线编写（Markdown，进审批，不入队 scan） */
+export const WriteDocumentBodySchema = z.object({
+  title: z.string().trim().min(1).max(500),
+  markdown: z.string().trim().min(1).max(1_048_576),
+  chunkStrategy: z.string().min(1).max(64).optional(),
+  ownerDeptId: z.string().uuid().nullable().optional(),
+  visibilityLevel: VisibilityLevelSchema.optional(),
+  aclPrincipals: z.array(z.string().uuid()).max(256).nullable().optional(),
+});
+export type WriteDocumentBody = z.infer<typeof WriteDocumentBodySchema>;
+
+export const WriteDocumentResponseSchema = CompleteUploadResponseSchema.extend({
+  sourceType: z.literal('write'),
+});
+export type WriteDocumentResponse = z.infer<typeof WriteDocumentResponseSchema>;
+
 /** POST …/documents/:docId/reindex · B12 多策略时 body 必带 chunkStrategy */
 export const ReindexDocumentBodySchema = z.object({
   chunkStrategy: z.string().min(1).max(64).optional(),

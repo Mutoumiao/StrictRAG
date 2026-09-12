@@ -10,6 +10,8 @@ import {
   BizCode,
   CompleteUploadBodySchema,
   CompleteUploadResponseSchema,
+  WriteDocumentBodySchema,
+  WriteDocumentResponseSchema,
   CreateEvalRunBodySchema,
   CreateEvalRunResponseSchema,
   CreateGoldQuestionBodySchema,
@@ -112,6 +114,8 @@ export function buildOpenApiDocument(): OpenApiDocument {
     UploadUrlResponse: zodSchema(UploadUrlResponseSchema),
     CompleteUploadBody: zodSchema(CompleteUploadBodySchema),
     CompleteUploadResponse: zodSchema(CompleteUploadResponseSchema),
+    WriteDocumentBody: zodSchema(WriteDocumentBodySchema),
+    WriteDocumentResponse: zodSchema(WriteDocumentResponseSchema),
     DevLoginRequest: zodSchema(DevLoginRequestSchema),
     TokenPairResponse: zodSchema(TokenPairResponseSchema),
   };
@@ -267,6 +271,45 @@ export function buildOpenApiDocument(): OpenApiDocument {
                     properties: {
                       ok: { type: 'boolean', const: true },
                       data: ref('UploadUrlResponse'),
+                      meta: ref('ApiMeta'),
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      '/api/v1/knowledge-bases/{kbId}/documents/write': {
+        post: {
+          operationId: 'writeDocument',
+          summary: '在线编写 Markdown（进审批，不入队 scan）',
+          tags: ['ingest'],
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: 'kbId',
+              in: 'path',
+              required: true,
+              schema: { type: 'string', format: 'uuid' },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': { schema: ref('WriteDocumentBody') },
+            },
+          },
+          responses: {
+            '201': {
+              description: 'pending write',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      ok: { type: 'boolean', const: true },
+                      data: ref('WriteDocumentResponse'),
                       meta: ref('ApiMeta'),
                     },
                   },

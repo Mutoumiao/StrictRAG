@@ -1,7 +1,7 @@
 /**
  * 目标：文档 / 知识库 DTO 与完成上传、补丁元数据必须接受合法部门可见级并拒非法值。
  * 需求：入库 HTTP
- * 被测：CreateKbBodySchema · KnowledgeBaseListItemSchema · VisibilityLevelSchema · CompleteUploadBodySchema · PatchDocumentMetaBodySchema · DocumentDetailSchema · DocumentListItemSchema · ReindexDocumentResponseSchema
+ * 被测：CreateKbBodySchema · KnowledgeBaseListItemSchema · VisibilityLevelSchema · CompleteUploadBodySchema · WriteDocumentBodySchema · WriteDocumentResponseSchema · PatchDocumentMetaBodySchema · DocumentDetailSchema · DocumentListItemSchema · ReindexDocumentResponseSchema
  * 简介：文档 DTO 与可见级 / 部门字段 / aclPrincipals 三态；reindex stage 可 chunk 或 ocr。
  */
 
@@ -10,6 +10,8 @@ import { describe, expect, it } from 'vitest';
 import {
   CompleteUploadBodySchema,
   CreateKbBodySchema,
+  WriteDocumentBodySchema,
+  WriteDocumentResponseSchema,
   DocumentDetailSchema,
   DocumentListItemSchema,
   KnowledgeBaseListItemSchema,
@@ -140,6 +142,44 @@ describe('CompleteUploadBodySchema', () => {
         aclPrincipals: Array.from({ length: 257 }, () => '01900000-0000-7000-8000-0000000000a1'),
       }).success,
     ).toBe(false);
+  });
+});
+
+describe('WriteDocumentBodySchema', () => {
+  it('接受标题与 markdown', () => {
+    expect(
+      WriteDocumentBodySchema.safeParse({ title: '差旅', markdown: '# 正文' }).success,
+    ).toBe(true);
+  });
+
+  it('拒空 markdown 或空标题', () => {
+    expect(WriteDocumentBodySchema.safeParse({ title: '差旅', markdown: '' }).success).toBe(false);
+    expect(WriteDocumentBodySchema.safeParse({ title: '', markdown: '# 正文' }).success).toBe(
+      false,
+    );
+    expect(WriteDocumentBodySchema.safeParse({ title: '差旅', markdown: '  \n' }).success).toBe(
+      false,
+    );
+    expect(WriteDocumentBodySchema.safeParse({ markdown: '# 正文' }).success).toBe(false);
+  });
+});
+
+describe('WriteDocumentResponseSchema', () => {
+  it('必须 sourceType=write', () => {
+    const base = {
+      docId: '01900000-0000-7000-8000-0000000000d1',
+      byteSize: 12,
+      approvalStatus: 'pending' as const,
+      status: 'uploaded' as const,
+      chunkStrategy: 'structure_paragraph',
+    };
+    expect(WriteDocumentResponseSchema.safeParse({ ...base, sourceType: 'write' }).success).toBe(
+      true,
+    );
+    expect(WriteDocumentResponseSchema.safeParse({ ...base, sourceType: 'upload' }).success).toBe(
+      false,
+    );
+    expect(WriteDocumentResponseSchema.safeParse(base).success).toBe(false);
   });
 });
 

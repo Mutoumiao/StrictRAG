@@ -21,6 +21,7 @@ import type {
   VisibilityLevel,
 } from '@strict-rag/contracts';
 import { Button } from '@strict-rag/ui/components/ui/button';
+import { ClosedSelect } from '@strict-rag/ui/components/ui/closed-select';
 import { Input } from '@strict-rag/ui/components/ui/input';
 import { Label } from '@strict-rag/ui/components/ui/label';
 import { Textarea } from '@strict-rag/ui/components/ui/textarea';
@@ -66,6 +67,13 @@ import {
   reindexAdminDocument,
 } from '../reindex.services';
 import { pickUploadChunkStrategy, planUploadChunkStrategy, uploadAdminDocument } from '../upload.services';
+import {
+  WRITE_MARKDOWN_TYPE,
+  canSubmitWrite,
+  pickWriteChunkStrategy,
+  planWriteChunkStrategy,
+  writeAdminDocument,
+} from '../write.services';
 
 const LIST_COL_COUNT = 7;
 
@@ -146,6 +154,15 @@ export function DocumentsWorkspace() {
   const [reindexPicked, setReindexPicked] = useState('');
   const [reindexBusy, setReindexBusy] = useState(false);
   const [reindexMessage, setReindexMessage] = useState<string | null>(null);
+  const [writeOpen, setWriteOpen] = useState(false);
+  const [writeTitle, setWriteTitle] = useState('');
+  const [writeMarkdown, setWriteMarkdown] = useState('');
+  const [writeBusy, setWriteBusy] = useState(false);
+  const [writeMessage, setWriteMessage] = useState<string | null>(null);
+  const [writePlan, setWritePlan] = useState<ForUploadResponse | null>(null);
+  const [writePicked, setWritePicked] = useState('');
+  const writePlanKbRef = useRef('');
+  const writePlanGen = useRef(0);
   const openIdRef = useRef<string | null>(null);
   const deptOptionsCache = useRef<Department[] | null>(null);
   const deptOptionsInflight = useRef<Promise<LoadDepartmentOptionsResult> | null>(null);
@@ -169,7 +186,18 @@ export function DocumentsWorkspace() {
   const load = useCallback(async () => {
     const id = readStoredKbId().trim();
     setKbId(id);
+    if (writePlanKbRef.current && writePlanKbRef.current !== id) {
+      writePlanGen.current += 1;
+      writePlanKbRef.current = '';
+      setWriteOpen(false);
+      setWritePlan(null);
+      setWritePicked('');
+    }
     if (!id) {
+      writePlanGen.current += 1;
+      writePlanKbRef.current = '';
+      setWriteOpen(false);
+      setWritePlan(null);
       setRows([]);
       setState('idle');
       setError(null);
@@ -331,6 +359,62 @@ export function DocumentsWorkspace() {
     await runUpload(file, picked.code);
   }
 
+  async function openWritePanel() {
+    const id = readStoredKbId().trim();
+    const gen = ++writePlanGen.current;
+    writePlanKbRef.current = '';
+    setWriteOpen(true);
+    setWriteMessage(null);
+    setWritePlan(null);
+    setWritePicked('');
+    if (!id) return;
+    const planned = await planWriteChunkStrategy(id, WRITE_MARKDOWN_TYPE);
+    if (gen !== writePlanGen.current) return;
+    if (!planned.ok) {
+      setWriteMessage(planned.message);
+      return;
+    }
+    setWritePlan(planned.plan);
+    writePlanKbRef.current = id;
+    if (planned.plan.requireExplicit) {
+      setWritePicked('');
+    } else {
+      const picked = pickWriteChunkStrategy(planned.plan);
+      setWritePicked(picked.ok ? picked.code : '');
+    }
+  }
+
+  async function onSubmitWrite() {
+    const id = readStoredKbId().trim();
+    if (!id || !canEdit) return;
+    if (!canSubmitWrite(writeTitle, writeMarkdown)) {
+      setWriteMessage('请填写标题和正文');
+      return;
+    }
+    if (!writePlan || writePlanKbRef.current !== id) {
+      setWriteMessage('分片策略未就绪');
+      return;
+    }
+    const picked = pickWriteChunkStrategy(writePlan, writePicked);
+    if (!picked.ok) {
+      setWriteMessage(picked.message);
+      return;
+    }
+    setWriteBusy(true);
+    setWriteMessage(null);
+    const result = await writeAdminDocument(id, writeTitle, writeMarkdown, picked.code);
+    if (result.ok) {
+      setWriteMessage('已提交审批');
+      setWriteTitle('');
+      setWriteMarkdown('');
+      setWriteOpen(false);
+      await load();
+    } else {
+      setWriteMessage(result.message);
+    }
+    setWriteBusy(false);
+  }
+
   async function onConfirmUpload() {
     if (!pendingFile || !uploadPlan) return;
     const picked = pickUploadChunkStrategy(uploadPlan, pickedStrategy);
@@ -446,6 +530,28 @@ export function DocumentsWorkspace() {
               />
             </label>
           ) : null}
+          {canEdit ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={writeBusy || (!kbId && !writeOpen)}
+              aria-expanded={writeOpen}
+              aria-controls="write-panel"
+              onClick={() => {
+                if (writeOpen) {
+                  writePlanGen.current += 1;
+                  writePlanKbRef.current = '';
+                  setWriteOpen(false);
+                  setWritePlan(null);
+                  return;
+                }
+                void openWritePanel();
+              }}
+            >
+              在线编写
+            </Button>
+          ) : null}
           <Button type="button" variant="outline" size="sm" onClick={() => void load()}>
             刷新
           </Button>
@@ -473,6 +579,71 @@ export function DocumentsWorkspace() {
             确认上传
           </Button>
         </div>
+      ) : null}
+      {writeMessage ? (
+        <p
+          className={
+            writeMessage === '已提交审批'
+              ? 'mb-2 text-sm text-muted-foreground'
+              : 'mb-2 text-sm text-destructive'
+          }
+          aria-live="polite"
+        >
+          {writeMessage}
+        </p>
+      ) : null}
+      {canEdit && writeOpen ? (
+        <form
+          id="write-panel"
+          className="mb-4 flex max-w-xl flex-col gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void onSubmitWrite();
+          }}
+        >
+          <Label htmlFor="write-title">编写标题</Label>
+          <Input
+            id="write-title"
+            value={writeTitle}
+            onChange={(e) => setWriteTitle(e.target.value)}
+            disabled={writeBusy}
+          />
+          <Label htmlFor="write-markdown">编写正文</Label>
+          <Textarea
+            id="write-markdown"
+            value={writeMarkdown}
+            onChange={(e) => setWriteMarkdown(e.target.value)}
+            disabled={writeBusy}
+            rows={8}
+          />
+          {writePlan?.requireExplicit ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <Label htmlFor="write-chunk-strategy">分片策略</Label>
+              <ClosedSelect
+                id="write-chunk-strategy"
+                value={writePicked}
+                onValueChange={setWritePicked}
+                disabled={writeBusy}
+                options={writePlan.available.map((a) => ({
+                  value: a.code,
+                  label: a.recommended ? `${a.name}（recommended）` : a.name,
+                }))}
+              />
+            </div>
+          ) : null}
+          <Button
+            type="submit"
+            size="sm"
+            disabled={
+              writeBusy ||
+              !writePlan ||
+              !canSubmitWrite(writeTitle, writeMarkdown) ||
+              (writePlan.requireExplicit && !writePicked.trim())
+            }
+          >
+            提交审批
+          </Button>
+        </form>
       ) : null}
       <p className="mb-4 text-xs text-muted-foreground">
         稀疏就绪是适配层/mock 标志，≠ 生产 ES。

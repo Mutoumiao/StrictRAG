@@ -28,6 +28,13 @@ export function isBodyLimitExcept(method: string, path: string): boolean {
   return false;
 }
 
+export function isWriteDocumentPath(method: string, path: string): boolean {
+  return (
+    method.toUpperCase() === 'POST' &&
+    /\/api\/v1\/knowledge-bases\/[^/]+\/documents\/write\/?$/.test(path)
+  );
+}
+
 /**
  * JSON 写接口 body 上限；except 上传相关路径。
  */
@@ -42,8 +49,12 @@ export const jsonBodyLimitMiddleware = createMiddleware<{ Variables: ApiVariable
       return;
     }
 
+    const maxSize = isWriteDocumentPath(c.req.method, c.req.path)
+      ? Math.min(env.INGEST_MAX_FILE_BYTES, 1_048_576 * 4 + 65_536)
+      : env.API_JSON_BODY_LIMIT_BYTES;
+
     const handler = bodyLimit({
-      maxSize: env.API_JSON_BODY_LIMIT_BYTES,
+      maxSize,
       onError: (ctx) =>
         fail(ctx, BizCode.PAYLOAD_TOO_LARGE, '请求体超过允许大小', 413),
     });

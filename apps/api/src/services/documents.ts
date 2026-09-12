@@ -130,6 +130,7 @@ export const documentRepo = {
     objectBucket: string;
     objectKey: string;
     contentType: string;
+    sourceType?: 'upload' | 'write';
   }) {
     const id = input.id ?? uuidv7();
     await getDb().insert(documents).values({
@@ -140,7 +141,7 @@ export const documentRepo = {
       status: 'uploaded',
       approvalStatus: 'none',
       lifecycle: 'draft',
-      sourceType: 'upload',
+      sourceType: input.sourceType ?? 'upload',
       objectBucket: input.objectBucket,
       objectKey: input.objectKey,
       contentType: input.contentType,

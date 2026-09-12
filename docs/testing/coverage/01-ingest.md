@@ -82,7 +82,7 @@
 | V4 | 另一 kb admin approve → 入队 scan；其后 M/L 链可绿 | P2必签 | 注入 | 部分测 | api | approve 只改 `approval_status=approved`，scan 另 `POST …/scan`；canEnqueueScan('approved')=true（approval-scan.test.ts）；admin ops/approvals-workspace.test.tsx（有 decide 可点通过；有 `doc.upload` 显示入队 scan；**不替代 api 闸**） | approve 不自动入队；无「另一 kb_admin 通过后 scan 200」HTTP；无 M/L 衔接 |
 | V5 | admin reject：不 scan；可重提 | P2必签 | 单测 | 部分测 | api | apps/api/tests/ingest/reject-http.test.ts | reject 200 后 scan 403 且不入队。**无独立重提 API**（rejected→pending） |
 | V6 | 伪造「跳过审批直写 ready」API → 不存在或 403 | P2必签 | 单测 | 部分测 | api | 无 PATCH status=ready 路由；worker 任意 stage 未批准 → `NOT_APPROVED`（不可重试）；canEnqueueScan 未批为 false | 无对伪造直写 ready 路径的 404/403 负向测 |
-| V7 | BlockNote 提交发布 → approve：服务端导出 MD；编辑者 UI 无强制导出步骤；进 scan 链 | P2.x | 单测 | 延后 | api | 仓内无 BlockNote；sourceType 默认 `upload` | 非本阶段；无服务端导出 MD |
+| V7 | BlockNote 提交发布 → approve：服务端导出 MD；编辑者 UI 无强制导出步骤；进 scan 链 | P2.x | 单测 | 部分测 | api · admin | apps/api/tests/ingest/write-document-http.test.ts（Markdown write → pending + `sourceType=write`，不入队 scan）；apps/admin/tests/ops/document-write.test.ts · documents-workspace.test.tsx（`doc.editor` 编写区） | 无 BlockNote；无草稿 HTTP；仍走审批后 scan，不自动入队 |
 | V8 | approve 后跳过 scan 标 ready → 禁止 | P2必签 | 单测 | 部分测 | api | apps/api/tests/ingest/approval-scan.test.ts（仅 `status=ready` 可 active）；ready 仅 worker es_index 双就绪写入 | 无「approve 后直标 ready」负向 HTTP |
 
 ## 剧本 AA · 分片策略与 reindex（P2必签 · ADR-053 / ADR-059）
@@ -107,10 +107,10 @@
 | 覆盖 | 行数 | ID |
 |------|------|-----|
 | 已测 | 12 | E6 L6 L8 M3 M4 M9 Q3 AA2 AA3 AA4 AA5 AA7 |
-| 部分测 | 30 | E1 E2 E3 L1 L2 L3 L4 L5 L9 M1 M2 M5 M6 M8 M10 Q1 Q2 Q4 Q5 Q7 Q8 Q9 Q10 V1 V2 V4 V5 V6 V8 AA6 |
+| 部分测 | 31 | E1 E2 E3 L1 L2 L3 L4 L5 L9 M1 M2 M5 M6 M8 M10 Q1 Q2 Q4 Q5 Q7 Q8 Q9 Q10 V1 V2 V4 V5 V6 V7 V8 AA6 |
 | 缺测 | 0 | — |
 | 缺实现 | 6 | E4 E5 L7 M7 V3 AA1 |
-| 延后 | 5 | Q6 Q11 Q12 V7 AA8 |
+| 延后 | 4 | Q6 Q11 Q12 AA8 |
 | UAT | 0 | — |
 | **合计** | **53** | E1–E6 L1–L9 M1–M10 Q1–Q12 V1–V8 AA1–AA8 |
 
