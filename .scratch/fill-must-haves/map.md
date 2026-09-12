@@ -13,7 +13,7 @@ Status: open
 - 每轮先读：本图、`docs/agents/issue-tracker.md`、`docs/agents/domain.md`、功能表、相关包的 `docs/module-status/`。写代码前读 `.trellis/spec/` 对应包。执行完成后跑 skill `update-module-status`。
 - **覆盖「只做决策」**：工单可以动手补缺口，不只锁决策。
 - **本图是执行面**：缺口只在 `.scratch/fill-must-haves/` 工单上做完。`.trellis/tasks/08-06-project-backlog/` 只留指针和勾选。同一缺口禁止再 `task.py create` 平行实现任务。这只覆盖本图，不改全仓其它流程。
-- 顺序：本图 P2 语义已收官（第三批）；P2.5 出口走 **L2 归档准出**（工程路径 [L2 归档底线](./issues/14-l2-archive-floor.md) 已齐，人签仍图外）。鉴权/成员余量、入库报告、库选择器、admin 顶栏、web 关闭列表、启动引导超管、写路径锁超管全码、修改日志、三平面配额、失败 Webhook 已齐。在线编写留雾（P2.x）。P3b 可动手最小闭环已齐。P4 可动手代码真空已尽。本图继续 P5；OCR 开闸与历史 `needs_ocr` 运营重跑已齐（默认关）。下一张裁定开放。P3a 仍等 L2 人签。不默认开 `DEPT_ACL_ENFORCE`。不加角色 principal。不默认开 OCR。不自动全库重跑。
+- 顺序：本图 P2 语义已收官（第三批）；P2.5 出口走 **L2 归档准出**（工程路径 [L2 归档底线](./issues/14-l2-archive-floor.md) 已齐，人签仍图外）。鉴权/成员余量、入库报告、库选择器、admin 顶栏、web 关闭列表、启动引导超管、写路径锁超管全码、修改日志、三平面配额、失败 Webhook 已齐。在线编写留雾（P2.x）。P3b 可动手最小闭环已齐。P4 可动手代码真空已尽。P5 OCR 开闸与历史 `needs_ocr` 运营重跑已齐（默认关）；**P5 可动手代码真空已尽**。本图暂停执行，等图外 L2 人签或真 OCR 引擎选型。P3a 仍等 L2 人签。不默认开 `DEPT_ACL_ENFORCE`。不加角色 principal。不默认开 OCR。不自动全库重跑。
 - **站规（UI）**：web / admin 新下拉必须基于 `@strict-rag/ui` 关闭列表，禁止浏览器原生 `<select>` 外壳（含现有 ui `Select`）。`Button` / `Input` / `Textarea` 仍走 ui 包。本规不改 GET / 鉴权语义。
 - 人签（B10 业务 PASS）不是代码缺口，不进本图执行工单。
 - 引用工单用标题，不要只写编号。一回合只解决一张工单（research 除外）。
@@ -80,6 +80,7 @@ Status: open
 - [OCR 开闸最小闭环](./issues/57-ocr-gate-min.md) — `INGEST_OCR_ENABLED` 默认关；逻辑 stage `ocr`；可注入抽取器；低置信 `needs_review` 且不留可 chunk 正文。无真引擎。
 - [裁定 OCR 开闸后下一步](./issues/58-after-ocr-gate-order.md) — 在线编写留雾；P3b 站规仍锁；不暂停；继续 P5；本批只做历史 needs_ocr 重跑。不默认开、不加真引擎、不自动全库。
 - [历史 needs_ocr 重跑最小闭环](./issues/59-ocr-rerun-min.md) — 现有 reindex 对卡在 OCR 闸的扫描件入队 `ocr`；短 utf8 不洗；失败不抬 version。无真引擎 / 无自动全库。
+- [裁定历史 needs_ocr 重跑后下一步](./issues/60-after-ocr-rerun-order.md) — P5 可动手真空已尽；本图暂停执行，等 L2 人签或真 OCR 引擎选型。无本批执行工单。
 
 ## Not yet specified
 
@@ -88,7 +89,7 @@ Status: open
 - P3a Full 图（CRAG / multi_hop）；硬门在 L2 归档准出（工程路径是 L2 归档底线；人签不进本图）
 - P3b 尚未齐的强制检索面：仓库默认开 `DEPT_ACL_ENFORCE`、角色 principal
 - P4 其余：L1 门禁包人签与再认证、数据面板增强；独立 `tau_sweep` / `verifier_calib` 入队、把 tau* 接到运行时、live judge 真跑、Grafana 时序仍缺口
-- P5 其余：OCR 真引擎 / Cloud OCR、容量、熔断生产调优、在线抽样常态化、CoVe / 超长异步、启动自动全库 needs_ocr 重跑
+- P5 其余（开闸+重跑语义已齐）：OCR 真引擎 / Cloud OCR、容量、熔断生产调优、在线抽样常态化、CoVe / 超长异步、启动自动全库 needs_ocr 重跑
 - 基础设施缺口的切入时机：B8 / B9 / QUAL-2（不挡更早语义，但最终产品仍须收）
 
 ## Out of scope

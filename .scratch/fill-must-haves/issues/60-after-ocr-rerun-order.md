@@ -2,8 +2,9 @@
 
 Type: grilling
 Label: wayfinder:grilling
-Status: open
-Triage: ready-for-human
+Status: resolved
+Assignee: grok
+Triage: ready-for-agent
 Blocked by: 59
 
 ## Question
@@ -30,3 +31,26 @@ Blocked by: 59
 5. **回头 P4 人签/面板雾**（须先确认那是代码缺口）
 
 本工单只锁顺序与切边，不写产品代码。
+
+## Answer
+
+历史 needs_ocr 重跑之后，**P5 可动手代码真空已尽**。OCR 开闸与运营 reindex 入队 `ocr` 已齐（默认关）。真引擎 / Cloud 是选型，不是卡住的产品路径。启动自动全库仍锁。容量 / 熔断生产调优无产品数字会空转。在线抽样 / CoVe / 超长异步零接线，且不是本批 OCR 入场遗留。Q6（body 先于 manifest、无 ready 后 patch body）与 AA8（无 OCR 策略码即可选）源码已满足，覆盖表「延后」落后。`dogfood_ocr` 字段 / docs-guard / extract 超时是测或标签，不是第二套状态机。
+
+**在线编写留雾**。P3b 余量仍锁。P4 人签 / 面板增强仍不是代码缺口。
+
+本图 **暂停执行**。等图外 L2 人签或真 OCR 引擎选型。不并进真引擎接线、不默认开、不自动全库、不洗短 utf8、不单开补测工单冒充真空。
+
+无本批执行工单。前线空：目的地未达，等人签 / 选型 / 解锁站规后再开下一张。
+
+仍留雾：仓库默认开强制、角色 principal、在线编写、P4 其余（再认证 / 面板增强 / tau* 接运行时 / live judge / Grafana）、P5 其余（真引擎 / Cloud / 自动全库 / 容量 / 熔断生产调优 / 在线抽样 / CoVe）、B8 / B9 / QUAL-2。
+
+未改产品代码。
+
+## Comments
+
+- 2026-09-12 按图顺序认领。用户授权本图全程自行决策。
+- Q1：选 4。P5 可动手真空已尽。在线编写留雾。不回头解 P3b。不回头 P4 人签/面板雾。不把引擎 / Cloud / 抽样 / CoVe 当本批代码刀。
+- Q2：不新开执行工单。Q6 / AA8 不单开补测。不接 mock 抽取器到生产 `index.ts`。
+- Q3：`dogfood_ocr` 不塞进现有八态 `opsLabel`。无功能表行则不加列。
+- Q4：默认开强制 / 角色码 / 默认开 OCR / 启动自动全库仍锁。
+- Q5：目的地未达；地图保持 open。前线空 = 等人签或真 OCR 引擎选型，不是本图已走完。
