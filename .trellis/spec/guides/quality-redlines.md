@@ -19,7 +19,7 @@
 | **合法 draft 必 verify** | 禁止跳过 verify 直接 `answered` |
 | **历史 ≠ evidence** | 会话历史不得当作 citation / min_support 对齐文本 |
 | **门禁只加严不放宽** | 生产路径禁止用 flag 静默放宽 |
-| **双就绪 ∧ active** | 文档/chunk 检索闸：索引就绪且状态 active |
+| **双就绪 ∧ active** | 文档/chunk 检索闸：索引就绪且状态 active；生效窗口另叠（缺界不限） |
 
 ---
 

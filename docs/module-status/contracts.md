@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（支撑 P0/P1 入库 + S2 问答/会话/反馈/成员 + B1–B6 运营契约 + **B12 策略码 / ingest job**；**非**全量 OpenAPI） |
 | 默认依赖模式 | 纯库；无运行时开关 |
 | 关联模块 | 被 `api` · `worker` · `web` · `admin` 消费；是全仓错误码、响应信封、队列名与 **可写分片策略集** 的唯一来源 |
-| 最近更新 | 2026-09-12（WriteDocument body/response；sourceType=write） |
+| 最近更新 | 2026-09-12（文档 PATCH/列表含生效区间本地时间串） |
 | Spec | `.trellis/spec/contracts/library/` |
 | PRD | `prds/05-api` · 各域契约与 PRD 短名对齐 |
 
@@ -31,7 +31,7 @@
 - **黄金集 / run DTO**：eval/gold.contract.ts · eval/eval-run.contract.ts；2×2、Hit@k、τ 扫描与 Judge AUROC 纯函数 eval/l1-matrix.ts；EvalRun 可选 `hitAtK` / `hitAtKHits` / `hitAtKScored` / `tauStar` / `judgeAuroc`；L2 解析 eval/l2-gold.ts · 工程公式 eval/l2-matrix.ts
 
 ### 入库 + 分片策略（B12）
-- 文档 body 及列表 / 详情 / 审批 / 扫描等成功响应的 data 形状（`ingest/document.contract`）；列表项含 `docType` / `aclPrincipals`（缺省 `null`）；`PatchDocumentMetaBodySchema` 可写 `ownerDeptId` / `visibilityLevel` / `docType` / `aclPrincipals`（omit 不改；`null` 清回未设；`[]` 显式空；元素 uuid，最长 256）
+- 文档 body 及列表 / 详情 / 审批 / 扫描等成功响应的 data 形状（`ingest/document.contract`）；列表项含 `docType` / `aclPrincipals` / `effectiveFrom` / `effectiveTo`（缺省 `null`）；`PatchDocumentMetaBodySchema` 可写 `ownerDeptId` / `visibilityLevel` / `docType` / `aclPrincipals` / 生效区间（omit 不改；`null` 清回未设；时间串须 `yyyy-MM-dd HH:mm:ss`）
 - **`CreateKbBodySchema`**：`name` + **必填** `initialAdminUserId`；**不含** `tenantId`（令牌覆盖）
 - **complete / reindex body 可选 `chunkStrategy`**；reindex 成功 data 含 `chunkStrategy` + `strategyChanged`；`stage` 为 `chunk` | `ocr`
 - **write**：`WriteDocumentBodySchema`（title + markdown）/ `WriteDocumentResponseSchema`（`sourceType: 'write'`）

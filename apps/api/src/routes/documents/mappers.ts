@@ -30,6 +30,8 @@ export type DocMapSource = {
   ownerDeptId?: string | null;
   visibilityLevel?: number | null;
   aclPrincipals?: string[] | null;
+  effectiveFrom?: string | null;
+  effectiveTo?: string | null;
 };
 
 export function toListItem(r: DocMapSource): DocumentListItem {
@@ -48,6 +50,8 @@ export function toListItem(r: DocMapSource): DocumentListItem {
     visibilityLevel: (r.visibilityLevel ?? 20) as VisibilityLevel,
     docType: r.docType ?? null,
     aclPrincipals: r.aclPrincipals ?? null,
+    effectiveFrom: r.effectiveFrom ?? null,
+    effectiveTo: r.effectiveTo ?? null,
   };
 }
 

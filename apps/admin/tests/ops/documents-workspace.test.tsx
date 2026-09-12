@@ -275,6 +275,8 @@ describe('DocumentsWorkspace', () => {
     expect(within(detailVisibility()).getByRole('option', { name: '20 部门成员' })).toBeInTheDocument();
     expect(within(detailVisibility()).getByRole('option', { name: '30 负责人' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument();
+    expect(screen.getByLabelText('生效自')).toBeInTheDocument();
+    expect(screen.getByLabelText('生效至')).toBeInTheDocument();
     expect(loadDocumentDetail).toHaveBeenCalledWith(DOC_ID);
     expect(screen.getByText(/空归属=库级/).closest('td')).toHaveAttribute('colspan', '7');
   });
@@ -294,6 +296,8 @@ describe('DocumentsWorkspace', () => {
     expect(screen.getByLabelText('归属部门')).toBeDisabled();
     expect(screen.getByRole('checkbox', { name: '仅名单可见' })).toBeDisabled();
     expect(screen.getByLabelText('可见用户 uuid')).toBeDisabled();
+    expect(screen.getByLabelText('生效自')).toBeDisabled();
+    expect(screen.getByLabelText('生效至')).toBeDisabled();
     expect(detailVisibility()).toBeDisabled();
     expect(screen.queryByRole('button', { name: '保存' })).not.toBeInTheDocument();
   });
@@ -322,11 +326,46 @@ describe('DocumentsWorkspace', () => {
         visibilityLevel: 30,
         docType: null,
         aclPrincipals: null,
+        effectiveFrom: null,
+        effectiveTo: null,
       });
     });
     expect(screen.getByLabelText('归属部门')).toHaveValue(DEPT_ID);
     expect(detailVisibility()).toHaveValue('30');
     expect(screen.getByText('已保存')).toBeInTheDocument();
+  });
+
+  it('保存生效区间走本地时间串', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', 'kb-1');
+    me.permissions = ['admin.shell', 'doc.view', 'doc.editor'];
+    loadDocumentList.mockResolvedValue({ ok: true, rows: [listDoc] });
+    loadDocumentDetail.mockResolvedValue({ ok: true, detail: detailDoc });
+    saveDocumentMeta.mockResolvedValue({
+      ok: true,
+      detail: {
+        ...detailDoc,
+        effectiveFrom: '2026-09-01 00:00:00',
+        effectiveTo: '2026-09-30 00:00:00',
+      },
+    });
+
+    render(<DocumentsWorkspace />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByText('请假制度'));
+    await user.type(await screen.findByLabelText('生效自'), '2026-09-01 00:00:00');
+    await user.type(screen.getByLabelText('生效至'), '2026-09-30 00:00:00');
+    await user.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(saveDocumentMeta).toHaveBeenCalledWith(DOC_ID, {
+        ownerDeptId: null,
+        visibilityLevel: 20,
+        docType: null,
+        aclPrincipals: null,
+        effectiveFrom: '2026-09-01 00:00:00',
+        effectiveTo: '2026-09-30 00:00:00',
+      });
+    });
   });
 
   it('保存失败时展示 API 文案，不本地发明码', async () => {
@@ -400,6 +439,8 @@ describe('DocumentsWorkspace', () => {
         visibilityLevel: 20,
         docType: null,
         aclPrincipals: null,
+        effectiveFrom: null,
+        effectiveTo: null,
       });
     });
     expect(screen.getByText('已保存')).toBeInTheDocument();
@@ -428,6 +469,8 @@ describe('DocumentsWorkspace', () => {
         visibilityLevel: 20,
         docType: null,
         aclPrincipals: [],
+        effectiveFrom: null,
+        effectiveTo: null,
       });
     });
   });

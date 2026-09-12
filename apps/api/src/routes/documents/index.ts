@@ -17,6 +17,7 @@ import {
   UploadUrlBodySchema,
   WriteDocumentBodySchema,
 } from '@strict-rag/contracts';
+import { isEffectiveWindowOrdered } from '@strict-rag/db';
 import { Hono } from 'hono';
 import { uuidv7 } from 'uuidv7';
 
@@ -528,7 +529,7 @@ documentRoutes.patch(
   },
 );
 
-/** PATCH /api/v1/documents/:docId — 部门 / 可见级 / 类型 / 名单；不改 lifecycle、不入队 */
+/** PATCH /api/v1/documents/:docId — 部门 / 可见级 / 类型 / 名单 / 生效区间；不改 lifecycle、不入队 */
 documentRoutes.patch('/documents/:docId', requirePermission('doc.editor'), async (c) => {
   const docId = c.req.param('docId');
   const parsed = PatchDocumentMetaBodySchema.safeParse(await c.req.json().catch(() => ({})));
@@ -550,6 +551,14 @@ documentRoutes.patch('/documents/:docId', requirePermission('doc.editor'), async
     }
   }
 
+  const nextFrom =
+    parsed.data.effectiveFrom !== undefined ? parsed.data.effectiveFrom : (doc.effectiveFrom ?? null);
+  const nextTo =
+    parsed.data.effectiveTo !== undefined ? parsed.data.effectiveTo : (doc.effectiveTo ?? null);
+  if (!isEffectiveWindowOrdered(nextFrom, nextTo)) {
+    return fail(c, BizCode.VALIDATION_ERROR, 'effectiveFrom must be <= effectiveTo', 400);
+  }
+
   await documentRepo.patchMeta(docId, {
     ...(parsed.data.ownerDeptId !== undefined ? { ownerDeptId: parsed.data.ownerDeptId } : {}),
     ...(parsed.data.visibilityLevel !== undefined
@@ -559,6 +568,8 @@ documentRoutes.patch('/documents/:docId', requirePermission('doc.editor'), async
     ...(parsed.data.aclPrincipals !== undefined
       ? { aclPrincipals: parsed.data.aclPrincipals }
       : {}),
+    ...(parsed.data.effectiveFrom !== undefined ? { effectiveFrom: parsed.data.effectiveFrom } : {}),
+    ...(parsed.data.effectiveTo !== undefined ? { effectiveTo: parsed.data.effectiveTo } : {}),
   });
   const updated = await documentRepo.getDoc(docId);
   if (!updated) {

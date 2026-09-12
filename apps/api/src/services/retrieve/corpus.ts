@@ -2,7 +2,9 @@ import {
   chunkEmbeddings,
   chunks,
   documents,
+  formatLocalDateTime,
   isDefaultRetrievable,
+  isWithinEffectiveWindow,
 } from '@strict-rag/db';
 import { and, eq, inArray } from 'drizzle-orm';
 
@@ -23,23 +25,28 @@ import {
 import { filterDocsForAclPrincipals } from './doc-acl.js';
 import type { CorpusChunk, CorpusLoader, RetrieveScope } from './types.js';
 
-/** 文档侧双闸门 + 可选 docTypes（loadCorpusFromDb / hasRetrievableDocs 共用） */
+/** 文档侧双闸门 + 生效窗口 + 可选 docTypes（loadCorpusFromDb / hasRetrievableDocs 共用） */
 export type DocForRetrieve = {
   status: string;
   lifecycle: string;
   docType?: string | null;
+  effectiveFrom?: string | null;
+  effectiveTo?: string | null;
 };
 
 /**
- * 仅 ready∧active 可进语料；scope.docTypes 再滤一层。
+ * 仅 ready∧active 且在生效窗口内可进语料；scope.docTypes 再滤一层。
  * 抽成纯函数便于单测护栏（P0：防 loadCorpus 漏滤 draft）。
+ * `now` 须注入测例，默认本地格式串。
  */
 export function filterDocsForRetrieve<T extends DocForRetrieve>(
   docs: readonly T[],
   scope?: RetrieveScope,
+  now: string = formatLocalDateTime(),
 ): T[] {
   return docs.filter((d) => {
     if (!isDefaultRetrievable(d)) return false;
+    if (!isWithinEffectiveWindow(d, now)) return false;
     if (scope?.docTypes?.length) {
       const dt = d.docType ?? '';
       if (!scope.docTypes.includes(dt)) return false;
@@ -49,8 +56,8 @@ export function filterDocsForRetrieve<T extends DocForRetrieve>(
 }
 
 /**
- * 从 PG 拉 KB 下可检索 chunk（双闸门 + 可选 docTypes）。
- * draft / superseded / 非 ready 不进。
+ * 从 PG 拉 KB 下可检索 chunk（双闸门 + 生效窗口 + 可选 docTypes）。
+ * draft / superseded / 非 ready / 窗口外 不进。
  * sparse mock 用 body_text/preview；dense 用 chunk_embeddings。
  */
 export const loadCorpusFromDb: CorpusLoader = async ({

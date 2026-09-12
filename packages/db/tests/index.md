@@ -12,7 +12,7 @@
 | `ingest/` | 文档/部门列 | P3b-META |
 | `kb/` | 知识库设置修改日志表 | 功能表 §4.2 |
 | `acl/` | 跨部门 grant 表 | DEPT_ACL |
-| `retrieve/` | ready∧active 纯函数 | 质量红线；R7 附录 |
+| `retrieve/` | ready∧active 与生效窗口纯函数 | 质量红线；R7 附录；功能表 §5.4 |
 | `env/` | 写库时间格式 | ORM PRD |
 
 ## 测例
@@ -28,6 +28,7 @@
 | `kb/settings-audits-schema.test.ts` | 知识库设置修改日志表必须暴露租户 / 库 / 操作者与 diff_json。 | 功能表 §4.2 | `kbSettingsAudits` | 无密钥 / τ 列。 | 现行 |
 | `ingest/chunk-strategy-schema.test.ts` | 分片策略三层表必须暴露平台定义与库启用列。 | 功能表 §4.5 · ADR-053 | `chunkStrategyDefinitions · kbChunkStrategies` | 核对 code / docFamilies / recommendedFamilies。 | 现行 |
 | `retrieve/ready-active-gate.test.ts` | 默认检索闸只放行 ready∧active，其它状态或生命周期不得进入默认检索集。 | 双就绪闸（P0 R7 附录；主锚在 api corpus） | `isDefaultRetrievable · filterDefaultRetrievable` | 纯函数过滤；R7 生产路径在 api。 | 现行 |
+| `retrieve/effective-window.test.ts` | 生效窗口缺界不限；未到 from 或已到 to 不得进默认检索集。 | 功能表 §5.4 | `isWithinEffectiveWindow · isEffectiveWindowOrdered` | 纯函数；装载路径在 api。 | 现行 |
 
 ## 待处理
 

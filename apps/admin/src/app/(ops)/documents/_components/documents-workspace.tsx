@@ -2,7 +2,7 @@
 
 /**
  * 文档薄列表：类型 / 运营标签 / 向量 / 稀疏。
- * 点行展开详情；可改 ownerDeptId / visibilityLevel / docType / aclPrincipals（有 doc.editor 才显示保存）。
+ * 点行展开详情；可改 ownerDeptId / visibilityLevel / docType / aclPrincipals / 生效区间（有 doc.editor 才显示保存）。
  * 有 dept.manage 时归属用部门列表下拉；无该码仍 uuid 粘贴。不宣称强制隔离已上。
  * Reindex 走 for-upload；≥2 必须人选。lifecycle 含归档/废止。上架仍须 ready。
  * 表头上方按已加载行本地筛部门/可见级；不改 GET query。
@@ -135,6 +135,8 @@ export function DocumentsWorkspace() {
   const [docType, setDocType] = useState('');
   const [restrictToList, setRestrictToList] = useState(false);
   const [principalsText, setPrincipalsText] = useState('');
+  const [effectiveFrom, setEffectiveFrom] = useState('');
+  const [effectiveTo, setEffectiveTo] = useState('');
   const [kbDocTypes, setKbDocTypes] = useState<string[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -265,6 +267,8 @@ export function DocumentsWorkspace() {
     const principals = principalsFormFromDetail(result.detail.aclPrincipals);
     setRestrictToList(principals.restrictToList);
     setPrincipalsText(principals.text);
+    setEffectiveFrom(result.detail.effectiveFrom ?? '');
+    setEffectiveTo(result.detail.effectiveTo ?? '');
     setDetailState('ready');
     setReindexPlan(null);
     setReindexPicked('');
@@ -488,6 +492,8 @@ export function DocumentsWorkspace() {
       visibilityLevel,
       docType: docType.trim() === '' ? null : docType.trim(),
       aclPrincipals: aclPrincipalsFromForm(restrictToList, principalsText),
+      effectiveFrom: effectiveFrom.trim() === '' ? null : effectiveFrom.trim(),
+      effectiveTo: effectiveTo.trim() === '' ? null : effectiveTo.trim(),
     });
     if (openIdRef.current !== docId) {
       setBusy(false);
@@ -501,6 +507,8 @@ export function DocumentsWorkspace() {
       const principals = principalsFormFromDetail(result.detail.aclPrincipals);
       setRestrictToList(principals.restrictToList);
       setPrincipalsText(principals.text);
+      setEffectiveFrom(result.detail.effectiveFrom ?? '');
+      setEffectiveTo(result.detail.effectiveTo ?? '');
       setSaveMessage('已保存');
       setSaveOk(true);
     } else {
@@ -887,6 +895,26 @@ export function DocumentsWorkspace() {
                                   disabled={!canEdit}
                                 />
                               )}
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor="doc-effective-from">生效自</Label>
+                              <Input
+                                id="doc-effective-from"
+                                value={effectiveFrom}
+                                onChange={(e) => setEffectiveFrom(e.target.value)}
+                                placeholder="yyyy-MM-dd HH:mm:ss，空=不限"
+                                disabled={!canEdit}
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor="doc-effective-to">生效至</Label>
+                              <Input
+                                id="doc-effective-to"
+                                value={effectiveTo}
+                                onChange={(e) => setEffectiveTo(e.target.value)}
+                                placeholder="yyyy-MM-dd HH:mm:ss，空=不限"
+                                disabled={!canEdit}
+                              />
                             </div>
                           </div>
                           {canLifecycle ? (

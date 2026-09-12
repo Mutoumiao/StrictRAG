@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（已包含：P0/P1 入库 + S2 最小问答 + B1–B6 最小运营 API + B10 L1 工程 seed + B12 策略闸 + B13 反馈 API；演示依赖 mock ES / 通常走 mock Gateway；L1 **≠** 业务签字门禁） |
 | 默认依赖模式 | 检索：`RETRIEVE_ES_MODE=mock`（默认 mock ES；`http` 须 `ELASTICSEARCH_URL`）；鉴权：临时双 JWT，`AUTH_ENFORCE` **默认 `false`**；rewrite：`SESSION_REWRITE_ENABLED` **默认 false**（图边已落；dogfood 可开；**≠** 准出）；对象存储：默认 `local`（`STORAGE_MODE=s3` 走 RustFS / S3 兼容）；Gateway：`GATEWAY_MODE=''`（空按 `GATEWAY_BASE_URL` 推断，缺 URL 走 mock）；上传上限 `INGEST_MAX_FILE_BYTES=52_428_800`（50 MiB）/ 天花板 `INGEST_MAX_FILE_BYTES_CEILING=209_715_200`（200 MiB）；`LANGFUSE_ENABLED=false`；`OBS_MEMORY_TRACE=true`。**B3-W/B2-W**：ask 读取 platform 绑定 + **KB scope 绑定覆盖（只读 list，无 PUT KB 绑定 HTTP）**；**B4-W**：每请求从 DB `user_roles` hydrate；`DEPT_ACL_ENFORCE` **默认 `false`**（开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤且列表项带部门字段；`DEPT_INHERIT_DOWN` 默认 true；KB `deptInheritDown` 可覆盖 env；KB `deptAclEnforce` 可覆盖 env，未写跟 env，GET 未写回读 false；设置页可勾选，未改不写回；ES 查询期强制 tenantId+kbId；enforce 开且非超管可追加 `ownerDeptId` terms（缺字段不得当全员可见；PG 可见级闸仍保留）；aclPrincipals 用户 uuid 名单最小已落（PG 把关；ES 查询期非超管 should 收窄；不跟 DEPT_ACL_ENFORCE；**≠** 角色 principal / 默认开））；`MONGODB_URL` 空（非空时检索融合后批取 Mongo `chunk_bodies` 权威正文，缺块 fail-closed）；`ASK_RATE_LIMIT_RPM=0`；`INGEST_RATE_LIMIT_RPM=0`（ask/ingest 分 store 试点限流；aux 只留常量）；`SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` **可选**（无 active 超管时缺一则 **index.ts listen 前**失败；`createApp()` 不跑引导）；L1 CLI 需显式指定 `L1_KB_ID`（可选 `L1_PERSIST_EVAL`） |
 | 关联模块 | 入库演示还需要 `worker` + PostgreSQL + Redis；契约 `@strict-rag/contracts`（含 `IMPLEMENTED_CHUNK_STRATEGIES` / `IngestJobData`）；schema `@strict-rag/db`（含 `eval_runs`）；L1 gold / RACI 在仓根 `fixtures/l1/`；L2 题面草案在 `fixtures/l2/` |
-| 最近更新 | 2026-09-12（在线编写 POST write Markdown 进 pending；**无** BlockNote / **不**入队 scan） |
+| 最近更新 | 2026-09-12（默认检索叠生效窗口；PATCH 可写 effectiveFrom/To；**无** BlockNote / **不**入队 scan） |
 | Spec | `.trellis/spec/api/backend/`（含 [dashboard](../../.trellis/spec/api/backend/dashboard.md) · [l1-eval](../../.trellis/spec/api/backend/l1-eval.md) · [l2-eval](../../.trellis/spec/api/backend/l2-eval.md) · [l3-metrics](../../.trellis/spec/api/backend/l3-metrics.md)） |
 | PRD | `prds/05-api` · `04-pipelines` · `08-quality` · `09-security` |
 
@@ -35,7 +35,7 @@
 
 ### 入库（P1）+ 分片策略闸（B12）
 - `POST /knowledge-bases` 创建知识库（`kb.create`；`AUTH_ENFORCE` 关时仍 WhenEnforced）：body **必填** `initialAdminUserId`，事务写入 `kb_members(role=admin)`；`tenantId` **只认令牌**（无令牌回落默认租户，忽略 body）；用户不存在 404；文档上传（`upload-url` + `PUT /api/v1/internal/objects` local 落体）、**在线编写**（`POST …/documents/write`，`sourceType=write`，与 complete 同闸进 pending，**不**入队 scan，**无** BlockNote）、complete 体积闸门、`POST …/documents/:docId/approve` / `POST …/documents/:docId/reject` 审批族（`approval.decide`）、审批通过后才能 scan 入队的闸门；lifecycle 四态（上架 `active` 仍须 `status=ready`）/ reindex / 列表详情
-- `PATCH /documents/:docId`：部门 / 可见级 / **`docType`**（须属于该 KB `config_json.docTypes` 枚举，否则 400；空枚举只能清 null；不改 lifecycle、不入队）；列表项含 `docType`
+- `PATCH /documents/:docId`：部门 / 可见级 / **`docType`**（须属于该 KB `config_json.docTypes` 枚举，否则 400；空枚举只能清 null）/ **生效区间**（`effectiveFrom`/`effectiveTo` 本地时间串，omit 不改、null 清除，合并后 from>to → 400；不改 lifecycle、不入队）；列表项含 `docType` / 窗口
 - **B12 / ADR-053 最小闭环**：`chunk_strategy_definitions` + `kb_chunk_strategies` 为 catalog 权威；写入闸仍 **`IMPLEMENTED` 仅 `structure_paragraph`**
   - HTTP：`GET/PATCH …/chunk-strategies`、`/schema`、`/for-upload`（写须 `kb.config.write`）
   - complete/reindex/write：按 for-upload available 计数（仅 1 个可自动；≥2 未选 400）；写入策略码 + `chunk_strategy_params` 快照；reindex 对 `needs_review` / 非 utf8 `needs_ocr` 入队 `ocr`（其余仍 `chunk`；**不是**自动全库）；write 不入队 scan
@@ -112,7 +112,7 @@
 - 观测骨架：进程内 metrics、内存 tracer、**三平面配额最小闭环**（ask `ASK_RATE_LIMIT_RPM` / ingest `INGEST_RATE_LIMIT_RPM` 默认 0 即关闭；分 store / 分前缀；触顶 429 `RATE_LIMITED`，ask `details` 含 `plane=ask` + `ask_quota_exhausted`；complete 入队前打 ingest 闸；`recordAskResult` / llm / rerank 带 `plane=ask`，complete 成功或限流带 `plane=ingest`；aux 只留常量不跑）、`/metrics` 端点**无鉴权**（生产保护策略见 `docs/ops/rate-limit-and-metrics.md` · ARCH-P2-4；**≠** 把进程内全局限流当生产方案 / **≠** Redis 集群配额 / **≠** embed TPM）
 - **L3 打点+告警+进程内熔断部分**（P2.5-L3 / L3A / L3F / L2S）：`recordL3Ask` 记六键 + `l3_topic_complaint_total` + `l3_guard_alert_total{kind}`（`coref_fail_rate` / `rewrite_dogfood` / `topic_complaint` / `l2_stale`）；超阈或 dogfood 开 env 时 Pino warn（每 kind 每进程一闩）；`executeAsk` 传 `rewriteEnvOn`；`coref_fail_rate` / `topic_complaint` / `l2_stale` 闩后后续 ask 强制 `rewriteEnabled=false`（`isL3RewriteFused`；即使 env true 也 `rewriteUsed=false`；会话壳仍落 transcript）；`rewrite_dogfood` **不**熔；**无**写 env / **无**收窄窗 / **无**面板 / **≠** 准出（`obs/metrics.ts` · `services/ask/execute.ts` · `tests/obs/l3-rewrite-fuse.test.ts`）
 - **P0 红线单测已挂账**（清单见 `docs/testing/p0-redlines.md`；**不是** L1 黄金集评测、**也不是**远程 CI 门禁）：
-  - **R7** `filterDocsForRetrieve` / `tests/ask/ready-active-corpus.test.ts`（生产装载路径；db 包的 `retrieval-gate` 为底层附录）
+  - **R7** `filterDocsForRetrieve` / `tests/ask/ready-active-corpus.test.ts`（生产装载路径；db 包的 `retrieval-gate` 为底层附录）；生效窗口叠在双闸之后（`tests/ask/effective-window-corpus.test.ts`）
   - **R8** 生成结果低于阈值被否决时必须拒答（abstained）（`tests/ask/min-veto.test.ts`）
   - **R9** 正常路径必须经过 verify 环节；负向用例中未完整执行 verify 时不得标记为 answered（`tests/ask/verify-required.test.ts`）
   - 关键 `it` 用例标题带 `R#:` 前缀；**不**要求测试内部 stub `AUTH_ENFORCE`

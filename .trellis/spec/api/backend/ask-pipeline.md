@@ -471,6 +471,6 @@ await executeAsk(params); // 30+ 题 × 多次迭代 → traces 噪声
 - L1 黄金集工程 seed：[l1-eval](./l1-eval.md)  
 - 鉴权成员闸：[auth-authorization](./auth-authorization.md)  
 - 契约：`packages/contracts/src/ask/*` · 测试工厂 `@strict-rag/contracts/testing`  
-- 检索闸纯函数：`packages/db/src/query/retrieval-gate.ts`（底层）  
-- 检索闸 **生产装载**：`apps/api/src/services/retrieve/corpus.ts` · `filterDocsForRetrieve`（P0 R7 主锚）  
+- 检索闸纯函数：`packages/db/src/query/retrieval-gate.ts`（ready∧active）· `packages/db/src/query/effective-window.ts`（生效窗口）  
+- 检索闸 **生产装载**：`apps/api/src/services/retrieve/corpus.ts` · `filterDocsForRetrieve`（P0 R7 主锚；窗口叠在双闸之后）  
 - IS 镜像：`docs/module-status/api.md`

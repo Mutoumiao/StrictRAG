@@ -6,13 +6,13 @@
 | 成熟度 | **可联调**（schema + client + 检索谓词底座；**无**业务服务层） |
 | 默认依赖模式 | 需要调用方提供 `DATABASE_URL`；时间列使用本地格式字符串（见 ORM PRD） |
 | 关联模块 | `api` 与 `worker` 共用 client / schema；检索闸门谓词被 api retrieve 复用 |
-| 最近更新 | 2026-09-07（`documents.acl_principals` 可空 uuid[]，migration `0014`；NULL=未设，禁止 default `[]`） |
+| 最近更新 | 2026-09-12（生效窗口纯函数；列仍是既有 text） |
 | Spec | `.trellis/spec/db/backend/` |
 | PRD | `prds/03-data` · `prds/02-engineering/02-orm-drizzle.md` |
 
 ## 一句话状态
 
-Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库任务表 / 入库报告表 / 设置修改日志表 / 成员**、**问答会话 / 轨迹 / 反馈 / eval_runs**、**模型供应商 / 绑定**、**平台角色（codes_json）/ 用户角色**、**permission_definitions（启动字典）** 以及 **部门 / 用户部门** 表均已落地；并提供默认检索双闸谓词（`ready ∧ active`）。**不等于**生产级迁移运维全集、完整任务账本/锁、或权限三表终态（求值仍 `codes_json`）。
+Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库任务表 / 入库报告表 / 设置修改日志表 / 成员**、**问答会话 / 轨迹 / 反馈 / eval_runs**、**模型供应商 / 绑定**、**平台角色（codes_json）/ 用户角色**、**permission_definitions（启动字典）** 以及 **部门 / 用户部门** 表均已落地；并提供默认检索双闸谓词（`ready ∧ active`）与生效窗口纯函数。**不等于**生产级迁移运维全集、完整任务账本/锁、或权限三表终态（求值仍 `codes_json`）。
 
 ---
 
@@ -53,6 +53,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 
 ### 查询谓词
 - 默认检索闸门：`status==='ready' && lifecycle==='active'`（`query/retrieval-gate.ts` + 单测）
+- 生效窗口：`isWithinEffectiveWindow`（缺界不限；`from <= now < to`；`query/effective-window.ts`）
 - **实现不含** `indexVersion` 过滤（以代码为准；文件头若写 indexVersion 属注释债）
 - 供 api retrieve 复用，避免路由内散落闸门条件
 
@@ -95,7 +96,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 | 问答 / 评测表 | `packages/db/src/schema/ask/*` · `eval-runs.ts` · `gold-questions.ts` · migration `drizzle/0006_b10_eval_runs.sql` · `0010_eval_floor.sql` |
 | 平台 / 部门 | `schema/system/platform-roles.ts` · `departments.ts` |
 | 权限码字典 | `schema/system/permission-definitions.ts` · migration `drizzle/0012_permission_definitions.sql` · `tests/acl/permission-definitions-schema.test.ts` |
-| 检索闸门 | `packages/db/src/query/retrieval-gate.ts` · `tests/retrieve/ready-active-gate.test.ts`（导航 `packages/db/tests/index.md`） |
+| 检索闸门 | `packages/db/src/query/retrieval-gate.ts` · `query/effective-window.ts` · `tests/retrieve/ready-active-gate.test.ts` · `tests/retrieve/effective-window.test.ts`（导航 `packages/db/tests/index.md`） |
 | Client | `packages/db/src/client.ts` · `time.ts` |
 | Journal | `packages/db/drizzle/meta/_journal.json` |
 | Task（辅证 · 已归档） | `08-04-p1-kb-doc-schema` · `08-05-p2-contracts-schema` · `08-11-b10-followup-eval-runs` 等 |

@@ -12,3 +12,8 @@ export {
   isDefaultRetrievable,
   type RetrievalDocLike,
 } from './query/retrieval-gate.js';
+export {
+  isEffectiveWindowOrdered,
+  isWithinEffectiveWindow,
+  type EffectiveWindowLike,
+} from './query/effective-window.js';

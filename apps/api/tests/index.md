@@ -62,6 +62,7 @@
 | `ask/mongo-body.test.ts` | 融合后正文必须从 Mongo 批取权威切片，缺块或拉取失败须 fail-closed。 | prds/03-data/02 §3.2 · prds/04-pipelines §5 步骤 6 · ADR-037 | `batchLoadChunkBodies / composeChunkSlice / runRetrieve loadBodies` | 切片口径 prefix+"\n"+text；注入后 evidence 用批取结果。 | 现行 |
 | `ask/question-html-passthrough.test.ts` | 含 HTML/特殊字符的问句必须原样进入 retrieve，不得被 escape 破坏检索语义。 | 剧本 H7 · prds/10-delivery/03-acceptance-scenarios.md | `runAskGraph（retrieve.question）` | 问句含 HTML 片段时 retrieve 收到的 question 等于原始字符串。 | 现行 |
 | `ask/ready-active-corpus.test.ts` | 未 ready∧active 的文档不得进入检索集。 | P0 R7 | `filterDocsForRetrieve / loadCorpus 同形` | 生产装载路径，非仅 db 纯函数。 | 现行 |
+| `ask/effective-window-corpus.test.ts` | 语料装载必须叠生效窗口，未生效或已到期不得进检索集。 | 功能表 §5.4 | `filterDocsForRetrieve` | 注入 now；双闸仍由 ready-active-corpus 钉。 | 现行 |
 | `ask/retrieve-mode-budget.test.ts` | 档位检索预算必须由服务端按 mode 注入，客户端不得透传 retrieveK / rerankTopN。 | 功能表 §5.4 · ADR-032 · prds/04-pipelines | `retrieveBudgetForMode / runAskGraph 档位传参` | fast 60/10；balanced/strict 150/20。仅服务端。 | 现行 |
 | `ask/retrieve-outcomes.test.ts` | 检索阶段失败或闲聊短路时不得用假 evidence 洗成 answered。 | prds/04-pipelines · prds/08-quality | `runAskGraph（route+retrieve）` | 闲聊不检索；空证据/rerank/kb 未就绪须拒答，userId 透传到 retrieve。 | 现行 |
 | `ask/retrieve-run.test.ts` | runRetrieve 双闸、preferred 提升与语料责任边界必须成立。 | prds/04-pipelines | `runRetrieve / promotePreferredDocChunks` | 默认 mock ES；双闸由 caller corpus 负责。 | 现行 |
@@ -110,6 +111,7 @@
 | `ingest/document-doctype.test.ts` | 文档类型 PATCH 必须属于该 KB 已有枚举，非法码须 400。 | 功能表 §4.3 | `PATCH /documents/:docId docType · assertDocTypeAllowed` | 空枚举不可写非空码。 | 现行 |
 | `ingest/document-lifecycle-http.test.ts` | 文档 lifecycle 四态可写；上架仍须 status=ready。 | 功能表 §4.3 | `PATCH /documents/:docId/lifecycle` | 不测生效区间。 | 现行 |
 | `ingest/document-meta.test.ts` | 文档元数据 PATCH 正确处理部门两字段。 | P3b-META | `documents meta PATCH` | 部门两字段。 | 现行 |
+| `ingest/document-effective-window.test.ts` | 文档生效区间 PATCH 必须可写可回读，乱序与非法格式须 400。 | 功能表 §4.3 / §5.4 | `PATCH /documents/:docId effectiveFrom/effectiveTo` | 不改 lifecycle；检索真值在 corpus。 | 现行 |
 | `ingest/document-validation.test.ts` | 文档写入校验拒绝非法字段。 | 入库 HTTP | `documents validation` | 文档写入校验。 | 现行 |
 | `ingest/gates-live.test.ts` | live 闸组合在真实 handler 下拒绝未审批 complete。 | complete 闸 | `createApp document gates` | 无 Docker / not ready 时 skip。 | 现行 |
 | `ingest/jobs-query.test.ts` | 入库任务列表项映射保持查询契约。 | prds/06-async | `toIngestJobListItem` | 入队在 api，消费在 worker。 | 现行 |

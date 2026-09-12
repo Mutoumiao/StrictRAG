@@ -14,6 +14,7 @@ packages/db/
     time.ts               # 本地格式串写库 · uuid 辅助
     query/
       retrieval-gate.ts   # isDefaultRetrievable：ready ∧ active
+      effective-window.ts # isWithinEffectiveWindow：缺界不限；from <= now < to
     schema/
       index.ts
       _shard/base-columns.ts

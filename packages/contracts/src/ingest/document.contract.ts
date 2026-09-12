@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { LocalDateTimeStringSchema } from '../common/local-datetime.js';
+
 export const DocumentStatusSchema = z.enum([
   'uploaded',
   'scanning',
@@ -170,6 +172,9 @@ export const DocumentListItemSchema = z.object({
   docType: z.string().nullable().optional().default(null),
   /** null=未设；[]=显式空名单 */
   aclPrincipals: z.array(z.string().uuid()).nullable().default(null),
+  /** 缺省 null = 不限；yyyy-MM-dd HH:mm:ss */
+  effectiveFrom: LocalDateTimeStringSchema.nullable().default(null),
+  effectiveTo: LocalDateTimeStringSchema.nullable().default(null),
 });
 export type DocumentListItem = z.infer<typeof DocumentListItemSchema>;
 
@@ -190,7 +195,7 @@ export const DocumentDetailSchema = DocumentListItemSchema.extend({
 });
 export type DocumentDetail = z.infer<typeof DocumentDetailSchema>;
 
-/** PATCH /documents/:docId — 部门 / 可见级 / 类型 / 名单；不改 lifecycle、不入队 */
+/** PATCH /documents/:docId — 部门 / 可见级 / 类型 / 名单 / 生效区间；不改 lifecycle、不入队 */
 export const PatchDocumentMetaBodySchema = z
   .object({
     ownerDeptId: z.string().uuid().nullable().optional(),
@@ -199,13 +204,18 @@ export const PatchDocumentMetaBodySchema = z
     docType: z.string().min(1).max(64).nullable().optional(),
     /** omit 不改；null 清回未设；[] 显式空 */
     aclPrincipals: z.array(z.string().uuid()).max(256).nullable().optional(),
+    /** omit 不改；null 清除；合法本地时间串 */
+    effectiveFrom: LocalDateTimeStringSchema.nullable().optional(),
+    effectiveTo: LocalDateTimeStringSchema.nullable().optional(),
   })
   .refine(
     (b) =>
       b.ownerDeptId !== undefined ||
       b.visibilityLevel !== undefined ||
       b.docType !== undefined ||
-      b.aclPrincipals !== undefined,
+      b.aclPrincipals !== undefined ||
+      b.effectiveFrom !== undefined ||
+      b.effectiveTo !== undefined,
     {
       message: 'at least one field',
     },

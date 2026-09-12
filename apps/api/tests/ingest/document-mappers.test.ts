@@ -45,6 +45,8 @@ describe('documents mappers（ARCH-P1a 域内纯函数）', () => {
     expect(item.esReady).toBe(false);
     expect(item.docType).toBe('policy');
     expect(item.aclPrincipals).toBeNull();
+    expect(item.effectiveFrom).toBeNull();
+    expect(item.effectiveTo).toBeNull();
   });
 
   it('toDetail 含租户/KB 与元数据', () => {
@@ -75,6 +77,16 @@ describe('documents mappers（ARCH-P1a 域内纯函数）', () => {
     });
     expect(detail.ownerDeptId).toBe('01900000-0000-7000-8000-0000000000de');
     expect(detail.visibilityLevel).toBe(30);
+  });
+
+  it('toDetail 回读生效区间', () => {
+    const detail = toDetail({
+      ...base,
+      effectiveFrom: '2026-09-01 00:00:00',
+      effectiveTo: '2026-09-30 00:00:00',
+    });
+    expect(detail.effectiveFrom).toBe('2026-09-01 00:00:00');
+    expect(detail.effectiveTo).toBe('2026-09-30 00:00:00');
   });
 
   it('缺省可选字段 → null', () => {

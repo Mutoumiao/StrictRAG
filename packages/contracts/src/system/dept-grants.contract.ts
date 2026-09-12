@@ -1,11 +1,7 @@
 import { z } from 'zod';
 
+import { LocalDateTimeStringSchema } from '../common/local-datetime.js';
 import { VisibilityLevelSchema } from '../ingest/document.contract.js';
-
-/** 与 formatLocalDateTime 对齐；乱字符串会在 PG timestamp 上 500 */
-export const LocalDateTimeStringSchema = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/, 'expected yyyy-MM-dd HH:mm:ss');
 
 /** GET 跨部门授权（表 CRUD；enforce 开时 retrieve 可读精确 grant） */
 export const DeptCrossGrantSchema = z.object({

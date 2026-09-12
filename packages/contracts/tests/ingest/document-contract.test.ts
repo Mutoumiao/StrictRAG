@@ -2,7 +2,7 @@
  * 目标：文档 / 知识库 DTO 与完成上传、补丁元数据必须接受合法部门可见级并拒非法值。
  * 需求：入库 HTTP
  * 被测：CreateKbBodySchema · KnowledgeBaseListItemSchema · VisibilityLevelSchema · CompleteUploadBodySchema · WriteDocumentBodySchema · WriteDocumentResponseSchema · PatchDocumentMetaBodySchema · DocumentDetailSchema · DocumentListItemSchema · ReindexDocumentResponseSchema
- * 简介：文档 DTO 与可见级 / 部门字段 / aclPrincipals 三态；reindex stage 可 chunk 或 ocr。
+ * 简介：文档 DTO 与可见级 / 部门字段 / aclPrincipals 三态 / 生效区间；reindex stage 可 chunk 或 ocr。
  */
 
 import { describe, expect, it } from 'vitest';
@@ -221,6 +221,19 @@ describe('PatchDocumentMetaBodySchema', () => {
 
   it('rejects empty docType string', () => {
     expect(PatchDocumentMetaBodySchema.safeParse({ docType: '' }).success).toBe(false);
+  });
+
+  it('accepts effectiveFrom/effectiveTo local datetime or null', () => {
+    expect(
+      PatchDocumentMetaBodySchema.safeParse({ effectiveFrom: '2026-09-01 00:00:00' }).success,
+    ).toBe(true);
+    expect(PatchDocumentMetaBodySchema.safeParse({ effectiveTo: null }).success).toBe(true);
+  });
+
+  it('rejects ISO effectiveFrom', () => {
+    expect(
+      PatchDocumentMetaBodySchema.safeParse({ effectiveFrom: '2026-09-01T00:00:00Z' }).success,
+    ).toBe(false);
   });
 
   it('aclPrincipals: omit 其它字段仍成功；null / [] / uuid 列表成功', () => {
