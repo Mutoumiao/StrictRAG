@@ -36,8 +36,14 @@ import { decodeUtf8Text, hasUtf8TextLayer } from './extract-text.js';
 import { extractPdfTextLayer, isPdfObject } from './pdf-text.js';
 import { persistIngestReport } from './ingest-report.js';
 import { recordStageEnd, recordStageStart, type StageLedgerContext } from './job-ledger.js';
-import { localMongoDocId, upsertChunkBodies, upsertDocumentBody } from './mongo-body.js';
+import {
+  deleteBodiesForDoc,
+  localMongoDocId,
+  upsertChunkBodies,
+  upsertDocumentBody,
+} from './mongo-body.js';
 import { deleteObject, readObjectBytes, storeConfigFromEnv } from './object-store.js';
+import { pipelineRequiresApproval, runDocumentPurge } from './purge.js';
 
 /** 阶段结果：errorCode 供 worker 接 BullMQ retry / Unrecoverable */
 export type IngestStageResult = {
@@ -161,8 +167,8 @@ export async function runIngestStage(
     indexVersion: data.indexVersion ?? doc.indexVersion,
   };
 
-  // ADR-048：任意阶段再确认
-  if (doc.approvalStatus !== 'approved') {
+  // ADR-048：入库正向阶段再确认；purge 删除路径不要求已审批
+  if (pipelineRequiresApproval(data.stage) && doc.approvalStatus !== 'approved') {
     await setDoc(data.docId, {
       status: 'failed',
       errorCode: 'NOT_APPROVED',
@@ -881,6 +887,17 @@ async function runIngestStageCore(
         },
         'dual-ready → status=ready lifecycle=draft',
       );
+      return { done: true };
+    }
+
+    case 'purge': {
+      await runDocumentPurge(doc, {
+        deleteObject: (objectKey) => deleteObject(storeConfigFromEnv(env), objectKey),
+        dropSparse: (docId) => mockEsStore.dropDoc(docId),
+        deleteMongoBodies: (docId) => deleteBodiesForDoc({ url: env.MONGODB_URL, docId }),
+        patchDoc: (patch) => setDoc(data.docId, patch),
+      });
+      log.info('purged object and sparse index; pg row archived');
       return { done: true };
     }
 

@@ -23,13 +23,14 @@ apps/worker/
       persist.ts             # gold_questions / fixtures/l2 / eval_runs
     scan-mode-policy.ts      # X-01/X-02 启动矩阵纯函数
     ingest/
-      pipeline.ts            # 状态机 scan→parse→chunk→embed→es_index
+      pipeline.ts            # 状态机 scan→parse→chunk→embed→es_index；逻辑 stage purge 清对象/mock 稀疏
       idempotency.ts         # X-04 幂等纯函数
       job-ledger.ts          # ingest_jobs 阶段账本（最小）；failed 时可选 Webhook
       failure-webhook.ts     # 入库失败可选 Webhook（空 URL 不发；非阻断）
       ingest-report.ts       # 入库报告最小落库（doc+indexVersion；非阻断）
       doc-lock.ts            # 同 doc Redis SET NX 锁（最小；非 Redlock）
-      es-store.ts            # mock ES（进程内 Map）
+      es-store.ts            # mock ES（进程内 Map；dropDoc 按文档清）
+      purge.ts               # 删除后清对象 / mock 稀疏 / 可选 Mongo；不要求已审批
       # 入库测例在 tests/ingest/
     # 复用 @strict-rag/db · @strict-rag/contracts
 ```

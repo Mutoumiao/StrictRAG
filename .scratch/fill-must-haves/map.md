@@ -13,10 +13,10 @@ Status: open
 - 每轮先读：本图、`docs/agents/issue-tracker.md`、`docs/agents/domain.md`、功能表、相关包的 `docs/module-status/`。写代码前读 `.trellis/spec/` 对应包。执行完成后跑 skill `update-module-status`。
 - **覆盖「只做决策」**：工单可以动手补缺口，不只锁决策。
 - **本图是执行面**：缺口只在 `.scratch/fill-must-haves/` 工单上做完。`.trellis/tasks/08-06-project-backlog/` 只留指针和勾选。同一缺口禁止再 `task.py create` 平行实现任务。这只覆盖本图，不改全仓其它流程。
-- 顺序：本图 P2 语义已收官（第三批）；P2.5 出口走 **L2 归档准出**（工程路径 [L2 归档底线](./issues/14-l2-archive-floor.md) 已齐，人签仍图外）。鉴权/成员余量、入库报告、库选择器、admin 顶栏、web 关闭列表、启动引导超管、写路径锁超管全码、修改日志、三平面配额、失败 Webhook 已齐。P3b 可动手最小闭环已齐。P4 可动手代码真空已尽。P5 OCR 开闸与历史 `needs_ocr` 运营重跑已齐（默认关）；**P5 可动手代码真空已尽**。暂停已解除；在线编写最小闭环已齐（无 BlockNote）。生效区间最小闭环已齐。替代联动最小闭环已齐。下一张裁定开放。P3a 仍等 L2 人签。不默认开 `DEPT_ACL_ENFORCE`。不加角色 principal。不默认开 OCR。不自动全库重跑。
+- 顺序：本图 P2 语义已收官（第三批）；P2.5 出口走 **L2 归档准出**（工程路径 [L2 归档底线](./issues/14-l2-archive-floor.md) 已齐，人签仍图外）。鉴权/成员余量、入库报告、库选择器、admin 顶栏、web 关闭列表、启动引导超管、写路径锁超管全码、修改日志、三平面配额、失败 Webhook 已齐。P3b 可动手最小闭环已齐。P4 可动手代码真空已尽。P5 OCR 开闸与历史 `needs_ocr` 运营重跑已齐（默认关）；**P5 可动手代码真空已尽**。暂停已解除；在线编写最小闭环已齐（无 BlockNote）。生效区间最小闭环已齐。替代联动最小闭环已齐。删除与 purge 最小闭环已齐。下一张裁定开放。P3a 仍等 L2 人签。不默认开 `DEPT_ACL_ENFORCE`。不加角色 principal。不默认开 OCR。不自动全库重跑。
 - **站规（UI）**：web / admin 新下拉必须基于 `@strict-rag/ui` 关闭列表，禁止浏览器原生 `<select>` 外壳（含现有 ui `Select`）。`Button` / `Input` / `Textarea` 仍走 ui 包。本规不改 GET / 鉴权语义。
 - 人签（B10 业务 PASS）不是代码缺口，不进本图执行工单。
-- 引用工单用标题，不要只写编号。一回合只解决一张工单（research 除外）。
+- 引用工单用标题，不要只写编号。一回合只解决一张工单（research 除外）。本图携带执行：grilling 裁定后可在同会话做本批执行工单。
 - 开放工单不列在本图正文，用 `.scratch/fill-must-haves/issues/` 扫描：未 `resolved`、无未完成的 `Blocked by`、`Status` 不是 `claimed`。
 
 ## Decisions so far
@@ -87,10 +87,12 @@ Status: open
 - [生效区间最小闭环](./issues/64-effective-window-min.md) — 默认检索叠窗口；PATCH 可写；admin 可填。无 DELETE / 无 dense WHERE / 无 ES terms。
 - [裁定生效区间后下一步](./issues/65-after-effective-window-order.md) — 不选余量/真引擎/解锁站规/暂停/P4 雾；本批只做替代联动最小闭环。
 - [替代联动最小闭环](./issues/66-supersede-link-min.md) — POST supersede 写两列；后继升 active；旧文关默认检索。无 DELETE / 无三存对齐。
+- [裁定替代联动后下一步](./issues/67-after-supersede-order.md) — 不选余量/真引擎/解锁站规/暂停/P4 雾；本批只做删除与 purge 最小闭环。
+- [删除与 purge 最小闭环](./issues/68-document-delete-purge-min.md) — DELETE 先 archived 再入队 purge；worker 清对象与 mock ES。PATCH archived 不入队。无 PG 硬删 / 无 HTTP ES。
 
 ## Not yet specified
 
-- 剩余 P2 半接线：在线编写完整体验其余（BlockNote / editor-draft；本批只做 Markdown 提交审批）；DELETE / 三存对齐 / purge
+- 剩余 P2 半接线：在线编写完整体验其余（BlockNote / editor-draft；本批只做 Markdown 提交审批）
 - LangGraph 编排重构：技术栈冻结为 LangGraph.js（硬性标准）；源码现为线性状态机（`apps/api/src/graph/run.ts`），需后续重构为官方 LangGraph.js。另起路线
 - P3a Full 图（CRAG / multi_hop）；硬门在 L2 归档准出（工程路径是 L2 归档底线；人签不进本图）
 - P3b 尚未齐的强制检索面：仓库默认开 `DEPT_ACL_ENFORCE`、角色 principal

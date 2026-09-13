@@ -1,8 +1,8 @@
 /**
  * 目标：文档 / 知识库 DTO 与完成上传、补丁元数据必须接受合法部门可见级并拒非法值。
  * 需求：入库 HTTP
- * 被测：CreateKbBodySchema · KnowledgeBaseListItemSchema · VisibilityLevelSchema · CompleteUploadBodySchema · WriteDocumentBodySchema · WriteDocumentResponseSchema · PatchDocumentMetaBodySchema · DocumentDetailSchema · DocumentListItemSchema · ReindexDocumentResponseSchema · SupersedeDocumentBodySchema · SupersedeDocumentResponseSchema
- * 简介：文档 DTO 与可见级 / 部门字段 / aclPrincipals 三态 / 生效区间 / 替代边；reindex stage 可 chunk 或 ocr。
+ * 被测：CreateKbBodySchema · KnowledgeBaseListItemSchema · VisibilityLevelSchema · CompleteUploadBodySchema · WriteDocumentBodySchema · WriteDocumentResponseSchema · PatchDocumentMetaBodySchema · DocumentDetailSchema · DocumentListItemSchema · ReindexDocumentResponseSchema · SupersedeDocumentBodySchema · SupersedeDocumentResponseSchema · DeleteDocumentResponseSchema
+ * 简介：文档 DTO 与可见级 / 部门字段 / aclPrincipals 三态 / 生效区间 / 替代边；reindex stage 可 chunk 或 ocr；DELETE 响应 archived + purgeEnqueued。
  */
 
 import { describe, expect, it } from 'vitest';
@@ -17,6 +17,7 @@ import {
   KnowledgeBaseListItemSchema,
   PatchDocumentMetaBodySchema,
   ReindexDocumentResponseSchema,
+  DeleteDocumentResponseSchema,
   SupersedeDocumentBodySchema,
   SupersedeDocumentResponseSchema,
   VisibilityLevelSchema,
@@ -336,6 +337,38 @@ describe('SupersedeDocumentBodySchema / response', () => {
     ).toBe(false);
   });
 });
+
+describe('DeleteDocumentResponseSchema', () => {
+  const docId = '01900000-0000-7000-8000-0000000000d1';
+
+  it('响应含 archived 与 purgeEnqueued', () => {
+    expect(
+      DeleteDocumentResponseSchema.safeParse({
+        docId,
+        lifecycle: 'archived',
+        purgeEnqueued: true,
+      }).success,
+    ).toBe(true);
+  });
+
+  it('非 archived 或未入队拒', () => {
+    expect(
+      DeleteDocumentResponseSchema.safeParse({
+        docId,
+        lifecycle: 'draft',
+        purgeEnqueued: true,
+      }).success,
+    ).toBe(false);
+    expect(
+      DeleteDocumentResponseSchema.safeParse({
+        docId,
+        lifecycle: 'archived',
+        purgeEnqueued: false,
+      }).success,
+    ).toBe(false);
+  });
+});
+
 
 describe('ReindexDocumentResponseSchema', () => {
   const base = {

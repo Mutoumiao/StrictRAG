@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（S2c 运营薄壳：文档 / 审批 / 成员 / 分片 / 设置 / 模型 + 用户 / 角色 / 部门 + **数据面板** + **反馈队列** + **评测底线**） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT + admin **dev-login**（经 api）· 知识库 = 顶栏关闭列表（本次 GET 可见库，禁止粘贴 uuid）· 菜单 = `clipMenuForShell` 裁剪（catalog 为 SSOT）· API 默认 `http://127.0.0.1:4000` |
 | 关联模块 | API 依赖：`api` 的文档 / 审批 / 成员 / 分片 / 设置 / 模型 / 用户角色 / 部门 / dashboard / **feedback-queue** / **gold-questions · eval/runs**；菜单与权限码：`admin-catalog`；类型：`contracts`；样式：`ui` |
-| 最近更新 | 2026-09-13（文档页可选后继替代；废止仍无后继 PATCH；**无** DELETE / **无** BlockNote） |
+| 最近更新 | 2026-09-14（文档页删除走 DELETE 入队 purge；归档仍 PATCH；**无** BlockNote） |
 | Spec | `.trellis/spec/admin/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · 审批 / 成员相关 API |
 
@@ -38,7 +38,7 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 - 点行改 `ownerDeptId` / `visibilityLevel` / `docType` / `aclPrincipals` / **生效区间**：有 `dept.manage` 用部门下拉，否则 uuid 粘贴；类型枚举来自设置 GET（需 `kb.config.write`），否则文本框；名单用 Textarea（逗号或换行）+「仅名单可见」勾选（未勾选且空 → `null`；勾选且空 → `[]`）；生效自/至为空即清除；`doc.editor` 裁保存；无该码只读；**无**用户下拉 / **无**角色 principal
 - 行展开 **Reindex**（`doc.reindex`）：走 `for-upload`；≥2 未选按钮不可提交
 - 行展开 **入库报告**（紧挨「入库阶段」）：库级 GET 后只展示本行；无报告「暂无入库报告」；**不是**独立抽屉 / 新页；**不是**跨 doc 冲突对
-- lifecycle（`doc.lifecycle`）：上架仍须 `status=ready` 且仅 draft；可废止 / 归档；**替代**须选后继（`ClosedSelect`，走 `POST …/supersede`）。检索闸仍 ready∧active，不自动升
+- lifecycle（`doc.lifecycle`）：上架仍须 `status=ready` 且仅 draft；可废止 / 归档；**替代**须选后继（`ClosedSelect`，走 `POST …/supersede`）；**删除**走 `DELETE`（归档并入队 purge，不走 PATCH）。检索闸仍 ready∧active，不自动升
 - `DocumentListItem` 的 `embedReady` / `esReady` **已渲染**为向量/稀疏列（适配层标志，**≠** 生产 ES）
 - 上传走 `for-upload` 人选（仅 1 个自动 complete；≥2 弹出策略下拉）；**不是**写死 `structure_paragraph`
 - **在线编写**：有 `doc.editor` 才显示；标题 + Markdown 正文 + 提交审批（`POST …/write`）；≥2 用 `ClosedSelect`；**无** BlockNote / **无**新菜单 / **不**跳过审批
@@ -112,7 +112,7 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 | 知识库设置全量项（docTypes 分区 CRUD / paramSchema 动态表单 / 平台策略 CRUD / KB 级 generate·rerank 绑定） | B2 最小 + 策略启用弹窗已落地；全量项仍挂账 |
 | APM / 时序大盘 / 告警 | B6 仅为只读计数摘要，**不是**观测生产向 |
 | 按历史 indexVersion 浏览分片的 UI | ADR-052 明确不做 |
-| DELETE / 三存对齐 | 替代联动已可选手继；**无** DELETE |
+| DELETE / 三存对齐 | 文档页有删除按钮（`doc.lifecycle`）；HTTP 真值在 api / worker；**无** PG 硬删 UI |
 | 在线编写完整体验 | Markdown 提交审批已有；**无** BlockNote / editor-draft / web 编辑器 |
 | 部分 API 封装符号未接线 | `patchPlatformRole` / `listFeedbackQueue(status)` 等封装已写但当前 UI 未调用 |
 | 完整运营 IA | 顶栏当前 KB 关闭列表已落地；仍不是完整运营台 / 库管向导 |

@@ -4,7 +4,7 @@
  * 文档薄列表：类型 / 运营标签 / 向量 / 稀疏。
  * 点行展开详情；可改 ownerDeptId / visibilityLevel / docType / aclPrincipals / 生效区间（有 doc.editor 才显示保存）。
  * 有 dept.manage 时归属用部门列表下拉；无该码仍 uuid 粘贴。不宣称强制隔离已上。
- * Reindex 走 for-upload；≥2 必须人选。lifecycle 含归档/废止。替代须选后继。上架仍须 ready。
+ * Reindex 走 for-upload；≥2 必须人选。lifecycle 含归档/废止/删除（DELETE 入队 purge）。替代须选后继。上架仍须 ready。
  * 表头上方按已加载行本地筛部门/可见级；不改 GET query。
  * 稀疏就绪是适配层/mock 标志，≠ 生产 ES。
  */
@@ -60,6 +60,7 @@ import {
   canRevertDraft,
   canSubmitSupersede,
   canSupersede,
+  deleteAdminDocument,
   eligibleSuccessorOptions,
   setDocumentLifecycle,
   supersedeAdminDocument,
@@ -494,6 +495,28 @@ export function DocumentsWorkspace() {
       );
       setSuccessorId('');
       setSaveMessage('已替代为后继');
+      setSaveOk(true);
+    } else {
+      setSaveMessage(result.message);
+      setSaveOk(false);
+    }
+    setBusy(false);
+  }
+
+  async function onDelete() {
+    if (!openId) return;
+    const docId = openId;
+    setBusy(true);
+    setSaveMessage(null);
+    const result = await deleteAdminDocument(docId);
+    if (openIdRef.current !== docId) {
+      setBusy(false);
+      return;
+    }
+    if (result.ok) {
+      setDetail((d) => (d ? { ...d, lifecycle: 'archived' } : d));
+      setRows((rs) => rs.map((r) => (r.id === docId ? { ...r, lifecycle: 'archived' } : r)));
+      setSaveMessage('已删除');
       setSaveOk(true);
     } else {
       setSaveMessage(result.message);
@@ -1029,7 +1052,18 @@ export function DocumentsWorkspace() {
                               </Button>
                             </div>
                           ) : null}
-                          <p className="text-xs text-muted-foreground">检索闸仍 ready∧active，不自动升。</p>
+                          {canLifecycle ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={busy}
+                              onClick={() => void onDelete()}
+                            >
+                              删除
+                            </Button>
+                          ) : null}
+                          <p className="text-xs text-muted-foreground">检索闸仍 ready∧active，不自动升。删除会归档并清索引与对象。</p>
                           {canReindex ? (
                             <div className="space-y-2">
                               <p className="text-xs font-semibold">Reindex</p>

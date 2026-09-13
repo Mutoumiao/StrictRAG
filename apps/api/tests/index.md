@@ -113,6 +113,7 @@
 | `ingest/document-meta.test.ts` | 文档元数据 PATCH 正确处理部门两字段。 | P3b-META | `documents meta PATCH` | 部门两字段。 | 现行 |
 | `ingest/document-effective-window.test.ts` | 文档生效区间 PATCH 必须可写可回读，乱序与非法格式须 400。 | 功能表 §4.3 / §5.4 | `PATCH /documents/:docId effectiveFrom/effectiveTo` | 不改 lifecycle；检索真值在 corpus。 | 现行 |
 | `ingest/document-supersede.test.ts` | 文档替代必须写两列并把旧文关检索、后继升 active。 | 功能表 §4.3 / §5.2 · ADR-020 · 剧本 E2 | `evaluateSupersedeLink · POST /documents/:docId/supersede` | 无后继 PATCH superseded 不在本文件；R7 主锚仍双闸。 | 现行 |
+| `ingest/document-delete.test.ts` | 文档删除必须先 archived 再入队 purge，PATCH 归档不得入队。 | 功能表 §5.2 · ADR-020 · 剧本 E3 | `evaluateDocumentDelete · DELETE /documents/:docId` | PATCH archived 不入队。R7 主锚仍双闸。无 PG 硬删。 | 现行 |
 | `ingest/document-validation.test.ts` | 文档写入校验拒绝非法字段。 | 入库 HTTP | `documents validation` | 文档写入校验。 | 现行 |
 | `ingest/gates-live.test.ts` | live 闸组合在真实 handler 下拒绝未审批 complete。 | complete 闸 | `createApp document gates` | 无 Docker / not ready 时 skip。 | 现行 |
 | `ingest/jobs-query.test.ts` | 入库任务列表项映射保持查询契约。 | prds/06-async | `toIngestJobListItem` | 入队在 api，消费在 worker。 | 现行 |

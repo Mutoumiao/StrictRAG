@@ -2,7 +2,7 @@
  * 目标：入库任务 DTO 必须覆盖全阶段，拒绝空 docId 与非法 stage。
  * 需求：prds/06-async
  * 被测：IngestJobDataSchema · INGEST_STAGES · INGEST_JOB_DEFAULT_ATTEMPTS
- * 简介：入库任务载荷形状与阶段枚举的单一来源。含逻辑 stage ocr。
+ * 简介：入库任务载荷形状与阶段枚举的单一来源。含逻辑 stage ocr / purge。
  */
 
 import { describe, expect, it } from 'vitest';
@@ -20,6 +20,16 @@ describe('IngestJobDataSchema · X-04 payload SSOT', () => {
       kbId: 'k1',
       tenantId: 't1',
       stage: 'scan',
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('accepts purge without indexVersion', () => {
+    const r = IngestJobDataSchema.safeParse({
+      docId: 'd1',
+      kbId: 'k1',
+      tenantId: 't1',
+      stage: 'purge',
     });
     expect(r.success).toBe(true);
   });
@@ -56,7 +66,15 @@ describe('IngestJobDataSchema · X-04 payload SSOT', () => {
   });
 
   it('stages cover full pipeline', () => {
-    expect(INGEST_STAGES).toEqual(['scan', 'parse', 'ocr', 'chunk', 'embed', 'es_index']);
+    expect(INGEST_STAGES).toEqual([
+      'scan',
+      'parse',
+      'ocr',
+      'chunk',
+      'embed',
+      'es_index',
+      'purge',
+    ]);
     expect(INGEST_JOB_DEFAULT_ATTEMPTS).toBeGreaterThanOrEqual(1);
   });
 });

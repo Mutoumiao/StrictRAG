@@ -110,6 +110,21 @@ export async function upsertChunkBodies(opts: {
   }
 }
 
+/** 按文档删 parse 正文与 chunk_bodies；URL 空 → 不连。 */
+export async function deleteBodiesForDoc(opts: { url: string; docId: string }): Promise<void> {
+  const url = opts.url.trim();
+  if (!url) return;
+  const client = mongoClient(url);
+  try {
+    await client.connect();
+    const db = client.db();
+    await db.collection(DOCUMENT_BODIES).deleteMany({ docId: opts.docId });
+    await db.collection(CHUNK_BODIES).deleteMany({ docId: opts.docId });
+  } finally {
+    await client.close();
+  }
+}
+
 /** 回读 parse 正文；URL 空 → null（不连）。冒烟用，禁止在测里重写 upsert。 */
 export async function findDocumentBody(opts: {
   url: string;

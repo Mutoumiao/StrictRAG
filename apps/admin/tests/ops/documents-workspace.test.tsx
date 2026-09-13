@@ -105,6 +105,14 @@ const supersedeAdminDocument = vi.fn(
     },
   }),
 );
+const deleteAdminDocument = vi.fn(async (docId: string) => ({
+  ok: true as const,
+  data: {
+    docId,
+    lifecycle: 'archived' as const,
+    purgeEnqueued: true as const,
+  },
+}));
 vi.mock('@/app/(ops)/documents/lifecycle.services', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/app/(ops)/documents/lifecycle.services')>();
   return {
@@ -113,6 +121,7 @@ vi.mock('@/app/(ops)/documents/lifecycle.services', async (importOriginal) => {
       setDocumentLifecycle(...(args as [string, 'active' | 'draft' | 'archived' | 'superseded'])),
     supersedeAdminDocument: (...args: unknown[]) =>
       supersedeAdminDocument(...(args as [string, string])),
+    deleteAdminDocument: (...args: unknown[]) => deleteAdminDocument(...(args as [string])),
   };
 });
 
@@ -180,6 +189,7 @@ describe('DocumentsWorkspace', () => {
     reindexAdminDocument.mockReset();
     setDocumentLifecycle.mockClear();
     supersedeAdminDocument.mockClear();
+    deleteAdminDocument.mockClear();
     localStorage.clear();
   });
 
@@ -696,6 +706,29 @@ describe('DocumentsWorkspace', () => {
     expect(screen.getAllByText('已替代为后继').length).toBeGreaterThan(0);
   });
 
+  it('有 doc.lifecycle：删除走 DELETE 不走 PATCH lifecycle', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', 'kb-1');
+    me.permissions = ['admin.shell', 'doc.view', 'doc.lifecycle'];
+    loadDocumentList.mockResolvedValue({
+      ok: true,
+      rows: [{ ...listDoc, lifecycle: 'active' }],
+    });
+    loadDocumentDetail.mockResolvedValue({
+      ok: true,
+      detail: { ...detailDoc, lifecycle: 'active' },
+    });
+
+    render(<DocumentsWorkspace />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByText('请假制度'));
+    await user.click(await screen.findByRole('button', { name: '删除' }));
+    await waitFor(() => {
+      expect(deleteAdminDocument).toHaveBeenCalledWith(DOC_ID);
+    });
+    expect(setDocumentLifecycle).not.toHaveBeenCalled();
+    expect(screen.getAllByText('已删除').length).toBeGreaterThan(0);
+  });
+
   it('无 doc.lifecycle 无后继选择', async () => {
     localStorage.setItem('strict-rag:admin:last-kb-id', 'kb-1');
     me.permissions = ['admin.shell', 'doc.view'];
@@ -708,6 +741,7 @@ describe('DocumentsWorkspace', () => {
     await screen.findByText('现行可问');
     expect(screen.queryByLabelText('后继文档')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '替代为后继' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '删除' })).not.toBeInTheDocument();
   });
 
   it('有 doc.reindex 且 ≥2 未选：Reindex 按钮不可提交', async () => {

@@ -16,6 +16,7 @@
 | **chunk** | **done\*** | `splitByChunkStrategy` · manifests | 仅 `structure_paragraph`；幂等 resume（X-04-impl） | 多策略切分器；结构感知进阶 |
 | **embed** | **stub** | `INGEST_EMBED_MODE` mock\|fail | 伪向量 dims=8；同 version skip 已有行 | 真 embedding 网关 |
 | **es_index** | **stub** | `mockEsStore` · `INGEST_ES_MODE` · `es-http` | 进程内 Map 对账；`http` 时 mapping/bulk 写 `tenantId`/`kbId`/`docId`/`chunkId`/`sparseText`/`ownerDeptId`（无部门不写该字段）/`aclPrincipals`（null 不写；`[]` 写哨兵 `__acl_none__`） | 真 ES+IK bulk（B8） · 多租户 Router |
+| **purge** | **stub** | `pipeline` `case 'purge'` · `purge.ts` · `mockEsStore.dropDoc` | DELETE 入队；清对象 + mock 稀疏 + Mongo URL 空跳过；PG 行保持 archived | HTTP ES `_delete_by_query` · PG 硬删 / chunk 清扫 |
 | **activate / lifecycle** | **partial** | dual-ready → `status=ready` · `lifecycle=draft` | **不**自动 active；检索第二闸在 api | 运营 activate API 全流程（产品侧） |
 | **ingest_jobs 账本** | **partial** | schema + `job-ledger.ts` | stage 边界写 running→succeeded/failed；无 api 写 / 无查询面 | 运维查询 · 入队侧 queued |
 | **失败 Webhook** | **partial** | `failure-webhook.ts` · `recordStageEnd` | 账本 `errorCode` 时 POST `ingest.failed` JSON；空 URL 不发；~3s 只一次；失败 warn 不阻断 | HMAC / 重试队列 / admin·KB URL / ask webhook |
@@ -30,7 +31,7 @@
 | 层 | 名称 / 字段 | 今日 IS | 目标（未做） |
 |----|-------------|---------|--------------|
 | **物理队列** | BullMQ `sr-ingest`（`QUEUE_NAMES.ingest`） | **唯一**入库队列 | 可选拆 `ingest.scan` 等独立队列 |
-| **逻辑 stage** | job payload `stage`：`scan`→`parse`→`ocr?`→`chunk`→`embed`→`es_index` | 单队列内状态机折叠；`ocr` 仅开闸且无文本层时入队 | 与物理队列 1:1 时再 ADR |
+| **逻辑 stage** | job payload `stage`：`scan`→`parse`→`ocr?`→`chunk`→`embed`→`es_index`；旁路 `purge` | 单队列内状态机折叠；`ocr` 仅开闸且无文本层时入队；`purge` 由 DELETE 入队 | 与物理队列 1:1 时再 ADR |
 | **探针** | `sr-probe` | 与入库隔离 | — |
 
 | 规则 | 说明 |

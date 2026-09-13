@@ -1,12 +1,13 @@
 /**
  * 目标：空 Mongo URL 不得真连，走 local id。
  * 需求：prds/03-data
- * 被测：localMongoDocId · upsertDocumentBody · findDocumentBody · pingMongo
+ * 被测：localMongoDocId · upsertDocumentBody · findDocumentBody · pingMongo · deleteBodiesForDoc
  * 简介：空 url 返回 local:docId / null / false。
  */
 import { describe, expect, it } from 'vitest';
 
 import {
+  deleteBodiesForDoc,
   findDocumentBody,
   localMongoDocId,
   pingMongo,
@@ -35,4 +36,9 @@ describe('mongo-body', () => {
   it('pingMongo empty url returns false without connecting', async () => {
     await expect(pingMongo('  ')).resolves.toBe(false);
   });
+
+  it('deleteBodiesForDoc empty url does not connect', async () => {
+    await expect(deleteBodiesForDoc({ url: '  ', docId: 'd1' })).resolves.toBeUndefined();
+  });
 });
+

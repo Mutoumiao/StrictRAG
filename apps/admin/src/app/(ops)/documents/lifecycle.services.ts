@@ -4,7 +4,7 @@ import type { Lifecycle } from '@strict-rag/contracts';
 
 import { mapBizError } from '@/lib/map-biz-error';
 
-import { patchDocumentLifecycle, postDocumentSupersede } from './api';
+import { deleteDocument, patchDocumentLifecycle, postDocumentSupersede } from './api';
 
 export async function setDocumentLifecycle(docId: string, lifecycle: Lifecycle) {
   try {
@@ -58,4 +58,13 @@ export function eligibleSuccessorOptions(
 
 export function canSubmitSupersede(successorId: string): boolean {
   return successorId.trim().length > 0;
+}
+
+export async function deleteAdminDocument(docId: string) {
+  try {
+    const data = await deleteDocument(docId);
+    return { ok: true as const, data };
+  } catch (err) {
+    return { ok: false as const, message: mapBizError(err) };
+  }
 }

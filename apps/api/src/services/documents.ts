@@ -204,6 +204,11 @@ export const documentRepo = {
     await getDb().update(documents).set({ lifecycle }).where(eq(documents.id, docId));
   },
 
+  /** DELETE 入口：先 archived，调用方再入队 purge。 */
+  async archiveForPurge(docId: string) {
+    await getDb().update(documents).set({ lifecycle: 'archived' }).where(eq(documents.id, docId));
+  },
+
   /** 替代联动：旧文 superseded，后继 active；两列互指。调用方先 evaluateSupersedeLink。 */
   async supersedePair(oldDocId: string, successorDocId: string) {
     await getDb().transaction(async (tx) => {

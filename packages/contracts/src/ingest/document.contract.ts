@@ -157,6 +157,14 @@ export const SupersedeDocumentResponseSchema = z.object({
 });
 export type SupersedeDocumentResponse = z.infer<typeof SupersedeDocumentResponseSchema>;
 
+/** DELETE …/documents/:docId · 先 archived 再入队 purge */
+export const DeleteDocumentResponseSchema = z.object({
+  docId: z.string().uuid(),
+  lifecycle: z.literal('archived'),
+  purgeEnqueued: z.literal(true),
+});
+export type DeleteDocumentResponse = z.infer<typeof DeleteDocumentResponseSchema>;
+
 /** PUT /internal/objects（本地 storage 上传） */
 export const PutObjectResponseSchema = z.object({
   key: z.string().min(1),

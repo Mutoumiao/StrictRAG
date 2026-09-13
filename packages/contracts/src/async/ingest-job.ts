@@ -1,7 +1,15 @@
 import { z } from 'zod';
 
-/** 入库逻辑 stage（物理队列可折叠为单 `sr-ingest`） */
-export const INGEST_STAGES = ['scan', 'parse', 'ocr', 'chunk', 'embed', 'es_index'] as const;
+/** 入库逻辑 stage（物理队列可折叠为单 `sr-ingest`）。purge = 删除后清对象/索引，非入库正向阶段。 */
+export const INGEST_STAGES = [
+  'scan',
+  'parse',
+  'ocr',
+  'chunk',
+  'embed',
+  'es_index',
+  'purge',
+] as const;
 export type IngestStage = (typeof INGEST_STAGES)[number];
 
 /**

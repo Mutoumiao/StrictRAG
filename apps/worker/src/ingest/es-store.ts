@@ -24,6 +24,14 @@ export const mockEsStore = {
     index.set(k, set);
   },
 
+  /** 删除该文档全部 indexVersion 的 mock 稀疏项。 */
+  dropDoc(docId: string) {
+    const prefix = `${docId}:`;
+    for (const k of [...index.keys()]) {
+      if (k.startsWith(prefix)) index.delete(k);
+    }
+  },
+
   listChunkIds(docId: string, indexVersion: number): string[] {
     return [...(index.get(key(docId, indexVersion)) ?? new Set())].sort();
   },

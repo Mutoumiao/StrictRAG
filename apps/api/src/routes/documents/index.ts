@@ -10,6 +10,7 @@ import {
   type PutObjectResponse,
   type ReindexDocumentResponse,
   type SupersedeDocumentResponse,
+  type DeleteDocumentResponse,
   type UploadUrlResponse,
   type WriteDocumentResponse,
   PatchDocumentMetaBodySchema,
@@ -31,6 +32,7 @@ import { childLogger, logger } from '../../logger.js';
 import type { ApiVariables } from '../../middleware/request-id.js';
 import { getForUpload, paramsSnapshotFor } from '../../services/chunk-strategy-catalog.js';
 import { resolveReindexChunkStrategy } from '../../services/chunk-strategies.js';
+import { evaluateDocumentDelete } from '../../services/document-delete.js';
 import { evaluateSupersedeLink } from '../../services/document-supersede.js';
 import { documentRepo } from '../../services/documents.js';
 import { ingestJobsRepo } from '../../services/ingest-jobs.js';
@@ -560,6 +562,41 @@ documentRoutes.post(
       successorDocId: parsed.data.successorDocId,
       oldLifecycle: 'superseded',
       successorLifecycle: 'active',
+    };
+    return ok(c, data);
+  },
+);
+
+/** DELETE /api/v1/documents/:docId — archived 后入队 purge；PATCH archived 不入队 */
+documentRoutes.delete(
+  '/documents/:docId',
+  requirePermissionWhenEnforced('doc.lifecycle'),
+  async (c) => {
+    const docId = c.req.param('docId');
+    const doc = await documentRepo.getDoc(docId);
+    const verdict = evaluateDocumentDelete(doc);
+    if (!verdict.ok) {
+      return fail(c, verdict.code, verdict.message, verdict.httpStatus);
+    }
+    if (!doc) {
+      return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
+    }
+
+    await documentRepo.archiveForPurge(docId);
+    const job: Parameters<typeof enqueueIngest>[0] = {
+      docId: doc.id,
+      kbId: doc.kbId,
+      tenantId: doc.tenantId,
+      stage: 'purge',
+    };
+    if (doc.indexVersion > 0) {
+      job.indexVersion = doc.indexVersion;
+    }
+    await enqueueIngest(job);
+    const data: DeleteDocumentResponse = {
+      docId,
+      lifecycle: 'archived',
+      purgeEnqueued: true,
     };
     return ok(c, data);
   },

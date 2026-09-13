@@ -8,6 +8,7 @@
 import type {
   CompleteUploadBody,
   CompleteUploadResponse,
+  DeleteDocumentResponse,
   DocumentDetail,
   DocumentListItem,
   ForUploadResponse,
@@ -78,6 +79,10 @@ export async function postDocumentSupersede(docId: string, body: SupersedeDocume
     `/api/v1/documents/${docId}/supersede`,
     body,
   );
+}
+
+export async function deleteDocument(docId: string) {
+  return http.delete<DeleteDocumentResponse>(`/api/v1/documents/${docId}`);
 }
 
 export async function listIngestJobs(docId: string) {
