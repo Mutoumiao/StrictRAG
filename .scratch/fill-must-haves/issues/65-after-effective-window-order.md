@@ -2,8 +2,9 @@
 
 Type: grilling
 Label: wayfinder:grilling
-Status: open
-Triage: ready-for-human
+Status: resolved
+Assignee: grok
+Triage: ready-for-agent
 Blocked by: 64
 
 ## Question
@@ -31,3 +32,30 @@ Blocked by: 64
 5. **回头 P4 人签/面板雾**
 
 本工单只锁顺序与切边，不写产品代码。
+
+## Answer
+
+生效区间最小闭环之后，**BlockNote / editor-draft / web 编辑器仍是 P2.x 完整体验余量**。P5 真引擎仍是选型。P3b 站规仍锁。P4 人签 / 面板仍不是代码缺口。用户要求继续本图，五选一里 1/2/3/5 都不是卡住的产品路径；4 只在剩余项都依赖人签或选型时才合理。
+
+目的地里仍缺、且不依赖人签或引擎选型的产品语义是 **替代联动**：`supersedes_doc_id` / `superseded_by_doc_id` 列已有，PATCH lifecycle 可写成 `superseded` 但不写后继，无 `POST …/supersede`。功能表 §5.2 文档读写含 supersede；ADR-020 / PG schema：新 doc `active`，旧 doc `superseded` + `superseded_by_doc_id`，旧版关闭默认可检但保留审计。剧本 E2 写路径真空。[文档运营余量最小闭环](./07-document-ops-remainder-min.md) 与 [生效区间最小闭环](./64-effective-window-min.md) 划出后未回补。这不是重开第三批收官，是收「后批」从未落地的版本替代闸。
+
+不并进：DELETE / 三存对齐 / purge、ingest_jobs 或 audit_logs 落转换账、dense WHERE、ES terms、BlockNote。
+
+本图 **补替代联动最小闭环**。
+
+本批一张：
+
+- [替代联动最小闭环](./66-supersede-link-min.md) — 开放前沿。切边见该工单正文。
+
+仍留雾：仓库默认开强制、角色 principal、BlockNote / editor-draft、DELETE / 三存对齐、P3a、P4 其余、P5 其余（真引擎 / Cloud / 自动全库 / 容量 / 抽样 / CoVe）、B8 / B9 / QUAL-2。
+
+未改产品代码。
+
+## Comments
+
+- 2026-09-13 用户要求继续 wayfinder，在主分支推进。授权本图全程自行决策。
+- Q1：不选 1（余量）。不选 2 整包（真引擎是选型）。不选 3。不选 4。不选 5。本批补替代联动。
+- Q2：一张工单。POST supersede + 两列可回读 + admin 选后继。无 DELETE。
+- Q3：`POST /documents/:docId/supersede` body `{ successorDocId }`。PATCH lifecycle=superseded 仍可无后继废止。`isDefaultRetrievable` 不改。
+- Q4：同库。旧 draft|active。后继 ready，否则 409。自指 / 已有 supersededBy / 后继已 superseded|archived → 409。后继升 active。
+- Q5：默认开强制 / 角色码 / 默认开 OCR / 真引擎 / BlockNote 仍锁。

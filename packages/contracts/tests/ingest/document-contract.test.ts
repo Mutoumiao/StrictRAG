@@ -1,8 +1,8 @@
 /**
  * 目标：文档 / 知识库 DTO 与完成上传、补丁元数据必须接受合法部门可见级并拒非法值。
  * 需求：入库 HTTP
- * 被测：CreateKbBodySchema · KnowledgeBaseListItemSchema · VisibilityLevelSchema · CompleteUploadBodySchema · WriteDocumentBodySchema · WriteDocumentResponseSchema · PatchDocumentMetaBodySchema · DocumentDetailSchema · DocumentListItemSchema · ReindexDocumentResponseSchema
- * 简介：文档 DTO 与可见级 / 部门字段 / aclPrincipals 三态 / 生效区间；reindex stage 可 chunk 或 ocr。
+ * 被测：CreateKbBodySchema · KnowledgeBaseListItemSchema · VisibilityLevelSchema · CompleteUploadBodySchema · WriteDocumentBodySchema · WriteDocumentResponseSchema · PatchDocumentMetaBodySchema · DocumentDetailSchema · DocumentListItemSchema · ReindexDocumentResponseSchema · SupersedeDocumentBodySchema · SupersedeDocumentResponseSchema
+ * 简介：文档 DTO 与可见级 / 部门字段 / aclPrincipals 三态 / 生效区间 / 替代边；reindex stage 可 chunk 或 ocr。
  */
 
 import { describe, expect, it } from 'vitest';
@@ -17,6 +17,8 @@ import {
   KnowledgeBaseListItemSchema,
   PatchDocumentMetaBodySchema,
   ReindexDocumentResponseSchema,
+  SupersedeDocumentBodySchema,
+  SupersedeDocumentResponseSchema,
   VisibilityLevelSchema,
 } from '../../src/ingest/document.contract.js';
 
@@ -278,6 +280,8 @@ describe('DocumentDetailSchema / list item', () => {
     expect(keys).toContain('visibilityLevel');
     expect(keys).toContain('docType');
     expect(keys).toContain('aclPrincipals');
+    expect(keys).toContain('supersedesDocId');
+    expect(keys).toContain('supersededByDocId');
     const parsed = DocumentListItemSchema.parse({
       id: DETAIL_BASE.id,
       title: DETAIL_BASE.title,
@@ -293,6 +297,43 @@ describe('DocumentDetailSchema / list item', () => {
     expect(parsed.ownerDeptId).toBeNull();
     expect(parsed.visibilityLevel).toBe(20);
     expect(parsed.aclPrincipals).toBeNull();
+    expect(parsed.supersedesDocId).toBeNull();
+    expect(parsed.supersededByDocId).toBeNull();
+  });
+});
+
+describe('SupersedeDocumentBodySchema / response', () => {
+  const oldDocId = '01900000-0000-7000-8000-0000000000d1';
+  const successorDocId = '01900000-0000-7000-8000-0000000000d2';
+
+  it('接受合法 successorDocId', () => {
+    expect(SupersedeDocumentBodySchema.safeParse({ successorDocId }).success).toBe(true);
+  });
+
+  it('缺后继或非法 uuid 拒', () => {
+    expect(SupersedeDocumentBodySchema.safeParse({}).success).toBe(false);
+    expect(SupersedeDocumentBodySchema.safeParse({ successorDocId: 'not-a-uuid' }).success).toBe(
+      false,
+    );
+  });
+
+  it('响应含两列与两态', () => {
+    expect(
+      SupersedeDocumentResponseSchema.safeParse({
+        oldDocId,
+        successorDocId,
+        oldLifecycle: 'superseded',
+        successorLifecycle: 'active',
+      }).success,
+    ).toBe(true);
+    expect(
+      SupersedeDocumentResponseSchema.safeParse({
+        oldDocId,
+        successorDocId,
+        oldLifecycle: 'draft',
+        successorLifecycle: 'active',
+      }).success,
+    ).toBe(false);
   });
 });
 

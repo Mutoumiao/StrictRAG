@@ -143,6 +143,20 @@ export const PatchLifecycleResponseSchema = z.object({
 });
 export type PatchLifecycleResponse = z.infer<typeof PatchLifecycleResponseSchema>;
 
+/** POST …/documents/:docId/supersede · :docId 为被替代旧文 */
+export const SupersedeDocumentBodySchema = z.object({
+  successorDocId: z.string().uuid(),
+});
+export type SupersedeDocumentBody = z.infer<typeof SupersedeDocumentBodySchema>;
+
+export const SupersedeDocumentResponseSchema = z.object({
+  oldDocId: z.string().uuid(),
+  successorDocId: z.string().uuid(),
+  oldLifecycle: z.literal('superseded'),
+  successorLifecycle: z.literal('active'),
+});
+export type SupersedeDocumentResponse = z.infer<typeof SupersedeDocumentResponseSchema>;
+
 /** PUT /internal/objects（本地 storage 上传） */
 export const PutObjectResponseSchema = z.object({
   key: z.string().min(1),
@@ -175,6 +189,10 @@ export const DocumentListItemSchema = z.object({
   /** 缺省 null = 不限；yyyy-MM-dd HH:mm:ss */
   effectiveFrom: LocalDateTimeStringSchema.nullable().default(null),
   effectiveTo: LocalDateTimeStringSchema.nullable().default(null),
+  /** 本文件替代的旧文档；缺省 null = 无替代边 */
+  supersedesDocId: z.string().uuid().nullable().default(null),
+  /** 被谁替代；缺省 null = 无后继 */
+  supersededByDocId: z.string().uuid().nullable().default(null),
 });
 export type DocumentListItem = z.infer<typeof DocumentListItemSchema>;
 

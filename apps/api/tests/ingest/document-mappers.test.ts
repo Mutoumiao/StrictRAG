@@ -47,6 +47,8 @@ describe('documents mappers（ARCH-P1a 域内纯函数）', () => {
     expect(item.aclPrincipals).toBeNull();
     expect(item.effectiveFrom).toBeNull();
     expect(item.effectiveTo).toBeNull();
+    expect(item.supersedesDocId).toBeNull();
+    expect(item.supersededByDocId).toBeNull();
   });
 
   it('toDetail 含租户/KB 与元数据', () => {
@@ -77,6 +79,16 @@ describe('documents mappers（ARCH-P1a 域内纯函数）', () => {
     });
     expect(detail.ownerDeptId).toBe('01900000-0000-7000-8000-0000000000de');
     expect(detail.visibilityLevel).toBe(30);
+  });
+
+  it('toListItem 回读替代边', () => {
+    const item = toListItem({
+      ...base,
+      supersedesDocId: '01900000-0000-7000-8000-0000000000d0',
+      supersededByDocId: '01900000-0000-7000-8000-0000000000d2',
+    });
+    expect(item.supersedesDocId).toBe('01900000-0000-7000-8000-0000000000d0');
+    expect(item.supersededByDocId).toBe('01900000-0000-7000-8000-0000000000d2');
   });
 
   it('toDetail 回读生效区间', () => {

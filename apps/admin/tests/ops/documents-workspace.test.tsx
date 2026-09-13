@@ -94,12 +94,25 @@ const setDocumentLifecycle = vi.fn(
     lifecycle,
   }),
 );
+const supersedeAdminDocument = vi.fn(
+  async (oldDocId: string, successorDocId: string) => ({
+    ok: true as const,
+    data: {
+      oldDocId,
+      successorDocId,
+      oldLifecycle: 'superseded' as const,
+      successorLifecycle: 'active' as const,
+    },
+  }),
+);
 vi.mock('@/app/(ops)/documents/lifecycle.services', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/app/(ops)/documents/lifecycle.services')>();
   return {
     ...actual,
     setDocumentLifecycle: (...args: unknown[]) =>
       setDocumentLifecycle(...(args as [string, 'active' | 'draft' | 'archived' | 'superseded'])),
+    supersedeAdminDocument: (...args: unknown[]) =>
+      supersedeAdminDocument(...(args as [string, string])),
   };
 });
 
@@ -166,6 +179,7 @@ describe('DocumentsWorkspace', () => {
     planReindexChunkStrategy.mockReset();
     reindexAdminDocument.mockReset();
     setDocumentLifecycle.mockClear();
+    supersedeAdminDocument.mockClear();
     localStorage.clear();
   });
 
@@ -648,6 +662,52 @@ describe('DocumentsWorkspace', () => {
       expect(setDocumentLifecycle).toHaveBeenCalledWith(DOC_ID, 'archived');
     });
     expect(screen.getAllByText('已归档').length).toBeGreaterThan(0);
+  });
+
+  it('有 doc.lifecycle：未选后继不可替代；选后走 supersede 不走 PATCH lifecycle', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', 'kb-1');
+    me.permissions = ['admin.shell', 'doc.view', 'doc.lifecycle'];
+    loadDocumentList.mockResolvedValue({
+      ok: true,
+      rows: [
+        { ...listDoc, lifecycle: 'active' },
+        { ...listDoc, id: DOC_ID_2, title: '报销制度', lifecycle: 'draft' },
+      ],
+    });
+    loadDocumentDetail.mockResolvedValue({
+      ok: true,
+      detail: { ...detailDoc, lifecycle: 'active' },
+    });
+
+    render(<DocumentsWorkspace />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByText('请假制度'));
+
+    const replaceBtn = await screen.findByRole('button', { name: '替代为后继' });
+    expect(replaceBtn).toBeDisabled();
+    await user.click(screen.getByLabelText('后继文档'));
+    await user.click(await screen.findByRole('option', { name: '报销制度' }));
+    expect(replaceBtn).toBeEnabled();
+    await user.click(replaceBtn);
+    await waitFor(() => {
+      expect(supersedeAdminDocument).toHaveBeenCalledWith(DOC_ID, DOC_ID_2);
+    });
+    expect(setDocumentLifecycle).not.toHaveBeenCalled();
+    expect(screen.getAllByText('已替代为后继').length).toBeGreaterThan(0);
+  });
+
+  it('无 doc.lifecycle 无后继选择', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', 'kb-1');
+    me.permissions = ['admin.shell', 'doc.view'];
+    loadDocumentList.mockResolvedValue({ ok: true, rows: [listDoc] });
+    loadDocumentDetail.mockResolvedValue({ ok: true, detail: detailDoc });
+
+    render(<DocumentsWorkspace />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByText('请假制度'));
+    await screen.findByText('现行可问');
+    expect(screen.queryByLabelText('后继文档')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '替代为后继' })).not.toBeInTheDocument();
   });
 
   it('有 doc.reindex 且 ≥2 未选：Reindex 按钮不可提交', async () => {

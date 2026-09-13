@@ -4,7 +4,7 @@
  * 文档薄列表：类型 / 运营标签 / 向量 / 稀疏。
  * 点行展开详情；可改 ownerDeptId / visibilityLevel / docType / aclPrincipals / 生效区间（有 doc.editor 才显示保存）。
  * 有 dept.manage 时归属用部门列表下拉；无该码仍 uuid 粘贴。不宣称强制隔离已上。
- * Reindex 走 for-upload；≥2 必须人选。lifecycle 含归档/废止。上架仍须 ready。
+ * Reindex 走 for-upload；≥2 必须人选。lifecycle 含归档/废止。替代须选后继。上架仍须 ready。
  * 表头上方按已加载行本地筛部门/可见级；不改 GET query。
  * 稀疏就绪是适配层/mock 标志，≠ 生产 ES。
  */
@@ -58,8 +58,11 @@ import {
   canArchive,
   canPublish,
   canRevertDraft,
+  canSubmitSupersede,
   canSupersede,
+  eligibleSuccessorOptions,
   setDocumentLifecycle,
+  supersedeAdminDocument,
 } from '../lifecycle.services';
 import {
   pickReindexChunkStrategy,
@@ -163,6 +166,7 @@ export function DocumentsWorkspace() {
   const [writeMessage, setWriteMessage] = useState<string | null>(null);
   const [writePlan, setWritePlan] = useState<ForUploadResponse | null>(null);
   const [writePicked, setWritePicked] = useState('');
+  const [successorId, setSuccessorId] = useState('');
   const writePlanKbRef = useRef('');
   const writePlanGen = useRef(0);
   const openIdRef = useRef<string | null>(null);
@@ -239,6 +243,7 @@ export function DocumentsWorkspace() {
       setDetailError(null);
       setSaveMessage(null);
       setBusy(false);
+      setSuccessorId('');
       setDocReports([]);
       setReportNote(null);
       return;
@@ -249,6 +254,7 @@ export function DocumentsWorkspace() {
     setDetailError(null);
     setSaveMessage(null);
     setBusy(false);
+    setSuccessorId('');
     setDetailState('loading');
     const [result] = await Promise.all([
       loadDocumentDetail(docId),
@@ -450,6 +456,44 @@ export function DocumentsWorkspace() {
       setDetail((d) => (d ? { ...d, lifecycle: result.lifecycle } : d));
       setRows((rs) => rs.map((r) => (r.id === docId ? { ...r, lifecycle: result.lifecycle } : r)));
       setSaveMessage(lifecycleSavedMessage(lifecycle));
+      setSaveOk(true);
+    } else {
+      setSaveMessage(result.message);
+      setSaveOk(false);
+    }
+    setBusy(false);
+  }
+
+  async function onSupersede() {
+    if (!openId || !canSubmitSupersede(successorId)) return;
+    const docId = openId;
+    const nextId = successorId;
+    setBusy(true);
+    setSaveMessage(null);
+    const result = await supersedeAdminDocument(docId, nextId);
+    if (openIdRef.current !== docId) {
+      setBusy(false);
+      return;
+    }
+    if (result.ok) {
+      setDetail((d) =>
+        d
+          ? { ...d, lifecycle: 'superseded', supersededByDocId: nextId }
+          : d,
+      );
+      setRows((rs) =>
+        rs.map((r) => {
+          if (r.id === docId) {
+            return { ...r, lifecycle: 'superseded', supersededByDocId: nextId };
+          }
+          if (r.id === nextId) {
+            return { ...r, lifecycle: 'active', supersedesDocId: docId };
+          }
+          return r;
+        }),
+      );
+      setSuccessorId('');
+      setSaveMessage('已替代为后继');
       setSaveOk(true);
     } else {
       setSaveMessage(result.message);
@@ -962,6 +1006,27 @@ export function DocumentsWorkspace() {
                                   归档 archived
                                 </Button>
                               ) : null}
+                            </div>
+                          ) : null}
+                          {canLifecycle && canSupersede(detail.lifecycle) ? (
+                            <div className="space-y-2">
+                              <Label htmlFor="doc-successor">后继文档</Label>
+                              <ClosedSelect
+                                id="doc-successor"
+                                value={successorId}
+                                onValueChange={setSuccessorId}
+                                disabled={busy}
+                                placeholder="请选择后继文档"
+                                options={eligibleSuccessorOptions(rows, detail.id)}
+                              />
+                              <Button
+                                type="button"
+                                size="sm"
+                                disabled={busy || !canSubmitSupersede(successorId)}
+                                onClick={() => void onSupersede()}
+                              >
+                                替代为后继
+                              </Button>
                             </div>
                           ) : null}
                           <p className="text-xs text-muted-foreground">检索闸仍 ready∧active，不自动升。</p>

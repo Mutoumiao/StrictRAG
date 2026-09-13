@@ -12,7 +12,7 @@
 | ID | 期望摘要 | 阶段 | 形态 | 覆盖 | 主包 | 证据 | 缺口 |
 |----|----------|------|------|------|------|------|------|
 | E1 | ready+active 可查（ES 可查文号） | P2必签 | 单测 | 部分测 | api | apps/api/tests/ask/ready-active-corpus.test.ts（R7：仅 `ready∧active` 进检索集）；packages/db/tests/retrieve/ready-active-gate.test.ts（附录） | 未断言入库后 ES 可查文号。默认 `RETRIEVE_ES_MODE=mock`，≠ 生产 ES |
-| E2 | supersede 旧版：lifecycle=superseded，ask 不得引用旧版 | P2必签 | 单测 | 部分测 | api | apps/api/tests/ask/ready-active-corpus.test.ts（`superseded` 被滤）；schema 有 `supersedes_doc_id` / `superseded_by_doc_id` | 无 supersede 写路径测；无「发布新版 → 旧版 superseded + ask 不引旧版」；PATCH lifecycle 可写该枚举但无联动 |
+| E2 | supersede 旧版：lifecycle=superseded，ask 不得引用旧版 | P2必签 | 单测 | 部分测 | api | apps/api/tests/ingest/document-supersede.test.ts（POST 写两列；替代后 `filterDocsForRetrieve` 只留后继）；apps/api/tests/ask/ready-active-corpus.test.ts（`superseded` 被滤） | 无 ES 命中串联。默认 mock ES。PATCH lifecycle 仍可无后继废止 |
 | E3 | 删除/archived：ES/Mongo/PG 对齐 | 源码为准 | 单测 | 部分测 | db | packages/db/tests/retrieve/ready-active-gate.test.ts（`lifecycle=archived` 不可检） | 无删除 API；无 archived 后 ES/Mongo/PG 三存对齐；api corpus 夹具未覆盖 archived |
 | E4 | 跨 doc 近重复：指标可见；pending_review 可人工处理 | 源码为准 | 单测 | 缺实现 | worker | 源码仅 chunk 内 `seen` 正文去重（apps/worker/src/ingest/pipeline.ts）；无跨 doc / 无 `pending_review` / 无抑制指标 | 跨 doc 近重复、指标、人工 pending_review 均未做 |
 | E5 | L1 故障 → L0 回退仍 ready | P2必签 | 单测 | 缺实现 | worker | 无 contextualize / L1 LLM prefix；chunk 写死模板 `contextPrefix`（`${title} / section`） | 无 L1 故障注入、无 L0 回退仍 ready |

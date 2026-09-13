@@ -204,6 +204,20 @@ export const documentRepo = {
     await getDb().update(documents).set({ lifecycle }).where(eq(documents.id, docId));
   },
 
+  /** 替代联动：旧文 superseded，后继 active；两列互指。调用方先 evaluateSupersedeLink。 */
+  async supersedePair(oldDocId: string, successorDocId: string) {
+    await getDb().transaction(async (tx) => {
+      await tx
+        .update(documents)
+        .set({ lifecycle: 'superseded', supersededByDocId: successorDocId })
+        .where(eq(documents.id, oldDocId));
+      await tx
+        .update(documents)
+        .set({ lifecycle: 'active', supersedesDocId: oldDocId })
+        .where(eq(documents.id, successorDocId));
+    });
+  },
+
   /** B12：显式改策略（reindex 覆盖时） */
   async setChunkStrategy(
     docId: string,

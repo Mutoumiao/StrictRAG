@@ -32,6 +32,8 @@ export type DocMapSource = {
   aclPrincipals?: string[] | null;
   effectiveFrom?: string | null;
   effectiveTo?: string | null;
+  supersedesDocId?: string | null;
+  supersededByDocId?: string | null;
 };
 
 export function toListItem(r: DocMapSource): DocumentListItem {
@@ -52,6 +54,8 @@ export function toListItem(r: DocMapSource): DocumentListItem {
     aclPrincipals: r.aclPrincipals ?? null,
     effectiveFrom: r.effectiveFrom ?? null,
     effectiveTo: r.effectiveTo ?? null,
+    supersedesDocId: r.supersedesDocId ?? null,
+    supersededByDocId: r.supersededByDocId ?? null,
   };
 }
 

@@ -9,10 +9,12 @@ import {
   type PatchLifecycleResponse,
   type PutObjectResponse,
   type ReindexDocumentResponse,
+  type SupersedeDocumentResponse,
   type UploadUrlResponse,
   type WriteDocumentResponse,
   PatchDocumentMetaBodySchema,
   PatchLifecycleBodySchema,
+  SupersedeDocumentBodySchema,
   ReindexDocumentBodySchema,
   UploadUrlBodySchema,
   WriteDocumentBodySchema,
@@ -29,6 +31,7 @@ import { childLogger, logger } from '../../logger.js';
 import type { ApiVariables } from '../../middleware/request-id.js';
 import { getForUpload, paramsSnapshotFor } from '../../services/chunk-strategy-catalog.js';
 import { resolveReindexChunkStrategy } from '../../services/chunk-strategies.js';
+import { evaluateSupersedeLink } from '../../services/document-supersede.js';
 import { documentRepo } from '../../services/documents.js';
 import { ingestJobsRepo } from '../../services/ingest-jobs.js';
 import { selectVisibleKbs, toKbListItem } from '../../services/kb-list.js';
@@ -524,6 +527,39 @@ documentRoutes.patch(
       docId,
       lifecycle: parsed.data.lifecycle,
       status: doc.status,
+    };
+    return ok(c, data);
+  },
+);
+
+/** POST /api/v1/documents/:docId/supersede — 旧文 superseded，后继 active；两列互指 */
+documentRoutes.post(
+  '/documents/:docId/supersede',
+  requirePermissionWhenEnforced('doc.lifecycle'),
+  async (c) => {
+    const docId = c.req.param('docId');
+    const parsed = SupersedeDocumentBodySchema.safeParse(await c.req.json().catch(() => ({})));
+    if (!parsed.success) {
+      return fail(c, BizCode.VALIDATION_ERROR, 'invalid body', 400, parsed.error.flatten());
+    }
+
+    const old = await documentRepo.getDoc(docId);
+    const successor = await documentRepo.getDoc(parsed.data.successorDocId);
+    const verdict = evaluateSupersedeLink({
+      old,
+      successor,
+      successorDocId: parsed.data.successorDocId,
+    });
+    if (!verdict.ok) {
+      return fail(c, verdict.code, verdict.message, verdict.httpStatus);
+    }
+
+    await documentRepo.supersedePair(docId, parsed.data.successorDocId);
+    const data: SupersedeDocumentResponse = {
+      oldDocId: docId,
+      successorDocId: parsed.data.successorDocId,
+      oldLifecycle: 'superseded',
+      successorLifecycle: 'active',
     };
     return ok(c, data);
   },

@@ -16,6 +16,8 @@ import type {
   PatchDocumentMetaBody,
   PatchLifecycleBody,
   PatchLifecycleResponse,
+  SupersedeDocumentBody,
+  SupersedeDocumentResponse,
   PutObjectResponse,
   ReindexDocumentBody,
   ReindexDocumentResponse,
@@ -67,6 +69,13 @@ export async function putUploadedObject(uploadUrl: string, blob: Blob, contentTy
 export async function patchDocumentLifecycle(docId: string, body: PatchLifecycleBody) {
   return http.patch<PatchLifecycleResponse, PatchLifecycleBody>(
     `/api/v1/documents/${docId}/lifecycle`,
+    body,
+  );
+}
+
+export async function postDocumentSupersede(docId: string, body: SupersedeDocumentBody) {
+  return http.post<SupersedeDocumentResponse, SupersedeDocumentBody>(
+    `/api/v1/documents/${docId}/supersede`,
     body,
   );
 }
