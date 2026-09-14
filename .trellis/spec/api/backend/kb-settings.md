@@ -31,6 +31,7 @@
 | 方法 | 路径 | 中间件 | 说明 |
 |------|------|--------|------|
 | `GET` | `/api/v1/knowledge-bases/:kbId/settings` | `requirePermission('kb.config.write')` | 含 quality + rewrite 锁 |
+| `GET` | `/api/v1/knowledge-bases/:kbId/doc-types` | **不在本路由**；见 [ask-pipeline](./ask-pipeline.md) 成员口 | 成员读枚举；禁止用 settings GET 冒充 |
 | `PATCH` | `/api/v1/knowledge-bases/:kbId/settings` | 同上 | body 白名单；写 Pino diff；**diff 非空时插入 `kb_settings_audits` 一行** |
 | `GET` | `/api/v1/knowledge-bases/:kbId/settings-audit` | 同上（不新码） | 该库已落行，新在前，上限 50；空列表 200；缺库 404 |
 

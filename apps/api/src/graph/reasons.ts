@@ -47,6 +47,11 @@ export function reasonPresentation(reason: AskReason): {
         userMessage: '知识库尚无可用文档，请稍后再试或联系管理员。',
         suggestedActions: [{ type: 'contact_admin', label: '联系管理员' }],
       };
+    case 'no_docs_in_scope':
+      return {
+        userMessage: '当前文档类型范围内没有可检索文档，请改类型或联系管理员。',
+        suggestedActions: [{ type: 'contact_admin', label: '联系管理员' }],
+      };
     case 'budget_exhausted':
       return {
         userMessage: '本次问答步骤较多，暂无法在可靠约束下完成，请简化问题后重试。',

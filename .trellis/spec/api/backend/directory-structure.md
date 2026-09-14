@@ -31,7 +31,7 @@ apps/api/
       ingest-report.ts       # GET …/ingest-report（库级已落库行；doc.view WhenEnforced + 成员闸）
       chunks.ts              # B1 分片只读 list/detail（ADR-052）
       members.ts             # 成员 list/invite/PUT role/delete
-      ask.ts                 # POST …/ask 同步 + AI SDK UI Message Stream（B2-W mode/docTypes）
+      ask.ts                 # POST …/ask 同步 + AI SDK UI Message Stream（B2-W mode/docTypes）· GET ask-modes · GET doc-types
       sessions.ts            # 会话壳（rewrite 默认关；图边在 graph/run.ts）
       feedback.ts            # B13：POST/PATCH 用 evaluateKbMember / checkPermission({ kbId })
       kb-settings.ts         # B2/B2-W 知识库设置 + GET settings-audit

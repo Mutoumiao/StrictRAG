@@ -7,12 +7,14 @@
 
 import {
   AskModesSchema,
+  KbDocTypesSchema,
   type AskAuditResponse,
   type AskMode,
   type AskModes,
   type AskRequest,
   type AskResponse,
   type AskSseStatus,
+  type KbDocTypes,
 } from '@strict-rag/contracts';
 import { DefaultChatTransport } from 'ai';
 
@@ -84,6 +86,14 @@ export async function getAskModes(kbId: string) {
     `/api/v1/knowledge-bases/${encodeURIComponent(kbId)}/ask-modes`,
   );
   return AskModesSchema.parse(data);
+}
+
+/** GET /knowledge-bases/:kbId/doc-types 成员类型枚举；不含 τ */
+export async function getKbDocTypes(kbId: string) {
+  const data = await http.get<KbDocTypes>(
+    `/api/v1/knowledge-bases/${encodeURIComponent(kbId)}/doc-types`,
+  );
+  return KbDocTypesSchema.parse(data);
 }
 
 function isFailEnvelope(

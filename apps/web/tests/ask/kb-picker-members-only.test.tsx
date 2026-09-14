@@ -11,6 +11,7 @@ import { render, screen, userEvent, waitFor } from '@/test/test-utils';
 
 const askMock = vi.fn(async () => undefined);
 const getAskModesMock = vi.fn();
+const getKbDocTypesMock = vi.fn();
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
@@ -64,6 +65,7 @@ vi.mock('@/api/ask', async (importOriginal) => {
   return {
     ...actual,
     getAskModes: (kbId: string) => getAskModesMock(kbId),
+    getKbDocTypes: (kbId: string) => getKbDocTypesMock(kbId),
   };
 });
 
@@ -86,10 +88,12 @@ describe('AskPanel 库选择器只列成员库', () => {
   beforeEach(() => {
     askMock.mockClear();
     getAskModesMock.mockReset();
+    getKbDocTypesMock.mockReset();
     getAskModesMock.mockResolvedValue({
       allowedModes: ['balanced'],
       defaultMode: 'balanced',
     });
+    getKbDocTypesMock.mockResolvedValue({ items: [] });
     localStorage.clear();
     listKnowledgeBases.mockReset();
   });

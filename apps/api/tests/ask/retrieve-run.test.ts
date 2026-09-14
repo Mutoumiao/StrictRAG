@@ -90,6 +90,37 @@ describe('runRetrieve dual gate via corpus', () => {
     expect(r).toMatchObject({ ok: false, reason: 'kb_not_ready' });
   });
 
+  it('no_docs_in_scope when type scope empties a non-empty dual-gate corpus', async () => {
+    const unconstrained = [chunk('c1', 'leave policy 15 days', { docType: 'hr' })];
+    const r = await runRetrieve(
+      {
+        tenantId: 'tenant-1',
+        kbId: 'kb1',
+        question: 'leave',
+        membership: 'member',
+        scope: { docTypes: ['legal'] },
+      },
+      deps([], {
+        loadCorpus: async (input) => (input.scope?.docTypes?.length ? [] : unconstrained),
+      }),
+    );
+    expect(r).toMatchObject({ ok: false, reason: 'no_docs_in_scope' });
+  });
+
+  it('kb_not_ready when type scope empty and unconstrained corpus also empty', async () => {
+    const r = await runRetrieve(
+      {
+        tenantId: 'tenant-1',
+        kbId: 'kb1',
+        question: 'leave',
+        membership: 'member',
+        scope: { docTypes: ['legal'] },
+      },
+      deps([]),
+    );
+    expect(r).toMatchObject({ ok: false, reason: 'kb_not_ready' });
+  });
+
   it('returns evidence after hybrid + rerank for member', async () => {
     const corpus = [
       chunk('c1', 'employee leave policy allows 15 days annual leave'),

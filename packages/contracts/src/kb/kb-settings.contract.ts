@@ -25,6 +25,22 @@ export const AskModesSchema = z
   });
 export type AskModes = z.infer<typeof AskModesSchema>;
 
+/** GET …/knowledge-bases/:kbId/doc-types（成员可读；不含 τ） */
+export const KbDocTypeItemSchema = z
+  .object({
+    code: z.string().min(1).max(64),
+    label: z.string().min(1).max(128),
+  })
+  .strict();
+export type KbDocTypeItem = z.infer<typeof KbDocTypeItemSchema>;
+
+export const KbDocTypesSchema = z
+  .object({
+    items: z.array(KbDocTypeItemSchema).max(32),
+  })
+  .strict();
+export type KbDocTypes = z.infer<typeof KbDocTypesSchema>;
+
 /** KB 语料分级；缺省 / 旧行 = internal。sensitive complete 须 ACL 就绪（部门路径或显式名单） */
 export const DataClassSchema = z.enum(['internal', 'sensitive']);
 export type DataClass = z.infer<typeof DataClassSchema>;

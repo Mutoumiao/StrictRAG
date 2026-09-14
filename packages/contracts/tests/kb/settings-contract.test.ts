@@ -1,14 +1,15 @@
 /**
  * 目标：KB 设置 PATCH 仅白名单且拒阈值字段，GET 必须锁定 rewrite 关闭；成员档位口不得夹带 τ。
  * 需求：B2 · 功能表 §3 问答档位
- * 被测：PatchKbSettingsBodySchema · KbSettingsSchema · AskModesSchema
- * 简介：KB 设置形状与 sessionRewrite 锁定；ask-modes 仅 allowedModes/defaultMode。
+ * 被测：PatchKbSettingsBodySchema · KbSettingsSchema · AskModesSchema · KbDocTypesSchema
+ * 简介：KB 设置形状与 sessionRewrite 锁定；ask-modes 仅 allowedModes/defaultMode；doc-types 仅 items。
  */
 
 import { describe, expect, it } from 'vitest';
 
 import {
   AskModesSchema,
+  KbDocTypesSchema,
   KbSettingsSchema,
   PatchKbSettingsBodySchema,
 } from '../../src/kb/kb-settings.contract.js';
@@ -185,5 +186,25 @@ describe('AskModesSchema', () => {
         defaultMode: 'strict',
       }).success,
     ).toBe(false);
+  });
+});
+
+describe('KbDocTypesSchema', () => {
+  it('accepts empty items and code/label pairs', () => {
+    expect(KbDocTypesSchema.safeParse({ items: [] }).success).toBe(true);
+    const r = KbDocTypesSchema.safeParse({
+      items: [{ code: 'hr', label: 'hr' }],
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('rejects tauClaim / missing label', () => {
+    expect(
+      KbDocTypesSchema.safeParse({
+        items: [{ code: 'hr', label: 'hr' }],
+        tauClaim: 0.3,
+      }).success,
+    ).toBe(false);
+    expect(KbDocTypesSchema.safeParse({ items: [{ code: 'hr' }] }).success).toBe(false);
   });
 });

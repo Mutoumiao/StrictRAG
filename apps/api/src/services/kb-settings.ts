@@ -70,6 +70,11 @@ export function parseDocTypesFromConfig(
   return out;
 }
 
+/** 成员 GET /doc-types；设置只存码，label 暂等于 code */
+export function toDocTypeItems(codes: readonly string[]): { code: string; label: string }[] {
+  return codes.map((code) => ({ code, label: code }));
+}
+
 /** config_json.dataClass；只认 sensitive，其余/缺省 → internal */
 export function parseDataClassFromConfig(
   config: Record<string, unknown> | null | undefined,

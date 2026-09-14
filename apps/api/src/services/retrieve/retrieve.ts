@@ -129,6 +129,17 @@ export async function runRetrieve(
     bypassDeptAcl,
   });
   if (corpus.length === 0) {
+    const typeScopeApplied = Boolean(input.scope?.docTypes?.length);
+    if (typeScopeApplied) {
+      const unconstrained = await deps.loadCorpus({
+        kbId: input.kbId,
+        userId: input.userId,
+        bypassDeptAcl,
+      });
+      if (unconstrained.length > 0) {
+        return fail('no_docs_in_scope', 'no documents in requested docTypes');
+      }
+    }
     return fail('kb_not_ready', 'no ready∧active documents in kb');
   }
 

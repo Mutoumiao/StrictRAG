@@ -126,7 +126,7 @@ P2 必签（UI 可薄，契约不可缺）。
 | AB4 | PATCH body 含 `tauClaim`（或 crag / allowDegraded）→ 400；运行时 τ 不变 | P2必签 | 契约+单测 | 已测 | api | apps/api/tests/kb/settings-http.test.ts（PATCH `tauClaim` → 400）· packages/contracts/tests/kb/settings-contract.test.ts（拒 `tauClaim` / `allowDegradedGenerate` / `cragOk`） | GET `qualitySnapshot.tauClaim` 来自 env，PATCH 拒写。 |
 | AB5 | 质量区仅展示 τ + 签字包信息；无写入控件；GET 可读 snapshot | P2必签 | 单测 | 部分测 | api | apps/api/tests/kb/settings-http.test.ts（GET 含只读 `qualitySnapshot.tauClaim`）· apps/admin/src/app/(ops)/kb/settings/_components/settings-workspace.tsx（质量只读区） | API GET 已测。admin 测例未断言无 τ 滑块/写入控件。 |
 | AB6 | 无 `kb.config.write` → 菜单隐藏或页 403；PATCH 403 | P2必签 | 单测 | 已测 | api | apps/api/tests/kb/settings-http.test.ts（doc_operator GET 403）· apps/admin/tests/ops/kb-settings-workspace.test.tsx（无码 403 态）· packages/admin-catalog/tests/acl/catalog-clip.test.ts | API 与薄页均拒无码。 |
-| AB7 | 维护 docTypes 后 GET doc-types：列表与设置一致 | P2必签 | 单测 | 部分测 | api | apps/api/tests/kb/ask-mode-doc-types.test.ts（config 解析）· apps/admin/tests/ops/kb-settings-services.test.ts（`parseDocTypesInput`） | 解析/客户端拆分已测。`settings-http` 未测 PATCH `docTypes` 后 GET 回读一致。无独立 `GET …/doc-types` 路由。 |
+| AB7 | 维护 docTypes 后 GET doc-types：列表与设置一致 | P2必签 | 单测 | 部分测 | api | apps/api/tests/ask/http-doc-types.test.ts（成员 GET 与 settings 枚举一致；空枚举 `[]`）· apps/api/tests/kb/ask-mode-doc-types.test.ts（config 解析）· apps/admin/tests/ops/kb-settings-services.test.ts（`parseDocTypesInput`） | 独立 `GET …/doc-types` 已测。未串 PATCH settings 后立刻 GET doc-types 的同一 app 往返。 |
 | AB8 | 分片策略「设置」打开 053 弹窗；保存服 AA 语义 | P2必签 | 单测 | 缺实现 | admin | apps/admin/src/app/(ops)/kb/settings/_components/settings-workspace.tsx（仅展示已实现码）· docs/module-status/admin.md | 无 053 弹窗；complete/reindex 策略闸在入库分册。→ QUAL-AB8 |
 
 ## 剧本 AC · 模型供应商与绑定

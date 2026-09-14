@@ -86,6 +86,7 @@ describe('AskReasonSchema', () => {
       'rerank_unavailable',
       'coref_unresolved',
       'claim_split_failed',
+      'no_docs_in_scope',
     ] as const) {
       expect(AskReasonSchema.safeParse(code).success).toBe(true);
     }

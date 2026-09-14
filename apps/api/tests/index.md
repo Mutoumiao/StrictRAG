@@ -55,6 +55,7 @@
 | `ask/history-not-evidence.test.ts` | 会话历史与加深窗文本不得进入 evidence / 不得充当 verify 依据。 | 历史≠evidence · prds/04-pipelines | `runAskGraph（history / evidence_snapshot）` | 有 session 仍只凭 evidence 验证；历史与加深窗文本不得进 snapshot/citations。 | 现行 |
 | `ask/http-audit.test.ts` | GET /ask/:requestId 必须按 KB 成员权限回读当时 evidence_snapshot 与 graph_trace。 | prds/05-api §2.9 · 功能表 §5.2 引用回溯 · 剧本 F3 | `GET /ask/:requestId` | 成员 200 得快照；非成员 403；缺失 404；preview 截断；不依赖现网分片。 | 现行 |
 | `ask/http-ask-modes.test.ts` | 成员必须能读库 allowedModes/defaultMode，且不得经此口拿到 τ。 | 功能表 §3 问答档位 | `GET /knowledge-bases/:kbId/ask-modes` | 成员 200；非成员 403；缺库 404；缺设置回默认档；响应无 tauClaim。 | 现行 |
+| `ask/http-doc-types.test.ts` | 成员必须能读库文档类型枚举，且不得经此口拿到 τ。 | 功能表 §5.2 文档类型 · ADR-050 · 工单「文档类型成员面最小闭环」 | `GET /knowledge-bases/:kbId/doc-types` | 成员 200 与 settings 枚举一致；空枚举 items=[]；非成员 403；缺库 404；响应无 tauClaim。 | 现行 |
 | `ask/http-stream.test.ts` | 同步与 SSE 终态字段必须一致；空库走 200 拒答；execute 抛错仍要给出 final。 | prds/05-api | `POST /knowledge-bases/:kbId/ask sync / SSE` | 同步与流式终态一致；kb_not_ready 为 200 拒答信封；execute 抛错仍须给出 final。 | 现行 |
 | `ask/http-validation.test.ts` | POST ask 校验、鉴权与 sessionId 闸必须按契约拒绝非法请求。 | prds/05-api | `POST /knowledge-bases/:kbId/ask` | 非法 body、无鉴权与非法 sessionId 须按契约拒绝。 | 现行 |
 | `ask/min-veto.test.ts` | claim 级 min 不达标时整答必须拒答，禁止均值洗白后 answered。 | P0 R8 · prds/08-quality/01-verification-and-abstention.md | `runAskGraph（judge 分数路径）` | 单条低分 claim 即整答拒答，不看均值。 | 现行 |

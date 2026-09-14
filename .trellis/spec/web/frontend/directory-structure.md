@@ -18,7 +18,7 @@ apps/web/
       api.ts                  # 登录 / me HTTP（仅 path；不写 session）
       services.ts             # 登录/登出：写清 session + 错误映射
     api/                      # 业务 HTTP（界面简单 → 集中）
-      ask.ts                  # DefaultChatTransport（AI SDK，不自解析 SSE）
+      ask.ts                  # DefaultChatTransport（AI SDK，不自解析 SSE）· getAskModes · getKbDocTypes
       sessions.ts
       feedback.ts
       knowledge-bases.ts      # GET 身份可见库（ask 关闭列表只消费本次行）

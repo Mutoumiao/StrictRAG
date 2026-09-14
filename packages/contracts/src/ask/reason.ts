@@ -13,6 +13,7 @@ export const AskReasonSchema = z.enum([
   'invalid_citations',
   'unsupported_claims',
   'kb_not_ready',
+  'no_docs_in_scope',
   'budget_exhausted',
   'coref_unresolved',
   'rerank_unavailable',

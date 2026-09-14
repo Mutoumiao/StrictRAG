@@ -7,13 +7,13 @@
 | 成熟度 | **可演示**（S2 用户端薄壳） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT（经 api）· `NEXT_PUBLIC_API_BASE_URL` 默认 `http://127.0.0.1:4000` · 问答 = AI SDK UI Message Stream · rewrite = **服务端强制关**（本包无开关控件）· 知识库 = ui `ClosedSelect` 消费 `GET /knowledge-bases` 可见行（**无**自由粘贴） |
 | 关联模块 | ask 流 / 会话 / 反馈提交：`api`；类型：`contracts`；样式 / 组件：`ui` |
-| 最近更新 | 2026-08-30（知识库/档位换 ui `ClosedSelect`；过滤/空态/失败/脏缓存语义不变） |
+| 最近更新 | 2026-09-14（文档类型换成员 GET /doc-types 的 ui `ClosedSelect`；空枚举不出选择器；失败不挡提问） |
 | Spec | `.trellis/spec/web/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · ask 流相关 API |
 
 ## 一句话状态
 
-Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列表 / 历史回放 + B13 答后反馈（赞/踩/报错/缺文档）+ 档位/知识库关闭列表（只列本次 GET 可见库）+ 无库空态 + 拒答主按钮 + 429 配额文案 + `coref_unresolved` 拒答卡（主按钮回填不重发）** 已接通；**不是**完整产品 IA，**没有**对外宣传连续追问 / rewrite（服务端仍强制关）。包内配有 Vitest / RTL **P0 红线测试**（R1–R4 / R10；**不是** E2E、**不是** L1 黄金集评测）。
+Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列表 / 历史回放 + B13 答后反馈（赞/踩/报错/缺文档）+ 档位/知识库/文档类型关闭列表（类型读成员 GET /doc-types）+ 无库空态 + 拒答主按钮 + 429 配额文案 + `coref_unresolved` 拒答卡（主按钮回填不重发）** 已接通；**不是**完整产品 IA，**没有**对外宣传连续追问 / rewrite（服务端仍强制关）。包内配有 Vitest / RTL **P0 红线测试**（R1–R4 / R10；**不是** E2E、**不是** L1 黄金集评测）。
 
 ---
 
@@ -52,7 +52,7 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列�
 - 构建：`next build --webpack`；`next.config` 配置 `transpilePackages` + webpack `extensionAlias`
 - 依赖：`ai` · `@ai-sdk/react`（版本由 catalog 统一管理）
 - **B13**：`FeedbackBar`（`ask-panel.tsx`）在 answered/abstained 且有 `requestId` 时展示 有帮助/无帮助/报错/缺文档 → `src/api/feedback.ts` → `POST /api/v1/ask/{requestId}/feedback`（`tests/ask/feedback-category.test.tsx`）
-- **B11**：可选文档类型输入（逗号分隔）→ `parseScopeDocTypesInput` / `buildAskRequestBody` → `createAskTransport.getScope` → ask 顶层 `scope.docTypes`；空=不收窄（ADR-050）；**非**强制选类型、**非** GET settings 字典
+- **B11 / 文档类型成员面**：`getKbDocTypes` → `GET /api/v1/knowledge-bases/:kbId/doc-types`；有枚举才出 ui `ClosedSelect`（含「不按类型收窄」）；选一码后 `scope.docTypes` 为该码；空选项 / 空枚举 / 读取失败不写 scope、不挡提问（`tests/ask/ask-doc-types.test.tsx`）；**非**强制选类型、**非** GET settings、**非**逗号自由输入主路径
 - **单元 / 组件测试**（Vitest + jsdom + RTL）：`vitest.config.ts` · `src/test/{setup,test-utils}` · 测例在 `tests/<能力>/`（清单 `apps/web/tests/index.md`）；HOW：`.trellis/spec/guides/testing.md`
   - ask final 工厂来自 **`@strict-rag/contracts/testing`**（`src/test/fixtures/ask.ts` 只做 re-export）
   - P0 挂账（`docs/testing/p0-redlines.md`）：**R1** ready 状态但无 final · **R2** 拒答 UI · **R3** mapBizError · **R4** clear / 坏 JSON / 无 token 时返回 null（**不是** expires 产品闸门）· **R10** 同一工厂
@@ -70,7 +70,7 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列�
 | 反馈列表 / 运营处理 | **提交 UI 已有**（B13 FeedbackBar）；队列处理在 admin |
 | 分片预览全文 | 引用点回是 **当时快照 preview**；现网 `chunk.view` 全文在 admin，web **无** 分片运营页 |
 | 按 `requestId` 断线重拉 | 工单明确不做；`getAskAudit` 不是 AskResponse 重放 |
-| 类型字典下拉 / 强制选类型 | B11 刻意不做；依赖 `kb.config.write` 的 GET settings 字典 |
+| 多选类型勾选组 / 强制选类型 | 本张单选或不收窄；不是 settings 字典 CRUD |
 | 可搜索完整选择器 / 库目录页 | `ClosedSelect` 只列本次 GET 行；无 combobox；无发现页 |
 | 生产视觉 / product.pen **像素级**定稿 | Soft Bento token + ui 原子组件已接入；**并非**对 product.pen 的全屏像素还原 |
 

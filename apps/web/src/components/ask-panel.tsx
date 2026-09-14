@@ -26,14 +26,13 @@ import {
 import { Badge } from '@strict-rag/ui/components/ui/badge';
 import { Button } from '@strict-rag/ui/components/ui/button';
 import { Card, CardContent } from '@strict-rag/ui/components/ui/card';
-import { Input } from '@strict-rag/ui/components/ui/input';
 import { ClosedSelect } from '@strict-rag/ui/components/ui/closed-select';
 import { Label } from '@strict-rag/ui/components/ui/label';
 import { Textarea } from '@strict-rag/ui/components/ui/textarea';
 import { cn } from '@strict-rag/ui/lib/utils';
 import { useRouter } from 'next/navigation';
 
-import { getAskAudit, getAskModes, parseScopeDocTypesInput } from '@/api/ask';
+import { getAskAudit, getAskModes, getKbDocTypes } from '@/api/ask';
 import { createAskFeedback, FEEDBACK_CATEGORY } from '@/api/feedback';
 import { listKnowledgeBases } from '@/api/knowledge-bases';
 import { logoutLocal } from '@/auth/services';
@@ -70,8 +69,10 @@ export function AskPanel() {
   const [actionHint, setActionHint] = useState<string | null>(null);
   const questionRef = useRef<HTMLTextAreaElement>(null);
   const feedbackActionBusy = useRef(false);
-  /** B11：可选文档类型（逗号分隔）；空=不收窄 */
-  const [docTypesInput, setDocTypesInput] = useState('');
+  /** 成员 GET /doc-types；空=不收窄 */
+  const [docTypeItems, setDocTypeItems] = useState<{ code: string; label: string }[]>([]);
+  const [selectedDocType, setSelectedDocType] = useState('');
+  const [docTypesLoadFailed, setDocTypesLoadFailed] = useState(false);
   /** 最近一次成功发起的提问文案；重试用（提交后会清空输入框） */
   const [lastQuestion, setLastQuestion] = useState('');
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
@@ -82,9 +83,9 @@ export function AskPanel() {
   const [shellError, setShellError] = useState<string | null>(null);
 
   const getScope = useCallback(() => {
-    const docTypes = parseScopeDocTypesInput(docTypesInput);
-    return docTypes ? { docTypes } : undefined;
-  }, [docTypesInput]);
+    const code = selectedDocType.trim();
+    return code ? { docTypes: [code] } : undefined;
+  }, [selectedDocType]);
 
   const getMode = useCallback(() => (mode === '' ? undefined : mode), [mode]);
 
@@ -124,11 +125,17 @@ export function AskPanel() {
       setAskModes(null);
       setMode('');
       setModesLoadFailed(false);
+      setDocTypeItems([]);
+      setSelectedDocType('');
+      setDocTypesLoadFailed(false);
       return;
     }
     setAskModes(null);
     setMode('');
     setModesLoadFailed(false);
+    setDocTypeItems([]);
+    setSelectedDocType('');
+    setDocTypesLoadFailed(false);
     let cancelled = false;
     void getAskModes(id)
       .then((m) => {
@@ -142,6 +149,17 @@ export function AskPanel() {
         setAskModes(null);
         setMode('');
         setModesLoadFailed(true);
+      });
+    void getKbDocTypes(id)
+      .then((d) => {
+        if (cancelled) return;
+        setDocTypeItems(d.items);
+        setDocTypesLoadFailed(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setDocTypeItems([]);
+        setDocTypesLoadFailed(true);
       });
     return () => {
       cancelled = true;
@@ -436,19 +454,32 @@ export function AskPanel() {
                     未能读取本库档位，提问将使用服务端默认档。
                   </p>
                 ) : null}
-                <div className="space-y-1.5">
-                  <Label htmlFor="ask-doc-types">文档类型（可选）</Label>
-                  <Input
-                    id="ask-doc-types"
-                    value={docTypesInput}
-                    onChange={(ev) => setDocTypesInput(ev.target.value)}
-                    placeholder="如 hr, legal；空=不按类型收窄"
-                    autoComplete="off"
-                  />
+                {docTypeItems.length > 0 ? (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ask-doc-type">文档类型（可选）</Label>
+                    <ClosedSelect
+                      id="ask-doc-type"
+                      value={selectedDocType}
+                      onValueChange={(v) => {
+                        if (v === '' || docTypeItems.some((t) => t.code === v)) {
+                          setSelectedDocType(v);
+                        }
+                      }}
+                      options={[
+                        { value: '', label: '不按类型收窄' },
+                        ...docTypeItems.map((t) => ({ value: t.code, label: t.label })),
+                      ]}
+                      placeholder="不按类型收窄"
+                    />
+                    <p className="m-0 text-[11px] text-muted-foreground">
+                      选项来自本库类型枚举；仅检索标注了对应类型的文档。
+                    </p>
+                  </div>
+                ) : docTypesLoadFailed ? (
                   <p className="m-0 text-[11px] text-muted-foreground">
-                    多个类型用逗号分隔；仅检索标注了对应类型的文档（ADR-050）。
+                    未能读取本库文档类型，提问将不按类型收窄。
                   </p>
-                </div>
+                ) : null}
                 <div className="space-y-1.5">
                   <Label htmlFor="ask-q">问题</Label>
                   <Textarea

@@ -14,6 +14,7 @@ const askMock = vi.fn(async () => undefined);
 const resetMock = vi.fn();
 const setViewMock = vi.fn();
 const getAskModesMock = vi.fn();
+const getKbDocTypesMock = vi.fn();
 
 const hookState = {
   view: { type: 'idle' } as { type: 'idle' },
@@ -73,6 +74,7 @@ vi.mock('@/api/ask', async (importOriginal) => {
   return {
     ...actual,
     getAskModes: (kbId: string) => getAskModesMock(kbId),
+    getKbDocTypes: (kbId: string) => getKbDocTypesMock(kbId),
   };
 });
 
@@ -99,11 +101,13 @@ describe('AskPanel 档位', () => {
     localStorage.clear();
     listKnowledgeBases.mockReset();
     getAskModesMock.mockReset();
+    getKbDocTypesMock.mockReset();
     listKnowledgeBases.mockResolvedValue([KB]);
     getAskModesMock.mockResolvedValue({
       allowedModes: ['strict', 'fast'],
       defaultMode: 'fast',
     });
+    getKbDocTypesMock.mockResolvedValue({ items: [] });
     localStorage.setItem('strict-rag:web:last-kb-id', KB.id);
   });
 

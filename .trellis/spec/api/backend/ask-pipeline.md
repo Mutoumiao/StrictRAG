@@ -39,6 +39,7 @@
 |------|------|--------|------|
 | `POST` | `/api/v1/knowledge-bases/:kbId/ask` | `requireKbMember` **始终** | 同步 JSON；stream → **AI SDK UI Message Stream**（见下） |
 | `GET` | `/api/v1/knowledge-bases/:kbId/ask-modes` | `requireKbMember` **始终** | 成员读 `allowedModes`/`defaultMode`；**禁止**经此口回 τ / 质量快照（≠ `GET …/settings`） |
+| `GET` | `/api/v1/knowledge-bases/:kbId/doc-types` | `requireKbMember` **始终** | 成员读 `{ items: [{ code, label }] }`；空枚举 `[]`；**禁止**经此口回 τ（≠ `GET …/settings`） |
 | `GET` | `/api/v1/ask/:requestId` | 登录 + 该 trace 的 KB 成员（`evaluateKbMember`；超管旁路） | **审计回溯**：当时 `evidence_snapshot`（preview 截断）+ `graph_trace`；**禁止**当断线重拉；**禁止**经此通道返回正文 `text`/`body` |
 | `POST` | `/api/v1/knowledge-bases/:kbId/sessions` | 成员闸 | **建会话壳**（X-29）；body `CreateSessionBodySchema`（`title?`）；**201** + `SessionSummary` |
 | `GET` | `/api/v1/knowledge-bases/:kbId/sessions` | 成员闸 | 列表（仅本人线程；query `SessionListQuerySchema`） |
