@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（已包含：P0/P1 入库 + S2 最小问答 + B1–B6 最小运营 API + B10 L1 工程 seed + B12 策略闸 + B13 反馈 API；演示依赖 mock ES / 通常走 mock Gateway；L1 **≠** 业务签字门禁） |
 | 默认依赖模式 | 检索：`RETRIEVE_ES_MODE=mock`（默认 mock ES；`http` 须 `ELASTICSEARCH_URL`）；鉴权：临时双 JWT，`AUTH_ENFORCE` **默认 `false`**；rewrite：`SESSION_REWRITE_ENABLED` **默认 false**（图边已落；dogfood 可开；**≠** 准出）；对象存储：默认 `local`（`STORAGE_MODE=s3` 走 RustFS / S3 兼容）；Gateway：`GATEWAY_MODE=''`（空按 `GATEWAY_BASE_URL` 推断，缺 URL 走 mock）；上传上限 `INGEST_MAX_FILE_BYTES=52_428_800`（50 MiB）/ 天花板 `INGEST_MAX_FILE_BYTES_CEILING=209_715_200`（200 MiB）；`LANGFUSE_ENABLED=false`；`OBS_MEMORY_TRACE=true`。**B3-W/B2-W**：ask 读取 platform 绑定 + **KB scope 绑定覆盖（只读 list，无 PUT KB 绑定 HTTP）**；**B4-W**：每请求从 DB `user_roles` hydrate；`DEPT_ACL_ENFORCE` **默认 `false`**（开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤且列表项带部门字段；`DEPT_INHERIT_DOWN` 默认 true；KB `deptInheritDown` 可覆盖 env；KB `deptAclEnforce` 可覆盖 env，未写跟 env，GET 未写回读 false；设置页可勾选，未改不写回；ES 查询期强制 tenantId+kbId；enforce 开且非超管可追加 `ownerDeptId` terms（缺字段不得当全员可见；PG 可见级闸仍保留）；aclPrincipals 用户 uuid 名单最小已落（PG 把关；ES 查询期非超管 should 收窄；不跟 DEPT_ACL_ENFORCE；**≠** 角色 principal / 默认开））；`MONGODB_URL` 空（非空时检索融合后批取 Mongo `chunk_bodies` 权威正文，缺块 fail-closed）；`ASK_RATE_LIMIT_RPM=0`；`INGEST_RATE_LIMIT_RPM=0`（ask/ingest 分 store 试点限流；aux 只留常量）；`SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` **可选**（无 active 超管时缺一则 **index.ts listen 前**失败；`createApp()` 不跑引导）；L1 CLI 需显式指定 `L1_KB_ID`（可选 `L1_PERSIST_EVAL`） |
 | 关联模块 | 入库演示还需要 `worker` + PostgreSQL + Redis；契约 `@strict-rag/contracts`（含 `IMPLEMENTED_CHUNK_STRATEGIES` / `IngestJobData`）；schema `@strict-rag/db`（含 `eval_runs`）；L1 gold / RACI 在仓根 `fixtures/l1/`；L2 题面草案在 `fixtures/l2/` |
-| 最近更新 | 2026-09-14（成员 GET /doc-types；类型收窄空集 `no_docs_in_scope`；**无** 类型分区 CRUD / ES doc_type terms） |
+| 最近更新 | 2026-09-14（complete / upload-url / PUT MIME 白名单 + checksum 落库；**无** 魔数嗅探 / MD/TXT 更严体积档） |
 | Spec | `.trellis/spec/api/backend/`（含 [dashboard](../../.trellis/spec/api/backend/dashboard.md) · [l1-eval](../../.trellis/spec/api/backend/l1-eval.md) · [l2-eval](../../.trellis/spec/api/backend/l2-eval.md) · [l3-metrics](../../.trellis/spec/api/backend/l3-metrics.md)） |
 | PRD | `prds/05-api` · `04-pipelines` · `08-quality` · `09-security` |
 
@@ -34,7 +34,7 @@
 - 成员路由：列表 / 邀请 / **PUT 改 role** / 删除；始终 `member.manage` + KB 成员闸。**无** `allowedDocIds`。建库会写入首位库管 `role=admin`
 
 ### 入库（P1）+ 分片策略闸（B12）
-- `POST /knowledge-bases` 创建知识库（`kb.create`；`AUTH_ENFORCE` 关时仍 WhenEnforced）：body **必填** `initialAdminUserId`，事务写入 `kb_members(role=admin)`；`tenantId` **只认令牌**（无令牌回落默认租户，忽略 body）；用户不存在 404；文档上传（`upload-url` + `PUT /api/v1/internal/objects` local 落体）、**在线编写**（`POST …/documents/write`，`sourceType=write`，与 complete 同闸进 pending，**不**入队 scan，**无** BlockNote）、complete 体积闸门、`POST …/documents/:docId/approve` / `POST …/documents/:docId/reject` 审批族（`approval.decide`）、审批通过后才能 scan 入队的闸门；lifecycle 四态（上架 `active` 仍须 `status=ready`）/ **`POST …/documents/:docId/supersede`**（旧文 `superseded` + `supersededByDocId`，后继 `active` + `supersedesDocId`；后继须 ready）/ **`DELETE …/documents/:docId`**（archived 后入队 `purge`；PATCH archived **不**入队）/ reindex / 列表详情
+- `POST /knowledge-bases` 创建知识库（`kb.create`；`AUTH_ENFORCE` 关时仍 WhenEnforced）：body **必填** `initialAdminUserId`，事务写入 `kb_members(role=admin)`；`tenantId` **只认令牌**（无令牌回落默认租户，忽略 body）；用户不存在 404；文档上传（`upload-url` + `PUT /api/v1/internal/objects` local 落体）、**在线编写**（`POST …/documents/write`，`sourceType=write`，与 complete 同闸进 pending，**不**入队 scan，**无** BlockNote）、complete **MIME/扩展名白名单**（未知与 `octet-stream` → 415 `UNSUPPORTED_MEDIA_TYPE`）+ 体积闸 + **checksum 落库/比对**、`POST …/documents/:docId/approve` / `POST …/documents/:docId/reject` 审批族（`approval.decide`）、审批通过后才能 scan 入队的闸门；lifecycle 四态（上架 `active` 仍须 `status=ready`）/ **`POST …/documents/:docId/supersede`**（旧文 `superseded` + `supersededByDocId`，后继 `active` + `supersedesDocId`；后继须 ready）/ **`DELETE …/documents/:docId`**（archived 后入队 `purge`；PATCH archived **不**入队）/ reindex / 列表详情
 - `PATCH /documents/:docId`：部门 / 可见级 / **`docType`**（须属于该 KB `config_json.docTypes` 枚举，否则 400；空枚举只能清 null）/ **生效区间**（`effectiveFrom`/`effectiveTo` 本地时间串，omit 不改、null 清除，合并后 from>to → 400；不改 lifecycle、不入队）；列表项含 `docType` / 窗口 / **替代边**（`supersedesDocId` / `supersededByDocId`，缺省 `null`）
 - **B12 / ADR-053 最小闭环**：`chunk_strategy_definitions` + `kb_chunk_strategies` 为 catalog 权威；写入闸仍 **`IMPLEMENTED` 仅 `structure_paragraph`**
   - HTTP：`GET/PATCH …/chunk-strategies`、`/schema`、`/for-upload`（写须 `kb.config.write`）
@@ -158,6 +158,7 @@
 | 成员 `allowedDocIds` / 检索 ACL 闸 | PUT 只改 `role`；`GET /me/permissions` 无 `byKb` |
 | 入库报告完整语义 | 库级 GET 已有最小事实行；**无** 跨 doc 冲突对 / `pending_review` / L0 vs L1 Hit@k |
 | DELETE / 三存对齐 | DELETE 写 archived 并入队 purge；worker mock 适配器清对象 / mock ES / 可选 Mongo；**无** PG 硬删 / chunk 清扫 / HTTP ES `_delete_by_query` |
+| MD/TXT 更严体积 / 魔数嗅探 | MIME 白名单已落；**无** 按族更严上限；**无** 文件头嗅探 |
 | 三平面配额全文 | ask/ingest 进程内 RPM 分 store 已落（默认 0=关）；**无** embed TPM / `maxEmbedCalls` / staging fail-closed / aux 运行时 / Redis 集群 / L0 网关 |
 
 ### 其他包的 UI / 产品面挂账（非本包义务）
@@ -204,6 +205,7 @@
 | 空库拒答 200 | `apps/api/src/services/ask/execute.ts` · `routes/ask.ts` · `tests/ask/http-stream.test.ts`（`kb_not_ready → 200`） |
 | 会话 / 反馈 | `apps/api/src/routes/sessions.ts` · `routes/feedback.ts` |
 | 入库 / 策略闸 / 入队 | `routes/documents/`（ARCH-P1a）· `services/chunk-strategies.ts` · `services/queue.ts` · `gates/` · contracts `chunk-strategy.ts` · `async/ingest-job.ts` |
+| 上传 MIME / checksum | `gates/upload-media.ts` · `ingest-complete-pending.ts` · `tests/ingest/upload-media.test.ts` · `tests/ingest/complete-media.test.ts` |
 | 入库报告 | `routes/ingest-report.ts` · `services/ingest-reports.ts` · `tests/ingest/ingest-report-http.test.ts` |
 | 文档类型 / lifecycle | `routes/documents/index.ts` PATCH `docType` · `assertDocTypeAllowed` · `tests/ingest/document-doctype.test.ts` · `tests/ingest/document-lifecycle-http.test.ts` |
 | 替代联动 | `POST /documents/:docId/supersede` · `services/document-supersede.ts` · `tests/ingest/document-supersede.test.ts` |

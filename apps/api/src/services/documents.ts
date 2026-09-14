@@ -160,7 +160,11 @@ export const documentRepo = {
   async markCompletePending(
     docId: string,
     byteSize: number,
-    opts?: { chunkStrategy?: string; chunkStrategyParams?: Record<string, unknown> },
+    opts?: {
+      chunkStrategy?: string;
+      chunkStrategyParams?: Record<string, unknown>;
+      checksumSha256?: string;
+    },
   ) {
     await getDb()
       .update(documents)
@@ -175,6 +179,9 @@ export const documentRepo = {
           : {}),
         ...(opts?.chunkStrategyParams !== undefined
           ? { chunkStrategyParams: opts.chunkStrategyParams }
+          : {}),
+        ...(opts?.checksumSha256 !== undefined
+          ? { checksumSha256: opts.checksumSha256 }
           : {}),
       })
       .where(eq(documents.id, docId));

@@ -8,6 +8,7 @@ export * from './common/response.js';
 export * from './common/local-datetime.js';
 export * from './system/health.contract.js';
 export * from './ingest/document.contract.js';
+export * from './ingest/upload-media.js';
 export * from './ingest/chunk.contract.js';
 export * from './ingest/chunk-strategy.js';
 export * from './ingest/chunk-strategy.contract.js';

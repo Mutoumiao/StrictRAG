@@ -146,7 +146,14 @@ describe('CompleteUploadBodySchema', () => {
       }).success,
     ).toBe(false);
   });
+
+  it('accepts optional 64-hex checksumSha256 and rejects short values', () => {
+    const checksumSha256 = 'a'.repeat(64);
+    expect(CompleteUploadBodySchema.safeParse({ checksumSha256 }).success).toBe(true);
+    expect(CompleteUploadBodySchema.safeParse({ checksumSha256: 'abc' }).success).toBe(false);
+  });
 });
+
 
 describe('WriteDocumentBodySchema', () => {
   it('接受标题与 markdown', () => {

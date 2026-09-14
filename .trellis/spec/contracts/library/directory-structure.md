@@ -24,6 +24,7 @@ packages/contracts/
       session.contract.ts   # TokenPair 等
     ingest/
       document.contract.ts
+      upload-media.ts         # ADR-039 MIME/扩展名白名单 SSOT
       chunk.contract.ts       # B1 分片 list/detail（ADR-052）
       ingest-report.contract.ts  # 库级 GET ingest-report 列表项
     ask/

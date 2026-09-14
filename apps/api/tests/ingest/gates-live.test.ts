@@ -104,7 +104,7 @@ describe('document gates live (app.request)', () => {
     const up = await app.request(`/api/v1/knowledge-bases/${kbId}/documents/upload-url`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ title: 'oversize', contentType: 'application/octet-stream' }),
+      body: JSON.stringify({ title: 'oversize.txt', contentType: 'text/plain' }),
     });
     const upBody = (await up.json()) as ApiJson<{ docId: string; objectKey: string }>;
     const docId = upBody.data!.docId;
@@ -113,7 +113,7 @@ describe('document gates live (app.request)', () => {
     // 绕过 HTTP PUT 上限，直接写对象，验证 complete 权威闸
     const max = effectiveMaxUploadBytes();
     const huge = Buffer.alloc(max + 1, 0x61);
-    await getStorage().putObject(objectKey, huge, 'application/octet-stream');
+    await getStorage().putObject(objectKey, huge, 'text/plain');
 
     const complete = await app.request(
       `/api/v1/knowledge-bases/${kbId}/documents/${docId}/complete`,

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { LocalDateTimeStringSchema } from '../common/local-datetime.js';
+import { SHA256_HEX_RE } from './upload-media.js';
 
 export const DocumentStatusSchema = z.enum([
   'uploaded',
@@ -83,6 +84,8 @@ export const CompleteUploadBodySchema = z.object({
   visibilityLevel: VisibilityLevelSchema.optional(),
   /** omit 不改；null 清回未设；[] 显式空 */
   aclPrincipals: z.array(z.string().uuid()).max(256).nullable().optional(),
+  /** 可选：客户端声称的 sha256；权威以对象字节为准 */
+  checksumSha256: z.string().regex(SHA256_HEX_RE).optional(),
 });
 export type CompleteUploadBody = z.infer<typeof CompleteUploadBodySchema>;
 

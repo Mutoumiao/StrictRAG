@@ -108,6 +108,8 @@
 | `ingest/chunks-http.test.ts` | chunks HTTP 只读路由按成员与文档闸返回。 | B1 | `createChunkRoutes` | chunks HTTP。 | 现行 |
 | `ingest/chunks-query.test.ts` | 分片只读查询返回 preview/body 契约。 | ADR-052 · B1 | `buildPreview / buildBody` | 分片只读查询。 | 现行 |
 | `ingest/complete-size.test.ts` | complete 体积超限必须拒绝。 | 上传/complete 限 | `checkUploadByteSize` | complete 体积闸。 | 现行 |
+| `ingest/upload-media.test.ts` | upload-url / PUT 必须拒绝未知 MIME，不得默许 octet-stream。 | ADR-039 · 功能表 §5.2 | `checkUploadMedia · POST upload-url · PUT /internal/objects` | 415 `UNSUPPORTED_MEDIA_TYPE`；不建档。 | 现行 |
+| `ingest/complete-media.test.ts` | complete 必须拒绝未知 MIME，checksum 不一致不得进审批。 | ADR-039 · 功能表 §5.2 | `POST …/complete` | 合法类型写入 checksum；octet-stream 415。 | 现行 |
 | `ingest/document-mappers.test.ts` | 文档列表/详情 DTO 映射稳定。 | 基建: 文档 DTO 映射 | `document mappers` | 纯函数。 | 现行 |
 | `ingest/document-doctype.test.ts` | 文档类型 PATCH 必须属于该 KB 已有枚举，非法码须 400。 | 功能表 §4.3 | `PATCH /documents/:docId docType · assertDocTypeAllowed` | 空枚举不可写非空码。 | 现行 |
 | `ingest/document-lifecycle-http.test.ts` | 文档 lifecycle 四态可写；上架仍须 status=ready。 | 功能表 §4.3 | `PATCH /documents/:docId/lifecycle` | 不测生效区间。 | 现行 |

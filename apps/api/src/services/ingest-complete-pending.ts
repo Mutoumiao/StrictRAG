@@ -1,5 +1,8 @@
+import { createHash } from 'node:crypto';
+
 import { BizCode, type CompleteUploadResponse } from '@strict-rag/contracts';
 
+import { checkUploadMedia } from '../gates/upload-media.js';
 import { checkUploadByteSize } from '../gates/upload-size.js';
 import { childLogger } from '../logger.js';
 import { recordIngestComplete, type RateLimitResult } from '../obs/index.js';
@@ -19,13 +22,14 @@ export type FinalizePendingFields = {
   ownerDeptId?: string | null;
   visibilityLevel?: 10 | 20 | 30 | 40;
   aclPrincipals?: string[] | null;
+  checksumSha256?: string;
 };
 
 export type FinalizePendingFail = {
   ok: false;
   code: (typeof BizCode)[keyof typeof BizCode];
   message: string;
-  httpStatus: 400 | 404 | 413 | 429;
+  httpStatus: 400 | 404 | 413 | 415 | 429;
   details?: unknown;
 };
 
@@ -45,12 +49,23 @@ export async function evaluateWriteIngestGates(input: {
   kbId: string;
   tenantId: string;
   contentType: string;
+  fileName?: string | null;
   byteSize: number;
   fields: FinalizePendingFields;
   requestId: string;
   checkIngestLimit: (tenantId: string, kbId: string) => RateLimitResult;
 }): Promise<FinalizePendingFail | WriteGateOk> {
-  const { kbId, tenantId, contentType, byteSize, fields, requestId, checkIngestLimit } = input;
+  const { kbId, tenantId, contentType, fileName, byteSize, fields, requestId, checkIngestLimit } =
+    input;
+  const mediaGate = checkUploadMedia({ contentType, fileName });
+  if (!mediaGate.ok) {
+    return {
+      ok: false,
+      code: mediaGate.code,
+      message: 'unsupported media type',
+      httpStatus: 415,
+    };
+  }
   const max = effectiveMaxUploadBytes();
   const sizeGate = checkUploadByteSize(byteSize, max);
   if (!sizeGate.ok) {
@@ -158,6 +173,16 @@ export async function finalizePendingIngest(input: {
     };
   }
 
+  const mediaGate = checkUploadMedia({ contentType: doc.contentType, fileName: doc.title });
+  if (!mediaGate.ok) {
+    return {
+      ok: false,
+      code: mediaGate.code,
+      message: 'unsupported media type',
+      httpStatus: 415,
+    };
+  }
+
   const max = effectiveMaxUploadBytes();
   const sizeGate = checkUploadByteSize(head.byteSize, max);
   if (!sizeGate.ok) {
@@ -170,7 +195,29 @@ export async function finalizePendingIngest(input: {
     };
   }
 
-  const forUpload = await getForUpload(kbId, doc.contentType ?? 'application/octet-stream');
+  const bodyBuf = await getStorage().getObjectBuffer(doc.objectKey);
+  if (!bodyBuf) {
+    return {
+      ok: false,
+      code: BizCode.NOT_FOUND,
+      message: 'object not found in storage',
+      httpStatus: 404,
+    };
+  }
+  const checksumSha256 = createHash('sha256').update(bodyBuf).digest('hex');
+  if (
+    fields.checksumSha256 &&
+    fields.checksumSha256.toLowerCase() !== checksumSha256
+  ) {
+    return {
+      ok: false,
+      code: BizCode.VALIDATION_ERROR,
+      message: 'checksum mismatch',
+      httpStatus: 400,
+    };
+  }
+
+  const forUpload = await getForUpload(kbId, doc.contentType ?? 'text/plain');
   const strategyGate = resolveBindChunkStrategy({
     availableCodes: forUpload.available.map((a) => a.code),
     requested: fields.chunkStrategy,
@@ -251,6 +298,7 @@ export async function finalizePendingIngest(input: {
   await documentRepo.markCompletePending(docId, head.byteSize, {
     chunkStrategy: strategyGate.code,
     chunkStrategyParams: strategyParams,
+    checksumSha256,
   });
   recordIngestComplete({ result: 'ok' });
 

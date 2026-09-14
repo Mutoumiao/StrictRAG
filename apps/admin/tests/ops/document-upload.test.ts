@@ -1,8 +1,8 @@
 /**
- * 目标：上传服务必须按 upload-url → PUT → complete 调用，失败则入口顺序错乱。
- * 需求：上传入口
- * 被测：uploadAdminDocument
- * 简介：体积闸真值在 api。
+ * 目标：上传服务必须按 upload-url → PUT → complete 调用，未知类型不得改写成 text/plain。
+ * 需求：上传入口 · ADR-039
+ * 被测：uploadAdminDocument · resolveUploadContentType
+ * 简介：未知类型不调 upload-url；complete 带 checksum。体积闸真值在 api。
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -19,7 +19,7 @@ vi.mock('@/app/(ops)/documents/api', () => ({
   getChunkStrategiesForUpload: (...a: unknown[]) => getChunkStrategiesForUpload(...a),
 }));
 
-import { uploadAdminDocument } from '@/app/(ops)/documents/upload.services';
+import { resolveUploadContentType, uploadAdminDocument } from '@/app/(ops)/documents/upload.services';
 
 describe('uploadAdminDocument', () => {
   beforeEach(() => {
@@ -36,7 +36,8 @@ describe('uploadAdminDocument', () => {
       objectKey: 'k',
       maxBytes: 1000,
     });
-    putUploadedObject.mockResolvedValue({ key: 'k', byteSize: 3, checksumSha256: 'x' });
+    const checksumSha256 = 'a'.repeat(64);
+    putUploadedObject.mockResolvedValue({ key: 'k', byteSize: 3, checksumSha256 });
     completeUpload.mockResolvedValue({ docId: 'd1' });
     const file = new File(['abc'], 'a.txt', { type: 'text/plain' });
     const r = await uploadAdminDocument('kb1', file, 'structure_paragraph');
@@ -50,7 +51,21 @@ describe('uploadAdminDocument', () => {
     expect(completeUpload).toHaveBeenCalledWith(
       'kb1',
       'd1',
-      expect.objectContaining({ chunkStrategy: 'structure_paragraph' }),
+      expect.objectContaining({ chunkStrategy: 'structure_paragraph', checksumSha256 }),
     );
+  });
+
+  it('empty type + .exe does not call upload-url', async () => {
+    const file = new File(['abc'], 'payload.exe', { type: '' });
+    const r = await uploadAdminDocument('kb1', file, 'structure_paragraph');
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('expected reject');
+    expect(r.message).toContain('UNSUPPORTED_MEDIA_TYPE');
+    expect(requestUploadUrl).not.toHaveBeenCalled();
+  });
+
+  it('resolveUploadContentType infers markdown from filename when type empty', () => {
+    const file = new File(['# t'], 'note.md', { type: '' });
+    expect(resolveUploadContentType(file)).toEqual({ ok: true, contentType: 'text/markdown' });
   });
 });

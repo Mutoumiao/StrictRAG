@@ -26,7 +26,7 @@ apps/api/
     routes/
       auth.ts                # dev-login · refresh · /auth/me · export meRoutes（GET /me/permissions）· bootstrap ensureUserRoleCodes
       documents/             # ARCH-P1a 试点：按域目录（P1 入库 + B12 complete/reindex 闸 + P3b-META PATCH + complete 可写部门）
-        index.ts             # export createDocumentRoutes / documentRoutes · PATCH 部门/可见级/docType/生效区间 · complete ingest 平面闸 · write Markdown · reindex · lifecycle 四态 · POST supersede 两列互指 · DELETE archived 入队 purge · GET 列表 enforce 时同滤
+        index.ts             # export createDocumentRoutes / documentRoutes · PATCH 部门/可见级/docType/生效区间 · complete ingest 平面闸 · MIME 白名单（upload-url / PUT / complete / write）· write Markdown · reindex · lifecycle 四态 · POST supersede 两列互指 · DELETE archived 入队 purge · GET 列表 enforce 时同滤
         mappers.ts           # toListItem / toDetail 纯函数
       ingest-report.ts       # GET …/ingest-report（库级已落库行；doc.view WhenEnforced + 成员闸）
       chunks.ts              # B1 分片只读 list/detail（ADR-052）
@@ -54,7 +54,7 @@ apps/api/
     services/
       documents.ts · document-supersede.ts · document-delete.ts · kb-list.ts · chunks.ts · chunk-strategies.ts  # B12 注册表；supersede / delete 纯函数闸
       ingest-reindex-stage.ts    # reindex 入队 chunk|ocr
-      ingest-complete-pending.ts # complete / write 共用体积·策略·敏感·配额闸
+      ingest-complete-pending.ts # complete / write 共用 MIME·体积·策略·敏感·配额闸；complete 落 checksum
       members.ts · sessions.ts · feedback.ts · kb-settings.ts · kb-settings-audit.ts · model-gateway.ts
       platform-users-roles.ts · superadmin-bootstrap.ts · password-hash.ts
       departments.ts · dashboard.ts
@@ -74,7 +74,7 @@ apps/api/
       # CLI 测例在 tests/eval/l1-cli.test.ts · l2-cli.test.ts
       seed-es-sparse-probe.ts # OPS-1：PG chunks → ES bulk + sample search
     obs/                     # metrics（plane=ask/ingest）· rate-limit（ask/ingest 分 store；aux 常量）· memory/ask tracer
-    gates/                   # 上传体积 · 审批 scan
+    gates/                   # 上传体积 · 上传 MIME · 审批 scan
     ready/checks.ts
     lib/response.ts · pg-error.ts
     logger.ts

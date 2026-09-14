@@ -46,11 +46,13 @@ vi.mock('../../src/services/documents.js', () => ({
             id: DOC,
             kbId: KB,
             tenantId: TENANT,
+            title: 'note.txt',
             objectKey: `kb/${KB}/${DOC}`,
             chunkStrategy: 'structure_paragraph',
             approvalStatus: 'none',
             status: 'uploaded',
             byteSize: null,
+            contentType: 'text/plain',
             ownerDeptId: completeState.ownerDeptId,
             aclPrincipals: completeState.aclPrincipals,
           }
@@ -93,6 +95,7 @@ vi.mock('../../src/services/documents.js', () => ({
 vi.mock('../../src/services/storage.js', () => ({
   getStorage: () => ({
     headObject: async () => ({ byteSize: 12, contentType: 'text/plain' }),
+    getObjectBuffer: async () => Buffer.alloc(12, 0x61),
   }),
   effectiveMaxUploadBytes: () => 10_000_000,
 }));

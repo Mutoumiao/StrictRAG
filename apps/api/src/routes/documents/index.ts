@@ -19,6 +19,7 @@ import {
   ReindexDocumentBodySchema,
   UploadUrlBodySchema,
   WriteDocumentBodySchema,
+  resolveIngestContentType,
 } from '@strict-rag/contracts';
 import { isEffectiveWindowOrdered } from '@strict-rag/db';
 import { Hono } from 'hono';
@@ -27,6 +28,7 @@ import { uuidv7 } from 'uuidv7';
 import { roleBypassesKbMembership } from '../../auth/permissions/resolve.js';
 import { requirePermission, requirePermissionWhenEnforced } from '../../auth/middleware.js';
 import { canBecomeActive, canEnqueueScan, scanDeniedCode } from '../../gates/approval-scan.js';
+import { checkUploadMedia } from '../../gates/upload-media.js';
 import { fail, ok } from '../../lib/response.js';
 import { childLogger, logger } from '../../logger.js';
 import type { ApiVariables } from '../../middleware/request-id.js';
@@ -180,6 +182,14 @@ documentRoutes.post(
       return fail(c, BizCode.VALIDATION_ERROR, 'invalid body', 400, parsed.error.flatten());
     }
 
+    const contentType = resolveIngestContentType({
+      contentType: parsed.data.contentType,
+      fileName: parsed.data.title,
+    });
+    if (!contentType) {
+      return fail(c, BizCode.UNSUPPORTED_MEDIA_TYPE, 'unsupported media type', 415);
+    }
+
     const kb = await documentRepo.getKb(kbId);
     if (!kb) {
       return fail(c, BizCode.NOT_FOUND, 'knowledge base not found', 404);
@@ -187,7 +197,7 @@ documentRoutes.post(
 
     const storage = getStorage();
     const docId = uuidv7();
-    const slot = storage.createUploadSlot(kbId, docId, parsed.data.contentType);
+    const slot = storage.createUploadSlot(kbId, docId, contentType);
     await documentRepo.insertUploadedDoc({
       id: docId,
       tenantId: kb.tenantId,
@@ -195,7 +205,7 @@ documentRoutes.post(
       title: parsed.data.title,
       objectBucket: slot.bucket,
       objectKey: slot.key,
-      contentType: parsed.data.contentType,
+      contentType,
     });
 
     const data: UploadUrlResponse = {
@@ -215,7 +225,11 @@ documentRoutes.put('/internal/objects', requirePermissionWhenEnforced('doc.uploa
   if (!key) {
     return fail(c, BizCode.VALIDATION_ERROR, 'key required');
   }
-  const contentType = c.req.header('content-type') ?? 'application/octet-stream';
+  const contentType = c.req.header('content-type') ?? '';
+  const mediaGate = checkUploadMedia({ contentType });
+  if (!mediaGate.ok) {
+    return fail(c, mediaGate.code, 'unsupported media type', 415);
+  }
   const ab = await c.req.arrayBuffer();
   const buf = Buffer.from(ab);
   const max = effectiveMaxUploadBytes();
@@ -294,6 +308,7 @@ documentRoutes.post(
       kbId,
       tenantId: kb.tenantId,
       contentType: 'text/markdown',
+      fileName: title,
       byteSize: buf.byteLength,
       fields,
       requestId: c.get('requestId'),
@@ -306,7 +321,7 @@ documentRoutes.post(
     const storage = getStorage();
     const docId = uuidv7();
     const slot = storage.createUploadSlot(kbId, docId, 'text/markdown');
-    await storage.putObject(slot.key, buf, 'text/markdown');
+    const stored = await storage.putObject(slot.key, buf, 'text/markdown');
     await documentRepo.insertUploadedDoc({
       id: docId,
       tenantId: kb.tenantId,
@@ -327,6 +342,7 @@ documentRoutes.post(
     await documentRepo.markCompletePending(docId, buf.byteLength, {
       chunkStrategy: gated.strategyCode,
       chunkStrategyParams: gated.strategyParams,
+      checksumSha256: stored.checksumSha256,
     });
     recordIngestComplete({ result: 'ok' });
 
@@ -361,7 +377,7 @@ documentRoutes.post(
       return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
     }
 
-    const forUpload = await getForUpload(doc.kbId, doc.contentType ?? 'application/octet-stream');
+    const forUpload = await getForUpload(doc.kbId, doc.contentType ?? 'text/plain');
     const strategyGate = resolveReindexChunkStrategy({
       availableCodes: forUpload.available.map((a) => a.code),
       requested: parsed.data.chunkStrategy,

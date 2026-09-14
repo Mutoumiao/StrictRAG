@@ -50,7 +50,7 @@ import {
 | `RATE_LIMITED` | 429 | `BizCode.RATE_LIMITED` | ask：`details.plane='ask'` + `ask_quota_exhausted`；ingest complete：`details.plane='ingest'`。**禁止**改码 / 200 空答 |
 | `INVALID_CREDENTIALS` | 401 | `BizCode.INVALID_CREDENTIALS` | 登录域；须在 §4 可检索或并入 UNAUTHORIZED 叙事 |
 | `RULE_VIOLATION` | 400/422 | `BizCode.RULE_VIOLATION` | 业务规则；优先能映射则用 VALIDATION/CONFLICT |
-| `UNSUPPORTED_MEDIA_TYPE` | 415 | `BizCode.UNSUPPORTED_MEDIA_TYPE` | 上传 MIME |
+| `UNSUPPORTED_MEDIA_TYPE` | 415 | `BizCode.UNSUPPORTED_MEDIA_TYPE` | 上传 MIME / 扩展名不在白名单；`fail()` 接受 415 |
 | `SESSION_DISABLED` | 400 | `BizCode.SESSION_DISABLED` | **兼容别名**＝ rewrite 不可用；**禁止**用于拒多会话壳 |
 
 | 分裂处理（HOW 焊死） | |

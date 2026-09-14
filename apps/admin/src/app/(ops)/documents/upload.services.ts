@@ -1,6 +1,6 @@
 'use client';
 
-import type { ForUploadResponse } from '@strict-rag/contracts';
+import { resolveIngestContentType, type ForUploadResponse } from '@strict-rag/contracts';
 
 import { mapBizError } from '@/lib/map-biz-error';
 
@@ -36,20 +36,37 @@ export async function planUploadChunkStrategy(
   }
 }
 
+export function resolveUploadContentType(
+  file: File,
+): { ok: true; contentType: string } | { ok: false; message: string } {
+  const contentType = resolveIngestContentType({
+    contentType: file.type,
+    fileName: file.name,
+  });
+  if (!contentType) {
+    return { ok: false, message: 'UNSUPPORTED_MEDIA_TYPE: 不支持的文件类型' };
+  }
+  return { ok: true, contentType };
+}
+
 export async function uploadAdminDocument(
   kbId: string,
   file: File,
   chunkStrategy: string,
 ): Promise<UploadDocumentResult> {
+  const media = resolveUploadContentType(file);
+  if (!media.ok) return media;
   try {
-    const contentType = file.type || 'text/plain';
     const slot = await requestUploadUrl(kbId, {
       title: file.name || 'upload',
-      contentType,
+      contentType: media.contentType,
       declaredByteSize: file.size,
     });
-    await putUploadedObject(slot.uploadUrl, file, contentType);
-    await completeUpload(kbId, slot.docId, { chunkStrategy });
+    const put = await putUploadedObject(slot.uploadUrl, file, media.contentType);
+    await completeUpload(kbId, slot.docId, {
+      chunkStrategy,
+      checksumSha256: put.checksumSha256,
+    });
     return { ok: true, docId: slot.docId };
   } catch (err) {
     return { ok: false, message: mapBizError(err) };

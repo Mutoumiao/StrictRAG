@@ -18,6 +18,7 @@
 - [ ] `GET …/doc-types` 是否成员闸、只回 `{ items }`、**禁止**漏 τ（web 关闭列表读枚举；设置 GET 仍 `kb.config.write`）？  
 - [ ] 类型 scope 滤空现行库是否 `no_docs_in_scope`，禁止再标 `kb_not_ready`？  
 - [ ] complete/reindex 是否读 [chunk-strategies](./chunk-strategies.md)（多策略禁静默 default）？  
+- [ ] complete / upload-url / PUT 是否走 MIME/扩展名白名单（未知与 octet-stream → 415 `UNSUPPORTED_MEDIA_TYPE`；**禁止**改写成 `text/plain`）？  
 - [ ] Gateway/rerank 是否读 [model-gateway](./model-gateway.md)（双节点 · generate fallback opt-in · 无假 answered）？  
 - [ ] 新登录/refresh/会话/ask 字段是否改 contracts + 双端 http？  
 - [ ] DB 是否经 `@strict-rag/db`（禁止 app 私有 schema）？  

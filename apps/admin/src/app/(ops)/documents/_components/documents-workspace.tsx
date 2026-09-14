@@ -70,7 +70,12 @@ import {
   planReindexChunkStrategy,
   reindexAdminDocument,
 } from '../reindex.services';
-import { pickUploadChunkStrategy, planUploadChunkStrategy, uploadAdminDocument } from '../upload.services';
+import {
+  pickUploadChunkStrategy,
+  planUploadChunkStrategy,
+  resolveUploadContentType,
+  uploadAdminDocument,
+} from '../upload.services';
 import {
   WRITE_MARKDOWN_TYPE,
   canSubmitWrite,
@@ -347,8 +352,13 @@ export function DocumentsWorkspace() {
     if (!file || !id || !canUpload) return;
     setUploadBusy(true);
     setUploadMessage(null);
-    const contentType = file.type || 'text/plain';
-    const planned = await planUploadChunkStrategy(id, contentType);
+    const media = resolveUploadContentType(file);
+    if (!media.ok) {
+      setUploadBusy(false);
+      setUploadMessage(media.message);
+      return;
+    }
+    const planned = await planUploadChunkStrategy(id, media.contentType);
     if (!planned.ok) {
       setUploadBusy(false);
       setUploadMessage(planned.message);

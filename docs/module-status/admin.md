@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（S2c 运营薄壳：文档 / 审批 / 成员 / 分片 / 设置 / 模型 + 用户 / 角色 / 部门 + **数据面板** + **反馈队列** + **评测底线**） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT + admin **dev-login**（经 api）· 知识库 = 顶栏关闭列表（本次 GET 可见库，禁止粘贴 uuid）· 菜单 = `clipMenuForShell` 裁剪（catalog 为 SSOT）· API 默认 `http://127.0.0.1:4000` |
 | 关联模块 | API 依赖：`api` 的文档 / 审批 / 成员 / 分片 / 设置 / 模型 / 用户角色 / 部门 / dashboard / **feedback-queue** / **gold-questions · eval/runs**；菜单与权限码：`admin-catalog`；类型：`contracts`；样式：`ui` |
-| 最近更新 | 2026-09-14（文档页删除走 DELETE 入队 purge；归档仍 PATCH；**无** BlockNote） |
+| 最近更新 | 2026-09-14（上传不再把未知类型改写成 text/plain；complete 带 checksum；**无** BlockNote） |
 | Spec | `.trellis/spec/admin/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · 审批 / 成员相关 API |
 
@@ -40,7 +40,7 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 - 行展开 **入库报告**（紧挨「入库阶段」）：库级 GET 后只展示本行；无报告「暂无入库报告」；**不是**独立抽屉 / 新页；**不是**跨 doc 冲突对
 - lifecycle（`doc.lifecycle`）：上架仍须 `status=ready` 且仅 draft；可废止 / 归档；**替代**须选后继（`ClosedSelect`，走 `POST …/supersede`）；**删除**走 `DELETE`（归档并入队 purge，不走 PATCH）。检索闸仍 ready∧active，不自动升
 - `DocumentListItem` 的 `embedReady` / `esReady` **已渲染**为向量/稀疏列（适配层标志，**≠** 生产 ES）
-- 上传走 `for-upload` 人选（仅 1 个自动 complete；≥2 弹出策略下拉）；**不是**写死 `structure_paragraph`
+- 上传走 `for-upload` 人选（仅 1 个自动 complete；≥2 弹出策略下拉）；**不是**写死 `structure_paragraph`；未知 MIME / `.exe` **不得**改写成 `text/plain`（`resolveUploadContentType`）；PUT 回的 checksum 传给 complete
 - **在线编写**：有 `doc.editor` 才显示；标题 + Markdown 正文 + 提交审批（`POST …/write`）；≥2 用 `ClosedSelect`；**无** BlockNote / **无**新菜单 / **不**跳过审批
 
 ### 分片只读（B1）
@@ -114,6 +114,7 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 | 按历史 indexVersion 浏览分片的 UI | ADR-052 明确不做 |
 | DELETE / 三存对齐 | 文档页有删除按钮（`doc.lifecycle`）；HTTP 真值在 api / worker；**无** PG 硬删 UI |
 | 在线编写完整体验 | Markdown 提交审批已有；**无** BlockNote / editor-draft / web 编辑器 |
+| 上传表单标部门 / 类型分区 CRUD | 列表/详情可标部门与类型；上传 complete 可带部门但表单未发；设置页类型仍逗号串 |
 | 部分 API 封装符号未接线 | `patchPlatformRole` / `listFeedbackQueue(status)` 等封装已写但当前 UI 未调用 |
 | 完整运营 IA | 顶栏当前 KB 关闭列表已落地；仍不是完整运营台 / 库管向导 |
 | 生产视觉 / product.pen **像素级**定稿 | 已使用 Soft Bento token + ui 组件；**并非**对 product.pen 的全屏像素还原 |
@@ -145,6 +146,7 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 | 建库入口 | `apps/admin/src/components/create-kb-controls.tsx` · `lib/kb-api.ts` `createKnowledgeBase` · `lib/kb-create.services.ts`；测例 `tests/kb/create-kb.test.tsx` |
 | 运营页 | `apps/admin/src/app/(ops)/documents|approvals|members|chunks|kb/settings|models|dashboard|departments|users|roles|feedback/` |
 | 文档运营余量 | `documents/_components/documents-workspace.tsx` · `list.services.ts` `opsLabel` · `reindex.services.ts` · `lifecycle.services.ts`；测例 `tests/ops/document-ops-label.test.ts` · `document-reindex.test.ts` · `documents-workspace.test.tsx` |
+| 上传 MIME | `documents/upload.services.ts` `resolveUploadContentType`；测例 `tests/ops/document-upload.test.ts` |
 | 入库报告入口 | `documents/api.ts` `listIngestReports` · `report.services.ts`；测例 `tests/ops/ingest-report.test.tsx` |
 | 设置修改日志 | `kb/settings/api.ts` `listKbSettingsAudit` · `services.ts` `loadKbSettingsAudit`；测例 `tests/ops/settings-audit.test.tsx` |
 | 反馈 | `app/(ops)/feedback/page.tsx` · `_components/feedback-workspace.tsx` · `api.ts` · `services.ts` |
