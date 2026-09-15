@@ -2,8 +2,8 @@
 
 Type: task
 Label: wayfinder:task
-Status: pending
-Assignee: —
+Status: resolved
+Assignee: grok
 Triage: ready-for-agent
 Blocked by: 90
 
@@ -40,3 +40,22 @@ Blocked by: 90
 - 改 `prds/00–11`
 
 收工：`.trellis/spec/` api ask-pipeline；`docs/module-status/` api。禁止 push。禁止 `task.py create`。
+
+## Answer
+
+citation chunk 级去重最小闭环已落地。
+
+- `apps/api/src/graph/run.ts` generate 段：合法引用过滤时**同时按 `chunkId` 去重保序**（`citedOnce` Set，保留首次出现位置）。重复引用不再让 `citations` 长度与 `span.citationCount` 虚高。
+- 判定不变：仍是「剥光为空 → `invalid_citations` 拒答」；未动 evidence 装载 / min 否决 / verify / 引用内容与 `preview`。
+- 测例（`apps/api/tests/ask/citations.test.ts`，同一「引用清洗」意图）：重复引用同一证据 → 只出一条；两块交错重复 → 保序保留首次出现（`[B, A, B]` → `[B, A]`）。
+- `docs/module-status/api.md` 未改：该文件 ask 段没有 citations 行，成熟度与本条债均无变化（HOW 已在 spec 记录）。
+
+证据：`apps/api/src/graph/run.ts` · `apps/api/tests/ask/citations.test.ts`（5）· `.trellis/spec/api/backend/ask-pipeline.md`（`citations[]` 与 generate→claim_split 两行）。
+
+验证：`tests/ask/citations.test.ts` 5 绿；全量 `pnpm --filter @strict-rag/api test` 128 文件 / 818 测试绿。
+
+未 `task.py create`。未 push。
+
+## Comments
+
+- 2026-09-16 认领并在主分支执行。权威切边见 [裁定分片策略审计后下一步](./89-after-chunk-strategy-audit-order.md)。
