@@ -33,7 +33,7 @@ packages/contracts/
       reason.ts             # AskReason
       fixtures.ts           # makeAnsweredFinal / makeAbstainedFinal（测试）
       session.contract.ts
-      feedback.contract.ts
+      feedback.contract.ts  # PATCH 可含 goldType；晋升派生题面/caseKey/rubric
       member.contract.ts
     kb/
       kb-settings.contract.ts   # B2 设置 GET data / PATCH body（ADR-054；含 docTypeItems catalog）

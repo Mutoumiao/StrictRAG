@@ -3,21 +3,31 @@
 /**
  * B13：反馈队列处理（API 已有；本页薄壳）。
  * 无 feedback.queue 码 → 提示；API 仍 403。
+ * 纳入黄金集另需 eval.run；不写 gold.yaml、不自动入队评测。
  * SLA：1 工作日内处理 open 项（见 docs/ops/feedback-sla.md）。
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import type { FeedbackItem } from '@strict-rag/contracts';
+import type { FeedbackItem, GoldType } from '@strict-rag/contracts';
 import { Button } from '@strict-rag/ui/components/ui/button';
+import { ClosedSelect } from '@strict-rag/ui/components/ui/closed-select';
+import { Label } from '@strict-rag/ui/components/ui/label';
 
 import { useAdminAuth } from '@/components/auth-guard';
 import { readStoredKbId } from '@/lib/kb-context';
 
 import { loadFeedbackQueue, resolveFeedback } from '../services';
 
+const GOLD_TYPE_OPTIONS: Array<{ value: GoldType; label: string }> = [
+  { value: 'unanswerable', label: '不可答' },
+  { value: 'answerable', label: '可答' },
+  { value: 'false_premise', label: '错误前提' },
+];
+
 export function FeedbackWorkspace() {
   const { me } = useAdminAuth();
   const canQueue = me.permissions.includes('feedback.queue');
+  const canPromote = canQueue && me.permissions.includes('eval.run');
 
   const [items, setItems] = useState<FeedbackItem[]>([]);
   const [state, setState] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle');
@@ -25,6 +35,7 @@ export function FeedbackWorkspace() {
   const [kbId, setKbId] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
+  const [goldTypeById, setGoldTypeById] = useState<Record<string, GoldType>>({});
 
   const load = useCallback(async () => {
     const id = readStoredKbId().trim();
@@ -56,10 +67,10 @@ export function FeedbackWorkspace() {
     void load();
   }, [load]);
 
-  async function onResolve(id: string, status: FeedbackItem['status']) {
+  async function onResolve(id: string, status: FeedbackItem['status'], goldType?: GoldType) {
     setBusyId(id);
     setFlash(null);
-    const r = await resolveFeedback(id, status);
+    const r = await resolveFeedback(id, status, goldType);
     if (!r.ok) {
       setFlash(r.message);
       setBusyId(null);
@@ -98,7 +109,7 @@ export function FeedbackWorkspace() {
             </div>
             {it.comment ? <p className="mt-1 mb-0 text-muted-foreground">{it.comment}</p> : null}
             {it.status === 'open' && canQueue ? (
-              <div className="mt-2 flex flex-wrap gap-2">
+              <div className="mt-2 flex flex-wrap items-end gap-2">
                 <Button
                   type="button"
                   size="sm"
@@ -116,6 +127,43 @@ export function FeedbackWorkspace() {
                 >
                   已关联文档
                 </Button>
+                {canPromote ? (
+                  <>
+                    <div className="space-y-1">
+                      <Label htmlFor={`gold-type-${it.feedbackId}`} className="text-xs">
+                        黄金集题型
+                      </Label>
+                      <ClosedSelect
+                        id={`gold-type-${it.feedbackId}`}
+                        aria-label={`黄金集题型 ${it.requestId}`}
+                        value={goldTypeById[it.feedbackId] ?? 'unanswerable'}
+                        onValueChange={(value) =>
+                          setGoldTypeById((prev) => ({
+                            ...prev,
+                            [it.feedbackId]: value as GoldType,
+                          }))
+                        }
+                        options={GOLD_TYPE_OPTIONS}
+                        disabled={busyId === it.feedbackId}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={busyId === it.feedbackId}
+                      onClick={() =>
+                        void onResolve(
+                          it.feedbackId,
+                          'promoted_to_gold',
+                          goldTypeById[it.feedbackId] ?? 'unanswerable',
+                        )
+                      }
+                    >
+                      纳入黄金集
+                    </Button>
+                  </>
+                ) : null}
               </div>
             ) : null}
           </li>

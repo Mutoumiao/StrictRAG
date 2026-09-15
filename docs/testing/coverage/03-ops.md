@@ -24,7 +24,7 @@ P2 必签。API 已有提交/队列；admin 有薄队列页（comment 文本节�
 |----|----------|------|------|------|------|------|------|
 | G1 | 对 abstained 提交 missing_doc，状态 open | P2必签 | 单测 | 部分测 | api · web | apps/api/tests/feedback/http.test.ts（`category: 'missing_doc'` → 201/`status=open`）· apps/web/tests/ask/feedback-category.test.tsx（缺文档按钮提交 missing_doc） | 未断言「仅 abstained 可开单」。 |
 | G2 | 管理员 linked_doc / 上传后队列可关闭 | P2必签 | 单测 | 部分测 | api | apps/api/tests/feedback/http.test.ts（PATCH `dismissed` 后 `status=open` 列表为空）· apps/admin/tests/ops/feedback-comment-escape.test.tsx（K6 comment 文本节点，≠ 本步关单） | 只测 `dismissed`；未测 `linked_doc`、上传后关闭。admin 关单路径无 RTL。 |
-| G3 | 提名黄金集须测试/产品审核后才进 gold | P2必签 | 单测 | 缺实现 | api | packages/contracts/src/ask/feedback.contract.ts（`promoted_to_gold`） | 状态枚举有；无审核闸、无「未审不得进 gold.yaml」断言。→ QUAL-G3 |
+| G3 | 提名黄金集须测试/产品审核后才进 gold | P2必签 | 单测 | 部分测 | api · admin | apps/api/tests/feedback/promote-gold.test.ts · apps/admin/tests/ops/feedback-promote-gold.test.tsx · packages/contracts/tests/ask/feedback-promote-gold.test.ts | 运营表：用户 POST 不写题，队列点纳入才 INSERT `gold_questions`。缺：未审不得进 `gold.yaml`（QUAL-G3 工程种子仍缺口）。 |
 
 ## 剧本 N · At-rest 加密与备份契约
 

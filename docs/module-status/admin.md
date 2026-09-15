@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（S2c 运营薄壳：文档 / 审批 / 成员 / 分片 / 设置 / 模型 + 用户 / 角色 / 部门 + **数据面板** + **反馈队列** + **评测底线**） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT + admin **dev-login**（经 api）· 知识库 = 顶栏关闭列表（本次 GET 可见库，禁止粘贴 uuid）· 菜单 = `clipMenuForShell` 裁剪（catalog 为 SSOT）· API 默认 `http://127.0.0.1:4000` |
 | 关联模块 | API 依赖：`api` 的文档 / 审批 / 成员 / 分片 / 设置 / 模型 / 用户角色 / 部门 / dashboard / **feedback-queue** / **gold-questions · eval/runs**；菜单与权限码：`admin-catalog`；类型：`contracts`；样式：`ui` |
-| 最近更新 | 2026-09-15（分片策略 contextMode ClosedSelect；l0_template 标召回增强关闭） |
+| 最近更新 | 2026-09-15（反馈队列纳入黄金集 ClosedSelect 题型；须 eval.run） |
 | Spec | `.trellis/spec/admin/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · 审批 / 成员相关 API |
 
@@ -82,10 +82,10 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 - RTL：`tests/ops/members-workspace.test.tsx`
 
 ### 反馈队列（B13）
-- `/feedback`：运营队列列表；可 **dismiss / linked_doc** 改状态（**非只读**）
-- 始终需要 `feedback.queue`；无码菜单隐藏、直链依赖 API 403
+- `/feedback`：运营队列列表；可 **dismiss / linked_doc** 改状态；有 `eval.run` 可 **纳入黄金集**（ClosedSelect 题型；**非只读**）
+- 始终需要 `feedback.queue`；无码菜单隐藏、直链依赖 API 403；纳入另需 `eval.run`
 - 分层：`page → services → api.ts` → `GET …/feedback-queue` · `PATCH /api/v1/feedback/:id`
-- **无** 专用 RTL 工作区测试（comment 转义测除外）
+- RTL：`tests/ops/feedback-comment-escape.test.tsx` · `tests/ops/feedback-promote-gold.test.tsx`
 
 ### 评测底线
 - `/eval`：黄金集增删 + 「跑一批」入队 L1 + 「跑 L2」入队 session_multiturn + 列出账本；L1 有 scored 时展示 Hit@k；有 tauStar / judgeAuroc 时展示该值（null 显示「无」）；需要 eval.run；工程可签字文案 ≠ 准出 PASS
@@ -99,7 +99,7 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 - 类型 `@strict-rag/contracts`；菜单 / 权限码 `@strict-rag/admin-catalog`
 - 样式：Tailwind v4 + ui 主题；构建 `next build --webpack`
 - **单元 / 组件测试**：外壳 / Guard / 审批 / dashboard + **P0 R5/R6** + `tests/kb/current-kb.test.ts`（admin KB key 不与 web 混写）+ `tests/kb/create-kb.test.tsx`（`kb.create` 入口）+ `tests/kb/admin-kb-picker.test.tsx`（关闭列表只列本次 GET）+ `tests/auth/client-session.test.ts`（admin session 与 web 隔离）。测例在 `tests/<能力>/`；导航 `apps/admin/tests/index.md`；HOW：`.trellis/spec/guides/testing.md`
-  - **没有** chunks / models / **feedback** 工作区测；documents / departments / settings / **members** / **末位超管**（users）/ **超管全码锁**（roles）工作区测已有；当前 KB 关闭列表测 `tests/kb/admin-kb-picker.test.tsx`；**没有** E2E；**没有** http 全路径 refresh 集成测
+  - **没有** chunks / models 工作区测；documents / departments / settings / **members** / **末位超管**（users）/ **超管全码锁**（roles）/ **反馈纳入黄金集** 工作区测已有；当前 KB 关闭列表测 `tests/kb/admin-kb-picker.test.tsx`；**没有** E2E；**没有** http 全路径 refresh 集成测
 
 ---
 
@@ -132,7 +132,7 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 | 债 | 影响 | 备注 |
 |----|------|------|
 | Soft Bento / product.pen 未做像素级对齐 | 观感不是最终定稿 | 色板与原子组件在 `packages/ui`；本包只做组合 |
-| 无 E2E、多数运营页无 RTL 测试、无 http 全路径 refresh 测试 | 修改 chunks / models / feedback 页面只能靠手测 | 已覆盖外壳 / Guard / 审批 / members / 末位超管 / 超管全码锁 + R5/R6；catalog 有单测；P0 清单见 `docs/testing/p0-redlines.md` |
+| 无 E2E、多数运营页无 RTL 测试、无 http 全路径 refresh 测试 | 修改 chunks / models 页面只能靠手测 | 已覆盖外壳 / Guard / 审批 / members / 末位超管 / 超管全码锁 / 反馈纳入黄金集 + R5/R6；catalog 有单测；P0 清单见 `docs/testing/p0-redlines.md` |
 
 ---
 

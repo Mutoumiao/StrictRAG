@@ -39,6 +39,7 @@
 | `ops/ingest-report.test.tsx` | 文档行展开须展示入库报告；无报告须出「暂无入库报告」。 | 功能表 §4.3 | `DocumentsWorkspace · reportsForDoc` | 库级 GET 后按本行过滤；展示跨 doc 计数与冲突对。 | 现行 |
 | `ops/eval-workspace.test.tsx` | 评测薄页无码须 403；有码才列出题目并入队 L1/L2。 | 功能表 §4.1 · prds/05-api §2.8 · 覆盖 C4 · 覆盖 C2 · 覆盖 C3 | `EvalWorkspace` | HTTP 真值在 api；本页不跑批；L1 有 scored 时展示 Hit@k；有 tauStar / judgeAuroc 时展示该值。 | 现行 |
 | `ops/feedback-comment-escape.test.tsx` | 反馈 comment 含 `<script>` 必须当文本展示，不得当 HTML 解析。 | 剧本 K6 · prds/10-delivery/03-acceptance-scenarios.md | `FeedbackWorkspace` | comment 走 React 文本节点原样可见。 | 现行 |
+| `ops/feedback-promote-gold.test.tsx` | 有 feedback.queue 与 eval.run 才能纳入黄金集；无 eval.run 不得展示按钮。 | ADR-019 · 功能表 §4.1 · prds/05-api §2.6 | `FeedbackWorkspace` | HTTP 真值在 api；ClosedSelect 题型。不是 gold.yaml。 | 现行 |
 | `ops/kb-settings-services.test.ts` | 设置服务必须把类型分区草稿编成 catalog，失败则 PATCH 写出错误 docTypeItems。 | 功能表 §4.2 文档类型 · ADR-054 · 工单「类型分区 CRUD 最小闭环」· 工单「KB 消费绑定最小闭环」 | `draftsFromSettings / draftsToCatalog / catalogsEqual / draftsToKbConsumeBindings` | 不写 URL；不再把逗号串当主路径；KB 绑定空档跟随平台。 | 现行 |
 | `ops/kb-settings-doc-types.test.tsx` | 知识库设置文档类型必须逐条增删改，禁止逗号串当主路径。 | 功能表 §4.2 文档类型 · ADR-054 · 工单「类型分区 CRUD 最小闭环」 | `SettingsWorkspace` 类型分区 | HTTP 真值在 api；本页只断言 PATCH 发 docTypeItems。 | 现行 |
 | `ops/kb-settings-workspace.test.tsx` | KB 设置薄页必须按 kb.config.write 显隐，未改勾选不得 PATCH 强制/继承。 | B2 设置 UI · 工单「KB 消费绑定最小闭环」 | `SettingsWorkspace` | mode 真值在 api；sensitive 说明为 ACL 就绪；消费绑定三档 ClosedSelect。 | 现行 |

@@ -27,7 +27,7 @@
 | mock sparse（默认）或 OPS-1 `http` ES 切片 + Gateway mock\|http | 宣称生产 ES+IK 全文/多租户已上（≠ B8） |
 | B2-W：KB `allowedModes`/`defaultMode`/`docTypes` 入口闸 | 客户端改 τ / 静默放宽 mode 白名单 |
 | QUAL-3：rerank 双节点链；全失败拒答 | primary 挂仍假 answered / 跳过 rerank |
-| B13：web 提交 feedback · admin 队列 | 把反馈写进 ask 图证据路径 |
+| B13：web 提交 feedback · admin 队列；晋升写运营黄金集 | 把反馈写进 ask 图证据路径；用户提交直写 gold / 写 gold.yaml |
 | 会话列表/详情壳 · rewrite **默认关**（`rewriteUsed` 跟图） | 合入 **默认** `SESSION_REWRITE_ENABLED=true` / 对外宣传连续追问 |
 | 进程内 metrics / memory tracer | 完整 Langfuse 生产接线阻塞 ask |
 
@@ -46,7 +46,7 @@
 | `GET` | `/api/v1/knowledge-bases/:kbId/sessions/:sessionId` | 成员闸 + 本人 | 详情/历史壳；历史 **≠** evidence |
 | `POST` | `/api/v1/ask/:requestId/feedback` | 登录 + 该 trace 的 KB 成员 | B13 web 提交 |
 | `GET` | `/api/v1/knowledge-bases/:kbId/feedback-queue` | `feedback.queue` | B13 admin 队列 |
-| `PATCH` | `/api/v1/feedback/:feedbackId` | `feedback.queue` | B13 处理/关单 |
+| `PATCH` | `/api/v1/feedback/:feedbackId` | `feedback.queue`；`promoted_to_gold` 另验 `eval.run` | B13 处理/关单；晋升须 `goldType` 且 INSERT `gold_questions`（题面来自 ask，comment→rubric；不写 gold.yaml、不入队评测） |
 | `GET` | `/metrics` | 无鉴权（骨架） | 生产须网关/网络保护；策略 SSOT → `docs/ops/rate-limit-and-metrics.md`（ARCH-P2-4） |
 
 #### 限流（X-28 · 配置 vs PRD 试点）
@@ -343,7 +343,7 @@ route
 | ask 路由 | 非成员 403；非法 body 400；mode/docTypes 闸；session 归属 404；`data-ask-final` ≡ 同步 shape |
 | ask 流异常 | **`execute` mock throw** → 正文含 `data-ask-final`；payload `reason==='internal_guard'` · `status==='abstained'` · `answer===''`；且存在 `data-status` `phase=error` |
 | sessions | 跨 session 零共享；历史 ≠ evidence；list query 非法 limit → 400 |
-| feedback | queue query 非法 status → 400；合法 status 过滤；无 `feedback.queue` → 403 |
+| feedback | queue query 非法 status → 400；合法 status 过滤；无 `feedback.queue` → 403；`promoted_to_gold` 无 `goldType` → 400；无 `eval.run` → 403；用户 POST 不写 `gold_questions` |
 | gateway | mock/http；QUAL-3 dual endpoints；失败 reason 映射 |
 | env | 默认 / `'false'` → false；`'true'` 解析成功；默认值不得变 true；`RERANK_MIN_NODES` 与 endpoint 数 |
 | graph rewrite | 关+session 不调 loader/rewrite；开+窗 retrieve=standalone；`resolved=false`/非法 JSON → `coref_unresolved` 且 retrieve 0；J2x 隔离；历史≠evidence；fast/空窗/无 session 不 rewrite |

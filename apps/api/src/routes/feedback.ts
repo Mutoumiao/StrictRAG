@@ -3,6 +3,9 @@ import {
   CreateFeedbackBodySchema,
   FeedbackQueueQuerySchema,
   PatchFeedbackBodySchema,
+  deriveGoldQuestionText,
+  goldCaseKeyFromFeedbackId,
+  goldRubricFromFeedbackComment,
   type FeedbackItem,
   type FeedbackListResponse,
 } from '@strict-rag/contracts';
@@ -25,6 +28,7 @@ import {
   type FeedbackRepo,
   type FeedbackRow,
 } from '../services/feedback.js';
+import { goldQuestionRepo, type GoldRepo } from '../services/gold-questions.js';
 
 export type TraceLookup = (requestId: string) => Promise<{
   requestId: string;
@@ -32,6 +36,8 @@ export type TraceLookup = (requestId: string) => Promise<{
   userId: string;
   tenantId: string;
   sessionId?: string | null;
+  rawQuestion?: string | null;
+  standaloneQuestion?: string | null;
 } | null>;
 
 export type FeedbackRouteDeps = {
@@ -39,6 +45,7 @@ export type FeedbackRouteDeps = {
   feedback?: FeedbackRepo;
   getTrace?: TraceLookup;
   getKb?: (kbId: string) => Promise<{ id: string; tenantId: string } | null>;
+  gold?: GoldRepo;
 };
 
 function toPublic(row: FeedbackRow): FeedbackItem {
@@ -68,6 +75,7 @@ function toPublic(row: FeedbackRow): FeedbackItem {
 export function createFeedbackRoutes(deps: FeedbackRouteDeps = {}) {
   const routes = new Hono<{ Variables: AuthVariables }>();
   const repo = deps.feedback ?? feedbackRepo;
+  const gold = deps.gold ?? goldQuestionRepo;
   const getTrace: TraceLookup =
     deps.getTrace ??
     (async (requestId) => {
@@ -79,6 +87,8 @@ export function createFeedbackRoutes(deps: FeedbackRouteDeps = {}) {
         userId: t.userId,
         tenantId: t.tenantId,
         sessionId: t.sessionId,
+        rawQuestion: t.rawQuestion,
+        standaloneQuestion: t.standaloneQuestion,
       };
     });
   const getKb = deps.getKb ?? ((id: string) => documentRepo.getKb(id));
@@ -198,6 +208,55 @@ export function createFeedbackRoutes(deps: FeedbackRouteDeps = {}) {
         permR.status,
         'details' in permR ? permR.details : undefined,
       );
+    }
+
+    if (parsed.data.status === 'promoted_to_gold') {
+      const evalR = await checkPermission(c, 'eval.run', {
+        ...memberOpts,
+        kbId: existing.kbId,
+      });
+      if (!evalR.ok) {
+        return fail(
+          c,
+          evalR.status === 401 ? BizCode.UNAUTHORIZED : BizCode.FORBIDDEN,
+          evalR.message,
+          evalR.status,
+          'details' in evalR ? evalR.details : undefined,
+        );
+      }
+
+      if (existing.status !== 'promoted_to_gold') {
+        const trace = await getTrace(existing.requestId);
+        if (!trace) {
+          return fail(c, BizCode.NOT_FOUND, 'ask trace not found', 404, {
+            requestId: existing.requestId,
+          });
+        }
+        const question = deriveGoldQuestionText({
+          standaloneQuestion: trace.standaloneQuestion,
+          rawQuestion: trace.rawQuestion,
+        });
+        if (!question) {
+          return fail(c, BizCode.VALIDATION_ERROR, 'cannot promote without ask question', 400, {
+            requestId: existing.requestId,
+          });
+        }
+        const goldType = parsed.data.goldType;
+        if (!goldType) {
+          return fail(c, BizCode.VALIDATION_ERROR, 'promoted_to_gold requires goldType', 400);
+        }
+        await gold.create({
+          tenantId: existing.tenantId,
+          kbId: existing.kbId,
+          createdBy: auth.userId,
+          data: {
+            caseKey: goldCaseKeyFromFeedbackId(existing.feedbackId),
+            question,
+            type: goldType,
+            rubric: goldRubricFromFeedbackComment(existing.comment),
+          },
+        });
+      }
     }
 
     const updated = await repo.patchStatus({

@@ -6,7 +6,7 @@
 |----|------|
 | 入口 | web 问答结果「有帮助 / 无帮助」→ `POST /ask/:requestId/feedback` |
 | 队列 | admin `/feedback` · 码 `feedback.queue`；无码 403 |
-| 处理 | PATCH 状态：`dismissed` / `linked_doc` / `queued_reindex` / `promoted_to_gold` |
+| 处理 | PATCH 状态：`dismissed` / `linked_doc` / `queued_reindex` / `promoted_to_gold`（晋升须 `goldType`，写入运营 `gold_questions`；**不**写 `fixtures/l1/gold.yaml`、**不**自动入队评测） |
 | SLA | 工作日 1 天；超期在队列中仍可见（不自动丢弃） |
 | Owner | mutou（运营） |
 

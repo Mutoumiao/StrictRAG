@@ -38,7 +38,7 @@ apps/admin/
         roles/                # B4 角色
         departments/          # B5 部门组织壳
         dashboard/            # B6 数据面板薄壳
-        feedback/             # B13 反馈队列
+        feedback/             # B13 反馈队列（纳入黄金集须 eval.run + ClosedSelect 题型）
         eval/                 # P2 评测底线：黄金集维护 + 入队 + 看 2×2
 ```
 

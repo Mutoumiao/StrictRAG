@@ -1,6 +1,6 @@
 'use client';
 
-import type { FeedbackItem } from '@strict-rag/contracts';
+import type { FeedbackItem, GoldType } from '@strict-rag/contracts';
 
 import { mapBizError } from '@/lib/map-biz-error';
 
@@ -22,9 +22,10 @@ export async function loadFeedbackQueue(kbId: string): Promise<LoadQueueResult> 
 export async function resolveFeedback(
   feedbackId: string,
   status: FeedbackItem['status'],
+  goldType?: GoldType,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
   try {
-    await patchFeedbackStatus(feedbackId, status);
+    await patchFeedbackStatus(feedbackId, status, goldType);
     return { ok: true };
   } catch (err) {
     return { ok: false, message: mapBizError(err) };

@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（支撑 P0/P1 入库 + S2 问答/会话/反馈/成员 + B1–B6 运营契约 + **B12 策略码 / ingest job**；**非**全量 OpenAPI） |
 | 默认依赖模式 | 纯库；无运行时开关 |
 | 关联模块 | 被 `api` · `worker` · `web` · `admin` 消费；是全仓错误码、响应信封、队列名与 **可写分片策略集** 的唯一来源 |
-| 最近更新 | 2026-09-15（contextMode / L0 模板纯函数；入库报告可含 contextSource） |
+| 最近更新 | 2026-09-15（PATCH feedback 晋升须 goldType；题面/caseKey/rubric 纯函数） |
 | Spec | `.trellis/spec/contracts/library/` |
 | PRD | `prds/05-api` · 各域契约与 PRD 短名对齐 |
 
@@ -56,7 +56,7 @@
 - **`AskOptionsSchema`**：仅 `stream` / `debug` / `mode` / `locale` 四字段，`.strict()` 拒绝 `tauClaim` / `retrieveK` / `scope`（ADR-050）
 - **`AskScopeSchema`**：顶层 `docTypes`（≤32 个、每个 1–64 字），**禁止**塞进 options（B11）
 - 会话外壳 + 列表包装 + `SessionListQuerySchema`（`ask/session.contract`）
-- 反馈 + 队列列表包装 + `FeedbackQueueQuerySchema`（`ask/feedback.contract`）
+- 反馈 + 队列列表包装 + `FeedbackQueueQuerySchema`（`ask/feedback.contract`）；`PatchFeedbackBodySchema` 晋升须 `goldType`；`deriveGoldQuestionText` / `goldCaseKeyFromFeedbackId` / `goldRubricFromFeedbackComment`
 - KB 成员 + 邀请 / **改角色 PUT** / 移除（`ask/member.contract`；PUT body 只 `{ role }`，`.strict()` 拒 `allowedDocIds`）
 - 契约单测：`tests/ask/contract.test.ts` 等
 

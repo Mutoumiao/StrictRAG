@@ -195,33 +195,22 @@ export const feedbackRepo: FeedbackRepo = {
 };
 
 /** 内存仓 + 可注入的 trace 查找，单测用 */
+export type FeedbackTraceSeed = {
+  requestId: string;
+  kbId: string;
+  userId: string;
+  tenantId: string;
+  sessionId?: string | null;
+  rawQuestion?: string | null;
+  standaloneQuestion?: string | null;
+};
+
 export function createMemoryFeedbackRepo(): FeedbackRepo & {
-  seedTrace(t: {
-    requestId: string;
-    kbId: string;
-    userId: string;
-    tenantId: string;
-    sessionId?: string | null;
-  }): void;
-  getTrace(requestId: string): {
-    requestId: string;
-    kbId: string;
-    userId: string;
-    tenantId: string;
-    sessionId?: string | null;
-  } | null;
+  seedTrace(t: FeedbackTraceSeed): void;
+  getTrace(requestId: string): FeedbackTraceSeed | null;
 } {
   const items = new Map<string, FeedbackRow>();
-  const traces = new Map<
-    string,
-    {
-      requestId: string;
-      kbId: string;
-      userId: string;
-      tenantId: string;
-      sessionId?: string | null;
-    }
-  >();
+  const traces = new Map<string, FeedbackTraceSeed>();
 
   return {
     seedTrace(t) {

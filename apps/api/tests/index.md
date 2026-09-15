@@ -99,6 +99,7 @@
 | `eval/l2-gold.test.ts` | L2 题面加载拒绝非法文件，且不得当作准出。 | P2.5-L2 | `loadL2Gold / l2TypeCoverage / defaultL2GoldPath` | ≠ 准出。 | 现行 |
 | `eval/stricter-than-pilot-bind.test.ts` | 加严快照必须标 stricterThanPilot，并带相对默认 diff 与 evalRunId 关联。 | 剧本 T7 · prds/10-delivery/03-acceptance-scenarios.md · ADR-046 | `bindQualitySnapshotToEval` | coverageMin 上调后 stricterThanPilot 为 true，evalBindId 含该 evalRunId。不测人签/审计 HTTP。 | 现行 |
 | `feedback/http.test.ts` | 答案反馈 POST/PATCH 必须具备 kb 码。 | B13 | `createFeedbackRoutes` | 须 kb 码。 | 现行 |
+| `feedback/promote-gold.test.ts` | 运营纳入黄金集必须写入 gold_questions；用户提交与缺 eval.run 不得写题。 | ADR-019 · prds/05-api §2.6 · 功能表 §4.1 · 覆盖 G3 | `createFeedbackRoutes` PATCH `promoted_to_gold` | 审核闸 = 队列点纳入；不写 gold.yaml、不入队评测。 | 现行 |
 | `gateway/bindings-http.test.ts` | 供应商绑定 HTTP 按 B3 契约读写。 | B3 | `model-gateway routes` | 供应商绑定 HTTP。 | 现行 |
 | `gateway/generate-fallback.test.ts` | generate 绑定 fallbacks 必须在运行时切链，无备用行为不变。 | P4 多模型 fallback · B3-W | `applyBindingsToGatewayConfig / resolveChatNodes / mock+http chat` | opt-in 备用 ModelRef；auth 不盲切；judge 不走 generate 链。≠ GENERATE_MIN_NODES。 | 现行 |
 | `gateway/resolve-mock.test.ts` | 网关解析缺 URL 时走 mock，绑定覆盖与重试保持契约。 | B3 · QUAL-3 | `buildGatewayConfig / applyBindingsToGatewayConfig / mock+http retry` | 缺 URL → mock。 | 现行 |

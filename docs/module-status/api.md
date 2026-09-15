@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（已包含：P0/P1 入库 + S2 最小问答 + B1–B6 最小运营 API + B10 L1 工程 seed + B12 策略闸 + B13 反馈 API；演示依赖 mock ES / 通常走 mock Gateway；L1 **≠** 业务签字门禁） |
 | 默认依赖模式 | 检索：`RETRIEVE_ES_MODE=mock`（默认 mock ES；`http` 须 `ELASTICSEARCH_URL`）；鉴权：临时双 JWT，`AUTH_ENFORCE` **默认 `false`**；rewrite：`SESSION_REWRITE_ENABLED` **默认 false**（图边已落；dogfood 可开；**≠** 准出）；对象存储：默认 `local`（`STORAGE_MODE=s3` 走 RustFS / S3 兼容）；Gateway：`GATEWAY_MODE=''`（空按 `GATEWAY_BASE_URL` 推断，缺 URL 走 mock）；上传上限 `INGEST_MAX_FILE_BYTES=52_428_800`（50 MiB）/ 天花板 `INGEST_MAX_FILE_BYTES_CEILING=209_715_200`（200 MiB）；`LANGFUSE_ENABLED=false`；`OBS_MEMORY_TRACE=true`。**B3-W/B2-W**：ask 读取 platform 绑定 + **KB scope 绑定覆盖（PUT 只 generate/embed/rerank）**；**B4-W**：每请求从 DB `user_roles` hydrate；`DEPT_ACL_ENFORCE` **默认 `false`**（开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤且列表项带部门字段；`DEPT_INHERIT_DOWN` 默认 true；KB `deptInheritDown` 可覆盖 env；KB `deptAclEnforce` 可覆盖 env，未写跟 env，GET 未写回读 false；设置页可勾选，未改不写回；ES 查询期强制 tenantId+kbId；enforce 开且非超管可追加 `ownerDeptId` terms（缺字段不得当全员可见；PG 可见级闸仍保留）；aclPrincipals 用户 uuid 名单最小已落（PG 把关；ES 查询期非超管 should 收窄；不跟 DEPT_ACL_ENFORCE；**≠** 角色 principal / 默认开））；`MONGODB_URL` 空（非空时检索融合后批取 Mongo `chunk_bodies` 权威正文，缺块 fail-closed）；`ASK_RATE_LIMIT_RPM=0`；`INGEST_RATE_LIMIT_RPM=0`（ask/ingest 分 store 试点限流；aux 只留常量）；`SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` **可选**（无 active 超管时缺一则 **index.ts listen 前**失败；`createApp()` 不跑引导）；L1 CLI 需显式指定 `L1_KB_ID`（可选 `L1_PERSIST_EVAL`） |
 | 关联模块 | 入库演示还需要 `worker` + PostgreSQL + Redis；契约 `@strict-rag/contracts`（含 `IMPLEMENTED_CHUNK_STRATEGIES` / `IngestJobData`）；schema `@strict-rag/db`（含 `eval_runs`）；L1 gold / RACI 在仓根 `fixtures/l1/`；L2 题面草案在 `fixtures/l2/` |
-| 最近更新 | 2026-09-15（PATCH chunk-strategies 校验 contextMode；GET ingest-report 含 contextSource） |
+| 最近更新 | 2026-09-15（PATCH feedback `promoted_to_gold` 写 gold_questions；须 goldType + eval.run） |
 | Spec | `.trellis/spec/api/backend/`（含 [dashboard](../../.trellis/spec/api/backend/dashboard.md) · [l1-eval](../../.trellis/spec/api/backend/l1-eval.md) · [l2-eval](../../.trellis/spec/api/backend/l2-eval.md) · [l3-metrics](../../.trellis/spec/api/backend/l3-metrics.md)） |
 | PRD | `prds/05-api` · `04-pipelines` · `08-quality` · `09-security` |
 
@@ -107,7 +107,7 @@
 - **`GET /api/v1/knowledge-bases/:kbId/ask-modes`**：始终 `requireKbMember`；只回 `allowedModes`/`defaultMode`（`AskModesSchema`）；缺设置回默认档；**不**回 τ / 质量快照（`tests/ask/http-ask-modes.test.ts`）；`GET …/settings` 仍要 `kb.config.write`
 - **`GET /api/v1/knowledge-bases/:kbId/doc-types`**：始终 `requireKbMember`；只回启用项 `{ items: [{ code, label }] }`（label 取 catalog）；停用不出；空枚举 `items: []`；**不**回 τ（`tests/ask/http-doc-types.test.ts` · `tests/kb/doc-type-catalog-http.test.ts`）；设置 GET 仍要 `kb.config.write`
 - **`GET /api/v1/ask/:requestId`**：登录 + 该 trace 的 KB 成员（`evaluateKbMember`；超管旁路）回读当时 `evidenceSnapshot`（chunkId/docId/lifecycle/preview 截断）与 `graphTrace`；**不**返回 answer / rawQuestion / 正文；**不**查现网分片（reindex 后快照仍在）；`toAskAudit`（`services/ask/traces.ts`）· `tests/ask/http-audit.test.ts`
-- 反馈提交 / 管理队列 API（`routes/feedback`）；queue 接口的 query 参数绑定 `FeedbackQueueQuerySchema` 校验
+- 反馈提交 / 管理队列 API（`routes/feedback`）；queue 接口的 query 参数绑定 `FeedbackQueueQuerySchema` 校验；PATCH `promoted_to_gold` 须 `goldType` + `eval.run`，INSERT `gold_questions`（题面来自 ask；用户 POST 不写题；**不**写 gold.yaml、**不**入队评测）
 - Gateway 切片（`GATEWAY_MODE` mock/http；ask 走 `getGatewayForTenant`；Key 不进日志）；rerank 双节点：`GATEWAY_RERANK_FALLBACK_URL` + `RERANK_MIN_NODES`（staging/prod 默认 2；`services/gateway/resolve.ts`；QUAL-3 测）；**generate fallback opt-in**：快照保留 `fallbackRefs`，`chat` 在 primary 同模型重试耗尽后可切备用 ModelRef（`fallbackUsed=true`；auth/bad_request/content_filter 不盲切；judge 等不走此链；**无** `GENERATE_MIN_NODES`；图层不二次计费；**≠** 生产多活签字）
 - **B2-W**：ask 入口校验 `mode∈allowedModes` / `defaultMode`；settings `docTypes` / `docTypeItems` 读写 + scope 子集闸对**启用码**；τ 字段仍拒绝写入
 - 检索适配层（dense∥sparse → RRF → rerank；`RETRIEVE_ES_MODE` **默认 mock**；`http` = ES BM25 sparse **切片**（`es-sparse.ts`；查询期强制 tenantId+kbId `buildAclFilter`，enforce 开且非超管可追加 `ownerDeptId` terms；ES 检索失败 → `sparse_unavailable`，缺 URL → `internal_guard`，**禁止**回落 mock）；服务端按 mode 注入 `retrieveK/rerankTopN`（fast 60/10，balanced/strict 150/20，客户端禁止透传）；`MONGODB_URL` 非空时融合后从 Mongo `chunk_bodies` 批取权威正文（`mongo-body.ts`；缺块 fail-closed），空 = 演示回退 PG `body_text`；**不等于**生产 ES+IK / 多租户 Router（B8））
@@ -170,7 +170,7 @@
 | Mongo 作为正文权威存储 | 检索路径已支持 `MONGODB_URL` 非空时融合后批取 Mongo `chunk_bodies`（缺块 fail-closed）；空 URL 仍演示回退 PG `body_text`；chunks 详情接口仍读 PG（ADR-052）；生产 Mongo 基础设施见 B9 |
 | 跨部门授权、DEPT_ACL 强制 | grant 可存可配；过滤默认关；开时 grant 进检索（精确 ∪ 祖先部门子树）；超管可绕过；列表同滤；可关继承；KB 可覆盖 enforce（未写跟 env；设置页可勾选，未改不写回）；ADR-057 全文未上（ES 部门 terms 已落、仍默认关；sensitive complete 须 ACL 就绪；aclPrincipals 用户 uuid 名单最小已落（PG + ES should）、**≠** 角色 principal） |
 | APM / 时序观测大盘 | B6 summary 只读计数 + processReady；I4 tracks 为最近 L1 账本 + 24h 延迟点值，**不是**观测生产向 / Grafana |
-| 反馈 API / UI | **本包 API 已有** `routes/feedback`；web 答后 + admin 队列 UI 见各自包文；SLA `docs/ops/feedback-sla.md` |
+| 反馈 API / UI | **本包 API 已有** `routes/feedback`；PATCH `promoted_to_gold` 写运营黄金集（须 goldType + eval.run）；web 答后 + admin 队列 UI 见各自包文；SLA `docs/ops/feedback-sla.md`；**≠** gold.yaml |
 | L1 业务签字门禁 / live 覆盖率闸 / 真跑数字 | 文件账本 + 可选 `eval_runs`；live 全量 30/30 已跑（`signoffEligible=true`）；ADR-046 快照可绑定；本跑 coverage=0 **不**宣称 L1 门禁 PASS；人签见 **B10-followup** 余量 |
 | 入库 ES 双写 / worker 真向量 | **本包不负责**；worker 侧仍 mock（见 [worker](./worker.md)） |
 

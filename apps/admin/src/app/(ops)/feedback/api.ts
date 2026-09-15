@@ -1,6 +1,11 @@
 'use client';
 
-import type { FeedbackItem, FeedbackListResponse } from '@strict-rag/contracts';
+import type {
+  FeedbackItem,
+  FeedbackListResponse,
+  GoldType,
+  PatchFeedbackBody,
+} from '@strict-rag/contracts';
 
 import { http } from '@/lib/http';
 
@@ -11,6 +16,11 @@ export async function listFeedbackQueue(kbId: string, status?: string) {
   );
 }
 
-export async function patchFeedbackStatus(feedbackId: string, status: FeedbackItem['status']) {
-  return http.patch<FeedbackItem>(`/api/v1/feedback/${feedbackId}`, { status });
+export async function patchFeedbackStatus(
+  feedbackId: string,
+  status: FeedbackItem['status'],
+  goldType?: GoldType,
+) {
+  const body: PatchFeedbackBody = goldType ? { status, goldType } : { status };
+  return http.patch<FeedbackItem, PatchFeedbackBody>(`/api/v1/feedback/${feedbackId}`, body);
 }

@@ -117,6 +117,7 @@ export type HealthResponse = z.infer<typeof HealthResponseSchema>;
 | `AskSseStatusSchema` | AI SDK `data-status` 载荷（命名历史遗留 Sse 前缀） |
 | `SessionListQuerySchema` | GET sessions：`limit`/`offset`；**须** list route 绑定 |
 | `FeedbackQueueQuerySchema` | GET feedback-queue：`status`/`limit`/`offset`；**须** queue route 绑定 |
+| `PatchFeedbackBodySchema` | PATCH feedback：`status`；`promoted_to_gold` **须** `goldType` |
 
 业务拒答 → 常 HTTP **200** + `status: abstained`；协议错误才 `ApiFailure`。
 
