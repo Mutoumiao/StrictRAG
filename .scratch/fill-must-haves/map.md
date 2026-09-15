@@ -13,7 +13,7 @@ Status: open
 - 每轮先读：本图、`docs/agents/issue-tracker.md`、`docs/agents/domain.md`、功能表、相关包的 `docs/module-status/`。写代码前读 `.trellis/spec/` 对应包。执行完成后跑 skill `update-module-status`。
 - **覆盖「只做决策」**：工单可以动手补缺口，不只锁决策。
 - **本图是执行面**：缺口只在 `.scratch/fill-must-haves/` 工单上做完。`.trellis/tasks/08-06-project-backlog/` 只留指针和勾选。同一缺口禁止再 `task.py create` 平行实现任务。这只覆盖本图，不改全仓其它流程。
-- 顺序：本图 P2 语义已收官（第三批）；P2.5 出口走 **L2 归档准出**（工程路径 [L2 归档底线](./issues/14-l2-archive-floor.md) 已齐，人签仍图外）。鉴权/成员余量、入库报告、库选择器、admin 顶栏、web 关闭列表、启动引导超管、写路径锁超管全码、修改日志、三平面配额、失败 Webhook 已齐。P3b 可动手最小闭环已齐。P4 可动手代码真空已尽。P5 OCR 开闸与历史 `needs_ocr` 运营重跑已齐（默认关）；**P5 可动手代码真空已尽**。暂停已解除；在线编写最小闭环已齐（无 BlockNote）。生效区间最小闭环已齐。替代联动最小闭环已齐。删除与 purge 最小闭环已齐。文档类型成员面最小闭环已齐。上传 MIME 白名单最小闭环已齐。类型分区 CRUD 最小闭环已齐。上传表单标部门最小闭环已齐。KB 消费绑定最小闭环已齐。同 KB 跨文档去重最小闭环已齐。L0 模板 / contextMode 单控件最小闭环已齐。反馈回流黄金集最小闭环已齐。本轮裁定已开三张串行（[禁自审四眼](./issues/86-no-self-approve-min.md) → [角色树状勾选](./issues/87-role-permission-tree-min.md) → [分片策略服务端修改日志](./issues/88-chunk-strategy-audit-min.md)）；孤儿清理是下一轮首张。P3a 仍等 L2 人签。不默认开 `DEPT_ACL_ENFORCE`。不加角色 principal。不默认开 OCR。不自动全库重跑。
+- 顺序：本图 P2 语义已收官（第三批）；P2.5 出口走 **L2 归档准出**（工程路径 [L2 归档底线](./issues/14-l2-archive-floor.md) 已齐，人签仍图外）。鉴权/成员余量、入库报告、库选择器、admin 顶栏、web 关闭列表、启动引导超管、写路径锁超管全码、修改日志、三平面配额、失败 Webhook 已齐。P3b 可动手最小闭环已齐。P4 可动手代码真空已尽。P5 OCR 开闸与历史 `needs_ocr` 运营重跑已齐（默认关）；**P5 可动手代码真空已尽**。暂停已解除；在线编写最小闭环已齐（无 BlockNote）。生效区间最小闭环已齐。替代联动最小闭环已齐。删除与 purge 最小闭环已齐。文档类型成员面最小闭环已齐。上传 MIME 白名单最小闭环已齐。类型分区 CRUD 最小闭环已齐。上传表单标部门最小闭环已齐。KB 消费绑定最小闭环已齐。同 KB 跨文档去重最小闭环已齐。L0 模板 / contextMode 单控件最小闭环已齐。反馈回流黄金集最小闭环已齐。本轮裁定三张串行：[禁自审四眼](./issues/86-no-self-approve-min.md) **已齐** → [角色树状勾选](./issues/87-role-permission-tree-min.md) 进行中 → [分片策略服务端修改日志](./issues/88-chunk-strategy-audit-min.md)；孤儿清理是下一轮首张。P3a 仍等 L2 人签。不默认开 `DEPT_ACL_ENFORCE`。不加角色 principal。不默认开 OCR。不自动全库重跑。
 - **站规（UI）**：web / admin 新下拉必须基于 `@strict-rag/ui` 关闭列表，禁止浏览器原生 `<select>` 外壳（含现有 ui `Select`）。`Button` / `Input` / `Textarea` 仍走 ui 包。本规不改 GET / 鉴权语义。
 
 ## Decisions so far
@@ -103,11 +103,13 @@ Status: open
 - [裁定 L0/contextMode 后下一步](./issues/83-after-l0-context-mode-order.md) — 不选余量/真引擎/解锁站规/暂停/P4 雾；本批只做反馈回流黄金集最小闭环。
 - [反馈回流黄金集最小闭环](./issues/84-feedback-promote-gold-min.md) — 队列纳入写 gold_questions；须 goldType + eval.run。无 gold.yaml / 无自动入队评测。
 - [裁定反馈回流黄金集后下一步](./issues/85-after-feedback-promote-gold-order.md) — 本批串行三张：禁自审四眼 → 角色树状勾选 → 分片策略服务端修改日志；孤儿清理下一轮首张。缺口只在 `.scratch` 工单做。
+- [提交者不可自审四眼最小闭环](./issues/86-no-self-approve-min.md) — complete / write 记 `uploaded_by`、approve 记 `approved_by`；自审 403 `FORBIDDEN` + `reason=self_approve_forbidden`（approve / reject 同口径，不写审批）；无 actor / 提交人未知不拦；列表项 `submittedBy`，admin 回显提交人。无 `allowSelfApprove` 开关。
 
 ## Not yet specified
 
 - 剩余必须具备（未进当前三张）：**孤儿清理 `ingest.maintenance`（下一轮首张）** · 参数快照只读审计 · 签字包链 · 断线重拉终态 · citation chunk 级去重 · `dedupe_cross_doc_rate` / 高度重复提示 · metrics `fallback` 维 · 在线编写完整体验其余（BlockNote / editor-draft；本批只做 Markdown 提交审批）；MD/TXT 更严体积档 / 魔数嗅探 / 真 L1 contextualize / 入场 `aclPrincipals` / `pending_review` / QUAL-G3 gold.yaml 审核闸仍后批
 - **站规债（UI）**：admin 仍有 20 处原生 `<select>` + 4 处旧 ui `Select`（documents 7 · departments 6 · models 3 · settings 2 · chunk-strategy-panel 1 · eval 1；login / chunks / members 用旧 ui `Select`）；web 已清零。是站规余量，不是功能表语义，可另批清扫
+- **回归债（门禁）**：`pnpm lint` 在 HEAD 即红 —— `apps/api` 报 7 个 `no-unused-vars` warning（`--max-warnings 0`），全部在测试文件（`tests/ask/mongo-body.test.ts` · `tests/env/ready-hard-deps.test.ts` · `tests/env/ready-soft-gateway.test.ts` · `tests/ingest/approve-then-scan.test.ts`）。与功能表无关；需另开一张「lint 门禁清零」小工单
 - LangGraph 编排重构：技术栈冻结为 LangGraph.js（硬性标准）；源码现为线性状态机（`apps/api/src/graph/run.ts`），需后续重构为官方 LangGraph.js。另起路线
 - P3a Full 图（CRAG / multi_hop）；硬门在 L2 归档准出（工程路径是 L2 归档底线；人签不进本图）
 - P3b 尚未齐的强制检索面：仓库默认开 `DEPT_ACL_ENFORCE`、角色 principal

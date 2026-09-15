@@ -2,7 +2,7 @@
 
 Type: task
 Label: wayfinder:task
-Status: claimed
+Status: resolved
 Assignee: grok
 Triage: ready-for-agent
 Blocked by: 85
@@ -56,3 +56,24 @@ Blocked by: 85
 收工：`.trellis/spec/` api auth-authorization + quality-guidelines、admin quality-guidelines；`docs/module-status/` api · admin · worker（若涉及）。禁止 push。禁止 `task.py create`。
 
 写代码前读 `.trellis/spec/api/backend/auth-authorization.md`、`.trellis/spec/api/backend/quality-guidelines.md`、`.trellis/spec/admin/frontend/quality-guidelines.md`、`.trellis/spec/guides/testing.md`。测例落 `tests/<能力>/`，文件头简体中文，登记 index。
+
+## Answer
+
+提交者不可自审四眼最小闭环已落地（剧本 V3）。
+
+- complete（upload 源）与 write（editor 源）记提交人 `documents.uploaded_by`；approve 记审批人 `approved_by`。
+- approve / reject 同口径四眼闸：认得出 actor 且与提交人相同 → **403** `FORBIDDEN` + `details.reason=self_approve_forbidden`，**不写审批**。
+- **认不出 actor（`AUTH_ENFORCE` 关 / 无 Bearer）或提交人未知（历史文）时不拦**，不编造提交人 —— 不把运营台锁死。
+- 已 `approved` 再 approve 保持幂等 200；提交人自审也不改判。
+- 列表项新增 `submittedBy`（= `uploaded_by`，缺省 `null`）；admin 审批中心回显提交人，认不出显「—」。
+- 未做 `allowSelfApprove` 开关（ADR-048 允许但方向是放宽）；未加独立审批工单表；未改 `approve` 自动入队 scan。
+
+证据：`apps/api/src/gates/approval-scan.ts` `evaluateSelfDecide` · `apps/api/src/routes/documents/index.ts`（complete / write / approve / reject）· `apps/api/src/services/documents.ts`（`markCompletePending` / `approve`）· `apps/api/src/services/ingest-complete-pending.ts` · `packages/contracts/src/ingest/document.contract.ts` `submittedBy` · `apps/admin/src/app/(ops)/approvals/_components/approvals-workspace.tsx` `submitterLabel` · 测例 `apps/api/tests/ingest/no-self-approve.test.ts`（6）· `apps/api/tests/ingest/write-document-http.test.ts`（5）· `apps/admin/tests/ops/approvals-submitter.test.tsx`（2）· contracts `tests/ingest/document-contract.test.ts`。
+
+验证：`pnpm check-types` 绿；`contracts` 201 / `api` 811（+3 skipped）/ `admin` 159 全绿。`pnpm lint` 在 api 报 7 个 `no-unused-vars` warning —— **HEAD 无本次改动时同样 7 个**，为既有债，未在本张顺手修（另记雾）。
+
+未 `task.py create`。未 push。
+
+## Comments
+
+- 2026-09-16 认领并在主分支执行。权威切边见 [裁定反馈回流黄金集后下一步](./85-after-feedback-promote-gold-order.md)。
