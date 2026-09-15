@@ -245,10 +245,28 @@ export async function getForUpload(kbId: string, contentType: string): Promise<F
   };
 }
 
+/** 分片策略 PATCH 的修改日志 diff（键形如 `chunkStrategy.<code>.<field>`） */
+export type ChunkStrategyPatchDiff = Record<string, { from: unknown; to: unknown }>;
+
+function jsonEqual(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+}
+
+function cloneJson<T>(v: T): T {
+  return v === null || v === undefined ? v : (JSON.parse(JSON.stringify(v)) as T);
+}
+
+/**
+ * 写库并回读 catalog；同时给出**有 diff 才非空**的修改日志，供调用方落审计。
+ * 只动 `kb_chunk_strategies`：旧文档 `index_version` 与参数快照不变。
+ */
 export async function applyKbChunkStrategyPatch(
   kbId: string,
   body: PatchKbChunkStrategiesBody,
-): Promise<{ ok: true; items: ChunkStrategyCatalogItem[] } | { ok: false; message: string }> {
+): Promise<
+  | { ok: true; items: ChunkStrategyCatalogItem[]; diff: ChunkStrategyPatchDiff }
+  | { ok: false; message: string }
+> {
   const defs = await activeCatalogRepo().listDefinitions();
   const known = new Set(defs.map((d) => d.code));
   for (const item of body.items) {
@@ -267,6 +285,8 @@ export async function applyKbChunkStrategyPatch(
       nextByCode.set(row.code, row);
     }
   }
+  // 生效前快照（含表空时的默认种子），用于算 diff
+  const beforeByCode = new Map([...nextByCode].map(([code, row]) => [code, { ...row }]));
   for (const item of body.items) {
     const prev = nextByCode.get(item.code);
     nextByCode.set(item.code, {
@@ -281,8 +301,29 @@ export async function applyKbChunkStrategyPatch(
           : (prev?.recommendedFamilies ?? []),
     });
   }
+  const diff: ChunkStrategyPatchDiff = {};
+  for (const item of body.items) {
+    const before = beforeByCode.get(item.code);
+    const after = nextByCode.get(item.code)!;
+    const key = `chunkStrategy.${item.code}`;
+    if ((before?.enabled ?? null) !== after.enabled) {
+      diff[`${key}.enabled`] = { from: before?.enabled ?? null, to: after.enabled };
+    }
+    if (!jsonEqual(before?.recommendedFamilies ?? [], after.recommendedFamilies)) {
+      diff[`${key}.recommendedFamilies`] = {
+        from: cloneJson(before?.recommendedFamilies ?? []),
+        to: cloneJson(after.recommendedFamilies),
+      };
+    }
+    if (!jsonEqual(before?.paramOverrides ?? null, after.paramOverrides ?? null)) {
+      diff[`${key}.paramOverrides`] = {
+        from: cloneJson(before?.paramOverrides ?? null),
+        to: cloneJson(after.paramOverrides ?? null),
+      };
+    }
+  }
   await activeCatalogRepo().replaceKbStrategies(kbId, [...nextByCode.values()]);
-  return { ok: true, items: await buildChunkStrategyCatalog(kbId) };
+  return { ok: true, items: await buildChunkStrategyCatalog(kbId), diff };
 }
 
 export async function paramsSnapshotFor(kbId: string, code: string): Promise<Record<string, unknown>> {

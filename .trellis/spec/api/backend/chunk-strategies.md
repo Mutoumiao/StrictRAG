@@ -60,7 +60,7 @@ resolveDocumentChunkStrategy({ existing, requested, requireExplicit? })
 
 | 路径 | 策略行为 |
 |------|----------|
-| `GET …/chunk-strategies` · `/schema` · `PATCH` | `kb.config.write`；PATCH 写 `kb_chunk_strategies` |
+| `GET …/chunk-strategies` · `/schema` · `PATCH` | `kb.config.write`；PATCH 写 `kb_chunk_strategies`，**有 diff** 落 `kb_settings_audits`（复用 KB 设置审计表，**不新建表**；键 `chunkStrategy.<code>.<field>`，无 diff 不落） |
 | `GET …/chunk-strategies/for-upload?contentType=` | 库启用 ∩ 文档族 ∩ **implemented**；仅 1 个 → `autoCode`；≥2 → `requireExplicit` |
 | complete | 走 for-upload available：仅 1 个可省略自动；≥2 未选 → 400；写入 `chunk_strategy` + `chunk_strategy_params` 快照。**ingest 平面闸**在落 pending 前（`INGEST_RATE_LIMIT_RPM`，默认 0）；触顶 429 `RATE_LIMITED` `details.plane=ingest` |
 | write | `POST …/documents/write`：Markdown 落对象后走与 complete 同一套闸（`finalizePendingIngest`）；`sourceType=write`；**不**入队 scan |
@@ -101,6 +101,7 @@ resolveDocumentChunkStrategy({ existing, requested, requireExplicit? })
 |------|--------|
 | `tests/ingest/chunk-strategies.test.ts` | writable 仅 default；未实现 400；保留脏码失败 |
 | `tests/ingest/reindex-strategy.test.ts` | 未带 400；同已实现 retain；未实现 400；脏→已实现 change |
+| `tests/kb/chunk-strategy-audit.test.ts` | PATCH 有 diff 落修改日志并记操作者与旧→新；无 diff 不落；非法 400 不落；不碰 `documents` 版本与快照 |
 | worker `tests/ingest/chunk-strategy-loud-fail.test.ts` | `splitByChunkStrategy` 未实现 → UNSUPPORTED |
 
 ### 7. Wrong vs Correct

@@ -39,7 +39,7 @@
 - **B12 / ADR-053 最小闭环**：`chunk_strategy_definitions` + `kb_chunk_strategies` 为 catalog 权威；写入闸仍 **`IMPLEMENTED` 仅 `structure_paragraph`**
   - HTTP：`GET/PATCH …/chunk-strategies`、`/schema`、`/for-upload`（写须 `kb.config.write`）
   - complete/reindex/write：按 for-upload available 计数（仅 1 个可自动；≥2 未选 400）；写入策略码 + `chunk_strategy_params` 快照；reindex 对 `needs_review` / 非 utf8 `needs_ocr` 入队 `ocr`（其余仍 `chunk`；**不是**自动全库）；write 不入队 scan
-  - 未实现码 400；PATCH `paramOverrides.contextMode` 仅 `l0_template` / `l1_llm`（非法 400）；改库启用 **不** 自动 reindex；**无** 平台定义 CRUD 页、**无** paramSchema 通用动态表单引擎
+  - 未实现码 400；PATCH `paramOverrides.contextMode` 仅 `l0_template` / `l1_llm`（非法 400）；PATCH **有 diff** 落 `kb_settings_audits`（键 `chunkStrategy.<code>.<field>`；**无 diff 不落**；复用 KB 设置审计表，**不新建表**）；改库启用 **不** 自动 reindex；**无** 平台定义 CRUD 页、**无** paramSchema 通用动态表单引擎
 - 入队：`services/queue.ts` → BullMQ `QUEUE_NAMES.INGEST`（`sr-ingest`）；payload 为 contracts `IngestJobData`；`attempts=3` · backoff 2000ms
 - SQL 集中在 `services/`；路由保持轻量
 - **`GET /api/v1/knowledge-bases/:kbId/ingest-report`**：成员闸 + `doc.view` WhenEnforced；返回该库已落库行（空列表 200；缺库 404）；只写真事（chunkCount / 文档内 dropped / **跨 doc dropped + 冲突对** / **contextSource** / 双就绪 / 对账计数）；**无** pending_review / Hit@k / `l1_llm` 来源 / doc 级路径（`routes/ingest-report.ts` · `tests/ingest/ingest-report-http.test.ts`）

@@ -26,6 +26,9 @@ const {
   createMemoryChunkStrategyCatalogRepo,
   setChunkStrategyCatalogRepoForTest,
 } = await import('../../src/services/chunk-strategy-catalog.js');
+const { createMemoryKbSettingsAuditRepo } = await import(
+  '../../src/services/kb-settings-audit.js'
+);
 const { createChunkStrategyRoutes } = await import('../../src/routes/chunk-strategies.js');
 
 async function token(roles: string[], userId = uuidv7()) {
@@ -59,6 +62,7 @@ function buildApp(memberUserIds: Set<string>) {
     '/api/v1',
     createChunkStrategyRoutes({
       resolveKbMember: async (userId, kbId) => kbId === KB && memberUserIds.has(userId),
+      auditRepo: createMemoryKbSettingsAuditRepo(),
     }),
   );
   return app;

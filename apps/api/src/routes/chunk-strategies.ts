@@ -15,15 +15,23 @@ import {
   type ResolveKbMember,
 } from '../auth/middleware.js';
 import { fail, ok } from '../lib/response.js';
+import { childLogger } from '../logger.js';
 import {
   applyKbChunkStrategyPatch,
   buildChunkStrategyCatalog,
   getForUpload,
 } from '../services/chunk-strategy-catalog.js';
 import { documentRepo } from '../services/documents.js';
+import {
+  kbSettingsAuditRepo,
+  type KbSettingsAuditRepo,
+} from '../services/kb-settings-audit.js';
+import { resolveTenantId } from '../services/model-gateway.js';
 
 export type ChunkStrategyRouteDeps = {
   resolveKbMember?: ResolveKbMember;
+  /** 修改日志落点；默认复用 KB 设置审计表（不新建表） */
+  auditRepo?: KbSettingsAuditRepo;
 };
 
 /**
@@ -33,6 +41,7 @@ export function createChunkStrategyRoutes(
   deps: ChunkStrategyRouteDeps = {},
 ): Hono<{ Variables: AuthVariables }> {
   const routes = new Hono<{ Variables: AuthVariables }>();
+  const auditRepo = deps.auditRepo ?? kbSettingsAuditRepo;
   const write = requirePermission('kb.config.write', {
     resolveKbMember: deps.resolveKbMember,
   });
@@ -97,6 +106,26 @@ export function createChunkStrategyRoutes(
     if (!applied.ok) {
       return fail(c, BizCode.VALIDATION_ERROR, applied.message, 400);
     }
+
+    // IA §2.2：可写保存 → 服务端修改日志（无 diff 不落）
+    const auth = c.get('auth');
+    if (Object.keys(applied.diff).length > 0) {
+      childLogger({
+        requestId: c.get('requestId'),
+        userId: auth?.userId,
+        kbId,
+      }).info(
+        { event: 'chunk_strategy_patch', diff: applied.diff },
+        'kb chunk strategies updated',
+      );
+      await auditRepo.insert({
+        tenantId: resolveTenantId(auth?.tenantId),
+        kbId,
+        actorUserId: auth?.userId ?? '',
+        diff: applied.diff,
+      });
+    }
+
     const data: ChunkStrategyCatalogResponse = { items: applied.items };
     return ok(c, data);
   });
