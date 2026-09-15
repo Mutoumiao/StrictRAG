@@ -393,7 +393,13 @@ export async function runAskGraph(
 
     const evidenceIds = new Set(state.evidence.map((e) => e.chunkId));
     const byId = new Map(state.evidence.map((e) => [e.chunkId, e]));
-    const validIds = parsed.citations.filter((id) => evidenceIds.has(id));
+    // 清洗：只留证据内 id，并按 chunkId 去重保序（模型重复引用不得让引用数虚高）
+    const citedOnce = new Set<string>();
+    const validIds = parsed.citations.filter((id) => {
+      if (!evidenceIds.has(id) || citedOnce.has(id)) return false;
+      citedOnce.add(id);
+      return true;
+    });
 
     if (validIds.length === 0) {
       // strip 后无合法引用 → 拒答（不静默 answered）

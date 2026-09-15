@@ -190,7 +190,7 @@ route
 | generate → finalize | generate JSON 解析失败 | `internal_guard` | abstained |
 | generate → finalize | `parsed.insufficient` | `model_abstained` | abstained |
 | generate → finalize | 合法 citation 剥光为空 | `invalid_citations` | abstained |
-| generate → claim_split | 有 draft + ≥1 合法 citation | — | **必进**；禁 skip verify |
+| generate → claim_split | 有 draft + ≥1 合法 citation | — | **必进**；禁 skip verify。合法 citation 按 `chunkId` 去重保序 |
 | claim_split → finalize | 预算尽 | `budget_exhausted` | abstained |
 | claim_split → finalize | gateway / 解析 / **空 claims** / claim 无合法 chunk | `claim_split_failed` | abstained |
 | claim_split → verify | claims 非空且各有合法 chunkIds | — | 继续 |
@@ -271,7 +271,7 @@ route
 | 字段 | 说明 |
 |------|------|
 | `requestId` · `status`(`answered\|abstained`) · `answer` · `reason` | 必有 |
-| `citations[]` | **仅**本轮 evidence；拒答时 `[]` |
+| `citations[]` | **仅**本轮 evidence；拒答时 `[]`；按 `chunkId` **去重保序**（模型重复引用同一分片不得让引用数虚高） |
 | `minSupport` | 仅 verified 有意义 |
 | `suggestedActions` · `userMessage` | 拒答文案/动作 |
 | `sessionId` · `mode` · `latencyMs` | 壳字段 |
