@@ -13,7 +13,7 @@ Status: open
 - 每轮先读：本图、`docs/agents/issue-tracker.md`、`docs/agents/domain.md`、功能表、相关包的 `docs/module-status/`。写代码前读 `.trellis/spec/` 对应包。执行完成后跑 skill `update-module-status`。
 - **覆盖「只做决策」**：工单可以动手补缺口，不只锁决策。
 - **本图是执行面**：缺口只在 `.scratch/fill-must-haves/` 工单上做完。`.trellis/tasks/08-06-project-backlog/` 只留指针和勾选。同一缺口禁止再 `task.py create` 平行实现任务。这只覆盖本图，不改全仓其它流程。
-- 顺序：本图 P2 语义已收官（第三批）；P2.5 出口走 **L2 归档准出**（工程路径 [L2 归档底线](./issues/14-l2-archive-floor.md) 已齐，人签仍图外）。鉴权/成员余量、入库报告、库选择器、admin 顶栏、web 关闭列表、启动引导超管、写路径锁超管全码、修改日志、三平面配额、失败 Webhook 已齐。P3b 可动手最小闭环已齐。P4 可动手代码真空已尽。P5 OCR 开闸与历史 `needs_ocr` 运营重跑已齐（默认关）；**P5 可动手代码真空已尽**。暂停已解除；在线编写最小闭环已齐（无 BlockNote）。生效区间最小闭环已齐。替代联动最小闭环已齐。删除与 purge 最小闭环已齐。文档类型成员面最小闭环已齐。上传 MIME 白名单最小闭环已齐。类型分区 CRUD 最小闭环已齐。上传表单标部门最小闭环已齐。KB 消费绑定最小闭环已齐。同 KB 跨文档去重最小闭环已齐。L0 模板 / contextMode 单控件最小闭环已齐。反馈回流黄金集最小闭环已齐。本轮裁定三张串行：[禁自审四眼](./issues/86-no-self-approve-min.md) **已齐** → [角色树状勾选](./issues/87-role-permission-tree-min.md) **已齐** → [分片策略服务端修改日志](./issues/88-chunk-strategy-audit-min.md) 进行中；孤儿清理是下一轮首张。P3a 仍等 L2 人签。不默认开 `DEPT_ACL_ENFORCE`。不加角色 principal。不默认开 OCR。不自动全库重跑。
+- 顺序：本图 P2 语义已收官（第三批）；P2.5 出口走 **L2 归档准出**（工程路径 [L2 归档底线](./issues/14-l2-archive-floor.md) 已齐，人签仍图外）。鉴权/成员余量、入库报告、库选择器、admin 顶栏、web 关闭列表、启动引导超管、写路径锁超管全码、修改日志、三平面配额、失败 Webhook 已齐。P3b 可动手最小闭环已齐。P4 可动手代码真空已尽。P5 OCR 开闸与历史 `needs_ocr` 运营重跑已齐（默认关）；**P5 可动手代码真空已尽**。暂停已解除；在线编写最小闭环已齐（无 BlockNote）。生效区间最小闭环已齐。替代联动最小闭环已齐。删除与 purge 最小闭环已齐。文档类型成员面最小闭环已齐。上传 MIME 白名单最小闭环已齐。类型分区 CRUD 最小闭环已齐。上传表单标部门最小闭环已齐。KB 消费绑定最小闭环已齐。同 KB 跨文档去重最小闭环已齐。L0 模板 / contextMode 单控件最小闭环已齐。反馈回流黄金集最小闭环已齐。本轮裁定三张串行：[禁自审四眼](./issues/86-no-self-approve-min.md) **已齐** → [角色树状勾选](./issues/87-role-permission-tree-min.md) **已齐** → [分片策略服务端修改日志](./issues/88-chunk-strategy-audit-min.md) **已齐**。下一轮首张：孤儿清理。P3a 仍等 L2 人签。不默认开 `DEPT_ACL_ENFORCE`。不加角色 principal。不默认开 OCR。不自动全库重跑。
 - **站规（UI）**：web / admin 新下拉必须基于 `@strict-rag/ui` 关闭列表，禁止浏览器原生 `<select>` 外壳（含现有 ui `Select`）。`Button` / `Input` / `Textarea` 仍走 ui 包。本规不改 GET / 鉴权语义。
 
 ## Decisions so far
@@ -105,6 +105,7 @@ Status: open
 - [裁定反馈回流黄金集后下一步](./issues/85-after-feedback-promote-gold-order.md) — 本批串行三张：禁自审四眼 → 角色树状勾选 → 分片策略服务端修改日志；孤儿清理下一轮首张。缺口只在 `.scratch` 工单做。
 - [提交者不可自审四眼最小闭环](./issues/86-no-self-approve-min.md) — complete / write 记 `uploaded_by`、approve 记 `approved_by`；自审 403 `FORBIDDEN` + `reason=self_approve_forbidden`（approve / reject 同口径，不写审批）；无 actor / 提交人未知不拦；列表项 `submittedBy`，admin 回显提交人。无 `allowSelfApprove` 开关。
 - [角色与权限树状勾选最小闭环](./issues/87-role-permission-tree-min.md) — 角色页按 `MENU_TREE` 编 L1/L2 + 操作码；未挂菜单的码进「其他（未挂菜单）」仍可勾，测例钉死「每码仅出现一次」。不改码表 / 契约 / 鉴权语义。
+- [分片策略保存写服务端修改日志最小闭环](./issues/88-chunk-strategy-audit-min.md) — PATCH 有 diff 落 `kb_settings_audits`（键 `chunkStrategy.<code>.<field>`，复用不新建表）；无 diff 不落；只动库启用表，旧文档版本与快照不变。
 
 ## Not yet specified
 

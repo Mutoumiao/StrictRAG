@@ -2,8 +2,8 @@
 
 Type: task
 Label: wayfinder:task
-Status: pending
-Assignee: —
+Status: resolved
+Assignee: grok
 Triage: ready-for-agent
 Blocked by: 87
 
@@ -44,3 +44,24 @@ Blocked by: 87
 - 改 `prds/00–11`
 
 收工：`.trellis/spec/` api chunk-strategies + kb-settings；`docs/module-status/` api。禁止 push。禁止 `task.py create`。
+
+## Answer
+
+分片策略保存写服务端修改日志最小闭环已落地。
+
+- `applyKbChunkStrategyPatch` 增返回 **有 diff 才非空** 的修改日志：键 `chunkStrategy.<code>.enabled` / `.recommendedFamilies` / `.paramOverrides`，值为 `{from, to}`；`before` 取生效前快照（含表空时的默认种子）。
+- 路由 PATCH 在 diff 非空时打 `event=chunk_strategy_patch` Pino 日志并落审计行；**复用 `kb_settings_audits`（`kbSettingsAuditRepo`），不新建表**。
+- 无 diff 不落；非法 PATCH 400 且不落。
+- 只动 `kb_chunk_strategies`：旧文档 `index_version` 与 `chunk_strategy_params` 快照不变（测例用 `documents` 写方法 spy 钉死）。
+- 新增路由依赖 `auditRepo`（默认真实 repo，测例注入内存 repo）；`apps/api/tests/kb/chunk-strategies-http.test.ts` 的 PATCH 用例已注入内存 repo（否则会打到 PG）。
+- 因与 KB 设置共用审计表，admin 设置页既有「修改日志」一节会自动显示策略改动，**无需新 HTTP / 新页面**。
+
+证据：`apps/api/src/services/chunk-strategy-catalog.ts` `ChunkStrategyPatchDiff` · `apps/api/src/routes/chunk-strategies.ts` · 测例 `apps/api/tests/kb/chunk-strategy-audit.test.ts`（4）。
+
+验证：`apps/api/tests/kb/chunk-strategy-audit.test.ts`（4）、`chunk-strategies-http.test.ts`（6）、`ingest/chunk-strategies.test.ts`（16）、`ingest/reindex-strategy.test.ts`（7）全绿；全量 `pnpm --filter @strict-rag/api test` 128 文件 / 815 测试绿；`pnpm check-types` 8/8 绿。
+
+未 `task.py create`。未 push。
+
+## Comments
+
+- 2026-09-16 认领并在主分支执行。权威切边见 [裁定反馈回流黄金集后下一步](./85-after-feedback-promote-gold-order.md)。
