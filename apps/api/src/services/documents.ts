@@ -164,6 +164,8 @@ export const documentRepo = {
       chunkStrategy?: string;
       chunkStrategyParams?: Record<string, unknown>;
       checksumSha256?: string;
+      /** 提交人（认不出 actor 时省略，禁止编造） */
+      uploadedBy?: string;
     },
   ) {
     await getDb()
@@ -174,6 +176,7 @@ export const documentRepo = {
         status: 'uploaded',
         errorCode: null,
         errorMessage: null,
+        ...(opts?.uploadedBy !== undefined ? { uploadedBy: opts.uploadedBy } : {}),
         ...(opts?.chunkStrategy !== undefined
           ? { chunkStrategy: opts.chunkStrategy }
           : {}),
@@ -187,17 +190,19 @@ export const documentRepo = {
       .where(eq(documents.id, docId));
   },
 
-  async approve(docId: string) {
+  /** ADR-048 #4：记审批人；无 actor 时不写，禁止编造 */
+  async approve(docId: string, actorUserId?: string | null) {
     await getDb()
       .update(documents)
       .set({
         approvalStatus: 'approved',
         approvedAt: formatLocalDateTime(),
+        ...(actorUserId ? { approvedBy: actorUserId } : {}),
       })
       .where(eq(documents.id, docId));
   },
 
-  /** ponytail: 无独立 ticket 表；驳回只改 approval_status */
+  /** ponytail: 无独立 ticket 表；驳回只改 approval_status（无 decided_by 列） */
   async reject(docId: string) {
     await getDb()
       .update(documents)

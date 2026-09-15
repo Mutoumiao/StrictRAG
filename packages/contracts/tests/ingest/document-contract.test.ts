@@ -284,6 +284,7 @@ describe('DocumentDetailSchema / list item', () => {
 
   it('list item schema has ownerDeptId / visibilityLevel / aclPrincipals', () => {
     const keys = Object.keys(DocumentListItemSchema.shape);
+    expect(keys).toContain('submittedBy');
     expect(keys).toContain('ownerDeptId');
     expect(keys).toContain('visibilityLevel');
     expect(keys).toContain('docType');

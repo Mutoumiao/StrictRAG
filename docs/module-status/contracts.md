@@ -31,7 +31,7 @@
 - **黄金集 / run DTO**：eval/gold.contract.ts · eval/eval-run.contract.ts；2×2、Hit@k、τ 扫描与 Judge AUROC 纯函数 eval/l1-matrix.ts；EvalRun 可选 `hitAtK` / `hitAtKHits` / `hitAtKScored` / `tauStar` / `judgeAuroc`；L2 解析 eval/l2-gold.ts · 工程公式 eval/l2-matrix.ts
 
 ### 入库 + 分片策略（B12）
-- 文档 body 及列表 / 详情 / 审批 / 扫描等成功响应的 data 形状（`ingest/document.contract`）；列表项含 `docType` / `aclPrincipals` / `effectiveFrom` / `effectiveTo` / `supersedesDocId` / `supersededByDocId`（缺省 `null`）；`PatchDocumentMetaBodySchema` 可写 `ownerDeptId` / `visibilityLevel` / `docType` / `aclPrincipals` / 生效区间（omit 不改；`null` 清回未设；时间串须 `yyyy-MM-dd HH:mm:ss`）；`SupersedeDocumentBodySchema` / `SupersedeDocumentResponseSchema`；`DeleteDocumentResponseSchema`（`lifecycle=archived` 且 `purgeEnqueued=true`）
+- 文档 body 及列表 / 详情 / 审批 / 扫描等成功响应的 data 形状（`ingest/document.contract`）；列表项含 `submittedBy`（提交人 = `documents.uploaded_by`，缺省 `null`）/ `docType` / `aclPrincipals` / `effectiveFrom` / `effectiveTo` / `supersedesDocId` / `supersededByDocId`（缺省 `null`）；`PatchDocumentMetaBodySchema` 可写 `ownerDeptId` / `visibilityLevel` / `docType` / `aclPrincipals` / 生效区间（omit 不改；`null` 清回未设；时间串须 `yyyy-MM-dd HH:mm:ss`）；`SupersedeDocumentBodySchema` / `SupersedeDocumentResponseSchema`；`DeleteDocumentResponseSchema`（`lifecycle=archived` 且 `purgeEnqueued=true`）
 - **`CreateKbBodySchema`**：`name` + **必填** `initialAdminUserId`；**不含** `tenantId`（令牌覆盖）
 - **complete / reindex body 可选 `chunkStrategy`**；complete 可选 `checksumSha256`（64 位 hex）；reindex 成功 data 含 `chunkStrategy` + `strategyChanged`；`stage` 为 `chunk` | `ocr`
 - **入库 MIME 白名单**（`ingest/upload-media.ts`）：`ALLOWED_INGEST_CONTENT_TYPES` / 扩展名；`resolveIngestContentType`；未知与 `octet-stream` 不得默许

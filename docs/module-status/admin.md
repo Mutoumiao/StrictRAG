@@ -13,7 +13,7 @@
 
 ## 一句话状态
 
-Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 四态 lifecycle / **后继替代** / 行展开入库报告 / **在线编写 Markdown** / **创建面标部门**）+ 审批中心 + 成员管理（邀请 / 改角色 / 移除）+ 分片只读 + 知识库设置（**类型分区 CRUD** + 页内修改日志）+ 模型网关最小集 + 用户（末位超管禁用/剥角色不可点） / 角色（超管全码锁：勾选/保存不可点） / 部门最小集 + 数据面板薄壳 + 反馈队列薄壳 + 评测底线薄壳** 均已接通；顶栏当前 KB 用 ui `ClosedSelect` 只列本次 GET 可见库（空态 / 失败重试 / 脏缓存不采用；禁止粘贴 uuid），旁有建库入口（有 `kb.create` 才显示；名称 + 首位库管预填当前用户可改；成功后选中新建库），外壳 **`clipMenuForShell`** 只显示已落地路由（**12** 条 ops href），**不是**完整运营台（无 APM 时序 / **≠** 全文隔离 / **≠** ES / **≠** 评测签字包）。Vitest / RTL 覆盖外壳 / Guard / 审批 / dashboard 403 + **P0 R5/R6** + settings / documents / departments / **eval** / **members** / **末位超管** / **超管全码锁** / **入库报告** / **设置修改日志** 工作区测 + **建库入口** + **当前 KB 关闭列表**；**无** E2E。
+Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 四态 lifecycle / **后继替代** / 行展开入库报告 / **在线编写 Markdown** / **创建面标部门**）+ 审批中心（回显提交人；默认禁自审由 api 闸）+ 成员管理（邀请 / 改角色 / 移除）+ 分片只读 + 知识库设置（**类型分区 CRUD** + 页内修改日志）+ 模型网关最小集 + 用户（末位超管禁用/剥角色不可点） / 角色（超管全码锁：勾选/保存不可点） / 部门最小集 + 数据面板薄壳 + 反馈队列薄壳 + 评测底线薄壳** 均已接通；顶栏当前 KB 用 ui `ClosedSelect` 只列本次 GET 可见库（空态 / 失败重试 / 脏缓存不采用；禁止粘贴 uuid），旁有建库入口（有 `kb.create` 才显示；名称 + 首位库管预填当前用户可改；成功后选中新建库），外壳 **`clipMenuForShell`** 只显示已落地路由（**12** 条 ops href），**不是**完整运营台（无 APM 时序 / **≠** 全文隔离 / **≠** ES / **≠** 评测签字包）。Vitest / RTL 覆盖外壳 / Guard / 审批 / dashboard 403 + **P0 R5/R6** + settings / documents / departments / **eval** / **members** / **末位超管** / **超管全码锁** / **入库报告** / **设置修改日志** 工作区测 + **建库入口** + **当前 KB 关闭列表**；**无** E2E。
 
 ---
 
@@ -73,6 +73,7 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 
 ### 审批中心
 - `/approvals`：待审批 / 已通过 两个分栏
+- 每行回显**提交人**（列表项 `submittedBy`；认不出提交人显示「—」）；**默认禁自审**由 api 闸执行（ADR-048 #4 四眼）：提交人点自己的单会被 403 挡下
 - 持有 `approval.decide` 权限时显示通过 / 驳回按钮；持有 `doc.upload` 权限时，已通过的文档可以触发 `scan` 入队
 - 按钮可见 ≠ 已授权；无权限调用 API 仍会返回 403
 
@@ -153,7 +154,7 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 | 反馈 | `app/(ops)/feedback/page.tsx` · `_components/feedback-workspace.tsx` · `api.ts` · `services.ts` |
 | API 封装 | 各 ops 目录 `api.ts` · `lib/http.ts` · `auth/api.ts` |
 | 登录 / 守卫 | `apps/admin/src/app/login/page.tsx` · `components/auth-guard.tsx` |
-| 前端测试 | `vitest.config.ts` · `src/test/` · `tests/shell/menu-clip.test.tsx` · `tests/ops/dashboard-workspace.test.tsx` · `tests/ops/approvals-workspace.test.tsx` · `tests/ops/members-workspace.test.tsx` · `tests/ops/last-superadmin-hint.test.tsx` · `tests/ops/superadmin-codes-lock.test.tsx` · R5/R6 等 |
+| 前端测试 | `vitest.config.ts` · `src/test/` · `tests/shell/menu-clip.test.tsx` · `tests/ops/dashboard-workspace.test.tsx` · `tests/ops/approvals-workspace.test.tsx` · `tests/ops/approvals-submitter.test.tsx` · `tests/ops/members-workspace.test.tsx` · `tests/ops/last-superadmin-hint.test.tsx` · `tests/ops/superadmin-codes-lock.test.tsx` · R5/R6 等 |
 | P0 清单 | `docs/testing/p0-redlines.md`（本包 R5–R6） |
 | 命令 | `pnpm --filter @strict-rag/admin test`（`package.json` → `vitest run`） |
 | 样式入口 | `apps/admin/src/app/globals.css` · `postcss.config.mjs` · `package.json`（tailwind devDeps · `build --webpack`） |

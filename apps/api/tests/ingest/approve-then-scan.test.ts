@@ -3,7 +3,7 @@
  * 需求：prds/10-delivery/03-acceptance-scenarios.md 剧本 Y4
  * 被测：POST /documents/:docId/approve · POST /documents/:docId/scan
  * 简介：kb_admin 对 pending 文档 approve 200 后 scan 200，且 enqueueIngest stage=scan。
- * AUTH_ENFORCE 保持仓库默认关；不测禁自审（V3 缺实现）。
+ * AUTH_ENFORCE 保持仓库默认关；禁自审（V3）另见 `ingest/no-self-approve.test.ts`。
  */
 
 import { Hono } from 'hono';

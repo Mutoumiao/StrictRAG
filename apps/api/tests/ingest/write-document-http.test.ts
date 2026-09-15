@@ -2,7 +2,7 @@
  * 目标：在线编写必须落 Markdown 对象并进 pending，不得入队 scan。
  * 需求：功能表 §4.3 在线编写 · 剧本 V7 最小 · 工单「在线编写最小闭环」
  * 被测：POST /knowledge-bases/:kbId/documents/write
- * 简介：sourceType=write；空白拒；未实现策略 400 且不落库；可带部门两字段。无 BlockNote。
+ * 简介：sourceType=write；空白拒；未实现策略 400 且不落库；可带部门两字段；提交人随令牌落库。无 BlockNote。
  */
 
 import { Hono } from 'hono';
@@ -32,6 +32,7 @@ type DocRow = {
   ownerDeptId: string | null;
   visibilityLevel: number;
   aclPrincipals: string[] | null;
+  uploadedBy: string | null;
 };
 
 const docs = new Map<string, DocRow>();
@@ -68,6 +69,7 @@ vi.mock('../../src/services/documents.js', () => ({
         ownerDeptId: null,
         visibilityLevel: 20,
         aclPrincipals: null,
+        uploadedBy: null,
       });
       return input.id;
     },
@@ -89,13 +91,14 @@ vi.mock('../../src/services/documents.js', () => ({
     markCompletePending: async (
       id: string,
       size: number,
-      opts?: { chunkStrategy?: string },
+      opts?: { chunkStrategy?: string; uploadedBy?: string },
     ) => {
       const row = docs.get(id);
       if (!row) return;
       row.byteSize = size;
       row.approvalStatus = 'pending';
       if (opts?.chunkStrategy) row.chunkStrategy = opts.chunkStrategy;
+      if (opts?.uploadedBy) row.uploadedBy = opts.uploadedBy;
     },
   },
 }));
@@ -134,9 +137,9 @@ const {
   setChunkStrategyCatalogRepoForTest,
 } = await import('../../src/services/chunk-strategy-catalog.js');
 
-async function token() {
+async function token(userId: string = uuidv7()) {
   const pair = await issueTokenPair({
-    userId: uuidv7(),
+    userId,
     app: 'admin',
     roles: ['super_admin'],
     tenantId: TENANT,
@@ -269,5 +272,24 @@ describe('在线编写 HTTP', () => {
     expect(docs.get(json.data.docId)?.ownerDeptId).toBe(dept);
     expect(docs.get(json.data.docId)?.visibilityLevel).toBe(30);
     expect(enqueued).toEqual([]);
+  });
+
+  it('提交人随令牌落库（四眼前提）', async () => {
+    const app = buildApp();
+    const writer = '01900000-0000-7000-8000-0000000000b3';
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/documents/write`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${await token(writer)}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        title: '差旅标准',
+        markdown: '# 差旅\n\n住宿上限 500 元。',
+      }),
+    });
+    expect(res.status).toBe(201);
+    const json = (await res.json()) as { ok: boolean; data: { docId: string } };
+    expect(docs.get(json.data.docId)?.uploadedBy).toBe(writer);
   });
 });

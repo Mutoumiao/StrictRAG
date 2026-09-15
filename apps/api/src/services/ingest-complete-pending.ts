@@ -147,9 +147,11 @@ export async function finalizePendingIngest(input: {
   fields: FinalizePendingFields;
   requestId: string;
   checkIngestLimit: (tenantId: string, kbId: string) => RateLimitResult;
+  /** 提交人（认不出 actor 时省略，禁止编造） */
+  actorUserId?: string;
   logEvent?: string;
 }): Promise<FinalizePendingOk | FinalizePendingFail> {
-  const { kbId, docId, fields, requestId, checkIngestLimit } = input;
+  const { kbId, docId, fields, requestId, checkIngestLimit, actorUserId } = input;
   const doc = await documentRepo.getDoc(docId);
   if (!doc || doc.kbId !== kbId) {
     return { ok: false, code: BizCode.NOT_FOUND, message: 'document not found', httpStatus: 404 };
@@ -299,6 +301,7 @@ export async function finalizePendingIngest(input: {
     chunkStrategy: strategyGate.code,
     chunkStrategyParams: strategyParams,
     checksumSha256,
+    ...(actorUserId !== undefined ? { uploadedBy: actorUserId } : {}),
   });
   recordIngestComplete({ result: 'ok' });
 

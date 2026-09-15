@@ -17,6 +17,11 @@ import { applyApprovalAction, loadApprovalsList, type ApprovalAction } from '../
 
 type Flash = { kind: 'ok' | 'err'; text: string } | null;
 
+/** 提交人回显：认不出提交人（历史文 / 无 actor）给「—」，禁止假装有值。 */
+export function submitterLabel(submittedBy?: string | null): string {
+  return submittedBy && submittedBy.trim().length > 0 ? submittedBy : '—';
+}
+
 export function ApprovalsWorkspace() {
   const { me } = useAdminAuth();
   const canView = me.permissions.includes('approval.view') || me.permissions.includes('doc.view');
@@ -131,6 +136,9 @@ export function ApprovalsWorkspace() {
                     <div className="text-[11px] text-muted-foreground">
                       {r.id} · status={r.status}
                     </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      提交人：{submitterLabel(r.submittedBy)}
+                    </div>
                   </div>
                   {canDecide ? (
                     <div className="flex gap-2">
@@ -175,6 +183,9 @@ export function ApprovalsWorkspace() {
                     <div className="text-sm">{r.title}</div>
                     <div className="text-[11px] text-muted-foreground">
                       {r.id} · status={r.status} · lifecycle={r.lifecycle}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      提交人：{submitterLabel(r.submittedBy)}
                     </div>
                   </div>
                   {canScan ? (

@@ -186,6 +186,11 @@ export const DocumentListItemSchema = z.object({
   title: z.string(),
   status: DocumentStatusSchema,
   approvalStatus: ApprovalStatusSchema,
+  /**
+   * 提交人 userId（落 `documents.uploaded_by`）。
+   * null = 认不出提交人（历史文 / `AUTH_ENFORCE` 关时无 actor）；此时四眼闸不生效。
+   */
+  submittedBy: z.string().uuid().nullable().default(null),
   lifecycle: LifecycleSchema,
   byteSize: z.number().int().nonnegative().nullable(),
   indexVersion: z.number().int(),

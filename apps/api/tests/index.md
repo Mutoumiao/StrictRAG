@@ -104,7 +104,7 @@
 | `gateway/generate-fallback.test.ts` | generate 绑定 fallbacks 必须在运行时切链，无备用行为不变。 | P4 多模型 fallback · B3-W | `applyBindingsToGatewayConfig / resolveChatNodes / mock+http chat` | opt-in 备用 ModelRef；auth 不盲切；judge 不走 generate 链。≠ GENERATE_MIN_NODES。 | 现行 |
 | `gateway/resolve-mock.test.ts` | 网关解析缺 URL 时走 mock，绑定覆盖与重试保持契约。 | B3 · QUAL-3 | `buildGatewayConfig / applyBindingsToGatewayConfig / mock+http retry` | 缺 URL → mock。 | 现行 |
 | `ingest/approval-scan.test.ts` | 审批未过不得 complete / 入扫描。 | 审批未过不得 complete | `canEnqueueScan / canBecomeActive / scanDeniedCode` | 审批扫描闸。 | 现行 |
-| `ingest/approve-then-scan.test.ts` | kb_admin 审批通过后必须可 scan 入队。 | 剧本 Y4 | `POST /documents/:docId/approve` · `POST /documents/:docId/scan` | approve 200 后 scan 200 且 enqueue stage=scan。AUTH_ENFORCE 默认关。不测禁自审。 | 现行 |
+| `ingest/approve-then-scan.test.ts` | kb_admin 审批通过后必须可 scan 入队。 | 剧本 Y4 | `POST /documents/:docId/approve` · `POST /documents/:docId/scan` | approve 200 后 scan 200 且 enqueue stage=scan。AUTH_ENFORCE 默认关。禁自审见 `ingest/no-self-approve.test.ts`。 | 现行 |
 | `ingest/chunk-strategies.test.ts` | 已实现分片策略可写；未实现必须 400，禁止静默 default。仅 1 个可自动，≥2 未选须 400。 | B12 · X-03 · 功能表 §4.5 | `chunk-strategies` | 禁静默 default；绑定/reindex 选择规则。 | 现行 |
 | `ingest/chunks-http.test.ts` | chunks HTTP 只读路由按成员与文档闸返回。 | B1 | `createChunkRoutes` | chunks HTTP。 | 现行 |
 | `ingest/chunks-query.test.ts` | 分片只读查询返回 preview/body 契约。 | ADR-052 · B1 | `buildPreview / buildBody` | 分片只读查询。 | 现行 |
@@ -121,7 +121,8 @@
 | `ingest/document-validation.test.ts` | 文档写入校验拒绝非法字段。 | 入库 HTTP | `documents validation` | 文档写入校验。 | 现行 |
 | `ingest/gates-live.test.ts` | live 闸组合在真实 handler 下拒绝未审批 complete。 | complete 闸 | `createApp document gates` | 无 Docker / not ready 时 skip。 | 现行 |
 | `ingest/jobs-query.test.ts` | 入库任务列表项映射保持查询契约。 | prds/06-async | `toIngestJobListItem` | 入队在 api，消费在 worker。 | 现行 |
-| `ingest/write-document-http.test.ts` | 在线编写必须落 Markdown 对象并进 pending，不得入队 scan。 | 功能表 §4.3 · 剧本 V7 最小 · 工单「上传表单标部门最小闭环」 | `POST …/documents/write` | sourceType=write；空白拒；未实现策略 400；可带部门两字段。无 BlockNote。 | 现行 |
+| `ingest/no-self-approve.test.ts` | 提交人不得批自己的单（四眼）；认不出 actor 或提交人时不得误伤运营台。 | prds/09-security 禁自审默认（P2）· ADR-048 #4 · 剧本 V3 | `POST /documents/:docId/approve` · `POST /documents/:docId/reject` | 自审 403 且不写审批；他人审批 200 并记审批人；无 actor / 提交人未知不拦；已通过幂等不改判。 | 现行 |
+| `ingest/write-document-http.test.ts` | 在线编写必须落 Markdown 对象并进 pending，不得入队 scan。 | 功能表 §4.3 · 剧本 V7 最小 · 工单「上传表单标部门最小闭环」 | `POST …/documents/write` | sourceType=write；空白拒；未实现策略 400；可带部门两字段；提交人随令牌落库。无 BlockNote。 | 现行 |
 | `ingest/ocr-rerun-http.test.ts` | 卡在 OCR 闸的文档 reindex 必须入队 ocr；短 utf8 与 ready 仍入队 chunk。 | 剧本 Q7 · ADR-043 · P5 历史 needs_ocr 重跑 | `POST /documents/:docId/reindex` · `reindexEnqueueStage` | 无新 HTTP。不自动全库。≠ 真引擎。 | 现行 |
 | `ingest/ingest-report-http.test.ts` | 库级 GET ingest-report 须成员可读、空列表 200、缺库 404。 | prds/05-api GET ingest-report · 功能表 §5.2 | `GET /knowledge-bases/:kbId/ingest-report` | 回已落库行含跨 doc 冲突对；不是 doc 级路径。 | 现行 |
 | `ingest/ingest-report-map.test.ts` | 入库报告行映射不得把 null 对账填成 0 装齐。 | 功能表 §5.2 | `toIngestReportItem` | 查询契约；落库在 worker。 | 现行 |

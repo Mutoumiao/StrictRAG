@@ -281,6 +281,7 @@ Refresh JWT：`sub` · `sid` · `app` · `jti`（落库/内存状态，用于 ro
 | kb scope 且非成员且非超管 | 403 | `FORBIDDEN` | not a knowledge base member |
 | expectedApp 不匹配 | 403 | `FORBIDDEN` | wrong application context |
 | admin 壳无 `admin.shell` | 403 | `FORBIDDEN` | admin.shell required |
+| 提交人自决（approve / reject 自己的单，ADR-048 #4 四眼） | 403 | `FORBIDDEN` | submitter cannot decide own ticket；`details.reason=self_approve_forbidden` |
 
 信封：统一 `ok: false, error: { code, message, details? }, meta`。
 
@@ -309,6 +310,7 @@ Refresh JWT：`sub` · `sid` · `app` · `jti`（落库/内存状态，用于 ro
 | `tests/auth/enforce-401.test.ts` | QUAL-1（已归档）：`vi.stubEnv` enforce=true 无 Bearer → 401 UNAUTHORIZED；默认仍关；unstub 还原 |
 | `tests/acl/me-permissions.test.ts` | 无 token 401；超管含 `admin.shell` / `dashboard.view` / `role.perm.manage`；与 `/auth/me` 同源 |
 | `tests/acl/members-http.test.ts` | PUT 只改 role；额外字段 400；缺成员 404；无码 403 |
+| `tests/ingest/no-self-approve.test.ts` | 剧本 V3：自审 403 且不写审批（approve / reject 同口径）；他人审批 200 并记审批人；无 actor / 提交人未知不拦；已 approved 幂等不改判 |
 | 路由（建议补） | dev-login 400 体；refresh replay 401 |
 | 前端（建议补） | http 在 `UNAUTHORIZED` 时只并发一次 refresh |
 

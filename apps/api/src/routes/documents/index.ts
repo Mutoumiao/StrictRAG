@@ -27,7 +27,7 @@ import { uuidv7 } from 'uuidv7';
 
 import { roleBypassesKbMembership } from '../../auth/permissions/resolve.js';
 import { requirePermission, requirePermissionWhenEnforced } from '../../auth/middleware.js';
-import { canBecomeActive, canEnqueueScan, scanDeniedCode } from '../../gates/approval-scan.js';
+import { canBecomeActive, canEnqueueScan, evaluateSelfDecide, scanDeniedCode } from '../../gates/approval-scan.js';
 import { checkUploadMedia } from '../../gates/upload-media.js';
 import { fail, ok } from '../../lib/response.js';
 import { childLogger, logger } from '../../logger.js';
@@ -262,12 +262,15 @@ documentRoutes.post(
       return fail(c, BizCode.VALIDATION_ERROR, 'invalid body', 400, body.error.flatten());
     }
 
+    // ADR-048 #4：认得出 actor 才记提交人；AUTH_ENFORCE 关时不编造
+    const actorUserId = c.get('auth')?.userId;
     const finalized = await finalizePendingIngest({
       kbId,
       docId,
       fields: body.data,
       requestId: c.get('requestId'),
       checkIngestLimit,
+      ...(actorUserId ? { actorUserId } : {}),
     });
     if (!finalized.ok) {
       return fail(c, finalized.code, finalized.message, finalized.httpStatus, finalized.details);
@@ -322,6 +325,8 @@ documentRoutes.post(
     const docId = uuidv7();
     const slot = storage.createUploadSlot(kbId, docId, 'text/markdown');
     const stored = await storage.putObject(slot.key, buf, 'text/markdown');
+    // ADR-048 #4：认得出 actor 才记提交人；AUTH_ENFORCE 关时不编造
+    const actorUserId = c.get('auth')?.userId;
     await documentRepo.insertUploadedDoc({
       id: docId,
       tenantId: kb.tenantId,
@@ -343,6 +348,7 @@ documentRoutes.post(
       chunkStrategy: gated.strategyCode,
       chunkStrategyParams: gated.strategyParams,
       checksumSha256: stored.checksumSha256,
+      ...(actorUserId ? { uploadedBy: actorUserId } : {}),
     });
     recordIngestComplete({ result: 'ok' });
 
@@ -452,7 +458,16 @@ documentRoutes.post(
       );
     }
 
-    await documentRepo.approve(docId);
+    // ADR-048 #4 四眼：提交人不得批自己的单（无 actor / 无提交人时不误伤）
+    const actorUserId = c.get('auth')?.userId ?? null;
+    const selfDecide = evaluateSelfDecide({ actorUserId, submittedBy: doc.uploadedBy });
+    if (!selfDecide.ok) {
+      return fail(c, BizCode.FORBIDDEN, selfDecide.message, 403, {
+        reason: 'self_approve_forbidden',
+      });
+    }
+
+    await documentRepo.approve(docId, actorUserId);
     const data: DocumentApprovalActionResponse = { docId, approvalStatus: 'approved' };
     return ok(c, data);
   },
@@ -479,6 +494,16 @@ documentRoutes.post(
         `cannot reject when approvalStatus=${doc.approvalStatus}`,
       );
     }
+
+    // ADR-048 #4 四眼：驳回同口径，防自审者自行驳回规避
+    const actorUserId = c.get('auth')?.userId ?? null;
+    const selfDecide = evaluateSelfDecide({ actorUserId, submittedBy: doc.uploadedBy });
+    if (!selfDecide.ok) {
+      return fail(c, BizCode.FORBIDDEN, selfDecide.message, 403, {
+        reason: 'self_approve_forbidden',
+      });
+    }
+
     await documentRepo.reject(docId);
     const data: DocumentApprovalActionResponse = { docId, approvalStatus: 'rejected' };
     return ok(c, data);

@@ -13,6 +13,7 @@ export type DocMapSource = {
   title: string;
   status: string;
   approvalStatus: string;
+  uploadedBy?: string | null;
   lifecycle: string;
   byteSize?: number | null;
   indexVersion: number;
@@ -42,6 +43,7 @@ export function toListItem(r: DocMapSource): DocumentListItem {
     title: r.title,
     status: r.status as DocumentStatus,
     approvalStatus: r.approvalStatus as ApprovalStatus,
+    submittedBy: r.uploadedBy ?? null,
     lifecycle: r.lifecycle as Lifecycle,
     byteSize: r.byteSize ?? null,
     indexVersion: r.indexVersion,
