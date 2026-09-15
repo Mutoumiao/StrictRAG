@@ -2,7 +2,7 @@
 
 Type: task
 Label: wayfinder:task
-Status: claimed
+Status: resolved
 Assignee: grok
 Triage: ready-for-agent
 Blocked by: 89
@@ -48,3 +48,22 @@ Blocked by: 89
 - 改 `prds/00–11`
 
 收工：`.trellis/spec/` api chunk-strategies + directory-structure、admin quality-guidelines；`docs/module-status/` api · admin · contracts。禁止 push。禁止 `task.py create`。
+
+## Answer
+
+文档绑定策略参数快照只读审计最小闭环已落地。
+
+- 契约：`DocumentListItemSchema` 增 `chunkStrategy`（码）与 `chunkStrategyParams`（快照 JSON），缺省 `null`；详情继承列表项，一并获得。
+- api：`routes/documents/mappers.ts` 从行带出两字段（未记录 → `null`）。
+- admin：文档行展开新增「分片策略（历史，只读）」，走纯函数 `strategySnapshotLabel(code, params)` —— 有码有快照给「码 · JSON」，有码无快照给「未记录快照」，无码给「未记录分片策略」，**不用默认值冒充**。
+- **未新增写路径**：PATCH 仍不收这两字段；未做 paramSchema 表单、未改 worker。
+
+证据：`packages/contracts/src/ingest/document.contract.ts` · `apps/api/src/routes/documents/mappers.ts` · `apps/admin/src/app/(ops)/documents/list.services.ts` `strategySnapshotLabel` · `apps/admin/src/app/(ops)/documents/_components/documents-workspace.tsx` · 测例 contracts `tests/ingest/document-contract.test.ts` · api `tests/ingest/document-mappers.test.ts`（9）· admin `tests/ops/document-strategy-snapshot.test.ts`（3）+ `tests/ops/documents-workspace.test.tsx`（行展开断言）。
+
+验证：contracts 201 / api 映射 12 / admin 34 文件 167 测试全绿；`pnpm check-types` 8/8 绿。
+
+未 `task.py create`。未 push。
+
+## Comments
+
+- 2026-09-16 认领并在主分支执行。权威切边见 [裁定分片策略审计后下一步](./89-after-chunk-strategy-audit-order.md)。
