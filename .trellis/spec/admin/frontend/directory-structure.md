@@ -28,7 +28,7 @@ apps/admin/
       login/page.tsx          # 薄：表单 UI → auth/services
       (ops)/
         layout.tsx
-        documents/            # 文档列表 / 上传（MIME 白名单，未知不得改写成 text/plain） / 在线编写 / Reindex / 类型标注 / 四态 lifecycle / 替代后继关闭列表 / 删除入队 purge / 入库报告展开区
+        documents/            # 文档列表 / 上传（MIME 白名单，未知不得改写成 text/plain；创建面 ClosedSelect 标部门/可见级） / 在线编写 / Reindex / 类型标注 / 四态 lifecycle / 替代后继关闭列表 / 删除入队 purge / 入库报告展开区
         approvals/            # 审批
         members/              # KB 成员
         chunks/               # B1 分片只读

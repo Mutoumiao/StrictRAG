@@ -6,6 +6,7 @@
  * 有 dept.manage 时归属用部门列表下拉；无该码仍 uuid 粘贴。不宣称强制隔离已上。
  * Reindex 走 for-upload；≥2 必须人选。lifecycle 含归档/废止/删除（DELETE 入队 purge）。替代须选后继。上架仍须 ready。
  * 表头上方按已加载行本地筛部门/可见级；不改 GET query。
+ * 创建面（上传 / 编写）可标新文档归属部门与可见级；有 dept.manage 才拉部门名。不宣称强制隔离已上。
  * 稀疏就绪是适配层/mock 标志，≠ 生产 ES。
  */
 
@@ -74,6 +75,7 @@ import {
   pickUploadChunkStrategy,
   planUploadChunkStrategy,
   resolveUploadContentType,
+  toCreateDocAclFields,
   uploadAdminDocument,
 } from '../upload.services';
 import {
@@ -172,6 +174,8 @@ export function DocumentsWorkspace() {
   const [writeMessage, setWriteMessage] = useState<string | null>(null);
   const [writePlan, setWritePlan] = useState<ForUploadResponse | null>(null);
   const [writePicked, setWritePicked] = useState('');
+  const [createOwnerDeptId, setCreateOwnerDeptId] = useState('');
+  const [createVisibilityLevel, setCreateVisibilityLevel] = useState<VisibilityLevel>(20);
   const [successorId, setSuccessorId] = useState('');
   const writePlanKbRef = useRef('');
   const writePlanGen = useRef(0);
@@ -230,7 +234,7 @@ export function DocumentsWorkspace() {
     }
     setRows(result.rows);
     setState('ready');
-    if (canManageDept && result.rows.length > 0) void ensureDeptOptions();
+    if (canManageDept) void ensureDeptOptions();
   }, [canView, canManageDept]);
 
   useEffect(() => {
@@ -335,7 +339,12 @@ export function DocumentsWorkspace() {
     const id = readStoredKbId().trim();
     setUploadBusy(true);
     setUploadMessage(null);
-    const result = await uploadAdminDocument(id, file, chunkStrategy);
+    const result = await uploadAdminDocument(
+      id,
+      file,
+      chunkStrategy,
+      toCreateDocAclFields(createOwnerDeptId, createVisibilityLevel),
+    );
     if (result.ok) {
       setUploadMessage('已上传，待审批');
       setPendingFile(null);
@@ -423,7 +432,13 @@ export function DocumentsWorkspace() {
     }
     setWriteBusy(true);
     setWriteMessage(null);
-    const result = await writeAdminDocument(id, writeTitle, writeMarkdown, picked.code);
+    const result = await writeAdminDocument(
+      id,
+      writeTitle,
+      writeMarkdown,
+      picked.code,
+      toCreateDocAclFields(createOwnerDeptId, createVisibilityLevel),
+    );
     if (result.ok) {
       setWriteMessage('已提交审批');
       setWriteTitle('');
@@ -642,6 +657,43 @@ export function DocumentsWorkspace() {
           </Button>
         </div>
       </div>
+      {canUpload || canEdit ? (
+        <div className="mb-3 flex flex-wrap items-end gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="create-owner-dept">新文档归属部门</Label>
+            <ClosedSelect
+              id="create-owner-dept"
+              value={createOwnerDeptId}
+              onValueChange={setCreateOwnerDeptId}
+              disabled={uploadBusy || writeBusy}
+              options={
+                canManageDept && deptOptions
+                  ? [
+                      { value: '', label: '库级' },
+                      ...deptOptions.map((d) => ({ value: d.id, label: d.name })),
+                    ]
+                  : [{ value: '', label: '库级' }]
+              }
+            />
+            {canManageDept && deptOptionsError ? (
+              <p className="text-sm text-destructive">{deptOptionsError}</p>
+            ) : null}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="create-visibility">新文档可见级</Label>
+            <ClosedSelect
+              id="create-visibility"
+              value={String(createVisibilityLevel)}
+              onValueChange={(v) => setCreateVisibilityLevel(toVisibilityLevel(v))}
+              disabled={uploadBusy || writeBusy}
+              options={VISIBILITY_LEVELS.map((level) => ({
+                value: String(level),
+                label: visibilityLabel(level),
+              }))}
+            />
+          </div>
+        </div>
+      ) : null}
       {uploadMessage ? <p className="mb-2 text-sm text-muted-foreground">{uploadMessage}</p> : null}
       {pendingFile && uploadPlan ? (
         <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">

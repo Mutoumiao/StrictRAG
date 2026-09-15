@@ -2,7 +2,7 @@
  * 目标：文档列表薄页必须按码控制详情/保存/部门列，失败则运营交互与权限不符。
  * 需求：文档运营 UI
  * 被测：DocumentsWorkspace · deptLabel / readyColLabel / visibilityLabel
- * 简介：部门列展示；行展开可编辑 aclPrincipals 名单。
+ * 简介：部门列展示；行展开可编辑 aclPrincipals 名单；创建面可标新文档部门。
  */
 
 import { within } from '@testing-library/react';
@@ -57,11 +57,13 @@ vi.mock('@/app/(ops)/documents/reindex.services', async (importOriginal) => {
 });
 
 const uploadAdminDocument = vi.fn();
+const planUploadChunkStrategy = vi.fn();
 vi.mock('@/app/(ops)/documents/upload.services', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/app/(ops)/documents/upload.services')>();
   return {
     ...actual,
     uploadAdminDocument: (...args: unknown[]) => uploadAdminDocument(...args),
+    planUploadChunkStrategy: (...args: unknown[]) => planUploadChunkStrategy(...args),
   };
 });
 
@@ -183,6 +185,7 @@ describe('DocumentsWorkspace', () => {
     saveDocumentMeta.mockReset();
     loadDepartmentOptions.mockReset();
     uploadAdminDocument.mockReset();
+    planUploadChunkStrategy.mockReset();
     writeAdminDocument.mockReset();
     planWriteChunkStrategy.mockReset();
     planReindexChunkStrategy.mockReset();
@@ -531,7 +534,7 @@ describe('DocumentsWorkspace', () => {
     const user = userEvent.setup();
     await user.click(await screen.findByText('请假制度'));
 
-    expect(await screen.findByText('FORBIDDEN: 需要 dept.manage')).toBeInTheDocument();
+    expect((await screen.findAllByText('FORBIDDEN: 需要 dept.manage')).length).toBeGreaterThan(0);
     expect(screen.queryByText('已保存')).not.toBeInTheDocument();
     expect((await screen.findByLabelText('归属部门')).tagName).toBe('INPUT');
   });
@@ -861,6 +864,107 @@ describe('DocumentsWorkspace 在线编写', () => {
     await screen.findByLabelText('编写标题');
     expect(screen.getByLabelText('编写正文')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '提交审批' })).toBeDisabled();
+  });
+});
+
+const AUTO_PLAN = {
+  contentType: 'text/plain',
+  family: 'txt' as const,
+  available: [
+    { code: 'structure_paragraph', name: '结构段落', implemented: true, recommended: true },
+  ],
+  recommendedCode: 'structure_paragraph',
+  requireExplicit: false,
+  autoCode: 'structure_paragraph',
+};
+
+describe('DocumentsWorkspace 上传标部门', () => {
+  beforeEach(() => {
+    me.permissions = [];
+    loadDocumentList.mockReset();
+    loadDepartmentOptions.mockReset();
+    uploadAdminDocument.mockReset();
+    planUploadChunkStrategy.mockReset();
+    writeAdminDocument.mockReset();
+    planWriteChunkStrategy.mockReset();
+    localStorage.clear();
+  });
+
+  it('无上传也无编写不显示新文档部门控件', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', 'kb-1');
+    me.permissions = ['admin.shell', 'doc.view'];
+    loadDocumentList.mockResolvedValue({ ok: true, rows: [listDoc] });
+    render(<DocumentsWorkspace />);
+    await screen.findByText('请假制度');
+    expect(screen.queryByLabelText('新文档归属部门')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('新文档可见级')).not.toBeInTheDocument();
+  });
+
+  it('有 doc.upload + dept.manage：选部门后上传带 uuid', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', 'kb-1');
+    me.permissions = ['admin.shell', 'doc.view', 'doc.upload', 'dept.manage'];
+    loadDocumentList.mockResolvedValue({ ok: true, rows: [listDoc] });
+    loadDepartmentOptions.mockResolvedValue({ ok: true, departments: [deptOption] });
+    planUploadChunkStrategy.mockResolvedValue({ ok: true, plan: AUTO_PLAN });
+    uploadAdminDocument.mockResolvedValue({ ok: true, docId: 'd-new' });
+
+    render(<DocumentsWorkspace />);
+    const user = userEvent.setup();
+    await screen.findByText('请假制度');
+    await waitFor(() => expect(loadDepartmentOptions).toHaveBeenCalled());
+    const deptTrigger = await screen.findByLabelText('新文档归属部门');
+    expect(deptTrigger.tagName).toBe('BUTTON');
+    expect(screen.queryByRole('combobox', { name: '新文档归属部门' })).not.toBeInTheDocument();
+    await user.click(deptTrigger);
+    const uploadListbox = await screen.findByRole('listbox');
+    await user.click(within(uploadListbox).getByRole('option', { name: '人事部' }));
+
+    const file = new File(['abc'], 'a.txt', { type: 'text/plain' });
+    await user.upload(screen.getByLabelText('上传文档'), file);
+
+    await waitFor(() => {
+      expect(uploadAdminDocument).toHaveBeenCalledWith(
+        'kb-1',
+        expect.any(File),
+        'structure_paragraph',
+        { ownerDeptId: DEPT_ID, visibilityLevel: 20 },
+      );
+    });
+  });
+
+  it('有 doc.editor：编写提交带创建面部门字段', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', 'kb-1');
+    me.permissions = ['admin.shell', 'doc.view', 'doc.editor', 'dept.manage'];
+    loadDocumentList.mockResolvedValue({ ok: true, rows: [listDoc] });
+    loadDepartmentOptions.mockResolvedValue({ ok: true, departments: [deptOption] });
+    planWriteChunkStrategy.mockResolvedValue({
+      ok: true,
+      plan: { ...AUTO_PLAN, contentType: 'text/markdown', family: 'md' },
+    });
+    writeAdminDocument.mockResolvedValue({ ok: true, docId: 'd-write' });
+
+    render(<DocumentsWorkspace />);
+    const user = userEvent.setup();
+    await screen.findByText('请假制度');
+    await waitFor(() => expect(loadDepartmentOptions).toHaveBeenCalled());
+    await user.click(screen.getByLabelText('新文档归属部门'));
+    const writeListbox = await screen.findByRole('listbox');
+    await user.click(within(writeListbox).getByRole('option', { name: '人事部' }));
+    await user.click(screen.getByRole('button', { name: '在线编写' }));
+    await screen.findByLabelText('编写标题');
+    await user.type(screen.getByLabelText('编写标题'), '差旅');
+    await user.type(screen.getByLabelText('编写正文'), '# 正文');
+    await user.click(screen.getByRole('button', { name: '提交审批' }));
+
+    await waitFor(() => {
+      expect(writeAdminDocument).toHaveBeenCalledWith(
+        'kb-1',
+        '差旅',
+        '# 正文',
+        'structure_paragraph',
+        { ownerDeptId: DEPT_ID, visibilityLevel: 20 },
+      );
+    });
   });
 });
 

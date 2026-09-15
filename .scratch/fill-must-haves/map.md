@@ -13,7 +13,7 @@ Status: open
 - 每轮先读：本图、`docs/agents/issue-tracker.md`、`docs/agents/domain.md`、功能表、相关包的 `docs/module-status/`。写代码前读 `.trellis/spec/` 对应包。执行完成后跑 skill `update-module-status`。
 - **覆盖「只做决策」**：工单可以动手补缺口，不只锁决策。
 - **本图是执行面**：缺口只在 `.scratch/fill-must-haves/` 工单上做完。`.trellis/tasks/08-06-project-backlog/` 只留指针和勾选。同一缺口禁止再 `task.py create` 平行实现任务。这只覆盖本图，不改全仓其它流程。
-- 顺序：本图 P2 语义已收官（第三批）；P2.5 出口走 **L2 归档准出**（工程路径 [L2 归档底线](./issues/14-l2-archive-floor.md) 已齐，人签仍图外）。鉴权/成员余量、入库报告、库选择器、admin 顶栏、web 关闭列表、启动引导超管、写路径锁超管全码、修改日志、三平面配额、失败 Webhook 已齐。P3b 可动手最小闭环已齐。P4 可动手代码真空已尽。P5 OCR 开闸与历史 `needs_ocr` 运营重跑已齐（默认关）；**P5 可动手代码真空已尽**。暂停已解除；在线编写最小闭环已齐（无 BlockNote）。生效区间最小闭环已齐。替代联动最小闭环已齐。删除与 purge 最小闭环已齐。文档类型成员面最小闭环已齐。上传 MIME 白名单最小闭环已齐。类型分区 CRUD 最小闭环已齐。下一张裁定开放。P3a 仍等 L2 人签。不默认开 `DEPT_ACL_ENFORCE`。不加角色 principal。不默认开 OCR。不自动全库重跑。
+- 顺序：本图 P2 语义已收官（第三批）；P2.5 出口走 **L2 归档准出**（工程路径 [L2 归档底线](./issues/14-l2-archive-floor.md) 已齐，人签仍图外）。鉴权/成员余量、入库报告、库选择器、admin 顶栏、web 关闭列表、启动引导超管、写路径锁超管全码、修改日志、三平面配额、失败 Webhook 已齐。P3b 可动手最小闭环已齐。P4 可动手代码真空已尽。P5 OCR 开闸与历史 `needs_ocr` 运营重跑已齐（默认关）；**P5 可动手代码真空已尽**。暂停已解除；在线编写最小闭环已齐（无 BlockNote）。生效区间最小闭环已齐。替代联动最小闭环已齐。删除与 purge 最小闭环已齐。文档类型成员面最小闭环已齐。上传 MIME 白名单最小闭环已齐。类型分区 CRUD 最小闭环已齐。上传表单标部门最小闭环已齐。下一张裁定开放。P3a 仍等 L2 人签。不默认开 `DEPT_ACL_ENFORCE`。不加角色 principal。不默认开 OCR。不自动全库重跑。
 - **站规（UI）**：web / admin 新下拉必须基于 `@strict-rag/ui` 关闭列表，禁止浏览器原生 `<select>` 外壳（含现有 ui `Select`）。`Button` / `Input` / `Textarea` 仍走 ui 包。本规不改 GET / 鉴权语义。
 
 ## Decisions so far
@@ -92,10 +92,12 @@ Status: open
 - [上传 MIME 白名单最小闭环](./issues/72-upload-mime-whitelist-min.md) — complete/upload-url/PUT 拒未知 MIME 与 octet-stream；checksum 落库/比对。无魔数嗅探 / 无 MD/TXT 更严体积。
 - [裁定上传 MIME 白名单后下一步](./issues/73-after-mime-whitelist-order.md) — 不选余量/真引擎/解锁站规/暂停/P4 雾；本批只做类型分区 CRUD 最小闭环。
 - [类型分区 CRUD 最小闭环](./issues/74-doc-type-catalog-min.md) — PATCH settings catalog `{code,label,sort,enabled}`；GET /doc-types 只回启用项真 label。无新表 / 无上传标部门。
+- [裁定类型分区 CRUD 后下一步](./issues/75-after-doc-type-catalog-order.md) — 不选余量/真引擎/解锁站规/暂停/P4 雾；本批只做上传表单标部门最小闭环。
+- [上传表单标部门最小闭环](./issues/76-upload-dept-fields-min.md) — 创建面 ClosedSelect 标部门/可见级；complete/write 带字段。无强制必填 / 无默认开强制。
 
 ## Not yet specified
 
-- 剩余 P2 半接线：在线编写完整体验其余（BlockNote / editor-draft；本批只做 Markdown 提交审批）；上传表单标部门 / MD/TXT 更严体积档仍后批
+- 剩余 P2 半接线：在线编写完整体验其余（BlockNote / editor-draft；本批只做 Markdown 提交审批）；MD/TXT 更严体积档 / 魔数嗅探 / paramSchema 动态表单仍后批
 - LangGraph 编排重构：技术栈冻结为 LangGraph.js（硬性标准）；源码现为线性状态机（`apps/api/src/graph/run.ts`），需后续重构为官方 LangGraph.js。另起路线
 - P3a Full 图（CRAG / multi_hop）；硬门在 L2 归档准出（工程路径是 L2 归档底线；人签不进本图）
 - P3b 尚未齐的强制检索面：仓库默认开 `DEPT_ACL_ENFORCE`、角色 principal

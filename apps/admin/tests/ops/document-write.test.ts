@@ -2,7 +2,7 @@
  * 目标：在线编写提交必须带非空标题与正文，并走 write HTTP。
  * 需求：功能表 §4.3 在线编写 · 工单「在线编写最小闭环」
  * 被测：canSubmitWrite · writeAdminDocument
- * 简介：HTTP 真值在 api。无 BlockNote。
+ * 简介：HTTP 真值在 api。可带部门两字段。无 BlockNote。
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -42,6 +42,28 @@ describe('writeAdminDocument', () => {
       title: '差旅',
       markdown: '# 正文',
       chunkStrategy: 'structure_paragraph',
+    });
+  });
+
+  it('可带 ownerDeptId 与 visibilityLevel', async () => {
+    writeDocument.mockResolvedValue({
+      docId: 'd1',
+      sourceType: 'write',
+      approvalStatus: 'pending',
+      status: 'uploaded',
+    });
+    const dept = '01900000-0000-7000-8000-0000000000de';
+    const r = await writeAdminDocument('kb1', '差旅', '# 正文', 'structure_paragraph', {
+      ownerDeptId: dept,
+      visibilityLevel: 30,
+    });
+    expect(r).toEqual({ ok: true, docId: 'd1' });
+    expect(writeDocument).toHaveBeenCalledWith('kb1', {
+      title: '差旅',
+      markdown: '# 正文',
+      chunkStrategy: 'structure_paragraph',
+      ownerDeptId: dept,
+      visibilityLevel: 30,
     });
   });
 

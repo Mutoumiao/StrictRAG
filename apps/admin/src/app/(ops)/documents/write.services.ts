@@ -3,7 +3,11 @@
 import { mapBizError } from '@/lib/map-biz-error';
 
 import { writeDocument } from './api';
-import { pickUploadChunkStrategy, planUploadChunkStrategy } from './upload.services';
+import {
+  pickUploadChunkStrategy,
+  planUploadChunkStrategy,
+  type CreateDocAclFields,
+} from './upload.services';
 
 export const WRITE_MARKDOWN_TYPE = 'text/markdown';
 
@@ -20,6 +24,7 @@ export async function writeAdminDocument(
   title: string,
   markdown: string,
   chunkStrategy: string,
+  acl?: CreateDocAclFields,
 ): Promise<WriteDocumentResult> {
   const trimmedTitle = title.trim();
   const trimmedMarkdown = markdown.trim();
@@ -31,6 +36,9 @@ export async function writeAdminDocument(
       title: trimmedTitle,
       markdown: trimmedMarkdown,
       chunkStrategy,
+      ...(acl
+        ? { ownerDeptId: acl.ownerDeptId, visibilityLevel: acl.visibilityLevel }
+        : {}),
     });
     return { ok: true, docId: data.docId };
   } catch (err) {
@@ -38,4 +46,7 @@ export async function writeAdminDocument(
   }
 }
 
-export { pickUploadChunkStrategy as pickWriteChunkStrategy, planUploadChunkStrategy as planWriteChunkStrategy };
+export {
+  pickUploadChunkStrategy as pickWriteChunkStrategy,
+  planUploadChunkStrategy as planWriteChunkStrategy,
+};

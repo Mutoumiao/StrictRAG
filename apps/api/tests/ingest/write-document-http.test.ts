@@ -2,7 +2,7 @@
  * 目标：在线编写必须落 Markdown 对象并进 pending，不得入队 scan。
  * 需求：功能表 §4.3 在线编写 · 剧本 V7 最小 · 工单「在线编写最小闭环」
  * 被测：POST /knowledge-bases/:kbId/documents/write
- * 简介：sourceType=write；空白拒；未实现策略 400 且不落库。无 BlockNote。
+ * 简介：sourceType=write；空白拒；未实现策略 400 且不落库；可带部门两字段。无 BlockNote。
  */
 
 import { Hono } from 'hono';
@@ -30,6 +30,7 @@ type DocRow = {
   byteSize: number | null;
   chunkStrategy: string | null;
   ownerDeptId: string | null;
+  visibilityLevel: number;
   aclPrincipals: string[] | null;
 };
 
@@ -65,6 +66,7 @@ vi.mock('../../src/services/documents.js', () => ({
         byteSize: null,
         chunkStrategy: null,
         ownerDeptId: null,
+        visibilityLevel: 20,
         aclPrincipals: null,
       });
       return input.id;
@@ -72,11 +74,16 @@ vi.mock('../../src/services/documents.js', () => ({
     getDoc: async (id: string) => docs.get(id) ?? null,
     patchMeta: async (
       id: string,
-      patch: { ownerDeptId?: string | null; aclPrincipals?: string[] | null },
+      patch: {
+        ownerDeptId?: string | null;
+        visibilityLevel?: number;
+        aclPrincipals?: string[] | null;
+      },
     ) => {
       const row = docs.get(id);
       if (!row) return;
       if (patch.ownerDeptId !== undefined) row.ownerDeptId = patch.ownerDeptId;
+      if (patch.visibilityLevel !== undefined) row.visibilityLevel = patch.visibilityLevel;
       if (patch.aclPrincipals !== undefined) row.aclPrincipals = patch.aclPrincipals;
     },
     markCompletePending: async (
@@ -238,5 +245,29 @@ describe('在线编写 HTTP', () => {
     expect(enqueued).toEqual([]);
     expect(putCalls).toHaveLength(0);
     expect(docs.size).toBe(0);
+  });
+
+  it('带 ownerDeptId / visibilityLevel → patchMeta 落库', async () => {
+    const app = buildApp();
+    const dept = '01900000-0000-7000-8000-0000000000de';
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/documents/write`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${await token()}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        title: '差旅标准',
+        markdown: '# 差旅\n\n住宿上限 500 元。',
+        ownerDeptId: dept,
+        visibilityLevel: 30,
+      }),
+    });
+    expect(res.status).toBe(201);
+    const json = (await res.json()) as { ok: boolean; data: { docId: string } };
+    expect(json.ok).toBe(true);
+    expect(docs.get(json.data.docId)?.ownerDeptId).toBe(dept);
+    expect(docs.get(json.data.docId)?.visibilityLevel).toBe(30);
+    expect(enqueued).toEqual([]);
   });
 });
