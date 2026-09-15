@@ -24,6 +24,7 @@ const ROW = {
   internalDropped: 1,
   crossDocDropped: 1,
   conflictPairs: [PAIR],
+  contextSource: 'l0' as const,
   dualReady: true,
   embedReady: true,
   esReady: true,
@@ -58,5 +59,8 @@ describe('IngestReportItemSchema', () => {
         conflictPairs: [{ ...PAIR, action: 'downrank' }],
       }).success,
     ).toBe(false);
+    expect(IngestReportItemSchema.safeParse({ ...ROW, contextSource: 'l1_llm' }).success).toBe(
+      false,
+    );
   });
 });

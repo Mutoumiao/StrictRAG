@@ -1190,6 +1190,7 @@ export function DocumentsWorkspace() {
                                   <li key={r.id}>
                                     v{r.indexVersion} · 分片 {r.chunkCount} · 文档内去重{' '}
                                     {r.internalDropped} · 跨文档去重 {r.crossDocDropped}
+                                    {r.contextSource ? ` · 情境 ${r.contextSource}` : ''}
                                     {r.conflictPairs.length > 0
                                       ? ` · 冲突 ${r.conflictPairs.map((p) => p.otherDocId).join(', ')}`
                                       : ''}

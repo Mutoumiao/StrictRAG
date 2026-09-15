@@ -7,9 +7,10 @@
 import type {
   ChunkStrategyCatalogItem,
   ChunkStrategyDocFamily,
+  ContextMode,
   PatchKbChunkStrategiesBody,
 } from '@strict-rag/contracts';
-import { CHUNK_STRATEGY_DOC_FAMILIES } from '@strict-rag/contracts';
+import { CHUNK_STRATEGY_DOC_FAMILIES, parseContextMode } from '@strict-rag/contracts';
 
 import { mapBizError } from '@/lib/map-biz-error';
 
@@ -48,18 +49,30 @@ export function recommendedCodeByFamily(
   return out;
 }
 
+export function effectiveContextMode(item: ChunkStrategyCatalogItem): ContextMode {
+  return parseContextMode(item.paramOverrides?.contextMode ?? item.paramSchema.contextMode);
+}
+
 export function toPatchItems(
   items: ChunkStrategyCatalogItem[],
   enabled: Record<string, boolean>,
   recommendedByFamily: Record<ChunkStrategyDocFamily, string>,
+  contextModeByCode: Record<string, string>,
 ): PatchKbChunkStrategiesBody {
   return {
-    items: items.map((i) => ({
-      code: i.code,
-      enabled: enabled[i.code] ?? i.enabled,
-      recommendedFamilies: CHUNK_STRATEGY_DOC_FAMILIES.filter(
-        (f) => recommendedByFamily[f] === i.code,
-      ),
-    })),
+    items: items.map((i) => {
+      const mode = contextModeByCode[i.code];
+      const prev = i.paramOverrides ?? {};
+      return {
+        code: i.code,
+        enabled: enabled[i.code] ?? i.enabled,
+        recommendedFamilies: CHUNK_STRATEGY_DOC_FAMILIES.filter(
+          (f) => recommendedByFamily[f] === i.code,
+        ),
+        ...(i.implemented && mode
+          ? { paramOverrides: { ...prev, contextMode: mode } }
+          : {}),
+      };
+    }),
   };
 }

@@ -8,6 +8,7 @@ import {
   DEFAULT_CHUNK_STRATEGY_PARAMS,
   IMPLEMENTED_CHUNK_STRATEGIES,
   docFamilyFromContentType,
+  invalidContextModeOverride,
   isImplementedChunkStrategy,
   type ForUploadResponse,
   type ChunkStrategyCatalogItem,
@@ -253,6 +254,10 @@ export async function applyKbChunkStrategyPatch(
   for (const item of body.items) {
     if (!known.has(item.code)) {
       return { ok: false, message: `unknown chunkStrategy: ${item.code}` };
+    }
+    const modeErr = invalidContextModeOverride(item.paramOverrides);
+    if (modeErr) {
+      return { ok: false, message: modeErr };
     }
   }
   const existing = await activeCatalogRepo().listKbStrategies(kbId);

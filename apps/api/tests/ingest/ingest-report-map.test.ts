@@ -19,6 +19,7 @@ describe('toIngestReportItem', () => {
       chunkCount: 3,
       internalDropped: 1,
       crossDocDropped: 2,
+      contextSource: 'l0_fallback',
       conflictPairs: [
         {
           otherDocId: '01900000-0000-7000-8000-0000000000d2',
@@ -36,6 +37,7 @@ describe('toIngestReportItem', () => {
     });
     expect(item.dualReady).toBe(true);
     expect(item.crossDocDropped).toBe(2);
+    expect(item.contextSource).toBe('l0_fallback');
     expect(item.conflictPairs).toHaveLength(1);
     expect(item.reconcile).toEqual({ ok: true, missingCount: 0, orphanCount: 0 });
   });
@@ -49,6 +51,7 @@ describe('toIngestReportItem', () => {
       chunkCount: 0,
       internalDropped: 4,
       crossDocDropped: 0,
+      contextSource: 'bogus',
       conflictPairs: [],
       dualReady: 0,
       embedReady: 0,
@@ -61,5 +64,6 @@ describe('toIngestReportItem', () => {
     expect(item.dualReady).toBe(false);
     expect(item.reconcile).toBeNull();
     expect(item.internalDropped).toBe(4);
+    expect(item.contextSource).toBeNull();
   });
 });

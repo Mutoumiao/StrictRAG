@@ -1,6 +1,9 @@
 import {
   DEFAULT_CHUNK_STRATEGY,
   isImplementedChunkStrategy,
+  l0ContextPrefix,
+  parseContextMode,
+  resolveContextSource,
 } from '@strict-rag/contracts';
 import {
   chunkEmbeddings,
@@ -519,6 +522,9 @@ async function runIngestStageCore(
         kbId: doc.kbId,
         excludeDocId: doc.id,
       });
+      const contextMode = parseContextMode(doc.chunkStrategyParams?.contextMode);
+      const contextSource = resolveContextSource(contextMode);
+      const prefix = l0ContextPrefix(doc.title ?? '');
       for (const body of pieces) {
         const norm = body.toLowerCase();
         if (seen.has(norm)) {
@@ -534,7 +540,6 @@ async function runIngestStageCore(
         }
         const id = uuidv7();
         chunkIds.push(id);
-        const prefix = `${doc.title} / section`;
         await db.insert(chunks).values({
           id,
           tenantId: doc.tenantId,
@@ -579,6 +584,7 @@ async function runIngestStageCore(
           internalDropped,
           crossDocDropped,
           conflictPairs,
+          contextSource,
           dualReady: false,
           embedReady: false,
           esReady: false,
@@ -612,6 +618,7 @@ async function runIngestStageCore(
         internalDropped,
         crossDocDropped,
         conflictPairs,
+        contextSource,
         dualReady: false,
         embedReady: false,
         esReady: false,

@@ -40,11 +40,47 @@ export const KNOWN_CHUNK_STRATEGY_CODES = [
 export const CHUNK_STRATEGY_DOC_FAMILIES = ['md', 'txt', 'docx', 'pdf_text'] as const;
 export type ChunkStrategyDocFamily = (typeof CHUNK_STRATEGY_DOC_FAMILIES)[number];
 
+export const CONTEXT_MODES = ['l0_template', 'l1_llm'] as const;
+export type ContextMode = (typeof CONTEXT_MODES)[number];
+
+/** 本轮可落库来源。l1_llm 成功要等 Gateway contextualize，禁止先写。 */
+export const CONTEXT_SOURCES = ['l0', 'l0_fallback'] as const;
+export type ContextSource = (typeof CONTEXT_SOURCES)[number];
+
 export const DEFAULT_CHUNK_STRATEGY_PARAMS = {
   chunkTokens: 256,
   chunkOverlap: 32,
   contextMode: 'l1_llm',
 } as const;
+
+export function isContextMode(raw: unknown): raw is ContextMode {
+  return raw === 'l0_template' || raw === 'l1_llm';
+}
+
+export function parseContextMode(raw: unknown): ContextMode {
+  return isContextMode(raw) ? raw : DEFAULT_CHUNK_STRATEGY_PARAMS.contextMode;
+}
+
+/** L0：无小节路径只用标题，禁止字面量 section。 */
+export function l0ContextPrefix(title: string, sectionPath?: string | null): string {
+  const t = title.trim();
+  const path = (sectionPath ?? '').trim();
+  return path.length > 0 ? `${t} / ${path}` : t;
+}
+
+export function resolveContextSource(mode: ContextMode): ContextSource {
+  return mode === 'l0_template' ? 'l0' : 'l0_fallback';
+}
+
+export function invalidContextModeOverride(
+  overrides: Record<string, unknown> | null | undefined,
+): string | null {
+  if (overrides == null || !Object.prototype.hasOwnProperty.call(overrides, 'contextMode')) {
+    return null;
+  }
+  if (isContextMode(overrides.contextMode)) return null;
+  return `invalid contextMode: ${String(overrides.contextMode)}`;
+}
 
 const TEXT_FAMILIES: ChunkStrategyDocFamily[] = ['md', 'txt', 'docx', 'pdf_text'];
 

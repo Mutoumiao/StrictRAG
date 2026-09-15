@@ -2,6 +2,7 @@
  * 入库报告最小落库。失败只 warn，不阻断状态机。
  */
 
+import type { ContextSource } from '@strict-rag/contracts';
 import { ingestReports, type Db, type IngestReportConflictPair } from '@strict-rag/db';
 import { and, eq } from 'drizzle-orm';
 import { uuidv7 } from 'uuidv7';
@@ -23,6 +24,7 @@ export type IngestReportSnapshot = {
   internalDropped: number;
   crossDocDropped: number;
   conflictPairs: readonly IngestReportConflictPair[];
+  contextSource?: ContextSource | null;
   dualReady: boolean;
   embedReady: boolean;
   esReady: boolean;
@@ -31,6 +33,15 @@ export type IngestReportSnapshot = {
 
 export function flag(value: boolean): 0 | 1 {
   return value ? 1 : 0;
+}
+
+function keepContextSource(
+  existing: string | null | undefined,
+  snapshot: ContextSource | null | undefined,
+): ContextSource | null {
+  if (existing === 'l0' || existing === 'l0_fallback') return existing;
+  if (snapshot === 'l0' || snapshot === 'l0_fallback') return snapshot;
+  return null;
 }
 
 export function buildIngestReportInsert(snapshot: IngestReportSnapshot) {
@@ -44,6 +55,7 @@ export function buildIngestReportInsert(snapshot: IngestReportSnapshot) {
     internalDropped: snapshot.internalDropped,
     crossDocDropped: snapshot.crossDocDropped,
     conflictPairs: [...snapshot.conflictPairs],
+    contextSource: snapshot.contextSource ?? null,
     dualReady: flag(snapshot.dualReady),
     embedReady: flag(snapshot.embedReady),
     esReady: flag(snapshot.esReady),
@@ -60,6 +72,7 @@ export function buildIngestReportPatch(snapshot: IngestReportSnapshot) {
     internalDropped: row.internalDropped,
     crossDocDropped: row.crossDocDropped,
     conflictPairs: row.conflictPairs,
+    contextSource: row.contextSource,
     dualReady: row.dualReady,
     embedReady: row.embedReady,
     esReady: row.esReady,
@@ -77,6 +90,7 @@ export async function persistIngestReport(db: Db, snapshot: IngestReportSnapshot
         internalDropped: ingestReports.internalDropped,
         crossDocDropped: ingestReports.crossDocDropped,
         conflictPairs: ingestReports.conflictPairs,
+        contextSource: ingestReports.contextSource,
       })
       .from(ingestReports)
       .where(
@@ -91,6 +105,7 @@ export async function persistIngestReport(db: Db, snapshot: IngestReportSnapshot
       internalDropped: existing[0]?.internalDropped ?? snapshot.internalDropped,
       crossDocDropped: existing[0]?.crossDocDropped ?? snapshot.crossDocDropped,
       conflictPairs: existing[0]?.conflictPairs ?? snapshot.conflictPairs,
+      contextSource: keepContextSource(existing[0]?.contextSource, snapshot.contextSource),
     };
     if (existing[0]) {
       await db

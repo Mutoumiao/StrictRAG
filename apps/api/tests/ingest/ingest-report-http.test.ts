@@ -57,6 +57,7 @@ const ROW: IngestReportItem = {
   chunkCount: 2,
   internalDropped: 0,
   crossDocDropped: 1,
+  contextSource: 'l0',
   conflictPairs: [
     {
       otherDocId: '01900000-0000-7000-8000-0000000000d2',

@@ -1,4 +1,4 @@
-import { integer, jsonb, pgTable, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { integer, jsonb, pgTable, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
 import { baseColumns } from '../_shard/base-columns.js';
 
@@ -10,7 +10,7 @@ export type IngestReportConflictPair = {
 
 /**
  * 入库报告（可查询行）。
- * 按 doc + indexVersion 一版；含跨 doc skip 计数与冲突对；不含 pending_review / Hit@k。
+ * 按 doc + indexVersion 一版；含跨 doc skip 计数与冲突对、情境来源；不含 pending_review / Hit@k / l1_llm。
  */
 export const ingestReports = pgTable(
   'ingest_reports',
@@ -24,6 +24,7 @@ export const ingestReports = pgTable(
     internalDropped: integer('internal_dropped').notNull(),
     crossDocDropped: integer('cross_doc_dropped').notNull(),
     conflictPairs: jsonb('conflict_pairs').$type<IngestReportConflictPair[]>().notNull(),
+    contextSource: text('context_source'),
     dualReady: integer('dual_ready').notNull(),
     embedReady: integer('embed_ready').notNull(),
     esReady: integer('es_ready').notNull(),

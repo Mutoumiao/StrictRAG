@@ -7,6 +7,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { within } from '@testing-library/react';
 import { render, screen, userEvent, waitFor } from '@/test/test-utils';
 
 const loadKbChunkStrategies = vi.fn();
@@ -37,7 +38,7 @@ describe('ChunkStrategyPanel', () => {
           implemented: true,
           system: true,
           docFamilies: ['txt'],
-          paramSchema: {},
+          paramSchema: { contextMode: 'l1_llm' },
           pipelineId: 'ingest-chunk',
           enabled: true,
           recommendedFamilies: ['txt'],
@@ -49,7 +50,7 @@ describe('ChunkStrategyPanel', () => {
           implemented: false,
           system: true,
           docFamilies: ['txt'],
-          paramSchema: {},
+          paramSchema: { contextMode: 'l1_llm' },
           pipelineId: 'ingest-chunk',
           enabled: false,
           recommendedFamilies: [],
@@ -75,5 +76,47 @@ describe('ChunkStrategyPanel', () => {
       items: Array<{ code: string; enabled: boolean }>;
     };
     expect(body.items.find((i) => i.code === 'fixed_window')?.enabled).toBe(true);
+  });
+
+  it('overrides 为 l0_template 时展示召回增强关闭', async () => {
+    loadKbChunkStrategies.mockResolvedValue({
+      ok: true,
+      items: [
+        {
+          code: 'structure_paragraph',
+          name: '结构段落',
+          implemented: true,
+          system: true,
+          docFamilies: ['txt'],
+          paramSchema: { contextMode: 'l1_llm' },
+          pipelineId: 'ingest-chunk',
+          enabled: true,
+          recommendedFamilies: ['txt'],
+          paramOverrides: { contextMode: 'l0_template' },
+        },
+      ],
+    });
+    render(<ChunkStrategyPanel kbId="kb-1" canWrite />);
+    expect(await screen.findByText('召回增强关闭')).toBeInTheDocument();
+  });
+
+  it('打开设置可选 L0 模板并写入 paramOverrides.contextMode', async () => {
+    render(<ChunkStrategyPanel kbId="kb-1" canWrite />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: '设置' }));
+    const trigger = await screen.findByRole('button', { name: '情境前缀 structure_paragraph' });
+    await user.click(trigger);
+    const listbox = await screen.findByRole('listbox');
+    await user.click(within(listbox).getByRole('option', { name: /L0 模板/ }));
+    await user.click(screen.getByRole('button', { name: '保存策略' }));
+    await waitFor(() => {
+      expect(saveKbChunkStrategies).toHaveBeenCalled();
+    });
+    const body = saveKbChunkStrategies.mock.calls[0]?.[1] as {
+      items: Array<{ code: string; paramOverrides?: Record<string, unknown> }>;
+    };
+    expect(body.items.find((i) => i.code === 'structure_paragraph')?.paramOverrides).toMatchObject({
+      contextMode: 'l0_template',
+    });
   });
 });

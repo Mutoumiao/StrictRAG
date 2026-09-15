@@ -18,7 +18,9 @@
 | 增删 catalog / 扩实现 | contracts `IMPLEMENTED_*` 与 api REGISTRY 对齐 |
 | 旧文档策略 | **禁止**因注册表变更自动切换既有 `documents.chunkStrategy` |
 
-**不在范围**：平台注册表运营 CRUD 页；paramSchema 动态表单引擎；worker 新算法；真 OCR 引擎；worker 启动自动全库 reindex。
+**不在范围**：平台注册表运营 CRUD 页；paramSchema **通用**动态表单引擎；worker 新切块算法；真 L1 Gateway contextualize；真 OCR 引擎；worker 启动自动全库 reindex。
+
+`contextMode` 是硬必须单控件（`l0_template` / `l1_llm`）：PATCH `paramOverrides.contextMode`；非法值 400 `invalid contextMode`。worker 必须读文档快照；本轮 `l1_llm` 诚实回退 L0（报告 `l0_fallback`），**不得**写 `contextSource=l1_llm`。
 
 ### 2. 两层集合（防假 SSOT）
 

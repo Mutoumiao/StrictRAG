@@ -117,6 +117,55 @@ describe('chunk strategy catalog HTTP', () => {
     expect(body.data.autoCode).toBe('structure_paragraph');
   });
 
+  it('PATCH contextMode=l0_template → 200 且 overrides 可回读', async () => {
+    const { userId, accessToken } = await token(['kb_admin']);
+    const app = buildApp(new Set([userId]));
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/chunk-strategies`, {
+      method: 'PATCH',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        items: [
+          {
+            code: 'structure_paragraph',
+            enabled: true,
+            paramOverrides: { contextMode: 'l0_template' },
+          },
+        ],
+      }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { items: Array<{ code: string; paramOverrides: Record<string, unknown> | null }> };
+    };
+    const para = body.data.items.find((i) => i.code === 'structure_paragraph');
+    expect(para?.paramOverrides).toMatchObject({ contextMode: 'l0_template' });
+  });
+
+  it('PATCH 非法 contextMode → 400', async () => {
+    const { userId, accessToken } = await token(['kb_admin']);
+    const app = buildApp(new Set([userId]));
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/chunk-strategies`, {
+      method: 'PATCH',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        items: [
+          {
+            code: 'structure_paragraph',
+            enabled: true,
+            paramOverrides: { contextMode: 'l2' },
+          },
+        ],
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
+
   it('PATCH 启用未知码 → 400', async () => {
     const { userId, accessToken } = await token(['kb_admin']);
     const app = buildApp(new Set([userId]));

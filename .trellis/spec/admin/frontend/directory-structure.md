@@ -32,7 +32,7 @@ apps/admin/
         approvals/            # 审批
         members/              # KB 成员
         chunks/               # B1 分片只读
-        kb/settings/          # B2 知识库设置（薄；类型分区逐条 CRUD；分片策略弹窗启用/recommended；KB 消费绑定三档 ClosedSelect；页内修改日志）
+        kb/settings/          # B2 知识库设置（薄；类型分区逐条 CRUD；分片策略弹窗启用/recommended + contextMode ClosedSelect；KB 消费绑定三档 ClosedSelect；页内修改日志）
         models/               # B3 模型供应商 + 平台绑定（薄）
         users/                # B4 平台用户（末位超管禁用/剥角色不可点）
         roles/                # B4 角色

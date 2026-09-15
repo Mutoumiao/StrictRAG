@@ -110,6 +110,7 @@ const mine: IngestReportItem = {
   chunkCount: 3,
   internalDropped: 1,
   crossDocDropped: 1,
+  contextSource: 'l0' as const,
   conflictPairs: [
     {
       otherDocId: OTHER_ID,
@@ -160,7 +161,7 @@ describe('DocumentsWorkspace 入库报告', () => {
     const user = userEvent.setup();
     await user.click(await screen.findByText('请假制度'));
     expect(
-      await screen.findByText(/v1 · 分片 3 · 文档内去重 1 · 跨文档去重 1/),
+      await screen.findByText(/v1 · 分片 3 · 文档内去重 1 · 跨文档去重 1 · 情境 l0/),
     ).toBeInTheDocument();
     expect(screen.getByText(new RegExp(`冲突 ${OTHER_ID}`))).toBeInTheDocument();
     expect(screen.getByText(/双就绪/)).toBeInTheDocument();

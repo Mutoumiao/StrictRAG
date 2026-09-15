@@ -18,6 +18,7 @@ describe('ingestReports schema', () => {
     expect(ingestReports.internalDropped.name).toBe('internal_dropped');
     expect(ingestReports.crossDocDropped.name).toBe('cross_doc_dropped');
     expect(ingestReports.conflictPairs.name).toBe('conflict_pairs');
+    expect(ingestReports.contextSource.name).toBe('context_source');
     expect(ingestReports.dualReady.name).toBe('dual_ready');
     expect(ingestReports.embedReady.name).toBe('embed_ready');
     expect(ingestReports.esReady.name).toBe('es_ready');

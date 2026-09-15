@@ -1,21 +1,28 @@
 'use client';
 
 /**
- * 分片策略设置弹窗：启用哪些 + 各 MIME 族 recommended。不自动全库 reindex。
+ * 分片策略设置弹窗：启用哪些 + 各 MIME 族 recommended + contextMode 单控件。不自动全库 reindex。
  */
 
 import { useEffect, useState } from 'react';
 import type { ChunkStrategyCatalogItem, ChunkStrategyDocFamily } from '@strict-rag/contracts';
 import { CHUNK_STRATEGY_DOC_FAMILIES } from '@strict-rag/contracts';
 import { Button } from '@strict-rag/ui/components/ui/button';
+import { ClosedSelect } from '@strict-rag/ui/components/ui/closed-select';
 import { Label } from '@strict-rag/ui/components/ui/label';
 
 import {
+  effectiveContextMode,
   loadKbChunkStrategies,
   recommendedCodeByFamily,
   saveKbChunkStrategies,
   toPatchItems,
 } from '../chunk-strategy.services';
+
+const CONTEXT_MODE_OPTIONS = [
+  { value: 'l1_llm', label: 'L1（默认；本轮入库回退 L0）' },
+  { value: 'l0_template', label: 'L0 模板（召回增强关闭）' },
+];
 
 const FAMILY_LABEL: Record<ChunkStrategyDocFamily, string> = {
   md: 'md',
@@ -31,11 +38,12 @@ export function ChunkStrategyPanel({ kbId, canWrite }: { kbId: string; canWrite:
   const [recommended, setRecommended] = useState<Record<ChunkStrategyDocFamily, string>>(
     {} as Record<ChunkStrategyDocFamily, string>,
   );
+  const [contextMode, setContextMode] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!open || !kbId) return;
+    if (!kbId) return;
     let cancelled = false;
     void (async () => {
       const loaded = await loadKbChunkStrategies(kbId);
@@ -47,16 +55,24 @@ export function ChunkStrategyPanel({ kbId, canWrite }: { kbId: string; canWrite:
       setItems(loaded.items);
       setEnabled(Object.fromEntries(loaded.items.map((i) => [i.code, i.enabled])));
       setRecommended(recommendedCodeByFamily(loaded.items));
+      setContextMode(
+        Object.fromEntries(
+          loaded.items.filter((i) => i.implemented).map((i) => [i.code, effectiveContextMode(i)]),
+        ),
+      );
       setMessage(null);
     })();
     return () => {
       cancelled = true;
     };
-  }, [open, kbId]);
+  }, [kbId]);
 
   async function onSave() {
     setBusy(true);
-    const result = await saveKbChunkStrategies(kbId, toPatchItems(items, enabled, recommended));
+    const result = await saveKbChunkStrategies(
+      kbId,
+      toPatchItems(items, enabled, recommended, contextMode),
+    );
     setBusy(false);
     if (!result.ok) {
       setMessage(result.message);
@@ -65,10 +81,16 @@ export function ChunkStrategyPanel({ kbId, canWrite }: { kbId: string; canWrite:
     setItems(result.items);
     setEnabled(Object.fromEntries(result.items.map((i) => [i.code, i.enabled])));
     setRecommended(recommendedCodeByFamily(result.items));
+    setContextMode(
+      Object.fromEntries(
+        result.items.filter((i) => i.implemented).map((i) => [i.code, effectiveContextMode(i)]),
+      ),
+    );
     setMessage('已保存策略启用。不会自动 reindex 旧文档。');
   }
 
   const enabledCodes = items.filter((i) => enabled[i.code] && i.implemented).map((i) => i.code);
+  const retrievalClosed = Object.values(contextMode).some((mode) => mode === 'l0_template');
 
   return (
     <section className="space-y-3 rounded-lg border border-border p-4">
@@ -87,6 +109,9 @@ export function ChunkStrategyPanel({ kbId, canWrite }: { kbId: string; canWrite:
       <p className="text-xs text-muted-foreground">
         改库启用不会自动全库 reindex。未实现码可列不可用于上传。
       </p>
+      {retrievalClosed ? (
+        <p className="text-xs font-medium">召回增强关闭</p>
+      ) : null}
       {open ? (
         <div
           role="dialog"
@@ -139,6 +164,30 @@ export function ChunkStrategyPanel({ kbId, canWrite }: { kbId: string; canWrite:
               </div>
             ))}
           </fieldset>
+          {items.some((i) => i.implemented) ? (
+            <fieldset className="space-y-2">
+              <legend className="text-xs font-medium">情境前缀</legend>
+              {items
+                .filter((i) => i.implemented)
+                .map((i) => (
+                  <div key={`ctx-${i.code}`} className="space-y-1.5">
+                    <Label htmlFor={`context-mode-${i.code}`} className="text-xs font-mono">
+                      {i.code}
+                    </Label>
+                    <ClosedSelect
+                      id={`context-mode-${i.code}`}
+                      aria-label={`情境前缀 ${i.code}`}
+                      value={contextMode[i.code] ?? 'l1_llm'}
+                      onValueChange={(value) =>
+                        setContextMode((prev) => ({ ...prev, [i.code]: value }))
+                      }
+                      options={CONTEXT_MODE_OPTIONS}
+                      disabled={!canWrite || busy}
+                    />
+                  </div>
+                ))}
+            </fieldset>
+          ) : null}
           <Button type="button" size="sm" disabled={!canWrite || busy} onClick={() => void onSave()}>
             保存策略
           </Button>

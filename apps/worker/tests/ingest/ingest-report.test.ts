@@ -29,6 +29,7 @@ const SNAP: IngestReportSnapshot = {
   internalDropped: 2,
   crossDocDropped: 3,
   conflictPairs: [PAIR],
+  contextSource: 'l0',
   dualReady: false,
   embedReady: false,
   esReady: false,
@@ -42,6 +43,7 @@ describe('ingest report persist', () => {
     expect(row.internalDropped).toBe(2);
     expect(row.crossDocDropped).toBe(3);
     expect(row.conflictPairs).toEqual([PAIR]);
+    expect(row.contextSource).toBe('l0');
     expect(row.dualReady).toBe(0);
     expect(row.reconcileOk).toBeNull();
     expect(row.reconcileMissing).toBeNull();
@@ -79,6 +81,7 @@ describe('ingest report persist', () => {
                   internalDropped: 2,
                   crossDocDropped: 3,
                   conflictPairs: [PAIR],
+                  contextSource: 'l0',
                 },
               ];
             },
@@ -105,6 +108,7 @@ describe('ingest report persist', () => {
       internalDropped: 0,
       crossDocDropped: 0,
       conflictPairs: [],
+      contextSource: null,
       dualReady: true,
       embedReady: true,
       esReady: true,
@@ -121,6 +125,7 @@ describe('ingest report persist', () => {
     expect(patch.internalDropped).toBe(2);
     expect(patch.crossDocDropped).toBe(3);
     expect(patch.conflictPairs).toEqual([PAIR]);
+    expect(patch.contextSource).toBe('l0');
     expect(patch.dualReady).toBe(1);
   });
 });

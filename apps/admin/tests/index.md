@@ -32,7 +32,7 @@
 | `ops/document-lifecycle.test.ts` | 文档生命周期入口闸必须按状态判断，失败则未就绪也可发布。 | 功能表 §4.3 | `canPublish / canRevertDraft / canArchive / canSupersede / eligibleSuccessorOptions / canSubmitSupersede` | 上架仅 ready+draft；后继排除自己与未 ready。 | 现行 |
 | `ops/document-ops-label.test.ts` | 文档列表运营标签必须按 status × lifecycle 映射八态，失败则合成一个模糊状态。 | 功能表 §4.3 | `opsLabel` | 终态优先；原串另列。 | 现行 |
 | `ops/document-reindex.test.ts` | Reindex 人选在可用策略 ≥2 时未选不得提交。 | 功能表 §4.3 | `pickReindexChunkStrategy` | HTTP 闸在 api。 | 现行 |
-| `ops/chunk-strategy-panel.test.tsx` | 知识库设置分片策略弹窗必须能启用策略并保存 recommended，且声明不自动 reindex。 | 功能表 §4.5 | `ChunkStrategyPanel` | HTTP 真值在 api。 | 现行 |
+| `ops/chunk-strategy-panel.test.tsx` | 知识库设置分片策略弹窗必须能启用策略并保存 recommended，且可把 contextMode 打到 L0。 | 功能表 §4.5 · 入库 PRD §4 | `ChunkStrategyPanel` | HTTP 真值在 api。l0_template 标召回增强关闭。 | 现行 |
 | `ops/document-upload.test.ts` | 上传服务必须按 upload-url → PUT → complete 调用，失败则入口顺序错乱。 | 上传入口 · ADR-039 · 工单「上传表单标部门最小闭环」 | `uploadAdminDocument · resolveUploadContentType · toCreateDocAclFields` | 未知类型不调 upload-url；complete 带 checksum 与可选部门字段。体积闸真值在 api。 | 现行 |
 | `ops/document-write.test.ts` | 在线编写提交必须带非空标题与正文，并走 write HTTP。 | 功能表 §4.3 在线编写 · 工单「上传表单标部门最小闭环」 | `canSubmitWrite · writeAdminDocument` | HTTP 真值在 api。可带部门两字段。无 BlockNote。 | 现行 |
 | `ops/documents-workspace.test.tsx` | 文档列表薄页必须按码控制详情/保存/部门列，失败则运营交互与权限不符。 | 文档运营 UI · 工单「上传表单标部门最小闭环」 | `DocumentsWorkspace · deptLabel / readyColLabel / visibilityLabel` | 含类型列、运营标签、Reindex、归档、删除、在线编写区、创建面部门关闭列表；行展开名单与生效区间；PATCH 含 effectiveFrom/To；有码可选后继替代；删除走 DELETE 不走 PATCH。 | 现行 |

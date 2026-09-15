@@ -33,9 +33,10 @@
 | `ingest/failure-webhook.test.ts` | 入库阶段失败须按可选 URL 发一次 Webhook，空 URL 不发，失败不得阻断账本。 | 功能表 §10.3 | `notifyIngestFailure · recordStageEnd` | POST JSON 只试一次；无正文/密钥；非 2xx 只 warn。 | 现行 |
 | `ingest/header-too-short.test.ts` | 仅页眉约 20 字不得 parse 成功、不得 ready。 | 剧本 Q3 · prds/10-delivery/03-acceptance-scenarios.md · ADR-043 | `runIngestStage` parse 字数闸 | 过短全文 needs_ocr + NO_TEXT_LAYER；不得物化成功 manifest。 | 现行 |
 | `ingest/idempotency.test.ts` | 重试不重分块；半套稀疏索引不得假完成。 | X-04 | `decideChunkPath · missingEmbeddingChunkIds · mockEsStore · isIngestErrorRetryable` | indexVersion 路径、缺 embedding 补齐、retry 矩阵。 | 现行 |
-| `ingest/ingest-report.test.ts` | 入库报告落库只写真事；同 version 更新保留文档内与跨 doc dropped。 | 功能表 §4.3 / §5.2 | `buildIngestReportInsert · persistIngestReport` | 非阻断；含跨 doc 冲突对；不含 Hit@k。 | 现行 |
+| `ingest/ingest-report.test.ts` | 入库报告落库只写真事；同 version 更新保留文档内与跨 doc dropped 及情境来源。 | 功能表 §4.3 / §5.2 | `buildIngestReportInsert · persistIngestReport` | 非阻断；含跨 doc 冲突对与 contextSource；不含 Hit@k。 | 现行 |
 | `ingest/cross-doc-dedupe.test.ts` | 同 KB 跨文档近重复须按字 3-gram Jaccard≥0.9 命中；跨 KB / archived 不比。 | 入库 PRD §5 · 功能表 §6 | `isCrossDocNearDup · findCrossDocConflict · loadCrossDocSearchableChunks` | 无 LSH；不是 pending_review。 | 现行 |
 | `ingest/cross-doc-skip-index.test.ts` | 同 KB 近重复块须 skip_index 不进 manifest，报告写出冲突对；全 skip 不得 ready。 | 入库 PRD §5 · 功能表 §4.3 / §6 | `runIngestStage chunk` | 跨 KB 不比；archived 不挡。 | 现行 |
+| `ingest/context-mode-obey.test.ts` | chunk 必须服从快照 contextMode；L0 只用标题；l1_llm 本轮回退不得声称已跑 L1。 | 入库 PRD §4 · 功能表 §6 | `runIngestStage chunk` | 无 Gateway。禁止字面量 section。 | 现行 |
 | `ingest/job-ledger.test.ts` | ingest_jobs 阶段账本须记录开始/结束与失败码。 | X-04 | `buildStageStartRow · buildStageEndPatch · recordStageStart · recordStageEnd` | 最小账本行、成功链、失败码、pipeline 接线。 | 现行 |
 | `ingest/mongo-body.test.ts` | 空 Mongo URL 不得真连，走 local id。 | prds/03-data | `localMongoDocId · upsertDocumentBody · findDocumentBody · pingMongo · deleteBodiesForDoc` | 空 url 返回 local:docId / null / false；删正文不连。 | 现行 |
 | `ingest/mock-clean-stage-chain.test.ts` | mock_clean 须从 scanning 走到双就绪 ready。 | 剧本 M3 · prds/10-delivery/03-acceptance-scenarios.md · ADR-039 | `runIngestStage` | 默认 mock ES；≠ 生产扫描 / ≠ 真杀毒。 | 现行 |

@@ -13,6 +13,7 @@ export function toIngestReportItem(row: {
   internalDropped: number;
   crossDocDropped: number;
   conflictPairs: IngestReportConflictPair[] | null;
+  contextSource: string | null;
   dualReady: number;
   embedReady: number;
   esReady: number;
@@ -38,6 +39,10 @@ export function toIngestReportItem(row: {
     internalDropped: row.internalDropped,
     crossDocDropped: row.crossDocDropped,
     conflictPairs: row.conflictPairs ?? [],
+    contextSource:
+      row.contextSource === 'l0' || row.contextSource === 'l0_fallback'
+        ? row.contextSource
+        : null,
     dualReady: row.dualReady === 1,
     embedReady: row.embedReady === 1,
     esReady: row.esReady === 1,
@@ -62,6 +67,7 @@ export const ingestReportsRepo: IngestReportRepo = {
         internalDropped: ingestReports.internalDropped,
         crossDocDropped: ingestReports.crossDocDropped,
         conflictPairs: ingestReports.conflictPairs,
+        contextSource: ingestReports.contextSource,
         dualReady: ingestReports.dualReady,
         embedReady: ingestReports.embedReady,
         esReady: ingestReports.esReady,

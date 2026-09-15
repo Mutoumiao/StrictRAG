@@ -32,6 +32,16 @@ const loadKbBindings = vi.fn();
 const saveKbBindings = vi.fn();
 const loadModelCatalog = vi.fn();
 
+vi.mock('@/app/(ops)/kb/settings/chunk-strategy.services', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@/app/(ops)/kb/settings/chunk-strategy.services')>();
+  return {
+    ...actual,
+    loadKbChunkStrategies: async () => ({ ok: true, items: [] }),
+    saveKbChunkStrategies: async () => ({ ok: true, items: [] }),
+  };
+});
+
 vi.mock('@/app/(ops)/kb/settings/services', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/app/(ops)/kb/settings/services')>();
   return {

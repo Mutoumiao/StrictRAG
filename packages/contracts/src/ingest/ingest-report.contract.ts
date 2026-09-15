@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { CONTEXT_SOURCES } from './chunk-strategy.js';
+
 /** 跨文档 skip_index 冲突对。pending_review / downrank 不在本形状。 */
 export const IngestReportConflictPairSchema = z
   .object({
@@ -21,6 +23,7 @@ export const IngestReportItemSchema = z
     internalDropped: z.number().int().nonnegative(),
     crossDocDropped: z.number().int().nonnegative(),
     conflictPairs: z.array(IngestReportConflictPairSchema),
+    contextSource: z.enum(CONTEXT_SOURCES).nullable(),
     dualReady: z.boolean(),
     embedReady: z.boolean(),
     esReady: z.boolean(),

@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（已包含：P0/P1 入库 + S2 最小问答 + B1–B6 最小运营 API + B10 L1 工程 seed + B12 策略闸 + B13 反馈 API；演示依赖 mock ES / 通常走 mock Gateway；L1 **≠** 业务签字门禁） |
 | 默认依赖模式 | 检索：`RETRIEVE_ES_MODE=mock`（默认 mock ES；`http` 须 `ELASTICSEARCH_URL`）；鉴权：临时双 JWT，`AUTH_ENFORCE` **默认 `false`**；rewrite：`SESSION_REWRITE_ENABLED` **默认 false**（图边已落；dogfood 可开；**≠** 准出）；对象存储：默认 `local`（`STORAGE_MODE=s3` 走 RustFS / S3 兼容）；Gateway：`GATEWAY_MODE=''`（空按 `GATEWAY_BASE_URL` 推断，缺 URL 走 mock）；上传上限 `INGEST_MAX_FILE_BYTES=52_428_800`（50 MiB）/ 天花板 `INGEST_MAX_FILE_BYTES_CEILING=209_715_200`（200 MiB）；`LANGFUSE_ENABLED=false`；`OBS_MEMORY_TRACE=true`。**B3-W/B2-W**：ask 读取 platform 绑定 + **KB scope 绑定覆盖（PUT 只 generate/embed/rerank）**；**B4-W**：每请求从 DB `user_roles` hydrate；`DEPT_ACL_ENFORCE` **默认 `false`**（开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤且列表项带部门字段；`DEPT_INHERIT_DOWN` 默认 true；KB `deptInheritDown` 可覆盖 env；KB `deptAclEnforce` 可覆盖 env，未写跟 env，GET 未写回读 false；设置页可勾选，未改不写回；ES 查询期强制 tenantId+kbId；enforce 开且非超管可追加 `ownerDeptId` terms（缺字段不得当全员可见；PG 可见级闸仍保留）；aclPrincipals 用户 uuid 名单最小已落（PG 把关；ES 查询期非超管 should 收窄；不跟 DEPT_ACL_ENFORCE；**≠** 角色 principal / 默认开））；`MONGODB_URL` 空（非空时检索融合后批取 Mongo `chunk_bodies` 权威正文，缺块 fail-closed）；`ASK_RATE_LIMIT_RPM=0`；`INGEST_RATE_LIMIT_RPM=0`（ask/ingest 分 store 试点限流；aux 只留常量）；`SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` **可选**（无 active 超管时缺一则 **index.ts listen 前**失败；`createApp()` 不跑引导）；L1 CLI 需显式指定 `L1_KB_ID`（可选 `L1_PERSIST_EVAL`） |
 | 关联模块 | 入库演示还需要 `worker` + PostgreSQL + Redis；契约 `@strict-rag/contracts`（含 `IMPLEMENTED_CHUNK_STRATEGIES` / `IngestJobData`）；schema `@strict-rag/db`（含 `eval_runs`）；L1 gold / RACI 在仓根 `fixtures/l1/`；L2 题面草案在 `fixtures/l2/` |
-| 最近更新 | 2026-09-15（GET ingest-report 含跨 doc 冲突对；KB PUT 只收 generate/embed/rerank） |
+| 最近更新 | 2026-09-15（PATCH chunk-strategies 校验 contextMode；GET ingest-report 含 contextSource） |
 | Spec | `.trellis/spec/api/backend/`（含 [dashboard](../../.trellis/spec/api/backend/dashboard.md) · [l1-eval](../../.trellis/spec/api/backend/l1-eval.md) · [l2-eval](../../.trellis/spec/api/backend/l2-eval.md) · [l3-metrics](../../.trellis/spec/api/backend/l3-metrics.md)） |
 | PRD | `prds/05-api` · `04-pipelines` · `08-quality` · `09-security` |
 
@@ -39,10 +39,10 @@
 - **B12 / ADR-053 最小闭环**：`chunk_strategy_definitions` + `kb_chunk_strategies` 为 catalog 权威；写入闸仍 **`IMPLEMENTED` 仅 `structure_paragraph`**
   - HTTP：`GET/PATCH …/chunk-strategies`、`/schema`、`/for-upload`（写须 `kb.config.write`）
   - complete/reindex/write：按 for-upload available 计数（仅 1 个可自动；≥2 未选 400）；写入策略码 + `chunk_strategy_params` 快照；reindex 对 `needs_review` / 非 utf8 `needs_ocr` 入队 `ocr`（其余仍 `chunk`；**不是**自动全库）；write 不入队 scan
-  - 未实现码 400；改库启用 **不** 自动 reindex；**无** 平台定义 CRUD 页、**无** paramSchema 动态表单
+  - 未实现码 400；PATCH `paramOverrides.contextMode` 仅 `l0_template` / `l1_llm`（非法 400）；改库启用 **不** 自动 reindex；**无** 平台定义 CRUD 页、**无** paramSchema 通用动态表单引擎
 - 入队：`services/queue.ts` → BullMQ `QUEUE_NAMES.INGEST`（`sr-ingest`）；payload 为 contracts `IngestJobData`；`attempts=3` · backoff 2000ms
 - SQL 集中在 `services/`；路由保持轻量
-- **`GET /api/v1/knowledge-bases/:kbId/ingest-report`**：成员闸 + `doc.view` WhenEnforced；返回该库已落库行（空列表 200；缺库 404）；只写真事（chunkCount / 文档内 dropped / **跨 doc dropped + 冲突对** / 双就绪 / 对账计数）；**无** pending_review / Hit@k / doc 级路径（`routes/ingest-report.ts` · `tests/ingest/ingest-report-http.test.ts`）
+- **`GET /api/v1/knowledge-bases/:kbId/ingest-report`**：成员闸 + `doc.view` WhenEnforced；返回该库已落库行（空列表 200；缺库 404）；只写真事（chunkCount / 文档内 dropped / **跨 doc dropped + 冲突对** / **contextSource** / 双就绪 / 对账计数）；**无** pending_review / Hit@k / `l1_llm` 来源 / doc 级路径（`routes/ingest-report.ts` · `tests/ingest/ingest-report-http.test.ts`）
 
 ### 分片只读（B1 · ADR-052）
 - `GET /documents/:docId/chunks`：返回当前 `indexVersion` 的分片列表，正文做 preview 截断（**不返回完整 body**），支持 cursor/limit 分页

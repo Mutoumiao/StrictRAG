@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（S2c 运营薄壳：文档 / 审批 / 成员 / 分片 / 设置 / 模型 + 用户 / 角色 / 部门 + **数据面板** + **反馈队列** + **评测底线**） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT + admin **dev-login**（经 api）· 知识库 = 顶栏关闭列表（本次 GET 可见库，禁止粘贴 uuid）· 菜单 = `clipMenuForShell` 裁剪（catalog 为 SSOT）· API 默认 `http://127.0.0.1:4000` |
 | 关联模块 | API 依赖：`api` 的文档 / 审批 / 成员 / 分片 / 设置 / 模型 / 用户角色 / 部门 / dashboard / **feedback-queue** / **gold-questions · eval/runs**；菜单与权限码：`admin-catalog`；类型：`contracts`；样式：`ui` |
-| 最近更新 | 2026-09-15（入库报告展示跨 doc 冲突对；KB 消费绑定三档 ClosedSelect） |
+| 最近更新 | 2026-09-15（分片策略 contextMode ClosedSelect；l0_template 标召回增强关闭） |
 | Spec | `.trellis/spec/admin/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · 审批 / 成员相关 API |
 
@@ -37,7 +37,7 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 - `/documents`：按知识库拉取文档列表；表格展示部门 / 可见级 / **类型** / **运营标签**（待审…现行可问…已归档；原串 `status · lifecycle` 次要）/ **向量 / 稀疏就绪**（有树时部门列显示名，否则 uuid；可见级默认中文标签；可按部门/可见级**本地**筛，不加 GET query；审批操作在审批页进行；稀疏就绪 **≠** 生产 ES）
 - 点行改 `ownerDeptId` / `visibilityLevel` / `docType` / `aclPrincipals` / **生效区间**：有 `dept.manage` 用部门下拉，否则 uuid 粘贴；类型枚举来自设置 GET（需 `kb.config.write`），否则文本框；名单用 Textarea（逗号或换行）+「仅名单可见」勾选（未勾选且空 → `null`；勾选且空 → `[]`）；生效自/至为空即清除；`doc.editor` 裁保存；无该码只读；**无**用户下拉 / **无**角色 principal
 - 行展开 **Reindex**（`doc.reindex`）：走 `for-upload`；≥2 未选按钮不可提交
-- 行展开 **入库报告**（紧挨「入库阶段」）：库级 GET 后只展示本行；无报告「暂无入库报告」；展示文档内/跨文档去重计数与冲突对 otherDocId；**不是**独立抽屉 / 新页；**不是** pending_review
+- 行展开 **入库报告**（紧挨「入库阶段」）：库级 GET 后只展示本行；无报告「暂无入库报告」；展示文档内/跨文档去重计数、冲突对 otherDocId、情境来源；**不是**独立抽屉 / 新页；**不是** pending_review
 - lifecycle（`doc.lifecycle`）：上架仍须 `status=ready` 且仅 draft；可废止 / 归档；**替代**须选后继（`ClosedSelect`，走 `POST …/supersede`）；**删除**走 `DELETE`（归档并入队 purge，不走 PATCH）。检索闸仍 ready∧active，不自动升
 - `DocumentListItem` 的 `embedReady` / `esReady` **已渲染**为向量/稀疏列（适配层标志，**≠** 生产 ES）
 - 上传走 `for-upload` 人选（仅 1 个自动 complete；≥2 弹出策略下拉）；**不是**写死 `structure_paragraph`；未知 MIME / `.exe` **不得**改写成 `text/plain`（`resolveUploadContentType`）；PUT 回的 checksum 传给 complete；创建面 `ClosedSelect` 可标 `ownerDeptId` / `visibilityLevel`（空=库级；默认可见级 20；有 `dept.manage` 才拉部门名；**≠** 仓库默认开强制）
@@ -49,10 +49,10 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 - **禁止**在页面挂载时批量预拉所有分片全文
 
 ### 知识库设置（B2）
-- `/kb/settings`：基本信息、**文档类型分区**（code / 显示名 / 上移下移 / 启用；PATCH `docTypeItems`）、**语料分级 `dataClass`**、**部门强制勾选**、**部门继承勾选**、问答档位、**分片策略弹窗（启用 + 各 MIME 族 recommended）**、**KB 消费绑定**（generate / embed / rerank `ClosedSelect`；跟随平台不写行；**禁止改 judge**）、**质量只读展示**、**rewrite 锁定开关**（无开启控件）、**修改日志**（时间 / 操作者 / 字段旧→新；无行「暂无修改日志」；**无**独立路由 / **无**新菜单）
+- `/kb/settings`：基本信息、**文档类型分区**（code / 显示名 / 上移下移 / 启用；PATCH `docTypeItems`）、**语料分级 `dataClass`**、**部门强制勾选**、**部门继承勾选**、问答档位、**分片策略弹窗（启用 + 各 MIME 族 recommended + `contextMode` ClosedSelect；`l0_template` 标「召回增强关闭」）**、**KB 消费绑定**（generate / embed / rerank `ClosedSelect`；跟随平台不写行；**禁止改 judge**）、**质量只读展示**、**rewrite 锁定开关**（无开启控件）、**修改日志**（时间 / 操作者 / 字段旧→新；无行「暂无修改日志」；**无**独立路由 / **无**新菜单）
 - 需要 `kb.config.write` 权限；无权限时显示 403 状态；数据路径仅 `kb/settings/api.ts` 一处（上传 `for-upload` 在 documents `api.ts`）
 - `dataClass=sensitive` complete 须 ACL 就绪（部门强制+归属，或显式名单）；`deptInheritDown` 可勾选，**未改不得写回** GET 缺省 true；`deptAclEnforce` 可勾选，**未改不得写回** GET 缺省 false（避免钉成显式关）；勾选本库强制 **≠** 仓库默认开 / **≠** ES 已对称 / **≠** 角色 principal
-- **没有** τ 滑块、**没有**供应商 Key 配置、**没有** paramSchema 动态表单 / 平台策略 CRUD 页 / fallbacks 多行；改策略启用不自动 reindex
+- **没有** τ 滑块、**没有**供应商 Key 配置、**没有** paramSchema 通用动态表单引擎 / 平台策略 CRUD 页 / fallbacks 多行；改策略启用不自动 reindex
 
 ### 模型网关（B3 最小集）
 - `/models`：供应商列表 / 新建 / 编辑 / 删除（预设、baseUrl、Key 密码框、模型表可逐行编辑**类型 / 启用 / dims**）+ **平台级 purpose 绑定**（catalog 下拉选择）

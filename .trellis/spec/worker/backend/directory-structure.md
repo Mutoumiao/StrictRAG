@@ -23,7 +23,7 @@ apps/worker/
       persist.ts             # gold_questions / fixtures/l2 / eval_runs
     scan-mode-policy.ts      # X-01/X-02 启动矩阵纯函数
     ingest/
-      pipeline.ts            # 状态机 scan→parse→chunk→embed→es_index；逻辑 stage purge 清对象/mock 稀疏
+      pipeline.ts            # 状态机 scan→parse→chunk→embed→es_index；chunk 读快照 contextMode 写 L0 prefix；逻辑 stage purge 清对象/mock 稀疏
       idempotency.ts         # X-04 幂等纯函数
       job-ledger.ts          # ingest_jobs 阶段账本（最小）；failed 时可选 Webhook
       failure-webhook.ts     # 入库失败可选 Webhook（空 URL 不发；非阻断）
@@ -47,7 +47,7 @@ apps/worker/
 | 与 api 分工 | api 入队 + HTTP；worker 消费 |
 | **无 HTTP**（X-21） | `index.ts` 仅起 worker；**禁止**业务 HTTP server |
 | 扫描闸 | `scan` 在 parse/manifest **前**；见 [quality-guidelines](./quality-guidelines.md) DEC-SCAN |
-| 分片 | 读 `documents.chunkStrategy`（仅 IMPLEMENTED；X-03） |
+| 分片 | 读 `documents.chunkStrategy`（仅 IMPLEMENTED；X-03）；`chunkStrategyParams.contextMode` 决定 L0 / 回退来源 |
 | 幂等/重试/锁 | [ingest-idempotency](./ingest-idempotency.md)（X-04）；payload `indexVersion`；`doc-lock` 同 doc 互斥 |
 | 能力/写面 | [ingest-capability-matrix](./ingest-capability-matrix.md)（X-05 · X-14 · X-20） |
 
