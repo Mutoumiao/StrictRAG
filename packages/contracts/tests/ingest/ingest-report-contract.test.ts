@@ -1,13 +1,19 @@
 /**
- * 目标：入库报告 DTO 只含已发生事实，拒绝跨 doc / Hit@k / 未知字段。
- * 需求：prds/05-api GET ingest-report · 功能表 §4.3 / §5.2
+ * 目标：入库报告 DTO 须含跨 doc skip 事实，仍拒绝 Hit@k / 未知字段。
+ * 需求：prds/05-api GET ingest-report · 功能表 §4.3 / §5.2 · 入库 PRD §5
  * 被测：IngestReportItemSchema
- * 简介：最小闭环形状；不是去重引擎、不是评测 Hit@k。
+ * 简介：跨文档去重最小闭环形状；不是 pending_review、不是评测 Hit@k。
  */
 
 import { describe, expect, it } from 'vitest';
 
 import { IngestReportItemSchema } from '../../src/ingest/ingest-report.contract.js';
+
+const PAIR = {
+  otherDocId: '01900000-0000-7000-8000-0000000000d2',
+  otherChunkId: '01900000-0000-7000-8000-0000000000c2',
+  action: 'skip_index' as const,
+};
 
 const ROW = {
   id: '01900000-0000-7000-8000-0000000000a1',
@@ -16,6 +22,8 @@ const ROW = {
   indexVersion: 1,
   chunkCount: 3,
   internalDropped: 1,
+  crossDocDropped: 1,
+  conflictPairs: [PAIR],
   dualReady: true,
   embedReady: true,
   esReady: true,
@@ -24,18 +32,31 @@ const ROW = {
 };
 
 describe('IngestReportItemSchema', () => {
-  it('接受最小事实行', () => {
+  it('接受含跨 doc 冲突对的事实行', () => {
     expect(IngestReportItemSchema.parse(ROW)).toEqual(ROW);
   });
 
-  it('对账可空（去重清空失败尚未对账）', () => {
-    const parsed = IngestReportItemSchema.parse({ ...ROW, dualReady: false, reconcile: null });
+  it('无冲突时 crossDocDropped=0 且冲突对为空', () => {
+    const parsed = IngestReportItemSchema.parse({
+      ...ROW,
+      crossDocDropped: 0,
+      conflictPairs: [],
+      dualReady: false,
+      reconcile: null,
+    });
+    expect(parsed.crossDocDropped).toBe(0);
+    expect(parsed.conflictPairs).toEqual([]);
     expect(parsed.reconcile).toBeNull();
-    expect(parsed.dualReady).toBe(false);
   });
 
-  it('拒绝跨 doc 与 Hit@k 装齐字段', () => {
-    expect(IngestReportItemSchema.safeParse({ ...ROW, crossDocDropped: 0 }).success).toBe(false);
+  it('拒绝 Hit@k 与 pending_review 装齐字段', () => {
     expect(IngestReportItemSchema.safeParse({ ...ROW, hitAtK: 0.7 }).success).toBe(false);
+    expect(IngestReportItemSchema.safeParse({ ...ROW, pendingReview: 1 }).success).toBe(false);
+    expect(
+      IngestReportItemSchema.safeParse({
+        ...ROW,
+        conflictPairs: [{ ...PAIR, action: 'downrank' }],
+      }).success,
+    ).toBe(false);
   });
 });

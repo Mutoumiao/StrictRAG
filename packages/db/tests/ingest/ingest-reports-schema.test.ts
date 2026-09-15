@@ -1,8 +1,8 @@
 /**
- * 目标：入库报告表必须暴露 doc + indexVersion 唯一约束与事实列。
- * 需求：功能表 §5.2 ingest-report
+ * 目标：入库报告表必须暴露 doc + indexVersion 唯一约束、文档内/跨 doc 事实列。
+ * 需求：功能表 §5.2 ingest-report · 入库 PRD §5
  * 被测：ingestReports
- * 简介：核对列名；不含跨 doc / L1 指标列。
+ * 简介：核对列名；含跨 doc skip；不含 Hit@k / pending_review。
  */
 
 import { describe, expect, it } from 'vitest';
@@ -16,6 +16,8 @@ describe('ingestReports schema', () => {
     expect(ingestReports.indexVersion.name).toBe('index_version');
     expect(ingestReports.chunkCount.name).toBe('chunk_count');
     expect(ingestReports.internalDropped.name).toBe('internal_dropped');
+    expect(ingestReports.crossDocDropped.name).toBe('cross_doc_dropped');
+    expect(ingestReports.conflictPairs.name).toBe('conflict_pairs');
     expect(ingestReports.dualReady.name).toBe('dual_ready');
     expect(ingestReports.embedReady.name).toBe('embed_ready');
     expect(ingestReports.esReady.name).toBe('es_ready');
@@ -24,9 +26,9 @@ describe('ingestReports schema', () => {
     expect(ingestReports.reconcileOrphan.name).toBe('reconcile_orphan');
   });
 
-  it('does not expose unimplemented cross-doc or hit-at-k columns', () => {
+  it('does not expose unimplemented hit-at-k or pending_review columns', () => {
     const keys = Object.keys(ingestReports);
-    expect(keys.some((k) => /cross/i.test(k))).toBe(false);
     expect(keys.some((k) => /hit/i.test(k))).toBe(false);
+    expect(keys.some((k) => /pending/i.test(k))).toBe(false);
   });
 });

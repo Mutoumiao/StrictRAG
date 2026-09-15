@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（支撑 P0/P1 入库 + S2 问答/会话/反馈/成员 + B1–B6 运营契约 + **B12 策略码 / ingest job**；**非**全量 OpenAPI） |
 | 默认依赖模式 | 纯库；无运行时开关 |
 | 关联模块 | 被 `api` · `worker` · `web` · `admin` 消费；是全仓错误码、响应信封、队列名与 **可写分片策略集** 的唯一来源 |
-| 最近更新 | 2026-09-15（`PutKbConsumeBindingsBodySchema` 只收 generate/embed/rerank） |
+| 最近更新 | 2026-09-15（入库报告含跨 doc skip 冲突对；KB PUT 只收 generate/embed/rerank） |
 | Spec | `.trellis/spec/contracts/library/` |
 | PRD | `prds/05-api` · 各域契约与 PRD 短名对齐 |
 
@@ -43,7 +43,7 @@
   - `DEFAULT_CHUNK_STRATEGY` · `isImplementedChunkStrategy` · `CHUNK_STRATEGY_PLATFORM_SEED` · `docFamilyFromContentType`
   - catalog HTTP：`ForUploadQuerySchema` / `PatchKbChunkStrategiesBodySchema` / `ChunkStrategyCatalogResponseSchema`
   - **禁止**把 KNOWN 未实现码当成可写入已交付
-- **入库报告**：`IngestReportItemSchema`（`.strict()`；对账可空；拒跨 doc / Hit@k）（`ingest/ingest-report.contract.ts` · `tests/ingest/ingest-report-contract.test.ts`）
+- **入库报告**：`IngestReportItemSchema`（`.strict()`；对账可空；**含** `crossDocDropped` / `conflictPairs`；拒 Hit@k / pending_review）（`ingest/ingest-report.contract.ts` · `tests/ingest/ingest-report-contract.test.ts`）
 
 ### 问答（S2）
 - ask 请求 / 响应、拒答 reason、流式 `data-status` 形状（`ask/ask.contract` · `ask/reason`；`AskResponse` = 同步 JSON ≡ 流式 `data-ask-final`）

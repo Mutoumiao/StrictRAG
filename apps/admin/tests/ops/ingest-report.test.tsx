@@ -109,6 +109,14 @@ const mine: IngestReportItem = {
   indexVersion: 1,
   chunkCount: 3,
   internalDropped: 1,
+  crossDocDropped: 1,
+  conflictPairs: [
+    {
+      otherDocId: OTHER_ID,
+      otherChunkId: '018f0000-0000-7000-8000-0000000000c2',
+      action: 'skip_index' as const,
+    },
+  ],
   dualReady: true,
   embedReady: true,
   esReady: true,
@@ -151,7 +159,10 @@ describe('DocumentsWorkspace 入库报告', () => {
     render(<DocumentsWorkspace />);
     const user = userEvent.setup();
     await user.click(await screen.findByText('请假制度'));
-    expect(await screen.findByText(/v1 · 分片 3 · 文档内去重 1/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/v1 · 分片 3 · 文档内去重 1 · 跨文档去重 1/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`冲突 ${OTHER_ID}`))).toBeInTheDocument();
     expect(screen.getByText(/双就绪/)).toBeInTheDocument();
     expect(screen.queryByText('暂无入库报告')).not.toBeInTheDocument();
   });

@@ -34,6 +34,10 @@ import { mockEsStore } from './es-store.js';
 import { embedTextsHttp, mockEmbedVector } from './embed-http.js';
 import { decodeUtf8Text, hasUtf8TextLayer } from './extract-text.js';
 import { extractPdfTextLayer, isPdfObject } from './pdf-text.js';
+import {
+  findCrossDocConflict,
+  loadCrossDocSearchableChunks,
+} from './cross-doc-dedupe.js';
 import { persistIngestReport } from './ingest-report.js';
 import { recordStageEnd, recordStageStart, type StageLedgerContext } from './job-ledger.js';
 import {
@@ -491,7 +495,7 @@ async function runIngestStageCore(
       const indexVersion = (doc.indexVersion || 0) + 1;
       const chunkIds: string[] = [];
 
-      // doc 内简单去重：相同 body 跳过
+      // doc 内精确去重；同 KB 跨文档近重复 skip_index（不进 manifest）
       const seen = new Set<string>();
       const chunkBodyRows: Array<{
         chunkId: string;
@@ -505,6 +509,16 @@ async function runIngestStageCore(
       }> = [];
       let ordinal = 0;
       let internalDropped = 0;
+      let crossDocDropped = 0;
+      const conflictPairs: Array<{
+        otherDocId: string;
+        otherChunkId: string;
+        action: 'skip_index';
+      }> = [];
+      const corpus = await loadCrossDocSearchableChunks(db, {
+        kbId: doc.kbId,
+        excludeDocId: doc.id,
+      });
       for (const body of pieces) {
         const norm = body.toLowerCase();
         if (seen.has(norm)) {
@@ -512,6 +526,12 @@ async function runIngestStageCore(
           continue;
         }
         seen.add(norm);
+        const conflict = findCrossDocConflict(body, corpus);
+        if (conflict) {
+          crossDocDropped += 1;
+          conflictPairs.push(conflict);
+          continue;
+        }
         const id = uuidv7();
         chunkIds.push(id);
         const prefix = `${doc.title} / section`;
@@ -557,6 +577,8 @@ async function runIngestStageCore(
           indexVersion,
           chunkCount: 0,
           internalDropped,
+          crossDocDropped,
+          conflictPairs,
           dualReady: false,
           embedReady: false,
           esReady: false,
@@ -588,6 +610,8 @@ async function runIngestStageCore(
         indexVersion,
         chunkCount: chunkIds.length,
         internalDropped,
+        crossDocDropped,
+        conflictPairs,
         dualReady: false,
         embedReady: false,
         esReady: false,
@@ -837,6 +861,8 @@ async function runIngestStageCore(
           indexVersion,
           chunkCount: manifest.chunkIds.length,
           internalDropped: 0,
+          crossDocDropped: 0,
+          conflictPairs: [],
           dualReady: false,
           embedReady: doc.embedReady === 1,
           esReady: false,
@@ -861,6 +887,8 @@ async function runIngestStageCore(
         indexVersion,
         chunkCount: manifest.chunkIds.length,
         internalDropped: 0,
+        crossDocDropped: 0,
+        conflictPairs: [],
         dualReady: true,
         embedReady: true,
         esReady: true,

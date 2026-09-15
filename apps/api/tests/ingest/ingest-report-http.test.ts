@@ -56,6 +56,14 @@ const ROW: IngestReportItem = {
   indexVersion: 1,
   chunkCount: 2,
   internalDropped: 0,
+  crossDocDropped: 1,
+  conflictPairs: [
+    {
+      otherDocId: '01900000-0000-7000-8000-0000000000d2',
+      otherChunkId: '01900000-0000-7000-8000-0000000000c2',
+      action: 'skip_index',
+    },
+  ],
   dualReady: true,
   embedReady: true,
   esReady: true,
@@ -80,7 +88,7 @@ describe('GET /knowledge-bases/:kbId/ingest-report', () => {
     expect(body.data).toEqual([]);
   });
 
-  it('成员回已落库行，不含未实现字段', async () => {
+  it('成员回已落库行，含跨 doc 冲突对、不含 Hit@k', async () => {
     const { userId, accessToken } = await token(['kb_admin']);
     const app = buildApp({ members: new Set([userId]), rows: [ROW] });
     const res = await app.request(`/api/v1/knowledge-bases/${KB}/ingest-report`, {
@@ -89,7 +97,9 @@ describe('GET /knowledge-bases/:kbId/ingest-report', () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { data: IngestReportItem[] };
     expect(body.data).toEqual([ROW]);
-    expect(JSON.stringify(body.data[0])).not.toMatch(/hitAtK|crossDoc/);
+    expect(body.data[0]?.crossDocDropped).toBe(1);
+    expect(body.data[0]?.conflictPairs).toHaveLength(1);
+    expect(JSON.stringify(body.data[0])).not.toMatch(/hitAtK|pendingReview/);
   });
 
   it('非成员 403；无令牌 401；超管对缺库 404', async () => {

@@ -1,5 +1,15 @@
 import { z } from 'zod';
 
+/** 跨文档 skip_index 冲突对。pending_review / downrank 不在本形状。 */
+export const IngestReportConflictPairSchema = z
+  .object({
+    otherDocId: z.string().uuid(),
+    otherChunkId: z.string().uuid(),
+    action: z.literal('skip_index'),
+  })
+  .strict();
+export type IngestReportConflictPair = z.infer<typeof IngestReportConflictPairSchema>;
+
 /** GET /api/v1/knowledge-bases/:kbId/ingest-report 列表项。只含已发生事实。 */
 export const IngestReportItemSchema = z
   .object({
@@ -9,6 +19,8 @@ export const IngestReportItemSchema = z
     indexVersion: z.number().int(),
     chunkCount: z.number().int().nonnegative(),
     internalDropped: z.number().int().nonnegative(),
+    crossDocDropped: z.number().int().nonnegative(),
+    conflictPairs: z.array(IngestReportConflictPairSchema),
     dualReady: z.boolean(),
     embedReady: z.boolean(),
     esReady: z.boolean(),

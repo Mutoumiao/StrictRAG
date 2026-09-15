@@ -1,4 +1,4 @@
-import type { IngestReportItem } from '@strict-rag/contracts';
+import type { IngestReportConflictPair, IngestReportItem } from '@strict-rag/contracts';
 import { ingestReports } from '@strict-rag/db';
 import { desc, eq } from 'drizzle-orm';
 
@@ -11,6 +11,8 @@ export function toIngestReportItem(row: {
   indexVersion: number;
   chunkCount: number;
   internalDropped: number;
+  crossDocDropped: number;
+  conflictPairs: IngestReportConflictPair[] | null;
   dualReady: number;
   embedReady: number;
   esReady: number;
@@ -34,6 +36,8 @@ export function toIngestReportItem(row: {
     indexVersion: row.indexVersion,
     chunkCount: row.chunkCount,
     internalDropped: row.internalDropped,
+    crossDocDropped: row.crossDocDropped,
+    conflictPairs: row.conflictPairs ?? [],
     dualReady: row.dualReady === 1,
     embedReady: row.embedReady === 1,
     esReady: row.esReady === 1,
@@ -56,6 +60,8 @@ export const ingestReportsRepo: IngestReportRepo = {
         indexVersion: ingestReports.indexVersion,
         chunkCount: ingestReports.chunkCount,
         internalDropped: ingestReports.internalDropped,
+        crossDocDropped: ingestReports.crossDocDropped,
+        conflictPairs: ingestReports.conflictPairs,
         dualReady: ingestReports.dualReady,
         embedReady: ingestReports.embedReady,
         esReady: ingestReports.esReady,

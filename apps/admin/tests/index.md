@@ -36,7 +36,7 @@
 | `ops/document-upload.test.ts` | 上传服务必须按 upload-url → PUT → complete 调用，失败则入口顺序错乱。 | 上传入口 · ADR-039 · 工单「上传表单标部门最小闭环」 | `uploadAdminDocument · resolveUploadContentType · toCreateDocAclFields` | 未知类型不调 upload-url；complete 带 checksum 与可选部门字段。体积闸真值在 api。 | 现行 |
 | `ops/document-write.test.ts` | 在线编写提交必须带非空标题与正文，并走 write HTTP。 | 功能表 §4.3 在线编写 · 工单「上传表单标部门最小闭环」 | `canSubmitWrite · writeAdminDocument` | HTTP 真值在 api。可带部门两字段。无 BlockNote。 | 现行 |
 | `ops/documents-workspace.test.tsx` | 文档列表薄页必须按码控制详情/保存/部门列，失败则运营交互与权限不符。 | 文档运营 UI · 工单「上传表单标部门最小闭环」 | `DocumentsWorkspace · deptLabel / readyColLabel / visibilityLabel` | 含类型列、运营标签、Reindex、归档、删除、在线编写区、创建面部门关闭列表；行展开名单与生效区间；PATCH 含 effectiveFrom/To；有码可选后继替代；删除走 DELETE 不走 PATCH。 | 现行 |
-| `ops/ingest-report.test.tsx` | 文档行展开须展示入库报告；无报告须出「暂无入库报告」。 | 功能表 §4.3 | `DocumentsWorkspace · reportsForDoc` | 库级 GET 后按本行过滤；HTTP 真值在 api。 | 现行 |
+| `ops/ingest-report.test.tsx` | 文档行展开须展示入库报告；无报告须出「暂无入库报告」。 | 功能表 §4.3 | `DocumentsWorkspace · reportsForDoc` | 库级 GET 后按本行过滤；展示跨 doc 计数与冲突对。 | 现行 |
 | `ops/eval-workspace.test.tsx` | 评测薄页无码须 403；有码才列出题目并入队 L1/L2。 | 功能表 §4.1 · prds/05-api §2.8 · 覆盖 C4 · 覆盖 C2 · 覆盖 C3 | `EvalWorkspace` | HTTP 真值在 api；本页不跑批；L1 有 scored 时展示 Hit@k；有 tauStar / judgeAuroc 时展示该值。 | 现行 |
 | `ops/feedback-comment-escape.test.tsx` | 反馈 comment 含 `<script>` 必须当文本展示，不得当 HTML 解析。 | 剧本 K6 · prds/10-delivery/03-acceptance-scenarios.md | `FeedbackWorkspace` | comment 走 React 文本节点原样可见。 | 现行 |
 | `ops/kb-settings-services.test.ts` | 设置服务必须把类型分区草稿编成 catalog，失败则 PATCH 写出错误 docTypeItems。 | 功能表 §4.2 文档类型 · ADR-054 · 工单「类型分区 CRUD 最小闭环」· 工单「KB 消费绑定最小闭环」 | `draftsFromSettings / draftsToCatalog / catalogsEqual / draftsToKbConsumeBindings` | 不写 URL；不再把逗号串当主路径；KB 绑定空档跟随平台。 | 现行 |

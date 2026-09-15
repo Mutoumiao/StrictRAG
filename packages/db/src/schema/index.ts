@@ -14,7 +14,7 @@ export { chunks } from './kb/chunks.js';
 export { chunkManifests } from './kb/chunk-manifests.js';
 export { chunkEmbeddings } from './kb/chunk-embeddings.js';
 export { ingestJobs } from './kb/ingest-jobs.js';
-export { ingestReports } from './kb/ingest-reports.js';
+export { ingestReports, type IngestReportConflictPair } from './kb/ingest-reports.js';
 export { kbSettingsAudits, type KbSettingsAuditDiff } from './kb/kb-settings-audits.js';
 export { kbMembers } from './kb/kb-members.js';
 export { chunkStrategyDefinitions } from './kb/chunk-strategy-definitions.js';

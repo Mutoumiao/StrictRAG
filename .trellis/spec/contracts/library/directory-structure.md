@@ -26,7 +26,7 @@ packages/contracts/
       document.contract.ts
       upload-media.ts         # ADR-039 MIME/扩展名白名单 SSOT
       chunk.contract.ts       # B1 分片 list/detail（ADR-052）
-      ingest-report.contract.ts  # 库级 GET ingest-report 列表项
+      ingest-report.contract.ts  # 库级 GET ingest-report（含跨 doc skip 冲突对）
     ask/
       index.ts
       ask.contract.ts       # AskRequest/Response · options/scope strict

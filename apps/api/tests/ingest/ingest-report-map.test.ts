@@ -18,6 +18,14 @@ describe('toIngestReportItem', () => {
       indexVersion: 1,
       chunkCount: 3,
       internalDropped: 1,
+      crossDocDropped: 2,
+      conflictPairs: [
+        {
+          otherDocId: '01900000-0000-7000-8000-0000000000d2',
+          otherChunkId: '01900000-0000-7000-8000-0000000000c2',
+          action: 'skip_index' as const,
+        },
+      ],
       dualReady: 1,
       embedReady: 1,
       esReady: 1,
@@ -27,6 +35,8 @@ describe('toIngestReportItem', () => {
       createdAt: '2026-08-30 12:00:00',
     });
     expect(item.dualReady).toBe(true);
+    expect(item.crossDocDropped).toBe(2);
+    expect(item.conflictPairs).toHaveLength(1);
     expect(item.reconcile).toEqual({ ok: true, missingCount: 0, orphanCount: 0 });
   });
 
@@ -38,6 +48,8 @@ describe('toIngestReportItem', () => {
       indexVersion: 1,
       chunkCount: 0,
       internalDropped: 4,
+      crossDocDropped: 0,
+      conflictPairs: [],
       dualReady: 0,
       embedReady: 0,
       esReady: 0,

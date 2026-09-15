@@ -1189,7 +1189,10 @@ export function DocumentsWorkspace() {
                                 {docReports.map((r) => (
                                   <li key={r.id}>
                                     v{r.indexVersion} · 分片 {r.chunkCount} · 文档内去重{' '}
-                                    {r.internalDropped}
+                                    {r.internalDropped} · 跨文档去重 {r.crossDocDropped}
+                                    {r.conflictPairs.length > 0
+                                      ? ` · 冲突 ${r.conflictPairs.map((p) => p.otherDocId).join(', ')}`
+                                      : ''}
                                     {r.dualReady ? ' · 双就绪' : ' · 未双就绪'}
                                     {r.reconcile
                                       ? ` · 对账${r.reconcile.ok ? '通过' : '失败'} missing ${r.reconcile.missingCount} orphan ${r.reconcile.orphanCount}`
