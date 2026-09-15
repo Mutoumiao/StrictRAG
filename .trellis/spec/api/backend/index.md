@@ -15,7 +15,7 @@
 - [ ] ask / sessions / members / **chunks** / **kb settings** / **model-gateway** / **users·roles** / **departments** / **dashboard** / **feedback.queue** 是否 **始终**验码（与 `AUTH_ENFORCE` 无关）？平台码无 kb 成员闸  
 - [ ] `GET /ask/:requestId` 是否走该 trace 的 KB 成员闸、只回 snapshot+trace、**禁止**当断线重拉 / 禁止漏正文？  
 - [ ] `GET …/ask-modes` 是否成员闸、只回档位、**禁止**漏 τ（web 消费面读档；设置 GET 仍 `kb.config.write`）？  
-- [ ] `GET …/doc-types` 是否成员闸、只回 `{ items }`、**禁止**漏 τ（web 关闭列表读枚举；设置 GET 仍 `kb.config.write`）？  
+- [ ] `GET …/doc-types` 是否成员闸、只回启用项 `{ items }`（真 label）、**禁止**漏 τ / 停用码（web 关闭列表读枚举；设置 GET 仍 `kb.config.write`）？  
 - [ ] 类型 scope 滤空现行库是否 `no_docs_in_scope`，禁止再标 `kb_not_ready`？  
 - [ ] complete/reindex 是否读 [chunk-strategies](./chunk-strategies.md)（多策略禁静默 default）？  
 - [ ] complete / upload-url / PUT 是否走 MIME/扩展名白名单（未知与 octet-stream → 415 `UNSUPPORTED_MEDIA_TYPE`；**禁止**改写成 `text/plain`）？  

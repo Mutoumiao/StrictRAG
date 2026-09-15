@@ -67,7 +67,8 @@ export function createKbSettingsRoutes(deps?: {
 | `description?` | max 2000 · 可 null |
 | `allowedModes?` | `AskMode[]` 非空 · **唯一** |
 | `defaultMode?` | ∈ 合并后 `allowedModes` |
-| `docTypes?` | `string[]` · max 32 · 唯一；空 = 不限制；ask `scope.docTypes` 须为其子集 |
+| `docTypes?` | `string[]` · max 32 · 唯一；空 = 不限制；**简写**：整表替换为全启用（`label=code`）。与 `docTypeItems` **互斥** |
+| `docTypeItems?` | `{ code, label, sort, enabled }[]` · max 32 · code 唯一；SSOT。空 = 不限制 ask scope，文档标注只能清 null |
 | `dataClass?` | `internal` \| `sensitive`；缺省 / 旧行 = `internal` |
 | `deptInheritDown?` | 布尔；GET 未写 / 旧行 default **true**；运行时未写跟 env；admin 设置页可勾选，**未改不得带该键**（禁止把 GET 缺省 true 写回盖 env） |
 | `deptAclEnforce?` | 布尔；GET 未写 / 旧行 default **false**；运行时未写跟 env；admin 设置页可勾选，**未改不得带该键**（禁止把 GET 缺省 false 写回钉成显式关） |
@@ -77,14 +78,14 @@ export function createKbSettingsRoutes(deps?: {
 
 **GET/PATCH data**（`KbSettings`）：
 
-`kbId, name, description?, allowedModes, defaultMode, docTypes?, dataClass, deptInheritDown, deptAclEnforce, qualitySnapshot, sessionRewrite`
+`kbId, name, description?, allowedModes, defaultMode, docTypes?（启用码）, docTypeItems?（全量 catalog）, dataClass, deptInheritDown, deptAclEnforce, qualitySnapshot, sessionRewrite`
 
 | 只读区 | 形状 |
 |--------|------|
 | `qualitySnapshot` | `{ tauClaim, gatePackageId?, effectiveAt? }`；τ ← `env.TAU_CLAIM` |
 | `sessionRewrite` | **固定** `{ enabledDefault: false, locked: true }`；写 `enabledDefault=true` 且无合格 L2 归档 → `SESSION_REWRITE_DISABLED`；有归档本窗仍锁只读 |
 
-**持久化**：`name`/`description` → 列；modes / `docTypes` / `dataClass` / `deptInheritDown` / `deptAclEnforce` → `knowledge_bases.config_json`。  
+**持久化**：`name`/`description` → 列；modes / `docTypeItems`（SSOT）/ 派生 `docTypes`（启用码）/ `dataClass` / `deptInheritDown` / `deptAclEnforce` → `knowledge_bases.config_json`。旧行只有 `docTypes` 时解析成全启用、`label=code`。成员 `GET /doc-types` 只回启用项真 label。  
 **修改日志**：PATCH 成功且 `merged.diff` 非空时插入 `kb_settings_audits`（`actorUserId` = 令牌 userId；`tenantId` = 令牌租户，缺则 `DEV_DEFAULT_TENANT`）。空 diff / 失败 PATCH **不写**。列表 DTO：`id` / `kbId` / `actorUserId` / `createdAt` / `diff`；**禁止**密钥字段。ARCH-P1b-2 `admin_write` 中间件仍是 Pino、**不**落表。  
 运行时：`parseDeptInheritDownFromConfig` 仅认字面 true/false；未写 → `isDeptInheritDown()`。GET 回读未写仍展示 true。admin 设置页可勾选；**未改不得带该键**。  
 `parseDeptAclEnforceFromConfig` 仅认字面 true/false；未写 → `isDeptAclEnforced()`。GET 未写回读 false（与运行时未写跟 env 不同）。admin 设置页可勾选；**未改不得带该键**。
@@ -111,6 +112,8 @@ export function createKbSettingsRoutes(deps?: {
 | 测 | 断言 |
 |----|------|
 | `tests/kb/settings-http.test.ts` | doc_operator 403；非成员 403；GET quality+锁+`dataClass=internal`；PATCH 回读；PATCH `dataClass`；非法 `dataClass` 400；τ/sessionRewrite 400；defaultMode 越界 400；未知 KB 404 |
+| `tests/kb/doc-type-catalog.test.ts` | 旧 `docTypes` 合成启用项；停用码不进派生；简写 PATCH 写成 catalog；重复码 merge 拒绝 |
+| `tests/kb/doc-type-catalog-http.test.ts` | PATCH catalog 200 回读 label/enabled；成员 GET 只含启用真 label；重复码 400 |
 | `tests/kb/settings-audit-http.test.ts` | PATCH 有 diff → GET 见该行；空 diff 不增行；失败 PATCH 不写；无码 403；空列表 200；缺库 404 |
 | `packages/contracts/tests/kb/settings-contract.test.ts` | strict 拒禁字段；modes 去重；sessionRewrite 形状；`dataClass` 缺省 internal |
 | `tests/kb/data-class-complete.test.ts` | internal 不挡；sensitive 关强制 + null 挡；`[]` / uuid 名单放行；enforce + owner 仍放行 |

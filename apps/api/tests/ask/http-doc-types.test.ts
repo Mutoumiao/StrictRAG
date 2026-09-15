@@ -67,6 +67,37 @@ describe('GET /knowledge-bases/:kbId/doc-types', () => {
     expect(Object.keys(body.data).sort()).toEqual(['items']);
   });
 
+  it('成员回读 catalog 启用项真 label，停用不出', async () => {
+    const { userId, accessToken } = await token(['web_consumer']);
+    const app = buildApp({
+      members: new Set([userId]),
+      settings: {
+        get: async () => ({
+          id: KB,
+          name: '演示',
+          description: null,
+          configJson: {
+            docTypeItems: [
+              { code: 'hr', label: '人事', sort: 0, enabled: true },
+              { code: 'legal', label: '法务', sort: 1, enabled: false },
+            ],
+            tauClaim: 0.9,
+          },
+        }),
+        update: async () => null,
+      },
+    });
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/doc-types`, {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { items: { code: string; label: string }[]; tauClaim?: unknown };
+    };
+    expect(body.data.items).toEqual([{ code: 'hr', label: '人事' }]);
+    expect(body.data.tauClaim).toBeUndefined();
+  });
+
   it('成员回读库配置的 docTypes，label 等于 code', async () => {
     const { userId, accessToken } = await token(['web_consumer']);
     const app = buildApp({

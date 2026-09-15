@@ -5,6 +5,7 @@
  */
 
 import type {
+  KbDocTypeCatalogItem,
   KbSettings,
   KbSettingsAuditItem,
   PatchKbSettingsBody,
@@ -78,11 +79,51 @@ export function formatSettingsAuditValue(value: unknown): string {
   }
 }
 
-export function parseDocTypesInput(raw: string): string[] {
-  return raw
-    .split(/[,，\s]+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+export type DocTypeDraft = {
+  code: string;
+  label: string;
+  enabled: boolean;
+};
+
+export function catalogToDrafts(items: readonly KbDocTypeCatalogItem[]): DocTypeDraft[] {
+  return items
+    .slice()
+    .sort((a, b) => a.sort - b.sort || a.code.localeCompare(b.code))
+    .map((item) => ({ code: item.code, label: item.label, enabled: item.enabled }));
+}
+
+export function draftsFromEnabledCodes(codes: readonly string[]): DocTypeDraft[] {
+  return codes.map((code) => ({ code, label: code, enabled: true }));
+}
+
+export function draftsFromSettings(settings: Pick<KbSettings, 'docTypes' | 'docTypeItems'>): DocTypeDraft[] {
+  const items = settings.docTypeItems ?? [];
+  if (items.length > 0) return catalogToDrafts(items);
+  return draftsFromEnabledCodes(settings.docTypes ?? []);
+}
+
+export function draftsToCatalog(drafts: readonly DocTypeDraft[]): KbDocTypeCatalogItem[] {
+  const out: KbDocTypeCatalogItem[] = [];
+  const seen = new Set<string>();
+  for (const draft of drafts) {
+    const code = draft.code.trim();
+    if (!code || seen.has(code)) continue;
+    seen.add(code);
+    out.push({
+      code,
+      label: (draft.label.trim() || code).slice(0, 128),
+      sort: out.length,
+      enabled: draft.enabled,
+    });
+  }
+  return out;
+}
+
+export function catalogsEqual(
+  left: readonly KbDocTypeCatalogItem[],
+  right: readonly KbDocTypeCatalogItem[],
+): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 export async function loadKbBindings(kbId: string) {

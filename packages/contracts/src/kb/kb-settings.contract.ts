@@ -41,6 +41,26 @@ export const KbDocTypesSchema = z
   .strict();
 export type KbDocTypes = z.infer<typeof KbDocTypesSchema>;
 
+/** 设置页类型分区一项：code / 显示名 / 排序 / 启用 */
+export const KbDocTypeCatalogItemSchema = z
+  .object({
+    code: z.string().min(1).max(64),
+    label: z.string().min(1).max(128),
+    sort: z.number().int().min(0).max(999),
+    enabled: z.boolean(),
+  })
+  .strict();
+export type KbDocTypeCatalogItem = z.infer<typeof KbDocTypeCatalogItemSchema>;
+
+const uniqueDocTypeCodes = (items: readonly { code: string }[]) =>
+  new Set(items.map((i) => i.code)).size === items.length;
+
+export const KbDocTypeCatalogSchema = z
+  .array(KbDocTypeCatalogItemSchema)
+  .max(32)
+  .refine(uniqueDocTypeCodes, { message: 'docTypeItems codes must be unique' });
+export type KbDocTypeCatalog = z.infer<typeof KbDocTypeCatalogSchema>;
+
 /** KB 语料分级；缺省 / 旧行 = internal。sensitive complete 须 ACL 就绪（部门路径或显式名单） */
 export const DataClassSchema = z.enum(['internal', 'sensitive']);
 export type DataClass = z.infer<typeof DataClassSchema>;
@@ -67,8 +87,10 @@ export const KbSettingsSchema = z.object({
   description: z.string().nullable().optional(),
   allowedModes: z.array(AskModeSchema).min(1),
   defaultMode: AskModeSchema,
-  /** KB 允许的 doc_type 枚举；空数组 = 未限制（ask scope 任意） */
+  /** 启用中的 doc_type 码（由 catalog 派生）；空数组 = 未限制（ask scope 任意） */
   docTypes: z.array(z.string().min(1).max(64)).max(32).default([]),
+  /** 类型分区全量（含停用）；缺省 / 旧 GET = [] */
+  docTypeItems: KbDocTypeCatalogSchema.default([]),
   /** 缺省 internal，旧 GET 无此字段仍 parse */
   dataClass: DataClassSchema.default('internal'),
   /** 缺省 / 旧行 = true（ADR 默认上级看下级）；运行时未写跟 env */
@@ -96,13 +118,24 @@ export const PatchKbSettingsBodySchema = z
       })
       .optional(),
     defaultMode: AskModeSchema.optional(),
-    /** 写入允许的 doc_type 列表；[] 表示清除限制 */
-    docTypes: z.array(z.string().min(1).max(64)).max(32).optional(),
+    /** 写入允许的 doc_type 列表（简写：整表替换为全启用，label=code）；[] 表示清除限制 */
+    docTypes: z
+      .array(z.string().min(1).max(64))
+      .max(32)
+      .refine((arr) => new Set(arr).size === arr.length, {
+        message: 'docTypes must be unique',
+      })
+      .optional(),
+    /** 类型分区全量写入；与 docTypes 互斥 */
+    docTypeItems: KbDocTypeCatalogSchema.optional(),
     dataClass: DataClassSchema.optional(),
     deptInheritDown: z.boolean().optional(),
     deptAclEnforce: z.boolean().optional(),
   })
   .strict()
-  .refine((v) => Object.keys(v).length > 0, { message: '至少提供一个可写字段' });
+  .refine((v) => Object.keys(v).length > 0, { message: '至少提供一个可写字段' })
+  .refine((v) => !(v.docTypes !== undefined && v.docTypeItems !== undefined), {
+    message: 'docTypes and docTypeItems are mutually exclusive',
+  });
 
 export type PatchKbSettingsBody = z.infer<typeof PatchKbSettingsBodySchema>;

@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   AskModesSchema,
+  KbDocTypeCatalogSchema,
   KbDocTypesSchema,
   KbSettingsSchema,
   PatchKbSettingsBodySchema,
@@ -92,6 +93,35 @@ describe('PatchKbSettingsBodySchema', () => {
     expect(PatchKbSettingsBodySchema.safeParse({ deptAclEnforce: 1 }).success).toBe(false);
     expect(PatchKbSettingsBodySchema.safeParse({ deptAclEnforce: null }).success).toBe(false);
   });
+
+  it('accepts docTypeItems catalog and shorthand docTypes', () => {
+    expect(
+      PatchKbSettingsBodySchema.safeParse({
+        docTypeItems: [{ code: 'hr', label: '人事', sort: 0, enabled: true }],
+      }).success,
+    ).toBe(true);
+    expect(PatchKbSettingsBodySchema.safeParse({ docTypes: ['hr', 'legal'] }).success).toBe(true);
+  });
+
+  it('rejects duplicate catalog codes, duplicate shorthand, and both keys', () => {
+    expect(
+      PatchKbSettingsBodySchema.safeParse({
+        docTypeItems: [
+          { code: 'hr', label: '人事', sort: 0, enabled: true },
+          { code: 'hr', label: '重复', sort: 1, enabled: true },
+        ],
+      }).success,
+    ).toBe(false);
+    expect(
+      PatchKbSettingsBodySchema.safeParse({ docTypes: ['hr', 'hr'] }).success,
+    ).toBe(false);
+    expect(
+      PatchKbSettingsBodySchema.safeParse({
+        docTypes: ['hr'],
+        docTypeItems: [{ code: 'hr', label: '人事', sort: 0, enabled: true }],
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe('KbSettingsSchema', () => {
@@ -143,6 +173,19 @@ describe('KbSettingsSchema', () => {
     if (r.success) expect(r.data.deptInheritDown).toBe(true);
   });
 
+  it('defaults docTypeItems to empty when omitted (old GET row)', () => {
+    const r = KbSettingsSchema.safeParse({
+      kbId: '01900000-0000-7000-8000-000000000099',
+      name: 'KB',
+      allowedModes: ['balanced'] as const,
+      defaultMode: 'balanced' as const,
+      qualitySnapshot: { tauClaim: 0.5 },
+      sessionRewrite: { enabledDefault: false, locked: true },
+    });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.docTypeItems).toEqual([]);
+  });
+
   it('defaults deptAclEnforce to false when omitted (old GET row)', () => {
     const r = KbSettingsSchema.safeParse({
       kbId: '01900000-0000-7000-8000-000000000099',
@@ -185,6 +228,24 @@ describe('AskModesSchema', () => {
         allowedModes: ['strict', 'strict'],
         defaultMode: 'strict',
       }).success,
+    ).toBe(false);
+  });
+});
+
+describe('KbDocTypeCatalogSchema', () => {
+  it('accepts unique items and rejects duplicate codes', () => {
+    expect(KbDocTypeCatalogSchema.safeParse([]).success).toBe(true);
+    expect(
+      KbDocTypeCatalogSchema.safeParse([
+        { code: 'hr', label: '人事', sort: 0, enabled: true },
+        { code: 'legal', label: '法务', sort: 1, enabled: false },
+      ]).success,
+    ).toBe(true);
+    expect(
+      KbDocTypeCatalogSchema.safeParse([
+        { code: 'hr', label: '人事', sort: 0, enabled: true },
+        { code: 'hr', label: '重复', sort: 1, enabled: false },
+      ]).success,
     ).toBe(false);
   });
 });

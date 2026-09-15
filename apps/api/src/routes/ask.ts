@@ -46,7 +46,7 @@ import {
   parseDocTypesFromConfig,
   parseModesFromConfig,
   resolveAskMode,
-  toDocTypeItems,
+  toMemberDocTypeItems,
   type KbSettingsRepo,
 } from '../services/kb-settings.js';
 
@@ -137,7 +137,7 @@ export function createAskRoutes(deps: AskRouteDeps = {}) {
     } catch {
       settingsRow = null;
     }
-    const items = toDocTypeItems(parseDocTypesFromConfig(settingsRow?.configJson ?? {}));
+    const items = toMemberDocTypeItems(settingsRow?.configJson ?? {});
     return ok(c, KbDocTypesSchema.parse({ items }));
   });
 

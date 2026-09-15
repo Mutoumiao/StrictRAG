@@ -55,7 +55,7 @@
 | `ask/history-not-evidence.test.ts` | 会话历史与加深窗文本不得进入 evidence / 不得充当 verify 依据。 | 历史≠evidence · prds/04-pipelines | `runAskGraph（history / evidence_snapshot）` | 有 session 仍只凭 evidence 验证；历史与加深窗文本不得进 snapshot/citations。 | 现行 |
 | `ask/http-audit.test.ts` | GET /ask/:requestId 必须按 KB 成员权限回读当时 evidence_snapshot 与 graph_trace。 | prds/05-api §2.9 · 功能表 §5.2 引用回溯 · 剧本 F3 | `GET /ask/:requestId` | 成员 200 得快照；非成员 403；缺失 404；preview 截断；不依赖现网分片。 | 现行 |
 | `ask/http-ask-modes.test.ts` | 成员必须能读库 allowedModes/defaultMode，且不得经此口拿到 τ。 | 功能表 §3 问答档位 | `GET /knowledge-bases/:kbId/ask-modes` | 成员 200；非成员 403；缺库 404；缺设置回默认档；响应无 tauClaim。 | 现行 |
-| `ask/http-doc-types.test.ts` | 成员必须能读库文档类型枚举，且不得经此口拿到 τ。 | 功能表 §5.2 文档类型 · ADR-050 · 工单「文档类型成员面最小闭环」 | `GET /knowledge-bases/:kbId/doc-types` | 成员 200 与 settings 枚举一致；空枚举 items=[]；非成员 403；缺库 404；响应无 tauClaim。 | 现行 |
+| `ask/http-doc-types.test.ts` | 成员必须能读库文档类型枚举，且不得经此口拿到 τ。 | 功能表 §5.2 文档类型 · ADR-050 · 工单「文档类型成员面最小闭环」 | `GET /knowledge-bases/:kbId/doc-types` | 成员 200 与 settings 枚举一致；catalog 启用项真 label；停用不出；空枚举 items=[]；非成员 403；缺库 404；响应无 tauClaim。 | 现行 |
 | `ask/http-stream.test.ts` | 同步与 SSE 终态字段必须一致；空库走 200 拒答；execute 抛错仍要给出 final。 | prds/05-api | `POST /knowledge-bases/:kbId/ask sync / SSE` | 同步与流式终态一致；kb_not_ready 为 200 拒答信封；execute 抛错仍须给出 final。 | 现行 |
 | `ask/http-validation.test.ts` | POST ask 校验、鉴权与 sessionId 闸必须按契约拒绝非法请求。 | prds/05-api | `POST /knowledge-bases/:kbId/ask` | 非法 body、无鉴权与非法 sessionId 须按契约拒绝。 | 现行 |
 | `ask/min-veto.test.ts` | claim 级 min 不达标时整答必须拒答，禁止均值洗白后 answered。 | P0 R8 · prds/08-quality/01-verification-and-abstention.md | `runAskGraph（judge 分数路径）` | 单条低分 claim 即整答拒答，不看均值。 | 现行 |
@@ -111,7 +111,7 @@
 | `ingest/upload-media.test.ts` | upload-url / PUT 必须拒绝未知 MIME，不得默许 octet-stream。 | ADR-039 · 功能表 §5.2 | `checkUploadMedia · POST upload-url · PUT /internal/objects` | 415 `UNSUPPORTED_MEDIA_TYPE`；不建档。 | 现行 |
 | `ingest/complete-media.test.ts` | complete 必须拒绝未知 MIME，checksum 不一致不得进审批。 | ADR-039 · 功能表 §5.2 | `POST …/complete` | 合法类型写入 checksum；octet-stream 415。 | 现行 |
 | `ingest/document-mappers.test.ts` | 文档列表/详情 DTO 映射稳定。 | 基建: 文档 DTO 映射 | `document mappers` | 纯函数。 | 现行 |
-| `ingest/document-doctype.test.ts` | 文档类型 PATCH 必须属于该 KB 已有枚举，非法码须 400。 | 功能表 §4.3 | `PATCH /documents/:docId docType · assertDocTypeAllowed` | 空枚举不可写非空码。 | 现行 |
+| `ingest/document-doctype.test.ts` | 文档类型 PATCH 必须属于该 KB 已有枚举，非法码须 400。 | 功能表 §4.3 | `PATCH /documents/:docId docType · assertDocTypeAllowed` | 空枚举不可写非空码；停用码不得新标。 | 现行 |
 | `ingest/document-lifecycle-http.test.ts` | 文档 lifecycle 四态可写；上架仍须 status=ready。 | 功能表 §4.3 | `PATCH /documents/:docId/lifecycle` | 不测生效区间。 | 现行 |
 | `ingest/document-meta.test.ts` | 文档元数据 PATCH 正确处理部门两字段。 | P3b-META | `documents meta PATCH` | 部门两字段。 | 现行 |
 | `ingest/document-effective-window.test.ts` | 文档生效区间 PATCH 必须可写可回读，乱序与非法格式须 400。 | 功能表 §4.3 / §5.4 | `PATCH /documents/:docId effectiveFrom/effectiveTo` | 不改 lifecycle；检索真值在 corpus。 | 现行 |
@@ -131,6 +131,8 @@
 | `kb/chunk-strategies-http.test.ts` | 分片策略 catalog / for-upload / 库启用 PATCH 必须落库语义，无码 403，未知码 400。 | 功能表 §4.5 · ADR-053 | `createChunkStrategyRoutes` | kb.config.write 写面；for-upload 给上传人选。 | 现行 |
 | `kb/create-kb.test.ts` | 创建知识库必须指定首位库管，且租户只认令牌、不认 body。 | prds/05-api §2.1 | `POST /knowledge-bases` | 写入 kb_members(role=admin)；缺用户 404。≠ 成员 PUT。 | 现行 |
 | `kb/data-class-complete.test.ts` | sensitive 文档 complete 必须过 ACL 就绪闸。 | P3b-SENS | `parseDataClassFromConfig / isSensitiveCompleteBlocked` | 部门路径或显式名单；null 仍挡。 | 现行 |
+| `kb/doc-type-catalog.test.ts` | 知识库类型分区必须从 config 解析 catalog，停用码不得进入启用列表。 | 功能表 §4.2 文档类型 · ADR-054 · 工单「类型分区 CRUD 最小闭环」 | `parseDocTypeCatalogFromConfig / parseDocTypesFromConfig / mergeKbSettingsPatch / toMemberDocTypeItems` | 旧 string[] 合成全启用；简写 PATCH 写成 catalog。 | 现行 |
+| `kb/doc-type-catalog-http.test.ts` | PATCH 类型分区后 GET settings 与成员 GET /doc-types 必须回读启用项真 label。 | 功能表 §4.2 / §5.2 · ADR-054 · ADR-050 · 工单「类型分区 CRUD 最小闭环」 | `PATCH /knowledge-bases/:kbId/settings · GET /doc-types` | 重复码 400；停用不出成员枚举。 | 现行 |
 | `kb/dept-acl-enforce-resolve.test.ts` | KB deptAclEnforce 覆盖 env，未写时展示与运行时分钉。 | P3b-KBENF | `parseDeptAclEnforceFromConfig / resolveDeptAclEnforce` | P3b-KBENF。 | 现行 |
 | `kb/dept-inherit-down.test.ts` | KB deptInheritDown 覆盖 env，祖先在关闭向下继承时不可见子孙。 | P3b-KBINH | `parseDeptInheritDownFromConfig / resolveDeptInheritDown / filterDocsForDeptAcl` | P3b-KBINH。 | 现行 |
 | `kb/settings-http.test.ts` | 知识库设置 HTTP 按 B2 契约读写。 | B2 | `kb-settings routes` | 设置 HTTP。 | 现行 |

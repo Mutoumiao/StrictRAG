@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（支撑 P0/P1 入库 + S2 问答/会话/反馈/成员 + B1–B6 运营契约 + **B12 策略码 / ingest job**；**非**全量 OpenAPI） |
 | 默认依赖模式 | 纯库；无运行时开关 |
 | 关联模块 | 被 `api` · `worker` · `web` · `admin` 消费；是全仓错误码、响应信封、队列名与 **可写分片策略集** 的唯一来源 |
-| 最近更新 | 2026-09-14（入库 MIME 白名单 SSOT；complete 可选 checksumSha256） |
+| 最近更新 | 2026-09-15（settings `docTypeItems` catalog；与 `docTypes` 互斥） |
 | Spec | `.trellis/spec/contracts/library/` |
 | PRD | `prds/05-api` · 各域契约与 PRD 短名对齐 |
 
@@ -49,6 +49,7 @@
 - ask 请求 / 响应、拒答 reason、流式 `data-status` 形状（`ask/ask.contract` · `ask/reason`；`AskResponse` = 同步 JSON ≡ 流式 `data-ask-final`）
 - **`AskModesSchema`**：成员档位口（`allowedModes` + `defaultMode`）；`.strict()` 拒绝 τ；default 须 ∈ allowed 且 allowed 唯一（`tests/kb/settings-contract.test.ts`）
 - **`KbDocTypesSchema`**：成员类型口 `{ items: [{ code, label }] }`；`.strict()` 拒绝 τ（`tests/kb/settings-contract.test.ts`）
+- **`KbDocTypeCatalogItemSchema` / `KbDocTypeCatalogSchema`**：设置分区 `{ code, label, sort, enabled }`；code 唯一；PATCH 与 `docTypes` 互斥
 - **`AskReasonSchema`** 含 `no_docs_in_scope`（类型收窄后空集；≠ `kb_not_ready`）
 - **`AskAuditResponseSchema` / `EvidenceSnapshotItemSchema`**：`GET /ask/:requestId` 审计形（当时 chunkId/docId/lifecycle/preview/title + graphTrace）；`.strict()` 拒绝 `text`/`body`/`answer`/`rawQuestion`（`tests/ask/audit-contract.test.ts`）
 - **`AskRequestSchema`**：`question`（1–8000 字）· `sessionId` · 顶层 `scope` · `options`，`.strict()`
@@ -66,7 +67,7 @@
 
 ### 知识库设置（B2）
 - `AskModeSchema`（`strict` / `balanced` / `fast`）+ `DEFAULT_ALLOWED_MODES` / `DEFAULT_DEFAULT_MODE`（`kb/kb-settings.contract`）
-- `KbSettings` / `PatchKbSettingsBodySchema`（strict 白名单 + modes 唯一性 + `dataClass` 默认 internal + `deptInheritDown` 默认 true + `deptAclEnforce` 默认 false）（`kb/kb-settings.contract`）
+- `KbSettings` / `PatchKbSettingsBodySchema`（strict 白名单 + modes 唯一性 + `dataClass` 默认 internal + `deptInheritDown` 默认 true + `deptAclEnforce` 默认 false + **`docTypeItems` catalog** 与 `docTypes` 互斥）（`kb/kb-settings.contract`）
 - **`KbSettingsAuditItemSchema`**：`id` / `kbId` / `actorUserId` / `createdAt` / `diff`；`.strict()` 拒密钥键（`kb/settings-audit.contract.ts` · `tests/kb/settings-audit-contract.test.ts`）
 - `DocumentListItem` 含 `ownerDeptId` / `visibilityLevel` / `aclPrincipals`（缺省 null / 20 / null；详情 inherit 列表项）
 - `DeptCrossGrant` / `CreateDeptCrossGrantBodySchema`（`system/dept-grants.contract`）

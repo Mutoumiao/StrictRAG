@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * 知识库设置薄页：基本信息 / 语料分级 / 部门强制 / 部门继承 / 问答档位 / 质量只读 / rewrite 锁 / 修改日志。
+ * 知识库设置薄页：基本信息 / 文档类型分区 / 语料分级 / 部门强制 / 部门继承 / 问答档位 / 质量只读 / rewrite 锁 / 修改日志。
  * 禁止 τ 滑块与 rewrite 开关。sensitive complete 须 ACL 就绪。强制勾选 ≠ 仓库默认开。
  * 未改 inherit 勾选不得 PATCH deptInheritDown（GET 缺省 true 不可写回盖 env）。
  * 未改强制勾选不得 PATCH deptAclEnforce（GET 缺省 false 不可写回钉成显式关）。
@@ -17,14 +17,17 @@ import { useAdminAuth } from '@/components/auth-guard';
 import { readStoredKbId } from '@/lib/kb-context';
 
 import {
+  catalogsEqual,
+  draftsFromSettings,
+  draftsToCatalog,
   formatSettingsAuditValue,
   loadKbBindings,
   loadKbSettings,
   loadKbSettingsAudit,
   NO_SETTINGS_AUDIT_HINT,
-  parseDocTypesInput,
   saveKbBindings,
   saveKbSettings,
+  type DocTypeDraft,
 } from '../services';
 import { ChunkStrategyPanel } from './chunk-strategy-panel';
 
@@ -45,7 +48,7 @@ export function SettingsWorkspace() {
   const [dataClass, setDataClass] = useState<DataClass>('internal');
   const [deptInheritDown, setDeptInheritDown] = useState(true);
   const [deptAclEnforce, setDeptAclEnforce] = useState(false);
-  const [docTypesInput, setDocTypesInput] = useState('');
+  const [docTypeDrafts, setDocTypeDrafts] = useState<DocTypeDraft[]>([]);
   const [embedRef, setEmbedRef] = useState('');
   const [loadedEmbedRef, setLoadedEmbedRef] = useState('');
   const [state, setState] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle');
@@ -62,7 +65,7 @@ export function SettingsWorkspace() {
     setDataClass(s.dataClass ?? 'internal');
     setDeptInheritDown(s.deptInheritDown ?? true);
     setDeptAclEnforce(s.deptAclEnforce ?? false);
-    setDocTypesInput((s.docTypes ?? []).join(', '));
+    setDocTypeDrafts(draftsFromSettings(s));
   }, []);
 
   const load = useCallback(async () => {
@@ -126,14 +129,15 @@ export function SettingsWorkspace() {
     setFlash(null);
     const loadedInherit = settings?.deptInheritDown ?? true;
     const loadedEnforce = settings?.deptAclEnforce ?? false;
-    const loadedTypes = (settings?.docTypes ?? []).join(', ');
+    const loadedCatalog = settings ? draftsToCatalog(draftsFromSettings(settings)) : [];
+    const nextCatalog = draftsToCatalog(docTypeDrafts);
     const result = await saveKbSettings(id, {
       name: name.trim(),
       description: description.trim() || null,
       allowedModes,
       defaultMode,
       dataClass,
-      ...(docTypesInput !== loadedTypes ? { docTypes: parseDocTypesInput(docTypesInput) } : {}),
+      ...(catalogsEqual(nextCatalog, loadedCatalog) ? {} : { docTypeItems: nextCatalog }),
       ...(deptInheritDown !== loadedInherit ? { deptInheritDown } : {}),
       ...(deptAclEnforce !== loadedEnforce ? { deptAclEnforce } : {}),
     });
@@ -304,13 +308,119 @@ export function SettingsWorkspace() {
 
           <section className="space-y-3 rounded-lg border border-border p-4">
             <h2 className="text-sm font-semibold">文档类型</h2>
-            <Input
-              id="kb-doc-types"
-              value={docTypesInput}
-              onChange={(e) => setDocTypesInput(e.target.value)}
-              placeholder="hr, legal；空=不限制"
-            />
-            <p className="text-xs text-muted-foreground">写入 KB 允许的 docTypes；空数组清除限制。</p>
+            <p className="text-xs text-muted-foreground">
+              逐条维护码、显示名、排序与启用。停用不出成员枚举、不能新标。空列表 = 不限制 ask
+              scope，文档只能清类型。
+            </p>
+            <ul className="space-y-2">
+              {docTypeDrafts.map((row, index) => (
+                <li
+                  key={`doc-type-${index}`}
+                  className="flex flex-wrap items-end gap-2 rounded-md border border-border p-2"
+                >
+                  <div className="space-y-1">
+                    <Label htmlFor={`doc-type-code-${index}`}>码</Label>
+                    <Input
+                      id={`doc-type-code-${index}`}
+                      value={row.code}
+                      onChange={(e) =>
+                        setDocTypeDrafts((prev) =>
+                          prev.map((item, i) =>
+                            i === index ? { ...item, code: e.target.value } : item,
+                          ),
+                        )
+                      }
+                      maxLength={64}
+                    />
+                  </div>
+                  <div className="min-w-[8rem] flex-1 space-y-1">
+                    <Label htmlFor={`doc-type-label-${index}`}>显示名</Label>
+                    <Input
+                      id={`doc-type-label-${index}`}
+                      value={row.label}
+                      onChange={(e) =>
+                        setDocTypeDrafts((prev) =>
+                          prev.map((item, i) =>
+                            i === index ? { ...item, label: e.target.value } : item,
+                          ),
+                        )
+                      }
+                      maxLength={128}
+                    />
+                  </div>
+                  <label className="flex items-center gap-1.5 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={row.enabled}
+                      onChange={(e) =>
+                        setDocTypeDrafts((prev) =>
+                          prev.map((item, i) =>
+                            i === index ? { ...item, enabled: e.target.checked } : item,
+                          ),
+                        )
+                      }
+                    />
+                    启用
+                  </label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={index === 0}
+                    onClick={() =>
+                      setDocTypeDrafts((prev) => {
+                        if (index === 0) return prev;
+                        const next = prev.slice();
+                        const cur = next[index]!;
+                        next[index] = next[index - 1]!;
+                        next[index - 1] = cur;
+                        return next;
+                      })
+                    }
+                  >
+                    上移
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={index === docTypeDrafts.length - 1}
+                    onClick={() =>
+                      setDocTypeDrafts((prev) => {
+                        if (index >= prev.length - 1) return prev;
+                        const next = prev.slice();
+                        const cur = next[index]!;
+                        next[index] = next[index + 1]!;
+                        next[index + 1] = cur;
+                        return next;
+                      })
+                    }
+                  >
+                    下移
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setDocTypeDrafts((prev) => prev.filter((_, i) => i !== index))
+                    }
+                  >
+                    删除
+                  </Button>
+                </li>
+              ))}
+            </ul>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setDocTypeDrafts((prev) => [...prev, { code: '', label: '', enabled: true }])
+              }
+            >
+              新增类型
+            </Button>
           </section>
 
           <ChunkStrategyPanel kbId={kbId} canWrite={canWrite} />

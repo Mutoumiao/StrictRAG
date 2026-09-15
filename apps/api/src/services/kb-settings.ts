@@ -3,6 +3,7 @@ import {
   DEFAULT_DEFAULT_MODE,
   type AskMode,
   type DataClass,
+  type KbDocTypeCatalogItem,
   type KbSettings,
   type PatchKbSettingsBody,
   type QualitySnapshot,
@@ -57,22 +58,122 @@ export function parseModesFromConfig(config: Record<string, unknown> | null | un
   return { allowedModes, defaultMode };
 }
 
-/** config_json.docTypes；空/缺省 = 无限制 */
-export function parseDocTypesFromConfig(
-  config: Record<string, unknown> | null | undefined,
-): string[] {
-  const raw = config?.docTypes;
+function parseDocTypeCodes(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
   const out: string[] = [];
+  const seen = new Set<string>();
   for (const v of raw) {
-    if (typeof v === 'string' && v.length > 0 && v.length <= 64) out.push(v);
+    if (typeof v !== 'string') continue;
+    const code = v.trim();
+    if (code.length === 0 || code.length > 64 || seen.has(code)) continue;
+    seen.add(code);
+    out.push(code);
   }
   return out;
 }
 
-/** 成员 GET /doc-types；设置只存码，label 暂等于 code */
-export function toDocTypeItems(codes: readonly string[]): { code: string; label: string }[] {
-  return codes.map((code) => ({ code, label: code }));
+function parseCatalogItem(raw: unknown, index: number): KbDocTypeCatalogItem | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const row = raw as Record<string, unknown>;
+  if (typeof row.code !== 'string') return null;
+  const code = row.code.trim();
+  if (code.length === 0 || code.length > 64) return null;
+  const labelRaw = typeof row.label === 'string' ? row.label.trim() : '';
+  const label = (labelRaw.length > 0 ? labelRaw : code).slice(0, 128);
+  const sort =
+    typeof row.sort === 'number' && Number.isInteger(row.sort) && row.sort >= 0
+      ? Math.min(row.sort, 999)
+      : index;
+  const enabled = row.enabled !== false;
+  return { code, label, sort, enabled };
+}
+
+/** config_json.docTypeItems 为 SSOT；旧行只有 docTypes 则合成全启用。 */
+export function parseDocTypeCatalogFromConfig(
+  config: Record<string, unknown> | null | undefined,
+): KbDocTypeCatalogItem[] {
+  const rawItems = config?.docTypeItems;
+  if (Array.isArray(rawItems)) {
+    const out: KbDocTypeCatalogItem[] = [];
+    const seen = new Set<string>();
+    for (let i = 0; i < rawItems.length && out.length < 32; i += 1) {
+      const item = parseCatalogItem(rawItems[i], i);
+      if (!item || seen.has(item.code)) continue;
+      seen.add(item.code);
+      out.push(item);
+    }
+    return out.slice().sort((a, b) => a.sort - b.sort || a.code.localeCompare(b.code));
+  }
+  const codes = parseDocTypeCodes(config?.docTypes);
+  return codes.map((code, i) => ({ code, label: code, sort: i, enabled: true }));
+}
+
+/** 启用中的 doc_type 码；空 = ask scope 不限制 */
+export function parseDocTypesFromConfig(
+  config: Record<string, unknown> | null | undefined,
+): string[] {
+  return parseDocTypeCatalogFromConfig(config)
+    .filter((item) => item.enabled)
+    .map((item) => item.code);
+}
+
+export function catalogToEnabledCodes(items: readonly KbDocTypeCatalogItem[]): string[] {
+  return items
+    .slice()
+    .sort((a, b) => a.sort - b.sort || a.code.localeCompare(b.code))
+    .filter((item) => item.enabled)
+    .map((item) => item.code);
+}
+
+/** 旧简写 string[] → 全启用 catalog */
+export function codesToCatalog(codes: readonly string[]): KbDocTypeCatalogItem[] {
+  const seen = new Set<string>();
+  const out: KbDocTypeCatalogItem[] = [];
+  for (const raw of codes) {
+    const code = raw.trim();
+    if (!code || seen.has(code)) continue;
+    seen.add(code);
+    out.push({ code, label: code, sort: out.length, enabled: true });
+  }
+  return out;
+}
+
+export function normalizeDocTypeCatalog(
+  items: readonly KbDocTypeCatalogItem[],
+): { ok: true; items: KbDocTypeCatalogItem[] } | { ok: false; message: string } {
+  const seen = new Set<string>();
+  const out: KbDocTypeCatalogItem[] = [];
+  const ordered = items
+    .slice()
+    .sort((a, b) => a.sort - b.sort || a.code.localeCompare(b.code));
+  for (const item of ordered) {
+    const code = item.code.trim();
+    if (!code) continue;
+    if (seen.has(code)) {
+      return { ok: false, message: `duplicate docType code: ${code}` };
+    }
+    seen.add(code);
+    const label = (item.label.trim() || code).slice(0, 128);
+    out.push({
+      code,
+      label,
+      sort: out.length,
+      enabled: item.enabled,
+    });
+    if (out.length > 32) {
+      return { ok: false, message: 'docTypeItems exceeds 32' };
+    }
+  }
+  return { ok: true, items: out };
+}
+
+/** 成员 GET /doc-types：只回启用项；label 取 catalog */
+export function toMemberDocTypeItems(
+  config: Record<string, unknown> | null | undefined,
+): { code: string; label: string }[] {
+  return parseDocTypeCatalogFromConfig(config)
+    .filter((item) => item.enabled)
+    .map((item) => ({ code: item.code, label: item.label }));
 }
 
 /** config_json.dataClass；只认 sensitive，其余/缺省 → internal */
@@ -191,13 +292,15 @@ export function buildKbSettingsView(input: {
   quality: QualitySnapshot;
 }): KbSettings {
   const { allowedModes, defaultMode } = parseModesFromConfig(input.row.configJson ?? {});
+  const catalog = parseDocTypeCatalogFromConfig(input.row.configJson ?? {});
   return {
     kbId: input.row.id,
     name: input.row.name,
     description: input.row.description,
     allowedModes,
     defaultMode,
-    docTypes: parseDocTypesFromConfig(input.row.configJson ?? {}),
+    docTypes: catalogToEnabledCodes(catalog),
+    docTypeItems: catalog,
     dataClass: parseDataClassFromConfig(input.row.configJson ?? {}),
     deptInheritDown: parseDeptInheritDownFromConfig(input.row.configJson ?? {}) ?? true,
     deptAclEnforce: parseDeptAclEnforceFromConfig(input.row.configJson ?? {}) ?? false,
@@ -223,7 +326,8 @@ export function mergeKbSettingsPatch(
     }
   | { ok: false; message: string } {
   const prev = parseModesFromConfig(row.configJson ?? {});
-  const prevDocTypes = parseDocTypesFromConfig(row.configJson ?? {});
+  const prevCatalog = parseDocTypeCatalogFromConfig(row.configJson ?? {});
+  const prevDocTypes = catalogToEnabledCodes(prevCatalog);
   const prevDataClass = parseDataClassFromConfig(row.configJson ?? {});
   const prevInherit = parseDeptInheritDownFromConfig(row.configJson ?? {});
   const prevEnforce = parseDeptAclEnforceFromConfig(row.configJson ?? {});
@@ -232,7 +336,6 @@ export function mergeKbSettingsPatch(
     body.description !== undefined ? body.description : (row.description ?? null);
   const nextAllowed = body.allowedModes ?? prev.allowedModes;
   const nextDefault = body.defaultMode ?? prev.defaultMode;
-  const nextDocTypes = body.docTypes !== undefined ? body.docTypes : prevDocTypes;
   const nextDataClass = body.dataClass !== undefined ? body.dataClass : prevDataClass;
 
   if (!nextAllowed.includes(nextDefault)) {
@@ -242,11 +345,22 @@ export function mergeKbSettingsPatch(
     };
   }
 
+  let nextCatalog = prevCatalog;
+  if (body.docTypeItems !== undefined) {
+    const normalized = normalizeDocTypeCatalog(body.docTypeItems);
+    if (!normalized.ok) return { ok: false, message: normalized.message };
+    nextCatalog = normalized.items;
+  } else if (body.docTypes !== undefined) {
+    nextCatalog = codesToCatalog(body.docTypes);
+  }
+  const nextDocTypes = catalogToEnabledCodes(nextCatalog);
+
   const nextConfig: Record<string, unknown> = {
     ...(row.configJson ?? {}),
     allowedModes: nextAllowed,
     defaultMode: nextDefault,
     docTypes: nextDocTypes,
+    docTypeItems: nextCatalog,
     dataClass: nextDataClass,
   };
   if (body.deptInheritDown !== undefined) {
@@ -266,6 +380,9 @@ export function mergeKbSettingsPatch(
   }
   if (nextDefault !== prev.defaultMode) {
     diff.defaultMode = { from: prev.defaultMode, to: nextDefault };
+  }
+  if (JSON.stringify(nextCatalog) !== JSON.stringify(prevCatalog)) {
+    diff.docTypeItems = { from: prevCatalog, to: nextCatalog };
   }
   if (JSON.stringify(nextDocTypes) !== JSON.stringify(prevDocTypes)) {
     diff.docTypes = { from: prevDocTypes, to: nextDocTypes };

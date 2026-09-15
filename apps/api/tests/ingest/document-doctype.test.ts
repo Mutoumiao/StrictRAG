@@ -2,7 +2,7 @@
  * 目标：文档类型 PATCH 必须属于该 KB 已有枚举，非法码须 400。
  * 需求：功能表 §4.3 文档类型标注
  * 被测：PATCH /documents/:docId docType
- * 简介：不重做类型分区 CRUD；不测 ask scope。
+ * 简介：启用枚举才可标；不测 ask scope。
  */
 
 import { Hono } from 'hono';
@@ -144,6 +144,28 @@ describe('PATCH /documents/:docId docType', () => {
     const body = (await res.json()) as { data: { docType: string | null } };
     expect(body.data.docType).toBe('hr');
     expect(docState.patchCalls).toEqual([{ docType: 'hr' }]);
+  });
+
+  it('停用码不得新标 → 400', async () => {
+    docState.config = {
+      docTypeItems: [
+        { code: 'hr', label: '人事', sort: 0, enabled: true },
+        { code: 'policy', label: '制度', sort: 1, enabled: false },
+      ],
+      docTypes: ['hr'],
+    };
+    const app = buildApp();
+    const accessToken = await token();
+    const res = await app.request(`/api/v1/documents/${DOC}`, {
+      method: 'PATCH',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ docType: 'policy' }),
+    });
+    expect(res.status).toBe(400);
+    expect(docState.patchCalls).toHaveLength(0);
   });
 
   it('null 可清除分类', async () => {

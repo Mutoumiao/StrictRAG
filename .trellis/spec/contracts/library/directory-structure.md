@@ -36,7 +36,7 @@ packages/contracts/
       feedback.contract.ts
       member.contract.ts
     kb/
-      kb-settings.contract.ts   # B2 设置 GET data / PATCH body（ADR-054）
+      kb-settings.contract.ts   # B2 设置 GET data / PATCH body（ADR-054；含 docTypeItems catalog）
       settings-audit.contract.ts  # GET settings-audit 列表项（无密钥）
     eval/
       l1-matrix.ts          # 2×2 纯函数（api CLI + worker 共用）
