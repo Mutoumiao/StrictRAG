@@ -2,8 +2,8 @@
 
 Type: task
 Label: wayfinder:task
-Status: pending
-Assignee: —
+Status: resolved
+Assignee: grok
 Triage: ready-for-agent
 Blocked by: 86
 
@@ -44,3 +44,25 @@ Blocked by: 86
 - 改 `prds/00–11`
 
 收工：`.trellis/spec/` admin quality-guidelines + module-layering、admin-catalog（若需）；`docs/module-status/` admin · admin-catalog。禁止 push。禁止 `task.py create`。
+
+## Answer
+
+角色与权限树状勾选最小闭环已落地。
+
+- 新增纯函数模块 `apps/admin/src/app/(ops)/roles/permission-tree.ts` `buildPermissionTree(catalog, tree = MENU_TREE)`：按 `admin-catalog` 的 `MENU_TREE` 编成 L1 → L2 → 操作码两级树。
+- 节点自带 `permission`（page 码）的码自动归位；菜单树里没有节点的操作码用一张 5 项映射表归位（`doc.upload` / `doc.editor` / `doc.lifecycle` / `doc.reindex` → 文档；`approval.decide` → 审批中心）。
+- **节点先建齐再落码**：某节点的 page 码缺席 catalog 时，其操作码仍落本节点，不被挤到兜底组（此缺陷由测例当场暴露并修正）。
+- 树里找不到节点的码（`admin.shell` / `kb.list` / `kb.create` / `system.settings`）进「其他（未挂菜单）」，**仍可见可勾**；**不丢码**由测例断言（码集合与 catalog 完全一致且无重复）。
+- 角色页改为分组渲染（L1 标题 + L2 fieldset + 码勾选），空组不渲染；超管全码锁（工单 31）语义不变。
+- 未改鉴权语义 / 码表 / 契约 / `permission_definitions` 层级列 / API / 菜单裁剪。
+
+证据：`apps/admin/src/app/(ops)/roles/permission-tree.ts` · `apps/admin/src/app/(ops)/roles/_components/roles-workspace.tsx` · 测例 `apps/admin/tests/ops/roles-permission-tree.test.tsx`（5，含「每码仅出现一次」不变量与分组渲染）。
+
+验证：`pnpm --filter @strict-rag/admin test` 33 文件 / 164 测试全绿；`pnpm check-types` 8/8 绿。`pnpm lint` 仍只有 api 既有 7 个 warning（与本次无关）。
+
+未 `task.py create`。未 push。
+
+## Comments
+
+- 2026-09-16 认领并在主分支执行。权威切边见 [裁定反馈回流黄金集后下一步](./85-after-feedback-promote-gold-order.md)。
+- 首轮 admin 测例 3 条红：暴露「按 catalog 过滤节点 → 操作码被挤到兜底组」缺陷；改为先建节点后落码，复跑绿。
