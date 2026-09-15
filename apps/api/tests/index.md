@@ -111,7 +111,7 @@
 | `ingest/complete-size.test.ts` | complete 体积超限必须拒绝。 | 上传/complete 限 | `checkUploadByteSize` | complete 体积闸。 | 现行 |
 | `ingest/upload-media.test.ts` | upload-url / PUT 必须拒绝未知 MIME，不得默许 octet-stream。 | ADR-039 · 功能表 §5.2 | `checkUploadMedia · POST upload-url · PUT /internal/objects` | 415 `UNSUPPORTED_MEDIA_TYPE`；不建档。 | 现行 |
 | `ingest/complete-media.test.ts` | complete 必须拒绝未知 MIME，checksum 不一致不得进审批。 | ADR-039 · 功能表 §5.2 | `POST …/complete` | 合法类型写入 checksum；octet-stream 415。 | 现行 |
-| `ingest/document-mappers.test.ts` | 文档列表/详情 DTO 映射稳定。 | 基建: 文档 DTO 映射 | `document mappers` | 纯函数。 | 现行 |
+| `ingest/document-mappers.test.ts` | 文档列表/详情 DTO 映射稳定。 | 基建: 文档 DTO 映射 | `document mappers` | 纯函数；含分片策略与参数快照只读回读。 | 现行 |
 | `ingest/document-doctype.test.ts` | 文档类型 PATCH 必须属于该 KB 已有枚举，非法码须 400。 | 功能表 §4.3 | `PATCH /documents/:docId docType · assertDocTypeAllowed` | 空枚举不可写非空码；停用码不得新标。 | 现行 |
 | `ingest/document-lifecycle-http.test.ts` | 文档 lifecycle 四态可写；上架仍须 status=ready。 | 功能表 §4.3 | `PATCH /documents/:docId/lifecycle` | 不测生效区间。 | 现行 |
 | `ingest/document-meta.test.ts` | 文档元数据 PATCH 正确处理部门两字段。 | P3b-META | `documents meta PATCH` | 部门两字段。 | 现行 |

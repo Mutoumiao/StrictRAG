@@ -127,6 +127,21 @@ describe('documents mappers（ARCH-P1a 域内纯函数）', () => {
     expect(detail.aclPrincipals).toBeNull();
   });
 
+  it('toListItem 回读分片策略与参数快照（只读审计）', () => {
+    const item = toListItem({
+      ...base,
+      chunkStrategy: 'structure_paragraph',
+      chunkStrategyParams: { contextMode: 'l0_template', chunkTokens: 256 },
+    });
+    expect(item.chunkStrategy).toBe('structure_paragraph');
+    expect(item.chunkStrategyParams).toEqual({
+      contextMode: 'l0_template',
+      chunkTokens: 256,
+    });
+    expect(toListItem(base).chunkStrategy).toBeNull();
+    expect(toListItem(base).chunkStrategyParams).toBeNull();
+  });
+
   it('toListItem 回读 aclPrincipals 三态', () => {
     expect(toListItem({ ...base, aclPrincipals: null }).aclPrincipals).toBeNull();
     expect(toListItem({ ...base, aclPrincipals: [] }).aclPrincipals).toEqual([]);

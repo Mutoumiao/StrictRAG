@@ -200,6 +200,10 @@ export const DocumentListItemSchema = z.object({
   ownerDeptId: z.string().uuid().nullable().default(null),
   visibilityLevel: VisibilityLevelSchema.default(20),
   docType: z.string().nullable().optional().default(null),
+  /** 绑定的分片策略码（只读审计；未记录 = null） */
+  chunkStrategy: z.string().nullable().default(null),
+  /** 该文档当时的分片参数快照（只读审计；未记录 = null） */
+  chunkStrategyParams: z.record(z.string(), z.unknown()).nullable().default(null),
   /** null=未设；[]=显式空名单 */
   aclPrincipals: z.array(z.string().uuid()).nullable().default(null),
   /** 缺省 null = 不限；yyyy-MM-dd HH:mm:ss */

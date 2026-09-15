@@ -37,6 +37,7 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 - `/documents`：按知识库拉取文档列表；表格展示部门 / 可见级 / **类型** / **运营标签**（待审…现行可问…已归档；原串 `status · lifecycle` 次要）/ **向量 / 稀疏就绪**（有树时部门列显示名，否则 uuid；可见级默认中文标签；可按部门/可见级**本地**筛，不加 GET query；审批操作在审批页进行；稀疏就绪 **≠** 生产 ES）
 - 点行改 `ownerDeptId` / `visibilityLevel` / `docType` / `aclPrincipals` / **生效区间**：有 `dept.manage` 用部门下拉，否则 uuid 粘贴；类型枚举来自设置 GET（需 `kb.config.write`），否则文本框；名单用 Textarea（逗号或换行）+「仅名单可见」勾选（未勾选且空 → `null`；勾选且空 → `[]`）；生效自/至为空即清除；`doc.editor` 裁保存；无该码只读；**无**用户下拉 / **无**角色 principal
 - 行展开 **Reindex**（`doc.reindex`）：走 `for-upload`；≥2 未选按钮不可提交
+- 行展开 **分片策略（历史，只读）**：展示当时绑定的策略码与参数快照（`chunkStrategy` / `chunkStrategyParams`）；未记录显示「未记录分片策略」/「未记录快照」，不用默认值冒充
 - 行展开 **入库报告**（紧挨「入库阶段」）：库级 GET 后只展示本行；无报告「暂无入库报告」；展示文档内/跨文档去重计数、冲突对 otherDocId、情境来源；**不是**独立抽屉 / 新页；**不是** pending_review
 - lifecycle（`doc.lifecycle`）：上架仍须 `status=ready` 且仅 draft；可废止 / 归档；**替代**须选后继（`ClosedSelect`，走 `POST …/supersede`）；**删除**走 `DELETE`（归档并入队 purge，不走 PATCH）。检索闸仍 ready∧active，不自动升
 - `DocumentListItem` 的 `embedReady` / `esReady` **已渲染**为向量/稀疏列（适配层标志，**≠** 生产 ES）

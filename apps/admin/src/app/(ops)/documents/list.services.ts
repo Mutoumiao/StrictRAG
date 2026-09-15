@@ -41,6 +41,20 @@ const VISIBILITY_LABELS: Record<VisibilityLevel, string> = {
   40: '40 受限',
 };
 
+/**
+ * 文档绑定的分片策略与参数快照（只读审计）。
+ * 未记录就如实说「未记录」，不得用默认值冒充当时参数。
+ */
+export function strategySnapshotLabel(
+  code: string | null | undefined,
+  params: Record<string, unknown> | null | undefined,
+): string {
+  const trimmed = typeof code === 'string' ? code.trim() : '';
+  if (!trimmed) return '未记录分片策略';
+  if (!params || Object.keys(params).length === 0) return `${trimmed} · 未记录快照`;
+  return `${trimmed} · ${JSON.stringify(params)}`;
+}
+
 /** 文档页可见级展示：默认档中文；未知数字回退原值。不写 URL。 */
 export function visibilityLabel(level: number): string {
   return VISIBILITY_LABELS[level as VisibilityLevel] ?? String(level);

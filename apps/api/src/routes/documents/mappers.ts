@@ -26,6 +26,8 @@ export type DocMapSource = {
   contentType?: string | null;
   errorMessage?: string | null;
   docType?: string | null;
+  chunkStrategy?: string | null;
+  chunkStrategyParams?: Record<string, unknown> | null;
   createdAt?: string | null;
   updatedAt?: string | null;
   ownerDeptId?: string | null;
@@ -53,6 +55,8 @@ export function toListItem(r: DocMapSource): DocumentListItem {
     ownerDeptId: r.ownerDeptId ?? null,
     visibilityLevel: (r.visibilityLevel ?? 20) as VisibilityLevel,
     docType: r.docType ?? null,
+    chunkStrategy: r.chunkStrategy ?? null,
+    chunkStrategyParams: r.chunkStrategyParams ?? null,
     aclPrincipals: r.aclPrincipals ?? null,
     effectiveFrom: r.effectiveFrom ?? null,
     effectiveTo: r.effectiveTo ?? null,

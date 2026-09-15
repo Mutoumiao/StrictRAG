@@ -63,6 +63,7 @@ resolveDocumentChunkStrategy({ existing, requested, requireExplicit? })
 | `GET …/chunk-strategies` · `/schema` · `PATCH` | `kb.config.write`；PATCH 写 `kb_chunk_strategies`，**有 diff** 落 `kb_settings_audits`（复用 KB 设置审计表，**不新建表**；键 `chunkStrategy.<code>.<field>`，无 diff 不落） |
 | `GET …/chunk-strategies/for-upload?contentType=` | 库启用 ∩ 文档族 ∩ **implemented**；仅 1 个 → `autoCode`；≥2 → `requireExplicit` |
 | complete | 走 for-upload available：仅 1 个可省略自动；≥2 未选 → 400；写入 `chunk_strategy` + `chunk_strategy_params` 快照。**ingest 平面闸**在落 pending 前（`INGEST_RATE_LIMIT_RPM`，默认 0）；触顶 429 `RATE_LIMITED` `details.plane=ingest` |
+| 文档列表 / 详情 | 只读带出 `chunkStrategy` + `chunkStrategyParams`（运营审计「当时按什么参数切」）；缺省 `null`，**禁止**用默认值冒充 |
 | write | `POST …/documents/write`：Markdown 落对象后走与 complete 同一套闸（`finalizePendingIngest`）；`sourceType=write`；**不**入队 scan |
 | reindex | 同上 available 计数；既有已实现且仍 available 可省略保留；脏未实现省略 → 400。入队 stage：`needs_review` 或 `needs_ocr`（`extractMethod !== 'text'`）→ `ocr`；其余（含 ready、短 utf8 页眉）→ `chunk`。**不是**自动全库重跑；关闸由 worker 打回 |
 

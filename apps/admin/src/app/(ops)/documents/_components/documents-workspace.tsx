@@ -44,6 +44,7 @@ import {
   loadDocumentList,
   opsLabel,
   readyColLabel,
+  strategySnapshotLabel,
   visibilityLabel,
 } from '../list.services';
 import {
@@ -1202,6 +1203,15 @@ export function DocumentsWorkspace() {
                                 ))}
                               </ul>
                             ) : null}
+                          </div>
+                          <div className="text-xs">
+                            <p className="font-semibold">分片策略（历史，只读）</p>
+                            <p className="text-muted-foreground">
+                              {strategySnapshotLabel(
+                                detail?.chunkStrategy,
+                                detail?.chunkStrategyParams,
+                              )}
+                            </p>
                           </div>
                           {canEdit ? (
                             <Button type="button" size="sm" disabled={busy} onClick={() => void onSave()}>

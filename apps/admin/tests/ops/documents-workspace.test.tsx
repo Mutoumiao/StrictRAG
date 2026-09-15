@@ -776,6 +776,8 @@ describe('DocumentsWorkspace', () => {
     await user.click(await screen.findByText('请假制度'));
 
     expect(await screen.findByLabelText('分片策略')).toBeInTheDocument();
+    expect(screen.getByText('分片策略（历史，只读）')).toBeInTheDocument();
+    expect(screen.getByText('未记录分片策略')).toBeInTheDocument();
     const btn = screen.getByRole('button', { name: 'Reindex' });
     expect(btn).toBeDisabled();
     await user.selectOptions(screen.getByLabelText('分片策略'), 'fixed_window');
