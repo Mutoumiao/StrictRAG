@@ -7,13 +7,13 @@
 | 成熟度 | **可演示**（S2c 运营薄壳：文档 / 审批 / 成员 / 分片 / 设置 / 模型 + 用户 / 角色 / 部门 + **数据面板** + **反馈队列** + **评测底线**） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT + admin **dev-login**（经 api）· 知识库 = 顶栏关闭列表（本次 GET 可见库，禁止粘贴 uuid）· 菜单 = `clipMenuForShell` 裁剪（catalog 为 SSOT）· API 默认 `http://127.0.0.1:4000` |
 | 关联模块 | API 依赖：`api` 的文档 / 审批 / 成员 / 分片 / 设置 / 模型 / 用户角色 / 部门 / dashboard / **feedback-queue** / **gold-questions · eval/runs**；菜单与权限码：`admin-catalog`；类型：`contracts`；样式：`ui` |
-| 最近更新 | 2026-09-15（反馈队列纳入黄金集 ClosedSelect 题型；须 eval.run） |
+| 最近更新 | 2026-09-16（审批中心回显提交人；角色页树状授码） |
 | Spec | `.trellis/spec/admin/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · 审批 / 成员相关 API |
 
 ## 一句话状态
 
-Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 四态 lifecycle / **后继替代** / 行展开入库报告 / **在线编写 Markdown** / **创建面标部门**）+ 审批中心（回显提交人；默认禁自审由 api 闸）+ 成员管理（邀请 / 改角色 / 移除）+ 分片只读 + 知识库设置（**类型分区 CRUD** + 页内修改日志）+ 模型网关最小集 + 用户（末位超管禁用/剥角色不可点） / 角色（超管全码锁：勾选/保存不可点） / 部门最小集 + 数据面板薄壳 + 反馈队列薄壳 + 评测底线薄壳** 均已接通；顶栏当前 KB 用 ui `ClosedSelect` 只列本次 GET 可见库（空态 / 失败重试 / 脏缓存不采用；禁止粘贴 uuid），旁有建库入口（有 `kb.create` 才显示；名称 + 首位库管预填当前用户可改；成功后选中新建库），外壳 **`clipMenuForShell`** 只显示已落地路由（**12** 条 ops href），**不是**完整运营台（无 APM 时序 / **≠** 全文隔离 / **≠** ES / **≠** 评测签字包）。Vitest / RTL 覆盖外壳 / Guard / 审批 / dashboard 403 + **P0 R5/R6** + settings / documents / departments / **eval** / **members** / **末位超管** / **超管全码锁** / **入库报告** / **设置修改日志** 工作区测 + **建库入口** + **当前 KB 关闭列表**；**无** E2E。
+Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 四态 lifecycle / **后继替代** / 行展开入库报告 / **在线编写 Markdown** / **创建面标部门**）+ 审批中心（回显提交人；默认禁自审由 api 闸）+ 成员管理（邀请 / 改角色 / 移除）+ 分片只读 + 知识库设置（**类型分区 CRUD** + 页内修改日志）+ 模型网关最小集 + 用户（末位超管禁用/剥角色不可点） / 角色（**树状授码**：L1/L2 + 操作码；超管全码锁：勾选/保存不可点） / 部门最小集 + 数据面板薄壳 + 反馈队列薄壳 + 评测底线薄壳** 均已接通；顶栏当前 KB 用 ui `ClosedSelect` 只列本次 GET 可见库（空态 / 失败重试 / 脏缓存不采用；禁止粘贴 uuid），旁有建库入口（有 `kb.create` 才显示；名称 + 首位库管预填当前用户可改；成功后选中新建库），外壳 **`clipMenuForShell`** 只显示已落地路由（**12** 条 ops href），**不是**完整运营台（无 APM 时序 / **≠** 全文隔离 / **≠** ES / **≠** 评测签字包）。Vitest / RTL 覆盖外壳 / Guard / 审批 / dashboard 403 + **P0 R5/R6** + settings / documents / departments / **eval** / **members** / **末位超管** / **超管全码锁** / **入库报告** / **设置修改日志** 工作区测 + **建库入口** + **当前 KB 关闭列表**；**无** E2E。
 
 ---
 
@@ -61,7 +61,7 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 
 ### 平台用户 / 角色（B4 最小集）
 - `/users`：用户列表、新建（email / displayName / 角色）、启用禁用、修改角色；**唯一 active 超管**「禁用」与剥 `super_admin` 不可点并出说明（列表判定；**≠** 改 api 400 闸）；需要 `user.manage` 权限；数据路径仅 `users/api.ts` 一处
-- `/roles`：角色列表、新建自定义角色、勾选权限码并保存；编辑 `super_admin` 时勾选与保存不可点并出「锁定 catalog 全码」说明（**≠** 改 api 400 闸）；需要 `role.perm.manage` 权限；数据路径仅 `roles/api.ts` 一处
+- `/roles`：角色列表、新建自定义角色、**按 `MENU_TREE` 树状勾选授码**（L1 / L2 菜单 + 该节点下操作码；未挂菜单的码进「其他（未挂菜单）」，不丢码）并保存；编辑 `super_admin` 时勾选与保存不可点并出「锁定 catalog 全码」说明（**≠** 改 api 400 闸）；需要 `role.perm.manage` 权限；数据路径仅 `roles/api.ts` 一处
 - **没有**密码相关 UI；登录仍走 dev-login；**B4-W** 运行时角色以 api DB hydrate 为准（本包只 CRUD）；**没有**启动引导超管页
 - 用户部门归属的编辑入口在 **`/departments`** 页（有 `user.manage` 时用户下拉，加载失败回退 uuid）
 

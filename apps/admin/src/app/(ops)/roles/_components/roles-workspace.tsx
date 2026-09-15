@@ -4,7 +4,7 @@
  * 角色与权限薄页：系统/自定义角色 + 权限码勾选。
  */
 
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { PermissionCatalogItem, PlatformRole } from '@strict-rag/contracts';
 import { Button } from '@strict-rag/ui/components/ui/button';
 import { Input } from '@strict-rag/ui/components/ui/input';
@@ -12,6 +12,7 @@ import { Label } from '@strict-rag/ui/components/ui/label';
 
 import { useAdminAuth } from '@/components/auth-guard';
 
+import { buildPermissionTree } from '../permission-tree';
 import {
   createRole,
   isLockedSuperAdminRole,
@@ -58,6 +59,12 @@ export function RolesWorkspace() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const permTree = useMemo(() => buildPermissionTree(catalog), [catalog]);
+  const defByCode = useMemo(
+    () => new Map(catalog.map((p) => [p.code, p] as const)),
+    [catalog],
+  );
 
   function toggleCode(list: string[], c: string): string[] {
     return list.includes(c) ? list.filter((x) => x !== c) : [...list, c];
@@ -118,7 +125,7 @@ export function RolesWorkspace() {
       <header>
         <h1 className="text-xl font-semibold tracking-tight">角色与权限</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          树状授码 · codes ⊆ admin-catalog（ADR-056 最小）
+          树状授码 · L1 菜单 / L2 菜单 / 操作码 · codes ⊆ admin-catalog（ADR-056）
         </p>
       </header>
 
@@ -208,28 +215,50 @@ export function RolesWorkspace() {
           {codesLocked ? (
             <p className="mb-2 text-xs text-muted-foreground">{SUPER_ADMIN_CODES_LOCKED_HINT}</p>
           ) : null}
-          <div className="grid max-h-80 gap-1 overflow-y-auto sm:grid-cols-2">
-            {catalog.map((p) => (
-              <label
-                key={p.code}
-                className={`flex items-start gap-2 rounded px-2 py-1 text-xs ${
-                  codesLocked ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:bg-muted/40'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  className="mt-0.5"
-                  checked={editCodes.includes(p.code)}
-                  disabled={codesLocked}
-                  onChange={() => setEditCodes((prev) => toggleCode(prev, p.code))}
-                />
-                <span>
-                  <span className="font-medium">{p.code}</span>
-                  <span className="block text-muted-foreground">
-                    {p.scope} · {p.kind} · {p.description}
-                  </span>
-                </span>
-              </label>
+          <div className="max-h-80 overflow-y-auto">
+            {permTree.map((group) => (
+              <div key={group.id} className="mb-3">
+                <div className="mb-1 text-xs font-semibold">{group.label}</div>
+                {group.items.map((item) => (
+                  <fieldset
+                    key={item.id}
+                    className="mb-2 rounded border border-border/60 px-2 pb-1"
+                  >
+                    <legend className="px-1 text-[11px] text-muted-foreground">
+                      {item.label}
+                    </legend>
+                    <div className="grid gap-1 sm:grid-cols-2">
+                      {item.codes.map((code) => {
+                        const def = defByCode.get(code);
+                        return (
+                          <label
+                            key={code}
+                            className={`flex items-start gap-2 rounded px-2 py-1 text-xs ${
+                              codesLocked
+                                ? 'cursor-not-allowed opacity-70'
+                                : 'cursor-pointer hover:bg-muted/40'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              className="mt-0.5"
+                              checked={editCodes.includes(code)}
+                              disabled={codesLocked}
+                              onChange={() => setEditCodes((prev) => toggleCode(prev, code))}
+                            />
+                            <span>
+                              <span className="font-medium">{code}</span>
+                              <span className="block text-muted-foreground">
+                                {def ? `${def.scope} · ${def.kind} · ${def.description}` : ''}
+                              </span>
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+                ))}
+              </div>
             ))}
           </div>
           <div className="mt-3 flex gap-2">

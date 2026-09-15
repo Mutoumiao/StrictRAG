@@ -44,6 +44,7 @@
 | `ops/kb-settings-services.test.ts` | 设置服务必须把类型分区草稿编成 catalog，失败则 PATCH 写出错误 docTypeItems。 | 功能表 §4.2 文档类型 · ADR-054 · 工单「类型分区 CRUD 最小闭环」· 工单「KB 消费绑定最小闭环」 | `draftsFromSettings / draftsToCatalog / catalogsEqual / draftsToKbConsumeBindings` | 不写 URL；不再把逗号串当主路径；KB 绑定空档跟随平台。 | 现行 |
 | `ops/kb-settings-doc-types.test.tsx` | 知识库设置文档类型必须逐条增删改，禁止逗号串当主路径。 | 功能表 §4.2 文档类型 · ADR-054 · 工单「类型分区 CRUD 最小闭环」 | `SettingsWorkspace` 类型分区 | HTTP 真值在 api；本页只断言 PATCH 发 docTypeItems。 | 现行 |
 | `ops/kb-settings-workspace.test.tsx` | KB 设置薄页必须按 kb.config.write 显隐，未改勾选不得 PATCH 强制/继承。 | B2 设置 UI · 工单「KB 消费绑定最小闭环」 | `SettingsWorkspace` | mode 真值在 api；sensitive 说明为 ACL 就绪；消费绑定三档 ClosedSelect。 | 现行 |
+| `ops/roles-permission-tree.test.tsx` | 角色授码必须按菜单树分组，且任何 catalog 码都不得被静默丢掉。 | IA §2.4 · 功能表 §4.1 · prds/09-security 角色树 UI | `buildPermissionTree · RolesWorkspace` | 分组来自 `MENU_TREE`；未挂菜单的码仍可见可勾。鉴权真值在 api。 | 现行 |
 | `ops/settings-audit.test.tsx` | 知识库设置页必须展示本库修改日志；无行时须出「暂无修改日志」。 | 功能表 §4.2 | `SettingsWorkspace` | mock services；有行展示时间 / 操作者 / 字段旧→新。 | 现行 |
 | `ops/members-workspace.test.tsx` | 成员页有 member.manage 才能改角色；改下拉须走 PUT 用例。 | prds/05-api §2.2 · 功能表 §5.2 成员 | `MembersWorkspace` | HTTP 真值在 api。 | 现行 |
 | `ops/last-superadmin-hint.test.tsx` | 用户页唯一在职超管的禁用和剥超管角色必须不可点并出说明。 | 功能表 §4.4 · ADR-056 | `UsersWorkspace · isLastActiveSuperAdmin` | HTTP 真值在 api 400 闸。 | 现行 |

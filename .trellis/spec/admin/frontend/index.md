@@ -22,6 +22,7 @@
 - [ ] store / hooks 目录 / types 是否「有需要才建」？services 膨胀是否按 **业务用例** 拆分？  
 - [ ] services 是否不做权限引擎（无码树/role 放行）；授权是否仍以 **API 验码** 为准、UI 只裁剪？  
 - [ ] 角色页编辑 `super_admin` 时勾选/保存是否不可点并出「锁定 catalog 全码」说明（HTTP 真值在 api）？
+- [ ] 角色页授码是否按 `admin-catalog` 的 `MENU_TREE` 分组（L1 / L2 / 操作码）？任何 catalog 码是否都有落点（未挂菜单的码进「其他（未挂菜单）」，**禁止静默丢码**）？
 - [ ] 抽公共是否对照 [module-layering §12.1](./module-layering.md)（A 欠抽 / B 过抽；优先纯函数再薄 hook）？  
 - [ ] 新测例是否按 [testing](../../guides/testing.md) 落 `tests/<能力>/` 并更新 `tests/index.md`（禁止再同域镜像）？  
 
