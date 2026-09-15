@@ -45,6 +45,14 @@ export type BindingPurpose = z.infer<typeof BindingPurposeSchema>;
 
 export const PLATFORM_BINDING_PURPOSES = BindingPurposeSchema.options;
 
+/** 知识库可覆盖的消费 purpose（ADR-055）；禁止 judge* */
+export const KB_CONSUME_PURPOSES = ['generate', 'embed', 'rerank'] as const;
+export type KbConsumePurpose = (typeof KB_CONSUME_PURPOSES)[number];
+
+export function isKbConsumePurpose(purpose: string): purpose is KbConsumePurpose {
+  return (KB_CONSUME_PURPOSES as readonly string[]).includes(purpose);
+}
+
 /** GET 公开 Provider（永不含 apiKey） */
 export const ModelProviderSchema = z.object({
   id: z.string().uuid(),
@@ -159,6 +167,28 @@ export const PutPlatformBindingsBodySchema = z
   .strict();
 export type PutPlatformBindingsBody = {
   bindings: Partial<Record<BindingPurpose, PurposeBinding>>;
+};
+
+/** PUT KB 消费绑定：只允许 generate/embed/rerank；空 map = 全跟随平台 */
+export const PutKbConsumeBindingsBodySchema = z
+  .object({
+    bindings: z
+      .record(z.string(), PurposeBindingSchema)
+      .superRefine((obj, ctx) => {
+        for (const key of Object.keys(obj)) {
+          if (!isKbConsumePurpose(key)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: `kb bindings cannot include purpose: ${key}`,
+              path: [key],
+            });
+          }
+        }
+      }),
+  })
+  .strict();
+export type PutKbConsumeBindingsBody = {
+  bindings: Partial<Record<KbConsumePurpose, PurposeBinding>>;
 };
 
 /** 已启用模型池（无凭证） */

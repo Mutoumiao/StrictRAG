@@ -7,6 +7,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { within } from '@testing-library/react';
 import { render, screen, userEvent, waitFor } from '@/test/test-utils';
 
 const me = {
@@ -29,6 +30,7 @@ vi.mock('@/components/auth-guard', () => ({
 
 const loadKbBindings = vi.fn();
 const saveKbBindings = vi.fn();
+const loadModelCatalog = vi.fn();
 
 vi.mock('@/app/(ops)/kb/settings/services', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/app/(ops)/kb/settings/services')>();
@@ -39,6 +41,7 @@ vi.mock('@/app/(ops)/kb/settings/services', async (importOriginal) => {
     loadKbSettingsAudit: (...args: unknown[]) => loadKbSettingsAudit(...args),
     loadKbBindings: (...args: unknown[]) => loadKbBindings(...args),
     saveKbBindings: (...args: unknown[]) => saveKbBindings(...args),
+    loadModelCatalog: (...args: unknown[]) => loadModelCatalog(...args),
   };
 });
 
@@ -68,7 +71,9 @@ describe('SettingsWorkspace', () => {
     loadKbSettingsAudit.mockReset();
     loadKbBindings.mockReset();
     saveKbBindings.mockReset();
+    loadModelCatalog.mockReset();
     loadKbBindings.mockResolvedValue({ ok: true, bindings: {} });
+    loadModelCatalog.mockResolvedValue({ ok: true, items: [] });
     loadKbSettingsAudit.mockResolvedValue({ ok: true, items: [] });
     localStorage.clear();
   });
@@ -283,5 +288,47 @@ describe('SettingsWorkspace', () => {
     expect(screen.getByText(/覆盖进程 env/)).toBeInTheDocument();
     expect(screen.getByText(/不是解禁/)).toBeInTheDocument();
     expect(screen.getByText(/不是\s*ES/)).toBeInTheDocument();
+  });
+
+  it('加载后可见三档消费绑定；选生成覆盖后保存 PUT 不含 judge', async () => {
+    const ref = '01900000-0000-7000-8000-0000000000aa#chat';
+    localStorage.setItem('strict-rag:admin:last-kb-id', KB_ID);
+    me.permissions = ['admin.shell', 'kb.config.write'];
+    loadKbSettings.mockResolvedValue({ ok: true, settings });
+    saveKbSettings.mockResolvedValue({ ok: true, settings, text: '已保存' });
+    saveKbBindings.mockResolvedValue({ ok: true, bindings: { generate: { primary: ref } } });
+    loadModelCatalog.mockResolvedValue({
+      ok: true,
+      items: [
+        {
+          ref,
+          providerId: '01900000-0000-7000-8000-0000000000aa',
+          providerName: 'DeepSeek',
+          modelName: 'chat',
+          type: 'llm',
+        },
+      ],
+    });
+
+    render(<SettingsWorkspace />);
+    const user = userEvent.setup();
+    expect(await screen.findByRole('heading', { name: 'KB 消费绑定' })).toBeInTheDocument();
+    expect(screen.getByLabelText('生成').tagName).toBe('BUTTON');
+    expect(screen.getByLabelText('向量').tagName).toBe('BUTTON');
+    expect(screen.getByLabelText('重排').tagName).toBe('BUTTON');
+    expect(screen.queryByRole('combobox', { name: '生成' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByLabelText('生成'));
+    const listbox = await screen.findByRole('listbox');
+    await user.click(within(listbox).getByRole('option', { name: 'DeepSeek · chat' }));
+    await user.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(saveKbBindings).toHaveBeenCalledWith(KB_ID, {
+        bindings: { generate: { primary: ref } },
+      });
+    });
+    const body = saveKbBindings.mock.calls[0]![1] as { bindings: Record<string, unknown> };
+    expect(body.bindings).not.toHaveProperty('judge');
   });
 });

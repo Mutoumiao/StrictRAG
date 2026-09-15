@@ -1,7 +1,7 @@
 import {
   BizCode,
   PatchKbSettingsBodySchema,
-  PutPlatformBindingsBodySchema,
+  PutKbConsumeBindingsBodySchema,
   type KbSettings,
   type KbSettingsAuditItem,
   type PlatformBindings,
@@ -34,11 +34,13 @@ import {
   modelGatewayRepo,
   resolveTenantId,
   validatePlatformBindings,
+  type ModelGatewayRepo,
 } from '../services/model-gateway.js';
 
 export type KbSettingsRouteDeps = {
   repo?: KbSettingsRepo;
   auditRepo?: KbSettingsAuditRepo;
+  gatewayRepo?: ModelGatewayRepo;
   /** 质量 snapshot 注入；默认 env.TAU_CLAIM */
   qualitySnapshot?: () => QualitySnapshot;
   resolveKbMember?: ResolveKbMember;
@@ -73,6 +75,7 @@ export function createKbSettingsRoutes(
 ): Hono<{ Variables: AuthVariables }> {
   const repo = deps.repo ?? kbSettingsRepo;
   const auditRepo = deps.auditRepo ?? kbSettingsAuditRepo;
+  const gateway = deps.gatewayRepo ?? modelGatewayRepo;
   const qualityOf = deps.qualitySnapshot ?? defaultQuality;
   const hasArchive =
     deps.hasQualifyingL2Archive ?? ((id: string) => evalRunRepo.hasQualifyingL2Archive(id));
@@ -176,7 +179,7 @@ export function createKbSettingsRoutes(
       return fail(c, BizCode.NOT_FOUND, 'knowledge base not found', 404);
     }
     const tenantId = resolveTenantId(c.get('auth')?.tenantId);
-    const rows = await modelGatewayRepo.listKbBindings(tenantId, kbId);
+    const rows = await gateway.listKbBindings(tenantId, kbId);
     const data: { bindings: PlatformBindings } = { bindings: bindingsToMap(rows) };
     return ok(c, data);
   });
@@ -184,7 +187,7 @@ export function createKbSettingsRoutes(
   routes.put('/knowledge-bases/:kbId/model-bindings', write, async (c) => {
     const kbId = c.req.param('kbId');
     const raw = await c.req.json().catch(() => ({}));
-    const parsed = PutPlatformBindingsBodySchema.safeParse(raw);
+    const parsed = PutKbConsumeBindingsBodySchema.safeParse(raw);
     if (!parsed.success) {
       return fail(c, BizCode.VALIDATION_ERROR, 'invalid body', 400, parsed.error.flatten());
     }
@@ -194,7 +197,7 @@ export function createKbSettingsRoutes(
     }
     const auth = c.get('auth');
     const tenantId = resolveTenantId(auth?.tenantId);
-    const providers = await modelGatewayRepo.listProviders(tenantId);
+    const providers = await gateway.listProviders(tenantId);
     const check = validatePlatformBindings(providers, parsed.data.bindings);
     if (!check.ok) {
       return fail(c, BizCode.VALIDATION_ERROR, check.message, 400);
@@ -204,7 +207,7 @@ export function createKbSettingsRoutes(
       primaryRef: b.primary,
       fallbackRefs: b.fallbacks ?? [],
     }));
-    const saved = await modelGatewayRepo.replaceKbBindings(tenantId, kbId, bindRows, auth?.userId);
+    const saved = await gateway.replaceKbBindings(tenantId, kbId, bindRows, auth?.userId);
     return ok(c, { bindings: bindingsToMap(saved) });
   });
 

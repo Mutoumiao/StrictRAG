@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（支撑 P0/P1 入库 + S2 问答/会话/反馈/成员 + B1–B6 运营契约 + **B12 策略码 / ingest job**；**非**全量 OpenAPI） |
 | 默认依赖模式 | 纯库；无运行时开关 |
 | 关联模块 | 被 `api` · `worker` · `web` · `admin` 消费；是全仓错误码、响应信封、队列名与 **可写分片策略集** 的唯一来源 |
-| 最近更新 | 2026-09-15（settings `docTypeItems` catalog；与 `docTypes` 互斥） |
+| 最近更新 | 2026-09-15（`PutKbConsumeBindingsBodySchema` 只收 generate/embed/rerank） |
 | Spec | `.trellis/spec/contracts/library/` |
 | PRD | `prds/05-api` · 各域契约与 PRD 短名对齐 |
 
@@ -96,7 +96,7 @@
 
 | 项 | 说明 |
 |----|------|
-| 全量运营域契约 | 跨部门授权 / KB 级模型绑定 **写** / APM 时序等 **无** 独立 schema |
+| 全量运营域契约 | 跨部门授权 / APM 时序等 **无** 独立 schema；KB 消费绑定写契约已有 |
 | 生产 OpenAPI 生成与发布流水线 | 以 Zod 源码为准；api 侧 **ARCH-P2-1** 已有 dev 文档面（`apps/api/src/openapi` 读本包 Zod）；**无**独立 CI swagger 发布 |
 | 版本化兼容策略文档化 | 契约随能力增量扩展；破坏性变更须先改 PRD |
 | 多策略「已实现」全集 | `fixed_window` / `heading_sections` 仅 KNOWN，**非** IMPLEMENTED |

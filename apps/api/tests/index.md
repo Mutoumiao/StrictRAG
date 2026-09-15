@@ -133,6 +133,7 @@
 | `kb/data-class-complete.test.ts` | sensitive 文档 complete 必须过 ACL 就绪闸。 | P3b-SENS | `parseDataClassFromConfig / isSensitiveCompleteBlocked` | 部门路径或显式名单；null 仍挡。 | 现行 |
 | `kb/doc-type-catalog.test.ts` | 知识库类型分区必须从 config 解析 catalog，停用码不得进入启用列表。 | 功能表 §4.2 文档类型 · ADR-054 · 工单「类型分区 CRUD 最小闭环」 | `parseDocTypeCatalogFromConfig / parseDocTypesFromConfig / mergeKbSettingsPatch / toMemberDocTypeItems` | 旧 string[] 合成全启用；简写 PATCH 写成 catalog。 | 现行 |
 | `kb/doc-type-catalog-http.test.ts` | PATCH 类型分区后 GET settings 与成员 GET /doc-types 必须回读启用项真 label。 | 功能表 §4.2 / §5.2 · ADR-054 · ADR-050 · 工单「类型分区 CRUD 最小闭环」 | `PATCH /knowledge-bases/:kbId/settings · GET /doc-types` | 重复码 400；停用不出成员枚举。 | 现行 |
+| `kb/kb-consume-bindings-http.test.ts` | KB 消费绑定 PUT 只接受 generate/embed/rerank，写入 judge 必须 400。 | 功能表 §4.2 · ADR-055 · 工单「KB 消费绑定最小闭环」 | `PUT /knowledge-bases/:kbId/model-bindings` | 空 map 跟随平台；judge 不落行。 | 现行 |
 | `kb/dept-acl-enforce-resolve.test.ts` | KB deptAclEnforce 覆盖 env，未写时展示与运行时分钉。 | P3b-KBENF | `parseDeptAclEnforceFromConfig / resolveDeptAclEnforce` | P3b-KBENF。 | 现行 |
 | `kb/dept-inherit-down.test.ts` | KB deptInheritDown 覆盖 env，祖先在关闭向下继承时不可见子孙。 | P3b-KBINH | `parseDeptInheritDownFromConfig / resolveDeptInheritDown / filterDocsForDeptAcl` | P3b-KBINH。 | 现行 |
 | `kb/settings-http.test.ts` | 知识库设置 HTTP 按 B2 契约读写。 | B2 | `kb-settings routes` | 设置 HTTP。 | 现行 |

@@ -1,15 +1,24 @@
 'use client';
 
 /**
- * 知识库设置薄页：基本信息 / 文档类型分区 / 语料分级 / 部门强制 / 部门继承 / 问答档位 / 质量只读 / rewrite 锁 / 修改日志。
+ * 知识库设置薄页：基本信息 / 文档类型分区 / 语料分级 / 部门强制 / 部门继承 / 问答档位 / KB 消费绑定 / 质量只读 / rewrite 锁 / 修改日志。
  * 禁止 τ 滑块与 rewrite 开关。sensitive complete 须 ACL 就绪。强制勾选 ≠ 仓库默认开。
  * 未改 inherit 勾选不得 PATCH deptInheritDown（GET 缺省 true 不可写回盖 env）。
  * 未改强制勾选不得 PATCH deptAclEnforce（GET 缺省 false 不可写回钉成显式关）。
  */
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import type { AskMode, DataClass, KbSettings, KbSettingsAuditItem } from '@strict-rag/contracts';
+import type {
+  AskMode,
+  DataClass,
+  KbConsumePurpose,
+  KbSettings,
+  KbSettingsAuditItem,
+  ModelCatalogItem,
+} from '@strict-rag/contracts';
+import { KB_CONSUME_PURPOSES } from '@strict-rag/contracts';
 import { Button } from '@strict-rag/ui/components/ui/button';
+import { ClosedSelect } from '@strict-rag/ui/components/ui/closed-select';
 import { Input } from '@strict-rag/ui/components/ui/input';
 import { Label } from '@strict-rag/ui/components/ui/label';
 
@@ -17,18 +26,31 @@ import { useAdminAuth } from '@/components/auth-guard';
 import { readStoredKbId } from '@/lib/kb-context';
 
 import {
+  catalogOptionsForPurpose,
   catalogsEqual,
+  draftsFromKbBindings,
   draftsFromSettings,
   draftsToCatalog,
+  draftsToKbConsumeBindings,
+  emptyKbConsumeDrafts,
   formatSettingsAuditValue,
+  kbConsumeDraftsEqual,
   loadKbBindings,
   loadKbSettings,
   loadKbSettingsAudit,
+  loadModelCatalog,
   NO_SETTINGS_AUDIT_HINT,
   saveKbBindings,
   saveKbSettings,
   type DocTypeDraft,
+  type KbConsumeDrafts,
 } from '../services';
+
+const CONSUME_PURPOSE_LABEL: Record<KbConsumePurpose, string> = {
+  generate: '生成',
+  embed: '向量',
+  rerank: '重排',
+};
 import { ChunkStrategyPanel } from './chunk-strategy-panel';
 
 const ALL_MODES: AskMode[] = ['strict', 'balanced', 'fast'];
@@ -49,8 +71,9 @@ export function SettingsWorkspace() {
   const [deptInheritDown, setDeptInheritDown] = useState(true);
   const [deptAclEnforce, setDeptAclEnforce] = useState(false);
   const [docTypeDrafts, setDocTypeDrafts] = useState<DocTypeDraft[]>([]);
-  const [embedRef, setEmbedRef] = useState('');
-  const [loadedEmbedRef, setLoadedEmbedRef] = useState('');
+  const [consumeDrafts, setConsumeDrafts] = useState<KbConsumeDrafts>(emptyKbConsumeDrafts);
+  const [loadedConsumeDrafts, setLoadedConsumeDrafts] = useState<KbConsumeDrafts>(emptyKbConsumeDrafts);
+  const [modelCatalog, setModelCatalog] = useState<ModelCatalogItem[]>([]);
   const [state, setState] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -96,10 +119,15 @@ export function SettingsWorkspace() {
     setAuditItems(audits.ok ? audits.items : []);
     const binds = await loadKbBindings(id);
     if (binds.ok) {
-      const primary = binds.bindings.embed?.primary ?? '';
-      setEmbedRef(primary);
-      setLoadedEmbedRef(primary);
+      const drafts = draftsFromKbBindings(binds.bindings);
+      setConsumeDrafts(drafts);
+      setLoadedConsumeDrafts(drafts);
+    } else {
+      setConsumeDrafts(emptyKbConsumeDrafts());
+      setLoadedConsumeDrafts(emptyKbConsumeDrafts());
     }
+    const catalog = await loadModelCatalog();
+    setModelCatalog(catalog.items);
     setState('ready');
   }, [canWrite, applySettings]);
 
@@ -141,16 +169,14 @@ export function SettingsWorkspace() {
       ...(deptInheritDown !== loadedInherit ? { deptInheritDown } : {}),
       ...(deptAclEnforce !== loadedEnforce ? { deptAclEnforce } : {}),
     });
-    if (result.ok && embedRef.trim() !== loadedEmbedRef) {
-      const bindRes = embedRef.trim()
-        ? await saveKbBindings(id, { bindings: { embed: { primary: embedRef.trim() } } })
-        : await saveKbBindings(id, { bindings: {} });
+    if (result.ok && !kbConsumeDraftsEqual(consumeDrafts, loadedConsumeDrafts)) {
+      const bindRes = await saveKbBindings(id, draftsToKbConsumeBindings(consumeDrafts));
       if (!bindRes.ok) {
         setFlash(bindRes.message);
         setBusy(false);
         return;
       }
-      setLoadedEmbedRef(embedRef.trim());
+      setLoadedConsumeDrafts({ ...consumeDrafts });
     }
     if (result.ok) {
       applySettings(result.settings);
@@ -426,15 +452,27 @@ export function SettingsWorkspace() {
           <ChunkStrategyPanel kbId={kbId} canWrite={canWrite} />
 
           <section className="space-y-3 rounded-lg border border-border p-4">
-            <h2 className="text-sm font-semibold">KB 模型绑定</h2>
-            <Label htmlFor="kb-embed-ref">embed primary（providerId#model）</Label>
-            <Input
-              id="kb-embed-ref"
-              value={embedRef}
-              onChange={(e) => setEmbedRef(e.target.value)}
-              placeholder="未改不提交"
-            />
-            <p className="text-xs text-muted-foreground">密钥不在本页。空=清除本库 embed 覆盖。</p>
+            <h2 className="text-sm font-semibold">KB 消费绑定</h2>
+            <p className="text-xs text-muted-foreground">
+              仅 generate / embed / rerank。跟随平台则不写本库行。禁止改 judge。密钥不在本页。
+            </p>
+            {KB_CONSUME_PURPOSES.map((purpose) => (
+              <div key={purpose} className="space-y-1.5">
+                <Label htmlFor={`kb-bind-${purpose}`}>{CONSUME_PURPOSE_LABEL[purpose]}</Label>
+                <ClosedSelect
+                  id={`kb-bind-${purpose}`}
+                  value={consumeDrafts[purpose]}
+                  onValueChange={(value) =>
+                    setConsumeDrafts((prev) => ({ ...prev, [purpose]: value }))
+                  }
+                  options={catalogOptionsForPurpose(
+                    purpose,
+                    modelCatalog,
+                    consumeDrafts[purpose],
+                  )}
+                />
+              </div>
+            ))}
           </section>
 
           <section className="space-y-2 rounded-lg border border-border bg-muted/30 p-4">

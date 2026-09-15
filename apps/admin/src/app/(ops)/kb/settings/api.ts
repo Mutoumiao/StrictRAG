@@ -12,7 +12,7 @@ import type {
   PatchKbChunkStrategiesBody,
   PatchKbSettingsBody,
   PlatformBindings,
-  PutPlatformBindingsBody,
+  PutKbConsumeBindingsBody,
 } from '@strict-rag/contracts';
 
 import { http } from '@/lib/http';
@@ -35,8 +35,8 @@ export async function getKbModelBindings(kbId: string) {
   );
 }
 
-export async function putKbModelBindings(kbId: string, body: PutPlatformBindingsBody) {
-  return http.put<{ bindings: PlatformBindings }, PutPlatformBindingsBody>(
+export async function putKbModelBindings(kbId: string, body: PutKbConsumeBindingsBody) {
+  return http.put<{ bindings: PlatformBindings }, PutKbConsumeBindingsBody>(
     `/api/v1/knowledge-bases/${kbId}/model-bindings`,
     body,
   );

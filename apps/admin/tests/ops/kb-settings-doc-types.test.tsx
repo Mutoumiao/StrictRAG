@@ -20,6 +20,7 @@ const saveKbSettings = vi.fn();
 const loadKbSettingsAudit = vi.fn();
 const loadKbBindings = vi.fn();
 const saveKbBindings = vi.fn();
+const loadModelCatalog = vi.fn();
 
 vi.mock('@/components/auth-guard', () => ({
   useAdminAuth: () => ({
@@ -38,6 +39,7 @@ vi.mock('@/app/(ops)/kb/settings/services', async (importOriginal) => {
     loadKbSettingsAudit: (...args: unknown[]) => loadKbSettingsAudit(...args),
     loadKbBindings: (...args: unknown[]) => loadKbBindings(...args),
     saveKbBindings: (...args: unknown[]) => saveKbBindings(...args),
+    loadModelCatalog: (...args: unknown[]) => loadModelCatalog(...args),
   };
 });
 
@@ -68,7 +70,9 @@ describe('SettingsWorkspace 类型分区', () => {
     loadKbSettingsAudit.mockReset();
     loadKbBindings.mockReset();
     saveKbBindings.mockReset();
+    loadModelCatalog.mockReset();
     loadKbBindings.mockResolvedValue({ ok: true, bindings: {} });
+    loadModelCatalog.mockResolvedValue({ ok: true, items: [] });
     loadKbSettingsAudit.mockResolvedValue({ ok: true, items: [] });
     localStorage.clear();
     localStorage.setItem('strict-rag:admin:last-kb-id', KB_ID);

@@ -1,7 +1,7 @@
 /**
  * 目标：模型网关写入口可含 apiKey、读出口只有 hasApiKey，绑定 ref 可解析。
  * 需求：B3
- * 被测：CreateModelProviderBodySchema · ModelProviderSchema · parseModelRef · formatModelRef · requiredModelTypeForPurpose · PutPlatformBindingsBodySchema
+ * 被测：CreateModelProviderBodySchema · ModelProviderSchema · parseModelRef · formatModelRef · requiredModelTypeForPurpose · PutPlatformBindingsBodySchema · PutKbConsumeBindingsBodySchema
  * 简介：网关绑定 DTO。
  */
 
@@ -11,6 +11,7 @@ import {
   CreateModelProviderBodySchema,
   ModelProviderSchema,
   PatchModelProviderBodySchema,
+  PutKbConsumeBindingsBodySchema,
   PutPlatformBindingsBodySchema,
   formatModelRef,
   parseModelRef,
@@ -86,5 +87,25 @@ describe('model-gateway contracts (B3)', () => {
       },
     });
     expect(r.success).toBe(true);
+  });
+
+  it('KB 消费绑定只收 generate/embed/rerank，拒 judge', () => {
+    const id = '01900000-0000-7000-8000-0000000000aa';
+    expect(
+      PutKbConsumeBindingsBodySchema.safeParse({
+        bindings: { generate: { primary: `${id}#chat` } },
+      }).success,
+    ).toBe(true);
+    expect(
+      PutKbConsumeBindingsBodySchema.safeParse({
+        bindings: { embed: { primary: `${id}#emb` }, rerank: { primary: `${id}#rr` } },
+      }).success,
+    ).toBe(true);
+    expect(
+      PutKbConsumeBindingsBodySchema.safeParse({
+        bindings: { judge: { primary: `${id}#chat` } },
+      }).success,
+    ).toBe(false);
+    expect(PutKbConsumeBindingsBodySchema.safeParse({ bindings: {} }).success).toBe(true);
   });
 });

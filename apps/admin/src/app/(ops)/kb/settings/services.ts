@@ -5,15 +5,20 @@
  */
 
 import type {
+  KbConsumePurpose,
   KbDocTypeCatalogItem,
   KbSettings,
   KbSettingsAuditItem,
+  ModelCatalogItem,
   PatchKbSettingsBody,
   PlatformBindings,
-  PutPlatformBindingsBody,
+  PutKbConsumeBindingsBody,
 } from '@strict-rag/contracts';
+import { KB_CONSUME_PURPOSES, requiredModelTypeForPurpose } from '@strict-rag/contracts';
 
 import { mapBizError } from '@/lib/map-biz-error';
+import { ApiHttpError } from '@/lib/http';
+import { getModelCatalog } from '../../models/api';
 
 import {
   getKbModelBindings,
@@ -135,13 +140,72 @@ export async function loadKbBindings(kbId: string) {
   }
 }
 
-export async function saveKbBindings(kbId: string, body: PutPlatformBindingsBody) {
+export async function saveKbBindings(kbId: string, body: PutKbConsumeBindingsBody) {
   try {
     const data = await putKbModelBindings(kbId, body);
     return { ok: true as const, bindings: data.bindings };
   } catch (err) {
     return { ok: false as const, message: mapBizError(err) };
   }
+}
+
+export type KbConsumeDrafts = Record<KbConsumePurpose, string>;
+
+export function emptyKbConsumeDrafts(): KbConsumeDrafts {
+  return { generate: '', embed: '', rerank: '' };
+}
+
+export function draftsFromKbBindings(bindings: PlatformBindings): KbConsumeDrafts {
+  return {
+    generate: bindings.generate?.primary ?? '',
+    embed: bindings.embed?.primary ?? '',
+    rerank: bindings.rerank?.primary ?? '',
+  };
+}
+
+export function draftsToKbConsumeBindings(drafts: KbConsumeDrafts): PutKbConsumeBindingsBody {
+  const bindings: PutKbConsumeBindingsBody['bindings'] = {};
+  for (const purpose of KB_CONSUME_PURPOSES) {
+    const ref = drafts[purpose].trim();
+    if (ref) bindings[purpose] = { primary: ref };
+  }
+  return { bindings };
+}
+
+export function kbConsumeDraftsEqual(left: KbConsumeDrafts, right: KbConsumeDrafts): boolean {
+  return KB_CONSUME_PURPOSES.every((purpose) => left[purpose] === right[purpose]);
+}
+
+export async function loadModelCatalog(): Promise<
+  { ok: true; items: ModelCatalogItem[] } | { ok: false; items: []; message: string }
+> {
+  try {
+    const items = await getModelCatalog();
+    return { ok: true, items };
+  } catch (err) {
+    if (err instanceof ApiHttpError && err.code === 'FORBIDDEN') {
+      return { ok: false, items: [], message: err.message };
+    }
+    return { ok: false, items: [], message: mapBizError(err) };
+  }
+}
+
+export function catalogOptionsForPurpose(
+  purpose: KbConsumePurpose,
+  catalog: ModelCatalogItem[],
+  currentRef: string,
+): Array<{ value: string; label: string }> {
+  const need = requiredModelTypeForPurpose(purpose);
+  const options: Array<{ value: string; label: string }> = [{ value: '', label: '跟随平台' }];
+  for (const item of catalog) {
+    if (item.type !== need) continue;
+    options.push({ value: item.ref, label: `${item.providerName} · ${item.modelName}` });
+  }
+  const trimmed = currentRef.trim();
+  if (trimmed && !options.some((o) => o.value === trimmed)) {
+    options.push({ value: trimmed, label: trimmed });
+  }
+  return options;
 }
 
 export type { PlatformBindings };

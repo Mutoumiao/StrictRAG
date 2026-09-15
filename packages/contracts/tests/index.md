@@ -40,7 +40,7 @@
 | `system/dashboard-contract.test.ts` | 面板 summary 必须含四项指标且拒未知字段；双轨 tracks 不得塞进 summary。 | B6 · 剧本 I4 | `DashboardSummarySchema / DashboardTracksSchema` | summary 冻结 ≤5；质量/延迟独立信封。 | 现行 |
 | `system/departments-contract.test.ts` | 部门创建 / 补丁 / 用户部门绑定 DTO 必须严格字段且补丁非空。 | B5 | `CreateDepartmentBodySchema · PatchDepartmentBodySchema · PutUserDepartmentsBodySchema` | 部门 DTO 形状。 | 现行 |
 | `system/dept-grants-contract.test.ts` | 跨部门 grant DTO 只接受合法可见级、uuid 与本地时间 expiresAt。 | DEPT_ACL | `CreateDeptCrossGrantBodySchema · ListDeptCrossGrantsQuerySchema` | grant DTO 形状。 | 现行 |
-| `system/model-gateway-contract.test.ts` | 模型网关写入口可含 apiKey、读出口只有 hasApiKey，绑定 ref 可解析。 | B3 | `CreateModelProviderBodySchema · ModelProviderSchema · parseModelRef · formatModelRef · requiredModelTypeForPurpose · PutPlatformBindingsBodySchema` | 网关绑定 DTO。 | 现行 |
+| `system/model-gateway-contract.test.ts` | 模型网关写入口可含 apiKey、读出口只有 hasApiKey，绑定 ref 可解析。 | B3 · ADR-055 · 工单「KB 消费绑定最小闭环」 | `CreateModelProviderBodySchema · ModelProviderSchema · parseModelRef · formatModelRef · requiredModelTypeForPurpose · PutPlatformBindingsBodySchema · PutKbConsumeBindingsBodySchema` | 网关绑定 DTO；KB PUT 拒 judge。 | 现行 |
 | `system/platform-users-roles-contract.test.ts` | 平台用户角色 DTO 拒 password、角色码须 snake_case、补丁非空。 | B4 | `CreatePlatformUserBodySchema · PatchPlatformUserBodySchema · CreatePlatformRoleBodySchema · AssignUserRolesBodySchema · PutRolePermissionsBodySchema` | 平台用户角色 DTO。 | 现行 |
 
 ## 待处理

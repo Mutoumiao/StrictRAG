@@ -18,7 +18,7 @@ packages/contracts/
       health.contract.ts
       dashboard.contract.ts       # B6 数据面板 summary（≤5 只读指标）
       departments.contract.ts     # B5
-      model-gateway.contract.ts   # B3
+      model-gateway.contract.ts   # B3；PutKbConsumeBindingsBodySchema 只 generate/embed/rerank
       platform-users-roles.contract.ts  # B4
     auth/
       session.contract.ts   # TokenPair 等

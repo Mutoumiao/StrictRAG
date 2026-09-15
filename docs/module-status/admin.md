@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（S2c 运营薄壳：文档 / 审批 / 成员 / 分片 / 设置 / 模型 + 用户 / 角色 / 部门 + **数据面板** + **反馈队列** + **评测底线**） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT + admin **dev-login**（经 api）· 知识库 = 顶栏关闭列表（本次 GET 可见库，禁止粘贴 uuid）· 菜单 = `clipMenuForShell` 裁剪（catalog 为 SSOT）· API 默认 `http://127.0.0.1:4000` |
 | 关联模块 | API 依赖：`api` 的文档 / 审批 / 成员 / 分片 / 设置 / 模型 / 用户角色 / 部门 / dashboard / **feedback-queue** / **gold-questions · eval/runs**；菜单与权限码：`admin-catalog`；类型：`contracts`；样式：`ui` |
-| 最近更新 | 2026-09-15（上传/编写创建面可标部门与可见级；**非**检索强制） |
+| 最近更新 | 2026-09-15（KB 消费绑定三档 ClosedSelect；禁止改 judge） |
 | Spec | `.trellis/spec/admin/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · 审批 / 成员相关 API |
 
@@ -49,10 +49,10 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 - **禁止**在页面挂载时批量预拉所有分片全文
 
 ### 知识库设置（B2）
-- `/kb/settings`：基本信息、**文档类型分区**（code / 显示名 / 上移下移 / 启用；PATCH `docTypeItems`）、**语料分级 `dataClass`**、**部门强制勾选**、**部门继承勾选**、问答档位、**分片策略弹窗（启用 + 各 MIME 族 recommended）**、**质量只读展示**、**rewrite 锁定开关**（无开启控件）、**修改日志**（时间 / 操作者 / 字段旧→新；无行「暂无修改日志」；**无**独立路由 / **无**新菜单）
+- `/kb/settings`：基本信息、**文档类型分区**（code / 显示名 / 上移下移 / 启用；PATCH `docTypeItems`）、**语料分级 `dataClass`**、**部门强制勾选**、**部门继承勾选**、问答档位、**分片策略弹窗（启用 + 各 MIME 族 recommended）**、**KB 消费绑定**（generate / embed / rerank `ClosedSelect`；跟随平台不写行；**禁止改 judge**）、**质量只读展示**、**rewrite 锁定开关**（无开启控件）、**修改日志**（时间 / 操作者 / 字段旧→新；无行「暂无修改日志」；**无**独立路由 / **无**新菜单）
 - 需要 `kb.config.write` 权限；无权限时显示 403 状态；数据路径仅 `kb/settings/api.ts` 一处（上传 `for-upload` 在 documents `api.ts`）
 - `dataClass=sensitive` complete 须 ACL 就绪（部门强制+归属，或显式名单）；`deptInheritDown` 可勾选，**未改不得写回** GET 缺省 true；`deptAclEnforce` 可勾选，**未改不得写回** GET 缺省 false（避免钉成显式关）；勾选本库强制 **≠** 仓库默认开 / **≠** ES 已对称 / **≠** 角色 principal
-- **没有** τ 滑块、**没有**供应商 Key 配置、**没有** paramSchema 动态表单 / 平台策略 CRUD 页；改策略启用不自动 reindex
+- **没有** τ 滑块、**没有**供应商 Key 配置、**没有** paramSchema 动态表单 / 平台策略 CRUD 页 / fallbacks 多行；改策略启用不自动 reindex
 
 ### 模型网关（B3 最小集）
 - `/models`：供应商列表 / 新建 / 编辑 / 删除（预设、baseUrl、Key 密码框、模型表可逐行编辑**类型 / 启用 / dims**）+ **平台级 purpose 绑定**（catalog 下拉选择）
@@ -109,7 +109,7 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 
 | 项 | 说明 |
 |----|------|
-| 知识库设置全量项（paramSchema 动态表单 / 平台策略 CRUD / KB 级 generate·rerank 绑定） | 类型分区 CRUD 已落地；其余全量项仍挂账 |
+| 知识库设置全量项（paramSchema 动态表单 / 平台策略 CRUD） | 类型分区 CRUD 与 KB 消费绑定三档已落地；其余全量项仍挂账 |
 | APM / 时序大盘 / 告警 | B6 仅为只读计数摘要，**不是**观测生产向 |
 | 按历史 indexVersion 浏览分片的 UI | ADR-052 明确不做 |
 | DELETE / 三存对齐 | 文档页有删除按钮（`doc.lifecycle`）；HTTP 真值在 api / worker；**无** PG 硬删 UI |
@@ -147,6 +147,7 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 | 文档运营余量 | `documents/_components/documents-workspace.tsx` · `list.services.ts` `opsLabel` · `reindex.services.ts` · `lifecycle.services.ts`；测例 `tests/ops/document-ops-label.test.ts` · `document-reindex.test.ts` · `documents-workspace.test.tsx` |
 | 上传 MIME | `documents/upload.services.ts` `resolveUploadContentType`；测例 `tests/ops/document-upload.test.ts` |
 | 创建面标部门 | `documents/upload.services.ts` `toCreateDocAclFields` · `documents-workspace.tsx` 新文档 ClosedSelect；测例 `tests/ops/document-upload.test.ts` · `document-write.test.ts` · `documents-workspace.test.tsx` |
+| KB 消费绑定 | `kb/settings/services.ts` `draftsToKbConsumeBindings` · `settings-workspace.tsx` 三档 ClosedSelect；测例 `tests/ops/kb-settings-workspace.test.tsx` · `kb-settings-services.test.ts` |
 | 入库报告入口 | `documents/api.ts` `listIngestReports` · `report.services.ts`；测例 `tests/ops/ingest-report.test.tsx` |
 | 设置修改日志 | `kb/settings/api.ts` `listKbSettingsAudit` · `services.ts` `loadKbSettingsAudit`；测例 `tests/ops/settings-audit.test.tsx` |
 | 反馈 | `app/(ops)/feedback/page.tsx` · `_components/feedback-workspace.tsx` · `api.ts` · `services.ts` |
