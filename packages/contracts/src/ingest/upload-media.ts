@@ -21,6 +21,16 @@ export type AllowedIngestExtension = (typeof ALLOWED_INGEST_EXTENSIONS)[number];
 const TYPE_SET = new Set<string>(ALLOWED_INGEST_CONTENT_TYPES);
 const EXT_SET = new Set<string>(ALLOWED_INGEST_EXTENSIONS);
 
+/**
+ * 文本族（MD/TXT）—— 功能表 §5.2 / §6「MD/TXT 可更严」、PRD 09 §7「可选 MD/TXT 更严（建议 10 MiB）」。
+ * 单一来源：与白名单同表，禁止在 api 另起一套扩展名判定。
+ */
+export const TEXT_INGEST_CONTENT_TYPES = ['text/plain', 'text/markdown', 'text/x-markdown'] as const;
+
+export function isTextIngestContentType(raw: string | null | undefined): boolean {
+  return (TEXT_INGEST_CONTENT_TYPES as readonly string[]).includes(normalizeContentType(raw));
+}
+
 export function normalizeContentType(raw: string | null | undefined): string {
   return (raw ?? '').toLowerCase().split(';')[0]?.trim() ?? '';
 }

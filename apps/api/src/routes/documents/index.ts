@@ -213,7 +213,7 @@ documentRoutes.post(
       uploadUrl: slot.uploadUrl,
       method: slot.method,
       objectKey: slot.key,
-      maxBytes: effectiveMaxUploadBytes(),
+      maxBytes: effectiveMaxUploadBytes(contentType),
     };
     return ok(c, data, 201);
   },
@@ -232,7 +232,7 @@ documentRoutes.put('/internal/objects', requirePermissionWhenEnforced('doc.uploa
   }
   const ab = await c.req.arrayBuffer();
   const buf = Buffer.from(ab);
-  const max = effectiveMaxUploadBytes();
+  const max = effectiveMaxUploadBytes(contentType);
   if (buf.byteLength > max) {
     return fail(
       c,

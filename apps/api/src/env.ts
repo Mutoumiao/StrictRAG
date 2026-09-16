@@ -67,6 +67,11 @@ const EnvSchema = z
     /** 上传默认上限 50 MiB；硬天花板 200 MiB（ADR-039） */
     INGEST_MAX_FILE_BYTES: z.coerce.number().int().positive().default(52_428_800),
     INGEST_MAX_FILE_BYTES_CEILING: z.coerce.number().int().positive().default(209_715_200),
+    /**
+     * MD/TXT 更严上限（功能表 §5.2 / §6「MD/TXT 可更严」；PRD 09 §7「可选…建议 10 MiB」）。
+     * **默认 10 MiB 会让文本族从通用 50 MiB 收紧**（行为变更）；设 **0** 表示关闭族级档、回落通用上限。
+     */
+    INGEST_MAX_TEXT_FILE_BYTES: z.coerce.number().int().nonnegative().default(10_485_760),
     /** local=磁盘目录 mock；s3=compose RustFS（S3 兼容，须 S3_ENDPOINT） */
     STORAGE_MODE: z.enum(['local', 's3']).default('local'),
     STORAGE_LOCAL_DIR: z.string().default('.data/objects'),
@@ -179,6 +184,18 @@ const EnvSchema = z
         code: 'custom',
         path: ['INGEST_MAX_FILE_BYTES'],
         message: 'INGEST_MAX_FILE_BYTES 不得超过天花板 INGEST_MAX_FILE_BYTES_CEILING',
+      });
+    }
+    // 族级上限比通用还宽 = 配置意图矛盾（且会让「更严档」消失）→ 启动即拒，不静默取 min
+    if (
+      data.INGEST_MAX_TEXT_FILE_BYTES > 0 &&
+      data.INGEST_MAX_TEXT_FILE_BYTES > data.INGEST_MAX_FILE_BYTES
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['INGEST_MAX_TEXT_FILE_BYTES'],
+        message:
+          'INGEST_MAX_TEXT_FILE_BYTES 须 ≤ INGEST_MAX_FILE_BYTES（更严档不得比通用更宽）；不想要族级档请设 0',
       });
     }
     if (data.TAU_CLAIM_LEGACY !== undefined && data.TAU_CLAIM_LEGACY !== data.TAU_CLAIM) {

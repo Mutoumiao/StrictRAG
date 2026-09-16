@@ -142,6 +142,48 @@ describe('ask/ingest RPM default stays 0', () => {
   });
 });
 
+/** 与 env.ts 中上传上限对齐（功能表 §5.2「MD/TXT 可更严」；族级不得比通用更宽） */
+const UploadSizeSchema = z
+  .object({
+    INGEST_MAX_FILE_BYTES: z.coerce.number().int().positive().default(52_428_800),
+    INGEST_MAX_FILE_BYTES_CEILING: z.coerce.number().int().positive().default(209_715_200),
+    INGEST_MAX_TEXT_FILE_BYTES: z.coerce.number().int().nonnegative().default(10_485_760),
+  })
+  .superRefine((data, ctx) => {
+    if (
+      data.INGEST_MAX_TEXT_FILE_BYTES > 0 &&
+      data.INGEST_MAX_TEXT_FILE_BYTES > data.INGEST_MAX_FILE_BYTES
+    ) {
+      ctx.addIssue({ code: 'custom', path: ['INGEST_MAX_TEXT_FILE_BYTES'], message: '族级更宽' });
+    }
+  });
+
+describe('上传上限：通用 / 天花板 / 文本族', () => {
+  it('默认 50 MiB / 200 MiB / 10 MiB', () => {
+    const r = UploadSizeSchema.safeParse({});
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.INGEST_MAX_FILE_BYTES).toBe(52_428_800);
+      expect(r.data.INGEST_MAX_FILE_BYTES_CEILING).toBe(209_715_200);
+      expect(r.data.INGEST_MAX_TEXT_FILE_BYTES).toBe(10_485_760);
+    }
+  });
+
+  it('族级 0 = 关闭族级档，合法', () => {
+    const r = UploadSizeSchema.safeParse({ INGEST_MAX_TEXT_FILE_BYTES: '0' });
+    expect(r.success).toBe(true);
+  });
+
+  it('族级比通用更宽 → 启动即拒（不静默取 min）', () => {
+    expect(
+      UploadSizeSchema.safeParse({
+        INGEST_MAX_FILE_BYTES: '1048576',
+        INGEST_MAX_TEXT_FILE_BYTES: '20971520',
+      }).success,
+    ).toBe(false);
+  });
+});
+
 describe('tauClaim unique source', () => {
   it('accepts single TAU_CLAIM', () => {
     const r = TauSchema.safeParse({ TAU_CLAIM: '0.5' });

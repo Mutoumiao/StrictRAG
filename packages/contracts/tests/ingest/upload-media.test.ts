@@ -1,14 +1,15 @@
 /**
- * 目标：入库只接受矩阵内 MIME/扩展名，未知与 octet-stream 必须拒绝。
+ * 目标：入库只接受矩阵内 MIME/扩展名，未知与 octet-stream 必须拒绝；文本族（MD/TXT）可辨。
  * 需求：ADR-039 · 功能表 §5.2 · prds/09-security §7
- * 被测：isAllowedIngestMedia · resolveIngestContentType
- * 简介：白名单 SSOT；不嗅魔数。
+ * 被测：isAllowedIngestMedia · resolveIngestContentType · isTextIngestContentType
+ * 简介：白名单 SSOT；不嗅魔数；文本族是「更严体积档」的判据。
  */
 
 import { describe, expect, it } from 'vitest';
 
 import {
   isAllowedIngestMedia,
+  isTextIngestContentType,
   resolveIngestContentType,
 } from '../../src/ingest/upload-media.js';
 
@@ -47,5 +48,26 @@ describe('resolveIngestContentType', () => {
   it('未知类型且无合法扩展名不得推断为 text/plain', () => {
     expect(resolveIngestContentType({ contentType: 'application/octet-stream' })).toBeNull();
     expect(resolveIngestContentType({ contentType: '', fileName: 'payload.exe' })).toBeNull();
+  });
+});
+
+describe('isTextIngestContentType（更严体积档的族判据）', () => {
+  it('markdown / plain 属文本族（含带参数与大小写）', () => {
+    expect(isTextIngestContentType('text/markdown')).toBe(true);
+    expect(isTextIngestContentType('text/x-markdown')).toBe(true);
+    expect(isTextIngestContentType('text/plain')).toBe(true);
+    expect(isTextIngestContentType('TEXT/PLAIN; charset=utf-8')).toBe(true);
+  });
+
+  it('pdf / docx / 空 / 未知不属于文本族', () => {
+    expect(isTextIngestContentType('application/pdf')).toBe(false);
+    expect(
+      isTextIngestContentType(
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      ),
+    ).toBe(false);
+    expect(isTextIngestContentType('')).toBe(false);
+    expect(isTextIngestContentType(null)).toBe(false);
+    expect(isTextIngestContentType('application/octet-stream')).toBe(false);
   });
 });

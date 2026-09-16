@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import { BizCode, type CompleteUploadResponse } from '@strict-rag/contracts';
+import { BizCode, resolveIngestContentType, type CompleteUploadResponse } from '@strict-rag/contracts';
 
 import { checkUploadMedia } from '../gates/upload-media.js';
 import { checkUploadByteSize } from '../gates/upload-size.js';
@@ -66,7 +66,10 @@ export async function evaluateWriteIngestGates(input: {
       httpStatus: 415,
     };
   }
-  const max = effectiveMaxUploadBytes();
+  // 族判定与媒体闸同源（声明优先、否则按扩展名推断）——避免「不声明 contentType 就绕开文本族上限」
+  const max = effectiveMaxUploadBytes(
+    resolveIngestContentType({ contentType, fileName }),
+  );
   const sizeGate = checkUploadByteSize(byteSize, max);
   if (!sizeGate.ok) {
     return {
@@ -185,7 +188,9 @@ export async function finalizePendingIngest(input: {
     };
   }
 
-  const max = effectiveMaxUploadBytes();
+  const max = effectiveMaxUploadBytes(
+    resolveIngestContentType({ contentType: doc.contentType, fileName: doc.title }),
+  );
   const sizeGate = checkUploadByteSize(head.byteSize, max);
   if (!sizeGate.ok) {
     return {

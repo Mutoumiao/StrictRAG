@@ -87,7 +87,21 @@ ask 业务拒答 reason（`model_abstained` 等）走 **业务响应**，不要�
 | 触发 | HTTP | code |
 |------|------|------|
 | JSON body > `API_JSON_BODY_LIMIT_BYTES` | 413 | `PAYLOAD_TOO_LARGE` |
+| 上传对象 > 生效上限 | 413 | `PAYLOAD_TOO_LARGE` |
 | 全局 timeout（非 ask） | 500 | `UPSTREAM_TIMEOUT` |
+
+**上传生效上限口径**（功能表 §5.2 / §6、PRD 09 §7）：
+
+| 项 | 值 |
+|----|-----|
+| 通用 | `INGEST_MAX_FILE_BYTES`（默认 50 MiB） |
+| 天花板 | `INGEST_MAX_FILE_BYTES_CEILING`（默认 200 MiB） |
+| **文本族（MD/TXT）** | `INGEST_MAX_TEXT_FILE_BYTES`（**默认 10 MiB**；**设 0 = 关闭族级档**回落通用） |
+| 生效值 | `min(通用, 天花板)`，文本族再叠 `min(族级)`；族判定用 contracts `isTextIngestContentType`（**禁止**另起扩展名表） |
+| 配置矛盾 | 族级 > 通用 → **启动即拒**（不静默取 min） |
+| 权威闸 | `complete` 的 Head 对象；`upload-url` 的 `maxBytes` 只是纵深提示 |
+
+测：`tests/ingest/upload-size-tier.test.ts` · `tests/ingest/complete-size.test.ts` · `tests/env/defaults.test.ts` · contracts `tests/ingest/upload-media.test.ts`。
 
 ---
 

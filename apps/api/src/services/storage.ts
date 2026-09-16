@@ -10,6 +10,8 @@ import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import { isTextIngestContentType } from '@strict-rag/contracts';
+
 import { env } from '../env.js';
 
 export type StoredObject = {
@@ -243,6 +245,10 @@ export function getStorage(): ObjectStorage {
   return storageSingleton;
 }
 
-export function effectiveMaxUploadBytes(): number {
-  return Math.min(env.INGEST_MAX_FILE_BYTES, env.INGEST_MAX_FILE_BYTES_CEILING);
+export function effectiveMaxUploadBytes(contentType?: string | null): number {
+  const general = Math.min(env.INGEST_MAX_FILE_BYTES, env.INGEST_MAX_FILE_BYTES_CEILING);
+  // 族级档只对文本族生效；0 = 关闭族级档（回落通用）。族判定复用 contracts 白名单。
+  if (!isTextIngestContentType(contentType)) return general;
+  if (env.INGEST_MAX_TEXT_FILE_BYTES <= 0) return general;
+  return Math.min(general, env.INGEST_MAX_TEXT_FILE_BYTES);
 }
