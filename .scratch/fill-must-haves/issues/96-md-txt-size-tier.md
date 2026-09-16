@@ -2,8 +2,8 @@
 
 Type: task
 Label: wayfinder:task
-Status: pending
-Assignee: —
+Status: resolved
+Assignee: grok
 Triage: ready-for-agent
 Blocked by: 95
 
@@ -47,6 +47,29 @@ Blocked by: 95
 
 收工：`.trellis/spec/api/backend/` 上传 / env 相关节 + `docs/module-status/{api,web,admin}.md`（默认值变更与「未做魔数嗅探」要写明）。Answer 里写明默认值决策依据与「魔数嗅探显式未做」。
 
+## Answer
+
+**默认值裁决（本票钉的）**：`INGEST_MAX_TEXT_FILE_BYTES` **默认 10 MiB**（PRD 09 §7 的建议值）。依据：功能表 §5.2 / §6 明写「默认 50 MiB…（**MD/TXT 可更严**）」，审查报告把该行列为 P1 缺口 —— 若默认留空则缺口实际未闭合。**这是行为变更**（MD/TXT 从 50 MiB 收紧到 10 MiB），已写进 spec 与 `docs/module-status/api.md`。设 **0 = 关闭族级档**（`PRD 说「可选」→ 留关闭手段，不必改代码）。
+
+**做了什么**
+
+- contracts：`TEXT_INGEST_CONTENT_TYPES` + `isTextIngestContentType()`（与 MIME 白名单同表，**不另起扩展名表**；`text/plain; charset=utf-8` 归一化后计入）。
+- env：`INGEST_MAX_TEXT_FILE_BYTES`（默认 10 MiB，nonnegative，0 = 关）+ `superRefine`：**族级 > 通用 → 启动即拒**（不静默取 min）。
+- `services/storage.ts`：`effectiveMaxUploadBytes(contentType?)` 现按族取档 = `min(通用, 天花板)`，文本族再叠 `min(族级)`（族级 0 则回落通用）。
+- 四个生效点全部带上族判定：`complete`（`doc.contentType` + `doc.title` 经 `resolveIngestContentType`）、`write`（同上）、`PUT /internal/objects`、`upload-url` 响应的 `maxBytes`。族判定与媒体闸**同源**（声明优先、否则按扩展名推断），避免「不声明 contentType 就绕开文本族上限」。
+- 测例：api 新增 `tests/ingest/upload-size-tier.test.ts`（3 例：默认族级/关闭/可调与 min）· `tests/env/defaults.test.ts` +3 例（默认三档 + 族级 0 合法 + 族级更宽拒启动）· contracts `tests/ingest/upload-media.test.ts` +2 例（文本族可辨与归一化）。
+
+**没做什么 / 边界**
+
+- **不做文件魔数（magic number）嗅探**：功能表与 `prds/00–11` 均无此要求（全仓 grep 零命中），属加固而非必达 → 留雾（`docs/module-status/api.md` 已注明来源）。
+- 未引真杀毒 / 扫描引擎（QUAL-2 仍在债表，真引擎选型锁死）；未改 MIME 白名单集合；未松「未审批就 scan」；未改 complete 的 checksum 与对象存在性语义；未改 `body-limit` 的 write 路径上限。
+- 未改 `prds/00–11`（默认值取自 PRD 建议值，未改条文）。
+
+**验证**（见地图本轮收口处门禁数字）：`api` 整包 133 files / **847 passed** + 3 skipped（零超时）· `admin` 34 / 169 · `contracts` 26 / 208；`pnpm check-types` 8/8；`pnpm lint` 仍只有既有 7 条 api 测试文件 warning。
+
+**回写**：`.trellis/spec/api/backend/error-handling.md`（413 触发行 + 「上传生效上限口径」表）；`docs/module-status/api.md`（依赖模式默认值行 + 明确未做行 + 证据指针）；两个包的 `tests/index.md`。
+
 ## Comments
 
 - 2026-09-16 由 [裁定 93](./93-after-92-order.md) 排为本批第三张。注意：本票**不动**默认关的任何强制开关，也不把嗅探塞进来。
+- 2026-09-16 完成。默认取 10 MiB（行为变更，已公开写明）；魔数嗅探显式留雾。
