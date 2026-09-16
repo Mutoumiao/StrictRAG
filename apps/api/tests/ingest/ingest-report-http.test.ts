@@ -57,6 +57,7 @@ const ROW: IngestReportItem = {
   chunkCount: 2,
   internalDropped: 0,
   crossDocDropped: 1,
+  dedupeCrossDocRate: 0.2,
   contextSource: 'l0',
   conflictPairs: [
     {

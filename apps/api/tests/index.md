@@ -128,7 +128,7 @@
 | `ingest/write-document-http.test.ts` | 在线编写必须落 Markdown 对象并进 pending，不得入队 scan。 | 功能表 §4.3 · 剧本 V7 最小 · 工单「上传表单标部门最小闭环」 | `POST …/documents/write` | sourceType=write；空白拒；未实现策略 400；可带部门两字段；提交人随令牌落库。无 BlockNote。 | 现行 |
 | `ingest/ocr-rerun-http.test.ts` | 卡在 OCR 闸的文档 reindex 必须入队 ocr；短 utf8 与 ready 仍入队 chunk。 | 剧本 Q7 · ADR-043 · P5 历史 needs_ocr 重跑 | `POST /documents/:docId/reindex` · `reindexEnqueueStage` | 无新 HTTP。不自动全库。≠ 真引擎。 | 现行 |
 | `ingest/ingest-report-http.test.ts` | 库级 GET ingest-report 须成员可读、空列表 200、缺库 404。 | prds/05-api GET ingest-report · 功能表 §5.2 | `GET /knowledge-bases/:kbId/ingest-report` | 回已落库行含跨 doc 冲突对；不是 doc 级路径。 | 现行 |
-| `ingest/ingest-report-map.test.ts` | 入库报告行映射不得把 null 对账填成 0 装齐。 | 功能表 §5.2 | `toIngestReportItem` | 查询契约；落库在 worker。 | 现行 |
+| `ingest/ingest-report-map.test.ts` | 入库报告行映射不得把 null 对账或未记录的去重率填成 0 装齐。 | 功能表 §5.2 · prds/04-pipelines §5.2 | `toIngestReportItem` | 查询契约；落库在 worker；去重率 null 原样回读。 | 现行 |
 | `ingest/reindex-strategy.test.ts` | reindex / complete 按库可用策略计数：仅 1 个可自动，未实现 400。 | B12 · 功能表 §4.5 | `documents reindex / complete` | 未实现 400；选择规则走 available。 | 现行 |
 | `ingest/reject-http.test.ts` | admin 驳回后不得入队 scan。 | 剧本 V5 · prds/10-delivery/03-acceptance-scenarios.md · ADR-048 | `POST /documents/:docId/reject` · `POST …/scan` | reject 200 后 scan 403 且不入队；无独立重提 API。 | 现行 |
 | `ingest/sensitive-complete.test.ts` | 敏感文档 complete 必须过 ACL 就绪闸。 | 审批/密级 · P3b-SENS 解禁 | `documents sensitive complete` | 部门路径或显式名单；null 仍挡。 | 现行 |

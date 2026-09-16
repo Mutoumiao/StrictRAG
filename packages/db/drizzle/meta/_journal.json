@@ -127,6 +127,13 @@
       "when": 1789660800000,
       "tag": "0017_ask_traces_citations",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1789747200000,
+      "tag": "0018_ingest_report_dedupe_rate",
+      "breakpoints": true
     }
   ]
 }

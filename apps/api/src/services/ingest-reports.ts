@@ -12,6 +12,7 @@ export function toIngestReportItem(row: {
   chunkCount: number;
   internalDropped: number;
   crossDocDropped: number;
+  dedupeCrossDocRate: number | null;
   conflictPairs: IngestReportConflictPair[] | null;
   contextSource: string | null;
   dualReady: number;
@@ -38,6 +39,8 @@ export function toIngestReportItem(row: {
     chunkCount: row.chunkCount,
     internalDropped: row.internalDropped,
     crossDocDropped: row.crossDocDropped,
+    // 落库快照原样回读：NULL（分母为 0 / 迁移前旧行）不得改写成 0
+    dedupeCrossDocRate: row.dedupeCrossDocRate ?? null,
     conflictPairs: row.conflictPairs ?? [],
     contextSource:
       row.contextSource === 'l0' || row.contextSource === 'l0_fallback'
@@ -66,6 +69,7 @@ export const ingestReportsRepo: IngestReportRepo = {
         chunkCount: ingestReports.chunkCount,
         internalDropped: ingestReports.internalDropped,
         crossDocDropped: ingestReports.crossDocDropped,
+        dedupeCrossDocRate: ingestReports.dedupeCrossDocRate,
         conflictPairs: ingestReports.conflictPairs,
         contextSource: ingestReports.contextSource,
         dualReady: ingestReports.dualReady,

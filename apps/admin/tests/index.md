@@ -38,7 +38,7 @@
 | `ops/document-write.test.ts` | 在线编写提交必须带非空标题与正文，并走 write HTTP。 | 功能表 §4.3 在线编写 · 工单「上传表单标部门最小闭环」 | `canSubmitWrite · writeAdminDocument` | HTTP 真值在 api。可带部门两字段。无 BlockNote。 | 现行 |
 | `ops/document-strategy-snapshot.test.ts` | 文档详情必须只读看到绑定的分片策略与快照，未记录时如实说「未记录」。 | 功能表 §4.5 · prds/05-api 文档元数据 · ADR-053 | `strategySnapshotLabel` | 不新增写路径；HTTP 真值在 api 列表项。 | 现行 |
 | `ops/documents-workspace.test.tsx` | 文档列表薄页必须按码控制详情/保存/部门列，失败则运营交互与权限不符。 | 文档运营 UI · 工单「上传表单标部门最小闭环」 · 工单「文档绑定策略参数快照只读审计最小闭环」 | `DocumentsWorkspace · deptLabel / readyColLabel / visibilityLabel / strategySnapshotLabel` | 含类型列、运营标签、Reindex、归档、删除、在线编写区、创建面部门关闭列表；行展开名单与生效区间、入库报告、**分片策略（历史，只读）**；PATCH 含 effectiveFrom/To；有码可选后继替代；删除走 DELETE 不走 PATCH。 | 现行 |
-| `ops/ingest-report.test.tsx` | 文档行展开须展示入库报告；无报告须出「暂无入库报告」。 | 功能表 §4.3 | `DocumentsWorkspace · reportsForDoc` | 库级 GET 后按本行过滤；展示跨 doc 计数与冲突对。 | 现行 |
+| `ops/ingest-report.test.tsx` | 文档行展开须展示入库报告（含跨文档去重率）；无报告出「暂无入库报告」；率未记录不得显示 0%。 | 功能表 §4.3 · prds/04-pipelines §5.2 | `DocumentsWorkspace · reportsForDoc · dedupeRateLabel` | 库级 GET 后按本行过滤；展示跨 doc 计数、去重率与冲突对。 | 现行 |
 | `ops/eval-workspace.test.tsx` | 评测薄页无码须 403；有码才列出题目并入队 L1/L2。 | 功能表 §4.1 · prds/05-api §2.8 · 覆盖 C4 · 覆盖 C2 · 覆盖 C3 | `EvalWorkspace` | HTTP 真值在 api；本页不跑批；L1 有 scored 时展示 Hit@k；有 tauStar / judgeAuroc 时展示该值。 | 现行 |
 | `ops/feedback-comment-escape.test.tsx` | 反馈 comment 含 `<script>` 必须当文本展示，不得当 HTML 解析。 | 剧本 K6 · prds/10-delivery/03-acceptance-scenarios.md | `FeedbackWorkspace` | comment 走 React 文本节点原样可见。 | 现行 |
 | `ops/feedback-promote-gold.test.tsx` | 有 feedback.queue 与 eval.run 才能纳入黄金集；无 eval.run 不得展示按钮。 | ADR-019 · 功能表 §4.1 · prds/05-api §2.6 | `FeedbackWorkspace` | HTTP 真值在 api；ClosedSelect 题型。不是 gold.yaml。 | 现行 |

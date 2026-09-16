@@ -1,4 +1,4 @@
-import { integer, jsonb, pgTable, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { integer, jsonb, pgTable, real, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
 import { baseColumns } from '../_shard/base-columns.js';
 
@@ -23,6 +23,11 @@ export const ingestReports = pgTable(
     chunkCount: integer('chunk_count').notNull(),
     internalDropped: integer('internal_dropped').notNull(),
     crossDocDropped: integer('cross_doc_dropped').notNull(),
+    /**
+     * 跨文档去重率（PRD 04 §5.2 的 `dedupe_cross_doc_rate`）：`crossDocDropped / (chunkCount + internalDropped + crossDocDropped)`。
+     * **NULL = 分母为 0**（本轮没有参与去重的切片）→ 不得写 0 假装「零重复」。
+     */
+    dedupeCrossDocRate: real('dedupe_cross_doc_rate'),
     conflictPairs: jsonb('conflict_pairs').$type<IngestReportConflictPair[]>().notNull(),
     contextSource: text('context_source'),
     dualReady: integer('dual_ready').notNull(),

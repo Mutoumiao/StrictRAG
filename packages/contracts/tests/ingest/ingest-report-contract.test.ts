@@ -23,6 +23,7 @@ const ROW = {
   chunkCount: 3,
   internalDropped: 1,
   crossDocDropped: 1,
+  dedupeCrossDocRate: 0.2,
   conflictPairs: [PAIR],
   contextSource: 'l0' as const,
   dualReady: true,
@@ -41,13 +42,30 @@ describe('IngestReportItemSchema', () => {
     const parsed = IngestReportItemSchema.parse({
       ...ROW,
       crossDocDropped: 0,
+      dedupeCrossDocRate: 0,
       conflictPairs: [],
       dualReady: false,
       reconcile: null,
     });
     expect(parsed.crossDocDropped).toBe(0);
+    expect(parsed.dedupeCrossDocRate).toBe(0);
     expect(parsed.conflictPairs).toEqual([]);
     expect(parsed.reconcile).toBeNull();
+  });
+
+  it('去重率缺失记 null（分母为 0 的轮次 / 旧行），且拒绝越界与缺字段', () => {
+    const parsed = IngestReportItemSchema.parse({ ...ROW, dedupeCrossDocRate: null });
+    expect(parsed.dedupeCrossDocRate).toBeNull();
+
+    expect(
+      IngestReportItemSchema.safeParse({ ...ROW, dedupeCrossDocRate: 1.2 }).success,
+    ).toBe(false);
+    expect(IngestReportItemSchema.safeParse({ ...ROW, dedupeCrossDocRate: -0.1 }).success).toBe(
+      false,
+    );
+    const withoutRate: Record<string, unknown> = { ...ROW };
+    delete withoutRate.dedupeCrossDocRate;
+    expect(IngestReportItemSchema.safeParse(withoutRate).success).toBe(false);
   });
 
   it('拒绝 Hit@k 与 pending_review 装齐字段', () => {

@@ -1,8 +1,8 @@
 /**
- * 目标：入库报告行映射不得把 null 对账填成 0 装齐。
- * 需求：功能表 §5.2
+ * 目标：入库报告行映射不得把 null 对账或未记录的去重率填成 0 装齐。
+ * 需求：功能表 §5.2 · prds/04-pipelines 入库报告 §5.2
  * 被测：toIngestReportItem
- * 简介：查询契约；落库在 worker。
+ * 简介：查询契约；落库在 worker；去重率原样回读（null 仍是 null）。
  */
 
 import { describe, expect, it } from 'vitest';
@@ -19,6 +19,7 @@ describe('toIngestReportItem', () => {
       chunkCount: 3,
       internalDropped: 1,
       crossDocDropped: 2,
+      dedupeCrossDocRate: 0.3333333,
       contextSource: 'l0_fallback',
       conflictPairs: [
         {
@@ -37,6 +38,7 @@ describe('toIngestReportItem', () => {
     });
     expect(item.dualReady).toBe(true);
     expect(item.crossDocDropped).toBe(2);
+    expect(item.dedupeCrossDocRate).toBeCloseTo(0.3333333, 6);
     expect(item.contextSource).toBe('l0_fallback');
     expect(item.conflictPairs).toHaveLength(1);
     expect(item.reconcile).toEqual({ ok: true, missingCount: 0, orphanCount: 0 });
@@ -51,6 +53,7 @@ describe('toIngestReportItem', () => {
       chunkCount: 0,
       internalDropped: 4,
       crossDocDropped: 0,
+      dedupeCrossDocRate: null,
       contextSource: 'bogus',
       conflictPairs: [],
       dualReady: 0,
@@ -64,6 +67,8 @@ describe('toIngestReportItem', () => {
     expect(item.dualReady).toBe(false);
     expect(item.reconcile).toBeNull();
     expect(item.internalDropped).toBe(4);
+    // 分母为 0 → 未记录，不得被映射成 0
+    expect(item.dedupeCrossDocRate).toBeNull();
     expect(item.contextSource).toBeNull();
   });
 });

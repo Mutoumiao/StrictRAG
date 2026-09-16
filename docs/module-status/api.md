@@ -157,7 +157,7 @@
 | 完整 ACL / 部门强制隔离 | 开关有、默认关；开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤且带列；可关继承（env + KB 覆盖 + 设置页勾选，未改不写回）；ES 查询期强制 tenantId+kbId，enforce 开且非超管可追加 `ownerDeptId` terms；aclPrincipals 用户 uuid 名单最小已落（PG 把关；ES 查询期非超管 should；**≠** 角色 principal） / **无** 默认开；sensitive complete 须 ACL 就绪（部门路径或显式名单） |
 | 生产 IdP | 仍是临时双 JWT；**B4-W** 已读 `user_roles` hydrate（≠ Better Auth / 密码登录）。启动引导只写 `password_hash`，**无**验密 HTTP。超管绑码写路径已锁全码 |
 | 成员 `allowedDocIds` / 检索 ACL 闸 | PUT 只改 `role`；`GET /me/permissions` 无 `byKb` |
-| 入库报告完整语义 | 库级 GET 含跨 doc skip 冲突对；**无** `pending_review` / L0 vs L1 Hit@k |
+| 入库报告完整语义 | 库级 GET 含跨 doc skip 冲突对与 **`dedupeCrossDocRate`**（null 原样回读，不填 0）；**无** `pending_review` / L0 vs L1 Hit@k / 「高度重复」阈值提示 |
 | DELETE / 三存对齐 | DELETE 写 archived 并入队 purge；worker mock 适配器清对象 / mock ES / 可选 Mongo；**无** PG 硬删 / chunk 清扫 / HTTP ES `_delete_by_query` |
 | MD/TXT 更严体积 / 魔数嗅探 | MIME 白名单已落；**无** 按族更严上限；**无** 文件头嗅探 |
 | 三平面配额全文 | ask/ingest 进程内 RPM 分 store 已落（默认 0=关）；**无** embed TPM / `maxEmbedCalls` / staging fail-closed / aux 运行时 / Redis 集群 / L0 网关 |
@@ -208,7 +208,7 @@
 | 会话 / 反馈 | `apps/api/src/routes/sessions.ts` · `routes/feedback.ts` |
 | 入库 / 策略闸 / 入队 | `routes/documents/`（ARCH-P1a）· `services/chunk-strategies.ts` · `services/queue.ts` · `gates/` · contracts `chunk-strategy.ts` · `async/ingest-job.ts` |
 | 上传 MIME / checksum | `gates/upload-media.ts` · `ingest-complete-pending.ts` · `tests/ingest/upload-media.test.ts` · `tests/ingest/complete-media.test.ts` |
-| 入库报告 | `routes/ingest-report.ts` · `services/ingest-reports.ts` · `tests/ingest/ingest-report-http.test.ts` |
+| 入库报告 | `routes/ingest-report.ts` · `services/ingest-reports.ts` · `tests/ingest/ingest-report-http.test.ts` · `tests/ingest/ingest-report-map.test.ts` |
 | 文档类型 / lifecycle | `routes/documents/index.ts` PATCH `docType` · `assertDocTypeAllowed` · `tests/ingest/document-doctype.test.ts` · `tests/ingest/document-lifecycle-http.test.ts` |
 | 替代联动 | `POST /documents/:docId/supersede` · `services/document-supersede.ts` · `tests/ingest/document-supersede.test.ts` |
 | 删除 / purge 入队 | `DELETE /documents/:docId` · `services/document-delete.ts` · `tests/ingest/document-delete.test.ts` |

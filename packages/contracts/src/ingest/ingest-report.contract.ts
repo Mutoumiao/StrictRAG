@@ -22,6 +22,12 @@ export const IngestReportItemSchema = z
     chunkCount: z.number().int().nonnegative(),
     internalDropped: z.number().int().nonnegative(),
     crossDocDropped: z.number().int().nonnegative(),
+    /**
+     * 跨文档去重率（PRD 04 §5.2 `dedupe_cross_doc_rate`）。
+     * 口径（本仓钉，PRD 只给指标名）：`crossDocDropped / (chunkCount + internalDropped + crossDocDropped)`；
+     * **null = 分母为 0**（本轮没有参与去重的切片），不得读成「零重复」。
+     */
+    dedupeCrossDocRate: z.number().min(0).max(1).nullable(),
     conflictPairs: z.array(IngestReportConflictPairSchema),
     contextSource: z.enum(CONTEXT_SOURCES).nullable(),
     dualReady: z.boolean(),

@@ -1,14 +1,14 @@
 /**
- * 目标：文档行展开须展示入库报告；无报告须出「暂无入库报告」。
- * 需求：功能表 §4.3 入库报告入口
- * 被测：DocumentsWorkspace · reportsForDoc
+ * 目标：文档行展开须展示入库报告（含跨文档去重率）；无报告须出「暂无入库报告」；率未记录不得显示 0%。
+ * 需求：功能表 §4.3 入库报告入口 · prds/04-pipelines 入库报告 §5.2
+ * 被测：DocumentsWorkspace · reportsForDoc · dedupeRateLabel
  * 简介：库级 GET 后按本行 doc 过滤；HTTP 真值在 api。
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { render, screen, userEvent } from '@/test/test-utils';
-import { reportsForDoc } from '@/app/(ops)/documents/report.services';
+import { dedupeRateLabel, reportsForDoc } from '@/app/(ops)/documents/report.services';
 import type { IngestReportItem } from '@strict-rag/contracts';
 
 const me = {
@@ -110,6 +110,7 @@ const mine: IngestReportItem = {
   chunkCount: 3,
   internalDropped: 1,
   crossDocDropped: 1,
+  dedupeCrossDocRate: 0.2,
   contextSource: 'l0' as const,
   conflictPairs: [
     {
@@ -161,10 +162,35 @@ describe('DocumentsWorkspace 入库报告', () => {
     const user = userEvent.setup();
     await user.click(await screen.findByText('请假制度'));
     expect(
-      await screen.findByText(/v1 · 分片 3 · 文档内去重 1 · 跨文档去重 1 · 情境 l0/),
+      await screen.findByText(
+        /v1 · 分片 3 · 文档内去重 1 · 跨文档去重 1 · 跨文档去重率 20.0% · 情境 l0/,
+      ),
     ).toBeInTheDocument();
     expect(screen.getByText(new RegExp(`冲突 ${OTHER_ID}`))).toBeInTheDocument();
     expect(screen.getByText(/双就绪/)).toBeInTheDocument();
     expect(screen.queryByText('暂无入库报告')).not.toBeInTheDocument();
+  });
+
+  it('去重率未记录（分母为 0）时明说未记录，不得显示 0%', async () => {
+    loadIngestReports.mockResolvedValue({
+      ok: true,
+      reports: [{ ...mine, chunkCount: 0, internalDropped: 0, crossDocDropped: 0, dedupeCrossDocRate: null }],
+    });
+    render(<DocumentsWorkspace />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByText('请假制度'));
+    expect(await screen.findByText(/跨文档去重率 未记录（本轮无参与去重的切片）/)).toBeInTheDocument();
+    expect(screen.queryByText(/跨文档去重率 0\.0%/)).not.toBeInTheDocument();
+  });
+});
+
+describe('dedupeRateLabel', () => {
+  it('数值转百分比，缺失给未记录文案（不写 0%）', () => {
+    expect(dedupeRateLabel(0)).toBe('0.0%');
+    expect(dedupeRateLabel(0.333)).toBe('33.3%');
+    expect(dedupeRateLabel(1)).toBe('100.0%');
+    expect(dedupeRateLabel(null)).toBe('未记录（本轮无参与去重的切片）');
+    expect(dedupeRateLabel(undefined)).toBe('未记录（本轮无参与去重的切片）');
+    expect(dedupeRateLabel(Number.NaN)).toBe('未记录（本轮无参与去重的切片）');
   });
 });

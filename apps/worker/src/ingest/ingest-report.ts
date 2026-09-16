@@ -35,6 +35,21 @@ export function flag(value: boolean): 0 | 1 {
   return value ? 1 : 0;
 }
 
+/**
+ * 跨文档去重率（PRD 04 §5.2 `dedupe_cross_doc_rate`）。
+ * 口径由本仓钉（PRD 只给指标名）：分母 = 本轮**参与去重的切片总数** = 存活 + 文档内丢弃 + 跨文档丢弃。
+ * 分母为 0（本轮没有可去重切片）→ **null**，不得写 0 假装「零重复」。
+ */
+export function dedupeCrossDocRate(snapshot: {
+  chunkCount: number;
+  internalDropped: number;
+  crossDocDropped: number;
+}): number | null {
+  const total = snapshot.chunkCount + snapshot.internalDropped + snapshot.crossDocDropped;
+  if (total <= 0) return null;
+  return snapshot.crossDocDropped / total;
+}
+
 function keepContextSource(
   existing: string | null | undefined,
   snapshot: ContextSource | null | undefined,
@@ -54,6 +69,8 @@ export function buildIngestReportInsert(snapshot: IngestReportSnapshot) {
     chunkCount: snapshot.chunkCount,
     internalDropped: snapshot.internalDropped,
     crossDocDropped: snapshot.crossDocDropped,
+    // 由同一份计数派生：不会出现「rate 与计数不一致」的行
+    dedupeCrossDocRate: dedupeCrossDocRate(snapshot),
     conflictPairs: [...snapshot.conflictPairs],
     contextSource: snapshot.contextSource ?? null,
     dualReady: flag(snapshot.dualReady),
@@ -71,6 +88,7 @@ export function buildIngestReportPatch(snapshot: IngestReportSnapshot) {
     chunkCount: row.chunkCount,
     internalDropped: row.internalDropped,
     crossDocDropped: row.crossDocDropped,
+    dedupeCrossDocRate: row.dedupeCrossDocRate,
     conflictPairs: row.conflictPairs,
     contextSource: row.contextSource,
     dualReady: row.dualReady,

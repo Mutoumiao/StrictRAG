@@ -1,8 +1,8 @@
 /**
- * 目标：入库报告落库只写真事；同 version 更新保留文档内与跨 doc dropped。
- * 需求：功能表 §4.3 / §5.2 · prds/04-pipelines 入库报告
- * 被测：buildIngestReportInsert · persistIngestReport
- * 简介：非阻断；含跨 doc 冲突对；不含 Hit@k。
+ * 目标：入库报告落库只写真事；同 version 更新保留文档内与跨 doc dropped；去重率与计数同源。
+ * 需求：功能表 §4.3 / §5.2 · prds/04-pipelines 入库报告 §5.2
+ * 被测：buildIngestReportInsert · persistIngestReport · dedupeCrossDocRate
+ * 简介：非阻断；含跨 doc 冲突对与 `dedupe_cross_doc_rate`（分母 0 → null）；不含 Hit@k。
  */
 
 import { ingestReports } from '@strict-rag/db';
@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildIngestReportInsert,
+  dedupeCrossDocRate,
   persistIngestReport,
   type IngestReportSnapshot,
 } from '../../src/ingest/ingest-report.js';
@@ -42,12 +43,31 @@ describe('ingest report persist', () => {
     expect(row.chunkCount).toBe(4);
     expect(row.internalDropped).toBe(2);
     expect(row.crossDocDropped).toBe(3);
+    // 4 存活 + 2 文档内丢弃 + 3 跨文档丢弃 = 9 参与去重 → 3/9
+    expect(row.dedupeCrossDocRate).toBeCloseTo(1 / 3, 6);
     expect(row.conflictPairs).toEqual([PAIR]);
     expect(row.contextSource).toBe('l0');
     expect(row.dualReady).toBe(0);
     expect(row.reconcileOk).toBeNull();
     expect(row.reconcileMissing).toBeNull();
     expect(row).not.toHaveProperty('hitAtK');
+  });
+
+  it('分母为 0（本轮没有参与去重的切片）时去重率记 null，不得写 0', () => {
+    expect(
+      dedupeCrossDocRate({ chunkCount: 0, internalDropped: 0, crossDocDropped: 0 }),
+    ).toBeNull();
+    const row = buildIngestReportInsert({
+      ...SNAP,
+      chunkCount: 0,
+      internalDropped: 0,
+      crossDocDropped: 0,
+    });
+    expect(row.dedupeCrossDocRate).toBeNull();
+  });
+
+  it('全被去重清空时记 1（不是 null、也不是 0）', () => {
+    expect(dedupeCrossDocRate({ chunkCount: 0, internalDropped: 0, crossDocDropped: 5 })).toBe(1);
   });
 
   it('build 对账失败不标双就绪', () => {
