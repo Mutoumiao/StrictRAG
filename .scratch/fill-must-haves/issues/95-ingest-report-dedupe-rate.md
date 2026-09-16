@@ -2,8 +2,8 @@
 
 Type: task
 Label: wayfinder:task
-Status: pending
-Assignee: —
+Status: resolved
+Assignee: grok
 Triage: ready-for-agent
 Blocked by: 94
 
@@ -49,6 +49,32 @@ Blocked by: 94
 
 收工：`.trellis/spec/worker/backend/` 入库报告节 + `.trellis/spec/db/` 表节 + `.trellis/spec/api/backend/`（若入库报告有专节）；`docs/module-status/{worker,api,contracts,db}.md`。Answer 里写明「只落 rate 数值及其口径，未做阈值提示与 `pending_review`」。
 
+## Answer
+
+**口径（本票钉的，PRD 只给指标名）**：`dedupeCrossDocRate = crossDocDropped / (chunkCount + internalDropped + crossDocDropped)`（分母 = 本轮**参与去重的切片总数** = 存活 + 文档内丢弃 + 跨文档丢弃）。**分母为 0 → 落 `NULL`**（不是 0），旧行同样是 `NULL` 且原样回读。
+
+**做了什么**
+
+- db：`ingest_reports` 增 `dedupe_cross_doc_rate` real（**无默认**）+ 手写迁移 `packages/db/drizzle/0018_ingest_report_dedupe_rate.sql` 与 `meta/_journal.json` 条目 idx 18（`db:generate` 仍不可用，见地图工程债）。
+- worker（`apps/worker/src/ingest/ingest-report.ts`）：新增纯函数 `dedupeCrossDocRate({chunkCount, internalDropped, crossDocDropped})`，在 `buildIngestReportInsert` 内**由同一份计数派生**并写列；`buildIngestReportPatch` 同步带上 —— 因此同 version 的更新（`persistIngestReport` 合并既有计数）也会得到与计数一致的 rate，**不会出现「rate 与计数分叉」的行**。两条 `persistIngestReport` 调用点（清空/冻结）无需改动。
+- contracts：`IngestReportItemSchema` 增 `dedupeCrossDocRate: number.min(0).max(1).nullable()`（`.strict()` 保留；缺字段仍拒）。
+- api：`toIngestReportItem` 原样回读（`?? null`，不把 null 填成 0）；`listByKb` select 带出该列。
+- admin：`report.services.ts` 新增 `dedupeRateLabel()`（数值 → `20.0%`；null/undefined/NaN → 「未记录（本轮无参与去重的切片）」），文档行展开的入库报告行追加「跨文档去重率 …」。**禁止把 null 显示成 0%**（那会把「没参与去重」说成「零重复」）。
+
+**没做什么 / 边界**
+
+- **未做「高度重复」提示与阈值判断**：功能表写「阈值以数据 PRD 为准」，而 `prds/03-data` **没有任何阈值或占比定义**；本票不发明阈值、不做提示文案、不做 UI 告警。
+- 未做 `pending_review`（`chunks` 的 `duplicate_of` / `dedupe_status` / `searchable` 三列与人工决定端点均未冻）；未加 `downrank`；未引真 MinHash LSH；未动默认 `skip_index` 与检索闸；未改 `prds/00–11`。
+- 本票**没有**把 rate 接到 `ready` 判定上（它只是报告指标）。
+
+**验证**
+
+- 包内：`contracts tests/ingest/ingest-report-contract.test.ts` 4 通过 · `worker tests/ingest/ingest-report.test.ts` 5 通过 · `api tests/ingest/ingest-report-map.test.ts` + `ingest-report-http.test.ts` 6 通过 · `admin tests/ops/ingest-report.test.tsx` 5 通过。
+- 顺手修的既有断言：admin 那条 `findByText(/…跨文档去重 1 · 情境 l0/)` 因为新插入「跨文档去重率」文本而必然失配 → 已按新形态更新（测试先红后绿，不是放宽）。
+- 全仓：见地图本轮收口处的门禁数字（`pnpm check-types` / `pnpm lint` 既有 7 条 warning / `pnpm test` 全绿）。
+- 回写：`.trellis/spec/worker/backend/ingest-capability-matrix.md`（capability 表 + 存储表两行）· `.trellis/spec/db/backend/database-guidelines.md`（迁移 Gotcha 补 `0018`）· `.trellis/spec/admin/frontend/quality-guidelines.md`（入库报告入口规约补「未记录 ≠ 0%」）；`docs/module-status/{worker,api,contracts,db,admin}.md`；四个包的 `tests/index.md` 行文。
+
 ## Comments
 
 - 2026-09-16 由 [裁定 93](./93-after-92-order.md) 排为本批第二张：功能表 / PRD 明文必出，但**只做一半**（rate），另一半（「高度重复」提示）因数据 PRD 未定义阈值而留雾。
+- 2026-09-16 完成。切边：rate 只作报告指标，不接 ready 闸；不做提示与 `pending_review`。
