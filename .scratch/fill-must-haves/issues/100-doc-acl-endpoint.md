@@ -2,8 +2,8 @@
 
 Type: task
 Label: wayfinder:task
-Status: pending
-Assignee: —
+Status: resolved
+Assignee: grok
 Triage: ready-for-agent
 Blocked by: 99
 
@@ -46,6 +46,28 @@ Blocked by: 99
 
 收工：`.trellis/spec/api/backend/`（ACL / documents 相关节，含端点表与三态语义）+ `docs/module-status/api.md`（文档 ACL 行 + 证据指针）+ `apps/api/tests/index.md` 与 `packages/contracts/tests/index.md`。Answer 里写明「端点已落，admin 面与 reindex-on-tighten 未做」。
 
+## Answer
+
+**做了什么**
+
+- contracts：`DocumentAclSchema`（`{ docId, aclPrincipals: uuid[] | null }`，`.strict()`）+ `PutDocumentAclBodySchema`（`{ aclPrincipals: uuid[] | null }`，`.strict()`，最多 256）。
+- api：`GET/PUT /api/v1/documents/:docId/acl`（`routes/documents/index.ts`）。GET 三态回读（`null`/`[]`/名单）；PUT 走既有 `documentRepo.patchMeta({ aclPrincipals })` 同一写路径，回读用同一 DTO。
+- **可见性闸抽成一处**：把详情路由里内联的「部门强制（开时）→ aclPrincipals 名单」判定提为同文件内的 `docReadDenied(...)`，**详情与 ACL 两个 GET 共用**。这是刻意的小重构：ACL 名单本身也是 ACL 元数据，若只在详情加严、ACL 口另写一遍，两处迟早分叉。详情路由改动只是把内联块换成一次调用，语义逐字保留（既有 acl 测例全绿）。
+- 权限口径：GET = `requirePermissionWhenEnforced('doc.view')` + `docReadDenied`（**与详情同口径**）；PUT = `requirePermission('doc.editor')`（**与 PATCH 同一码，未新造码**），**刻意不叠可见性闸** —— `[]` 的文档对非超管本就不可读，写路径若也过闸，谁都修不回来（会把自己锁死）。PUT 响应回名单，与 PATCH 返回 `toDetail` 的暴露面一致，无新增泄漏。
+- 测例：新增 `apps/api/tests/acl/documents-acl-endpoint.test.ts`（9 例：null 可读 / `[]` 403 / 名单内 200 与名单外 403 / 超管旁路 / 缺文 404 / 无令牌按 AUTH_ENFORCE 关放行而名单闸仍生效、开启则 401 / PUT 三态 + 写 `[]` 后非名单者读不到但超管能回读 / 非法 body 400 且不写仓 / 缺文 404 且不写仓 / enforce 开且无 `doc.editor` 403）；contracts `tests/ingest/document-contract.test.ts` 增 3 例（GET 三态与拒形 / 缺字段 / 超 256）。
+
+**没做什么 / 边界（如实说）**
+
+- **未做 admin 编辑面**（选择器/页面）：现状仍可用既有 Textarea 手填 uuid。要做须先定「选人来源」（KB 成员列表 vs 平台用户列表，涉权限面）→ 留雾。
+- **未做 reindex-on-tighten**：**这不是安全洞** —— PG 闸即时生效，且 ES 结果与 PG 现值求交（`retrieve.ts`），索引滞后不构成泄漏；它只是索引与现值不一致。
+- 未做成员 `allowedDocIds` / `ACL_DOC_IDS_MAX` / `acl_filter_too_large`；未默认开 `DEPT_ACL_ENFORCE`；未加角色 principal；未改 `prds/00–11`。
+- **未验证 admin 侧**（本票没改 admin）。
+
+**验证**：全仓 `pnpm test` 11/11 全绿（api **134 files / 856 passed** + 3 skipped；contracts 26 / **213**）· `pnpm check-types` 8/8 · `pnpm lint` **8/8 零 warning**（本轮已把 lint 债清零）。
+
+**回写**：`.trellis/spec/api/backend/departments.md`（文档 ACL 专用入口一节）；`docs/module-status/api.md`（`aclPrincipals` 行 + 最近更新）；`apps/api/tests/index.md` 与 `packages/contracts/tests/index.md`。
+
 ## Comments
 
 - 2026-09-16 由 [裁定 98](./98-after-96-order.md) 排为本批第二张：PRD 冻结端点，依赖已全落，只缺口子。
+- 2026-09-16 完成。切边：不做 admin 面与 reindex-on-tighten；写路径不叠可见性闸（防 `[]` 文档无人能修），已写进 spec 与 Answer。
