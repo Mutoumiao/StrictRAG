@@ -65,7 +65,7 @@ describe('runRetrieve loadBodies', () => {
     const r = await runRetrieve(
       { tenantId: 't1', kbId: 'kb1', question: '权威正文', membership: 'member' },
       retrieveDeps(corpus, {
-        loadBodies: async (ids) => new Map([['c1', '《制度》\nMongo 权威正文']]),
+        loadBodies: async () => new Map([['c1', '《制度》\nMongo 权威正文']]),
       }),
     );
     expect(r.ok).toBe(true);
@@ -78,7 +78,7 @@ describe('runRetrieve loadBodies', () => {
     const r = await runRetrieve(
       { tenantId: 't1', kbId: 'kb1', question: '权威正文', membership: 'member' },
       retrieveDeps(corpus, {
-        loadBodies: async (ids) => new Map([['c1', '《制度》\nMongo 权威正文']]),
+        loadBodies: async () => new Map([['c1', '《制度》\nMongo 权威正文']]),
       }),
     );
     expect(r).toMatchObject({ ok: false, reason: 'internal_guard' });

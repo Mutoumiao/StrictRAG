@@ -39,7 +39,7 @@ vi.mock('../../src/services/documents.js', () => ({
             status: 'uploaded',
           }
         : null,
-    approve: async (_id: string) => {
+    approve: async () => {
       docState.approvalStatus = 'approved';
     },
   },

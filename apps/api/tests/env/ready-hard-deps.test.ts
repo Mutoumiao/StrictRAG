@@ -23,7 +23,11 @@ vi.mock('@strict-rag/db', async (importOriginal) => {
 
 vi.mock('ioredis', () => {
   class RedisMock {
-    constructor(_url?: string, _opts?: unknown) {}
+    /** 形参只为对齐 ioredis 构造签名；mock 不消费 */
+    constructor(url?: string, opts?: unknown) {
+      void url;
+      void opts;
+    }
     async connect() {
       return undefined;
     }
