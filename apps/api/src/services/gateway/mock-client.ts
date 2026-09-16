@@ -1,3 +1,4 @@
+import { recordRerankAttemptFail, recordRerankNodeUsed } from '../../obs/metrics.js';
 import { canTryGenerateFallback, GatewayError } from './errors.js';
 import type { GatewayConfig } from './resolve.js';
 import { resolveChatNodes, resolveEmbedModel, resolveRerankModel } from './resolve.js';
@@ -109,8 +110,9 @@ export function createMockGateway(cfg: GatewayConfig, hooks: MockGatewayHooks = 
       let last: GatewayError | undefined;
 
       for (let ei = 0; ei < endpoints.length; ei++) {
+        const ep = endpoints[ei]!;
         try {
-          return await withSameModelRetry({
+          const hits = await withSameModelRetry({
             purpose: 'rerank',
             maxAttempts: cfg.maxAttempts,
             run: async (attempt) => {
@@ -128,8 +130,11 @@ export function createMockGateway(cfg: GatewayConfig, hooks: MockGatewayHooks = 
               return scored.slice(0, Math.min(topN, scored.length));
             },
           });
+          recordRerankNodeUsed({ provider: ep, model: m, fallback: ei > 0 });
+          return hits;
         } catch (err) {
           if (!(err instanceof GatewayError)) throw err;
+          recordRerankAttemptFail(err.kind);
           last = err;
           // 换 endpoint 继续；链耗尽再抛
         }

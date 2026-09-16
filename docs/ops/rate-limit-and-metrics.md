@@ -88,7 +88,7 @@ ASK_RATE_LIMIT_RPM=30 INGEST_RATE_LIMIT_RPM=30 pnpm --filter @strict-rag/api dev
 | 路径 | `GET /metrics`（**不**在 `/api/v1` 下） |
 | 鉴权 | **无**（与 `/health` 类似的运维面） |
 | 载荷 | `{ service: 'api', metrics: metricsSnapshot() }` — 进程内 counter 快照 |
-| 指标名例 | `ask_total` / `ask_ok` / `ask_fail`（`plane=ask`）· `llm_call_total` · `rerank_total` · `ask_rate_limited_total` · `ingest_complete_total`（`plane=ingest`）· `l3_rewrite_used_total` / `l3_coref_fail_total` / `l3_session_ask_total` / `l3_session_deepened_total` / `l3_topic_complaint_total` · `l3_guard_alert_total`（kind：`coref_fail_rate` / `rewrite_dogfood` / `topic_complaint` / `l2_stale`；除 dogfood 外闩后进程内关 rewrite，**≠** 写 env） |
+| 指标名例 | `ask_total` / `ask_ok` / `ask_fail`（`plane=ask`）· `llm_call_total{purpose,ok,fallback}`（`fallback` 取 Gateway `meta.fallbackUsed`；**调用失败拿不到该值 → 记 `unknown`，不谎报 `false`**）· `rerank_total` · `rerank_node_used{provider,model}` / `rerank_fallback_used_total{provider,model}` / `rerank_fail_total{kind}`（**node = 本轮实际尝试的 rerank 端点**；rerank 无 DB `ModelRef`，故 `provider` 落端点标识；与按 ask 调用计的 `rerank_total` **不是**同一口径）· `ask_rate_limited_total` · `ingest_complete_total`（`plane=ingest`）· `l3_rewrite_used_total` / `l3_coref_fail_total` / `l3_session_ask_total` / `l3_session_deepened_total` / `l3_topic_complaint_total` · `l3_guard_alert_total`（kind：`coref_fail_rate` / `rewrite_dogfood` / `topic_complaint` / `l2_stale`；除 dogfood 外闩后进程内关 rewrite，**≠** 写 env） |
 | 非目标 | Prometheus exposition 格式 / 直方图全量（→ 更后阶段） |
 | 代码 | `apps/api/src/app.ts` · `apps/api/src/obs/metrics.ts` |
 
@@ -111,7 +111,7 @@ curl -sS http://127.0.0.1:4000/metrics
 
 - [ ] 公网入口是否可 `curl` 到 `/metrics`？若可 → 改 A/B/C  
 - [ ] scrape 目标是否仅内网 DNS / Service？  
-- [ ] 指标是否含敏感标签？（当前为聚合 counter，**仍**勿对公网开放）  
+- [ ] 指标是否含敏感标签？（当前为聚合 counter；`rerank_node_used` 的 `provider` 是**内部端点地址**，**仍**勿对公网开放）  
 - [ ] 限流是否在 L0 配置？L1 是否仅作试点 env？
 
 ---
@@ -144,3 +144,4 @@ curl -sS http://127.0.0.1:4000/metrics
 |------|------|
 | 2026-08-12 | 初版 · ARCH-P2-4：L0/L1 分层 + `/metrics` 保护选项 A–C；否决进程内全局限流生产方案 |
 | 2026-09-07 | 三平面配额最小闭环：ask/ingest 分 store 固定窗口；aux 只留常量；指标带 `plane` |
+| 2026-09-16 | 指标骨架补 `fallback` 与 `node_used`（功能表 §10.3）：`llm_call_total` 加 `fallback` 维（真值取 Gateway `meta.fallbackUsed`，失败记 `unknown`）；rerank 加 `rerank_node_used{provider,model}` / `rerank_fallback_used_total` / `rerank_fail_total{kind}` |

@@ -137,12 +137,44 @@ export function evaluateL2Stale(input: {
   latchL3GuardAlert('l2_stale', { kind: 'l2_stale' });
 }
 
-export function recordLlmCall(purpose: string, ok: boolean): void {
-  metricInc('llm_call_total', { purpose, ok: String(ok), plane: ASK_PLANE });
+/**
+ * 一次 LLM 调用打点。`fallback` 取自 Gateway 的 `meta.fallbackUsed`（PRD 07 §5.1.1）。
+ * **调用失败时拿不到该值** → 如实记 `unknown`，不得谎报 `false`。
+ */
+export function recordLlmCall(purpose: string, ok: boolean, fallback?: boolean): void {
+  metricInc('llm_call_total', {
+    purpose,
+    ok: String(ok),
+    fallback: fallback === undefined ? 'unknown' : String(fallback),
+    plane: ASK_PLANE,
+  });
 }
 
 export function recordRerank(ok: boolean, kind?: string): void {
   metricInc('rerank_total', { ok: String(ok), plane: ASK_PLANE, ...(kind ? { kind } : {}) });
+}
+
+/**
+ * rerank 端点链打点（功能表 §10.3「含 fallback 与 node_used」）。
+ * **node = 本轮实际尝试的端点**：rerank 没有 DB `ModelRef`（见 `resolve.ts` 的 `purposeEndpoints.rerank`），
+ * 故 `provider` 落到端点标识而非 DB provider —— 这是口径选择，与 `rerank_total`（按 ask 调用计）**不是**同一口径，不互为重复计数。
+ */
+export function recordRerankNodeUsed(input: {
+  provider: string;
+  model: string;
+  fallback: boolean;
+}): void {
+  const labels = { provider: input.provider, model: input.model, plane: ASK_PLANE };
+  metricInc('rerank_node_used', labels);
+  if (input.fallback) metricInc('rerank_fallback_used_total', labels);
+}
+
+/**
+ * rerank 单次端点尝试失败（含同端点重试）；链耗尽另由调用级 `rerank_total{ok=false}` 反映。
+ * `kind` 是**逃出该端点**的 kind —— 同端点重试耗尽会被重试器归为 `exhausted`。
+ */
+export function recordRerankAttemptFail(kind: string): void {
+  metricInc('rerank_fail_total', { kind, plane: ASK_PLANE });
 }
 
 export function recordRateLimited(scope: string, plane: QuotaPlane = 'ask'): void {

@@ -567,7 +567,7 @@ export function chatFromGateway(gateway: GatewayClient): GraphChat {
   return async (purpose, messages) => {
     try {
       const res = await gateway.chat({ purpose, messages });
-      recordLlmCall(purpose, true);
+      recordLlmCall(purpose, true, res.meta.fallbackUsed === true);
       return res.text;
     } catch (err) {
       recordLlmCall(purpose, false);

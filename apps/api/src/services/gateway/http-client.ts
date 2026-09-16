@@ -1,3 +1,4 @@
+import { recordRerankAttemptFail, recordRerankNodeUsed } from '../../obs/metrics.js';
 import {
   canTryGenerateFallback,
   GatewayError,
@@ -206,7 +207,7 @@ export function createHttpGateway(options: HttpGatewayOptions): GatewayClient {
       for (let ei = 0; ei < endpoints.length; ei++) {
         const ep = endpoints[ei]!.replace(/\/$/, '');
         try {
-          return await withSameModelRetry({
+          const hits = await withSameModelRetry({
             purpose: 'rerank',
             maxAttempts: cfg.maxAttempts,
             run: async (attempt) => {
@@ -246,8 +247,11 @@ export function createHttpGateway(options: HttpGatewayOptions): GatewayClient {
               }));
             },
           });
+          recordRerankNodeUsed({ provider: ep, model: m, fallback: ei > 0 });
+          return hits;
         } catch (err) {
           if (!(err instanceof GatewayError)) throw err;
+          recordRerankAttemptFail(err.kind);
           last = err;
         }
       }

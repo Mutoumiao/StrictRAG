@@ -10,6 +10,8 @@ export {
   isL3RewriteFused,
   recordLlmCall,
   recordRerank,
+  recordRerankNodeUsed,
+  recordRerankAttemptFail,
   recordRateLimited,
   recordIngestComplete,
   L3_CORE_FAIL_RATE_MIN_SESSION,

@@ -150,7 +150,8 @@
 | `obs/l3-ask.test.ts` | L3 ask 计数与护栏告警闩按阈值只告一次。 | ARCH-P2-4 | `recordL3Ask` | L3 ask 计数满阈只告一次，护栏告警有闩。 | 现行 |
 | `obs/l3-topic-complaint.test.ts` | 主题投诉计数满阈只告一次。 | ARCH-P2-4 | `recordL3TopicComplaint` | 主题投诉计数满阈只告一次。 | 现行 |
 | `obs/l3-rewrite-fuse.test.ts` | L3 护栏闩后本进程后续 ask 强制关掉 rewrite，dogfood 闩不熔断。 | prds/08-quality §0 L3 · 运维 §2.5 | `isL3RewriteFused / executeAsk` | coref/topic/l2_stale 闩后即使 env 为 true 也 rewriteUsed=false；会话壳仍落 transcript；rewrite_dogfood 不熔；复位后恢复。 | 现行 |
-| `obs/metrics.test.ts` | ask/llm/rerank 指标必须可按标签聚合。 | ARCH-P2-4 | `recordAskResult / recordLlmCall / recordRerank / metricGet` | 按标签聚合 ask / llm / rerank 计数（含 plane=ask）。 | 现行 |
+| `obs/metrics.test.ts` | ask/llm/rerank 指标必须可按标签聚合（含 llm 的 fallback 维与 rerank 的 node 维）。 | ARCH-P2-4 · 功能表 §10.3 | `recordAskResult / recordLlmCall / recordRerank / recordRerankNodeUsed / recordRerankAttemptFail` | 按标签聚合；fallback 未给值记 unknown；rerank 按端点记 node。 | 现行 |
+| `obs/metrics-fallback-wiring.test.ts` | fallback 与 rerank 节点真值必须从 Gateway 流到指标标签，不得由 api 侧猜。 | 功能表 §10.3 · prds/07-models §5.1.1 | `chatFromGateway · createMockGateway（rerank 端点链）` | meta.fallbackUsed → 标签；换端点记 node/fallback；失败记 unknown。 | 现行 |
 | `obs/quota-planes.test.ts` | ask 与 ingest 平面配额必须隔离，触顶不得 200 空答 answered。 | 剧本 R5 / R8 / R9 · ARCH-P2-4 | `POST ask / POST complete / 分 store / plane 指标` | ask 429 带 plane=ask 与 ask_quota_exhausted；ingest 429 带 plane=ingest；打满一侧不阻断另一侧。 | 现行 |
 | `obs/rate-limit.test.ts` | 超限必须返回 429 RATE_LIMITED。 | ARCH-P2-4 | `checkFixedWindowRateLimit / POST ask 429` | 超限返回 429 RATE_LIMITED；ask 路由走同一闸。 | 现行 |
 | `obs/tracer.test.ts` | memory tracer 记录主链 span，executeAsk 接线不得丢 span。 | ARCH-P2-4 | `createMemoryTracer / executeAsk` | 内存 tracer 记下主链 span；executeAsk 接线不得丢 span。 | 现行 |

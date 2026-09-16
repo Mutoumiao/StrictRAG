@@ -107,9 +107,21 @@ return ok(c, toPublicProvider(row)); // hasApiKey only
 | primary 失败、fallback 成功 | 返回分数；可记 `fallbackUsed` |
 | 全链失败 | graph/ask → `abstained` + `rerank_unavailable`；**禁止** `answered` |
 
+### 观测（功能表 §10.3「含 fallback 与 node_used」）
+
+| 指标 | 口径 |
+|------|------|
+| `llm_call_total{purpose,ok,fallback}` | `fallback` **只**取自 Gateway `meta.fallbackUsed`（`graph/run.ts` 的 `chatFromGateway` 透传）；**调用失败拿不到该值 → `unknown`**，禁止谎报 `false` |
+| `rerank_node_used{provider,model}` | **node = 本轮实际尝试的 rerank 端点**（http/mock client 端点链内打点）。rerank **无** DB `ModelRef`（`purposeEndpoints.rerank` 只有 baseUrl/apiKey/model）→ `provider` 落端点标识，**不是** DB provider |
+| `rerank_fallback_used_total{provider,model}` | 仅当 `ei > 0`（非首选端点顶上）才计 |
+| `rerank_fail_total{kind}` | 每次端点尝试失败；`kind` 是**逃出该端点**的 kind（同端点重试耗尽归 `exhausted`）。链耗尽另由调用级 `rerank_total{ok=false}`（`retrieve.ts`）反映 —— **两个口径不互为重复计数** |
+
+**禁止**在 api 侧按 attempt / 端点序位自行推断 fallback（会与 Gateway 真值分叉）。
+
 ### Tests
 
 `tests/gateway/resolve-mock.test.ts`：staging 单节点拒 · primary 失败 fallback 成功 · 全失败无假 answered；graph 层 `rerank_unavailable` 回归。
+指标维：`tests/obs/metrics-fallback-wiring.test.ts`（meta→标签、换端点记 node/fallback、失败记 `unknown`）· `tests/obs/metrics.test.ts`（标签聚合）。
 
 ### Wrong vs Correct
 
