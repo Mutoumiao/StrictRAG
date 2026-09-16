@@ -1,4 +1,5 @@
 import {
+  AskFinalResponseSchema,
   AskModesSchema,
   AskRequestSchema,
   AskResponseSchema,
@@ -31,6 +32,8 @@ import {
   executeAsk,
   getAskTraceByRequestId,
   toAskAudit,
+  toAskFinal,
+  type AskFinalSource,
   type AskTraceAuditSource,
   type ExecuteAskDeps,
   type ExecuteAskResult,
@@ -51,6 +54,7 @@ import {
 } from '../services/kb-settings.js';
 
 export type AskTraceLookup = (requestId: string) => Promise<AskTraceAuditSource | null>;
+export type AskFinalLookup = (requestId: string) => Promise<AskFinalSource | null>;
 
 export type AskRouteDeps = {
   resolveKbMember?: ResolveKbMember;
@@ -66,12 +70,15 @@ export type AskRouteDeps = {
   settingsRepo?: KbSettingsRepo;
   /** GET /ask/:requestId 回溯；测例可注入 */
   getTrace?: AskTraceLookup;
+  /** GET /ask/:requestId/final 终态回读；测例可注入 */
+  getFinal?: AskFinalLookup;
 };
 /**
  * POST /api/v1/knowledge-bases/:kbId/ask
  * GET  /api/v1/knowledge-bases/:kbId/ask-modes — 成员读 allowedModes/defaultMode（不含 τ）。
  * GET  /api/v1/knowledge-bases/:kbId/doc-types — 成员读类型枚举（不含 τ）。
  * GET  /api/v1/ask/:requestId — 权限回溯 evidence_snapshot + graph_trace（非断线重拉）。
+ * GET  /api/v1/ask/:requestId/final — 断线重拉终态（与在线 final 同形；不可回读则 ready=false）。
  * 同步 JSON + AI SDK UI Message Stream（Accept: text/event-stream 或 options.stream=true）。
  * 始终成员闸；route 仅编排。P2 不推未校验 token，仅 data-status / data-ask-final。
  */
@@ -97,6 +104,24 @@ export function createAskRoutes(deps: AskRouteDeps = {}) {
         sessionId: t.sessionId,
         evidenceSnapshot: t.evidenceSnapshot ?? [],
         graphTrace: t.graphTrace ?? null,
+      };
+    });
+  const getFinal: AskFinalLookup =
+    deps.getFinal ??
+    (async (requestId) => {
+      const t = await getAskTraceByRequestId(requestId);
+      if (!t) return null;
+      return {
+        requestId: t.requestId,
+        kbId: t.kbId,
+        status: t.status,
+        reason: t.reason,
+        minSupport: t.minSupport,
+        latencyMs: t.latencyMs,
+        mode: t.mode,
+        sessionId: t.sessionId,
+        answer: t.answer,
+        citations: t.citations ?? null,
       };
     });
   const checkLimit =
@@ -262,7 +287,7 @@ export function createAskRoutes(deps: AskRouteDeps = {}) {
         try {
           writer.write({
             type: 'data-status',
-            data: { phase: 'running' },
+            data: { phase: 'running', requestId },
             transient: true,
           });
 
@@ -352,6 +377,38 @@ export function createAskRoutes(deps: AskRouteDeps = {}) {
     }
 
     return ok(c, toAskAudit(trace));
+  });
+
+  /**
+   * GET /ask/:requestId/final — 断线重拉终态（≠ 审计口 §2.9）。
+   * 成员闸同审计口；无 trace 404；有 trace 但终态不可同形回读时回 `ready:false`，不编造 answered。
+   */
+  routes.get('/ask/:requestId/final', requireAuth(), async (c) => {
+    const requestId = c.req.param('requestId');
+    const auth = c.get('auth');
+    if (!auth) {
+      return fail(c, BizCode.UNAUTHORIZED, 'authentication required', 401);
+    }
+
+    const trace = await getFinal(requestId);
+    if (!trace) {
+      return fail(c, BizCode.NOT_FOUND, 'ask trace not found', 404, { requestId });
+    }
+
+    const memberR = await evaluateKbMember(c, trace.kbId, {
+      resolveKbMember: deps.resolveKbMember,
+    });
+    if (!memberR.ok) {
+      return fail(
+        c,
+        memberR.status === 401 ? BizCode.UNAUTHORIZED : BizCode.FORBIDDEN,
+        memberR.message,
+        memberR.status,
+        'details' in memberR ? memberR.details : undefined,
+      );
+    }
+
+    return ok(c, AskFinalResponseSchema.parse(toAskFinal(trace)));
   });
 
   return routes;

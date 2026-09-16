@@ -143,12 +143,22 @@ Runtime 放行 HOW → [api auth-authorization](../../api/backend/auth-authoriza
 | 表/模块 | 用途 |
 |---------|------|
 | `schema/ask/ask-sessions.ts` | 会话壳（无 rewrite 近窗） |
-| `schema/ask/ask-traces.ts` | 请求轨迹 / evidence_snapshot |
+| `schema/ask/ask-traces.ts` | 请求轨迹 / evidence_snapshot / **citations** |
 | `schema/ask/ask-feedback.ts` | 反馈队列（B13） |
 | `schema/ask/eval-runs.ts` | L1 `golden_2x2` / L2 `session_multiturn` 批跑归档（migration `0006_b10_eval_runs`；`L1_PERSIST_EVAL` / `L2_PERSIST_EVAL`） |
 
 `evidence_snapshot` **仅**本轮 retrieve 切片；禁止塞会话原文。  
 `eval_runs` 写库时间用 `formatLocalDateTime`（见 [l1-eval](../../api/backend/l1-eval.md) / [l2-eval](../../api/backend/l2-eval.md)）。L2 也可写 `run_type=session_multiturn`；L2 `signoff_eligible` **仍 0**。mock 跑 `signoff_eligible=0`。有账本 ≠ 准出。
+
+`ask_traces.citations`（migration `0017_ask_traces_citations`）**不设默认**：
+
+| 取值 | 含义 |
+|------|------|
+| 对象数组 | 当轮引用（与 contracts `AskCitationSchema` 同形） |
+| `[]` | 当轮**确实**零引用（拒答 / 闲聊轮） |
+| `NULL` | 该列之前**未记录**（迁移前旧文）→ 终态不可同形回读 |
+
+**禁止**给该列补 `DEFAULT '[]'`：`NULL` 与 `[]` 必须可辨，否则旧 answered 轮会被读成「answered 且零引用」。判据在 `apps/api/src/services/ask/traces.ts#toAskFinal`。
 
 ---
 
@@ -179,6 +189,8 @@ pnpm --filter @strict-rag/db db:migrate
 
 - 评审 migration SQL  
 - **生产禁止** `db:push` 直接改线上  
+
+> **Gotcha（实测）**：`drizzle/meta/` 只留了 `0000_snapshot.json`（`0001–0016` 的快照未入库），所以 `db:generate` **不再产出增量**，而是把全部表按当前 schema 重写一遍全量 `CREATE TABLE`。当前有效实践是：**手写 migration SQL（`ALTER TABLE … ADD COLUMN IF NOT EXISTS`）+ 手写 `meta/_journal.json` 条目**（tag 用描述名，如 `0017_ask_traces_citations`，`idx` 递增）；`db:generate` 输出只当对照。**禁止**提交全量 `CREATE TABLE` 的生成结果。补基线快照另开工单。
 
 ---
 

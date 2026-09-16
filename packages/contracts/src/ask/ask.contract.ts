@@ -87,6 +87,8 @@ export const AskSseStatusSchema = z.object({
   status: z.string().optional(),
   code: z.string().optional(),
   message: z.string().optional(),
+  /** 断线重拉用：running 阶段即带出本轮 requestId（否则断线时客户端可能连 id 都没有） */
+  requestId: z.string().min(1).optional(),
 });
 export type AskSseStatus = z.infer<typeof AskSseStatusSchema>;
 
@@ -146,3 +148,39 @@ export const AskAuditResponseSchema = z
   .strict();
 
 export type AskAuditResponse = z.infer<typeof AskAuditResponseSchema>;
+
+/**
+ * GET /ask/:requestId/final 断线重拉终态（≠ 审计口 §2.9，不夹带审计字段）。
+ * `ready=true` 的 `response` 与在线 `data-ask-final` **同形**（同一 `AskResponseSchema`）。
+ */
+export const AskFinalReadySchema = z
+  .object({
+    requestId: z.string().min(1),
+    ready: z.literal(true),
+    response: AskResponseSchema,
+  })
+  .strict();
+
+export type AskFinalReady = z.infer<typeof AskFinalReadySchema>;
+
+/**
+ * 该轮 trace 已在，但**终态不可同形回读**（如迁移前旧文无 citations 落库）。
+ * 此时禁止编造 answered；`message` 必须说明为什么读不回。
+ */
+export const AskFinalPendingSchema = z
+  .object({
+    requestId: z.string().min(1),
+    ready: z.literal(false),
+    message: z.string().min(1),
+  })
+  .strict();
+
+export type AskFinalPending = z.infer<typeof AskFinalPendingSchema>;
+
+export const AskFinalResponseSchema = z.discriminatedUnion('ready', [
+  AskFinalReadySchema,
+  AskFinalPendingSchema,
+]);
+
+export type AskFinalResponse = z.infer<typeof AskFinalResponseSchema>;
+

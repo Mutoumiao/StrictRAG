@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（已包含：P0/P1 入库 + S2 最小问答 + B1–B6 最小运营 API + B10 L1 工程 seed + B12 策略闸 + B13 反馈 API；演示依赖 mock ES / 通常走 mock Gateway；L1 **≠** 业务签字门禁） |
 | 默认依赖模式 | 检索：`RETRIEVE_ES_MODE=mock`（默认 mock ES；`http` 须 `ELASTICSEARCH_URL`）；鉴权：临时双 JWT，`AUTH_ENFORCE` **默认 `false`**；rewrite：`SESSION_REWRITE_ENABLED` **默认 false**（图边已落；dogfood 可开；**≠** 准出）；对象存储：默认 `local`（`STORAGE_MODE=s3` 走 RustFS / S3 兼容）；Gateway：`GATEWAY_MODE=''`（空按 `GATEWAY_BASE_URL` 推断，缺 URL 走 mock）；上传上限 `INGEST_MAX_FILE_BYTES=52_428_800`（50 MiB）/ 天花板 `INGEST_MAX_FILE_BYTES_CEILING=209_715_200`（200 MiB）；`LANGFUSE_ENABLED=false`；`OBS_MEMORY_TRACE=true`。**B3-W/B2-W**：ask 读取 platform 绑定 + **KB scope 绑定覆盖（PUT 只 generate/embed/rerank）**；**B4-W**：每请求从 DB `user_roles` hydrate；`DEPT_ACL_ENFORCE` **默认 `false`**（开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤且列表项带部门字段；`DEPT_INHERIT_DOWN` 默认 true；KB `deptInheritDown` 可覆盖 env；KB `deptAclEnforce` 可覆盖 env，未写跟 env，GET 未写回读 false；设置页可勾选，未改不写回；ES 查询期强制 tenantId+kbId；enforce 开且非超管可追加 `ownerDeptId` terms（缺字段不得当全员可见；PG 可见级闸仍保留）；aclPrincipals 用户 uuid 名单最小已落（PG 把关；ES 查询期非超管 should 收窄；不跟 DEPT_ACL_ENFORCE；**≠** 角色 principal / 默认开））；`MONGODB_URL` 空（非空时检索融合后批取 Mongo `chunk_bodies` 权威正文，缺块 fail-closed）；`ASK_RATE_LIMIT_RPM=0`；`INGEST_RATE_LIMIT_RPM=0`（ask/ingest 分 store 试点限流；aux 只留常量）；`SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` **可选**（无 active 超管时缺一则 **index.ts listen 前**失败；`createApp()` 不跑引导）；L1 CLI 需显式指定 `L1_KB_ID`（可选 `L1_PERSIST_EVAL`） |
 | 关联模块 | 入库演示还需要 `worker` + PostgreSQL + Redis；契约 `@strict-rag/contracts`（含 `IMPLEMENTED_CHUNK_STRATEGIES` / `IngestJobData`）；schema `@strict-rag/db`（含 `eval_runs`）；L1 gold / RACI 在仓根 `fixtures/l1/`；L2 题面草案在 `fixtures/l2/` |
-| 最近更新 | 2026-09-15（PATCH feedback `promoted_to_gold` 写 gold_questions；须 goldType + eval.run） |
+| 最近更新 | 2026-09-16（`GET /ask/:requestId/final` 断线重拉终态；`ask_traces.citations` 落库） |
 | Spec | `.trellis/spec/api/backend/`（含 [dashboard](../../.trellis/spec/api/backend/dashboard.md) · [l1-eval](../../.trellis/spec/api/backend/l1-eval.md) · [l2-eval](../../.trellis/spec/api/backend/l2-eval.md) · [l3-metrics](../../.trellis/spec/api/backend/l3-metrics.md)） |
 | PRD | `prds/05-api` · `04-pipelines` · `08-quality` · `09-security` |
 
@@ -103,10 +103,11 @@
 - 类型 scope 收窄后语料为空、但双闸后仍有现行文档：`reason=no_docs_in_scope`（**禁止**再标 `kb_not_ready`）；无 scope 或双闸已空仍 `kb_not_ready`（`tests/ask/retrieve-run.test.ts`）
 - 流式异常处理：`execute` 抛错时仍会写出 `data-status phase=error` 与 `data-ask-final`（`reason=internal_guard`）；有单测覆盖（`tests/ask/http-stream.test.ts`）
 - 会话：`POST …/sessions` 创建 + 列表 / 详情外壳；**rewrite 图边已落、默认关**（`SESSION_REWRITE_ENABLED=false`；dogfood 可开；**≠** L2 准出）；**显式回溯加深部分**（命中「刚才/之前/刚刚+说/聊」时窗硬顶 8）；**文档回溯检索加码部分**（命中「这份/那份文档」时用上轮 evidence `docId` 提权，不翻聊天）；**库外文档回溯抑制部分**（「网上那份文件」不查末轮 docId、不 `preferredDocIds`）；**四态派生部分**（`resolveBackReference`：external > session > document > none；**无** intent LLM）；list 接口的 query 参数绑定 `SessionListQuerySchema` 校验
-- ask 结果落库 `ask_traces`（evidence_snapshot / graph_trace / config_snap；`rewriteUsed` / `sessionDeepened` **跟图**），`services/ask/traces.ts`
+- ask 结果落库 `ask_traces`（evidence_snapshot / graph_trace / config_snap / **citations**；`rewriteUsed` / `sessionDeepened` **跟图**），`services/ask/traces.ts`。`citations` 列 `NULL` = 迁移前旧文未记录、`[]` = 当时确实零引用（migration `0017_ask_traces_citations`）
 - **`GET /api/v1/knowledge-bases/:kbId/ask-modes`**：始终 `requireKbMember`；只回 `allowedModes`/`defaultMode`（`AskModesSchema`）；缺设置回默认档；**不**回 τ / 质量快照（`tests/ask/http-ask-modes.test.ts`）；`GET …/settings` 仍要 `kb.config.write`
 - **`GET /api/v1/knowledge-bases/:kbId/doc-types`**：始终 `requireKbMember`；只回启用项 `{ items: [{ code, label }] }`（label 取 catalog）；停用不出；空枚举 `items: []`；**不**回 τ（`tests/ask/http-doc-types.test.ts` · `tests/kb/doc-type-catalog-http.test.ts`）；设置 GET 仍要 `kb.config.write`
 - **`GET /api/v1/ask/:requestId`**：登录 + 该 trace 的 KB 成员（`evaluateKbMember`；超管旁路）回读当时 `evidenceSnapshot`（chunkId/docId/lifecycle/preview 截断）与 `graphTrace`；**不**返回 answer / rawQuestion / 正文；**不**查现网分片（reindex 后快照仍在）；`toAskAudit`（`services/ask/traces.ts`）· `tests/ask/http-audit.test.ts`
+- **`GET /api/v1/ask/:requestId/final`**：断线重拉该轮**终态**（成员闸同上）。`ready=true` → `{ requestId, ready, response }`，`response` 走 `AskResponseSchema` 与在线同形；status 非终态 / reason 未知 / verified 轮 `citations` 未落库 → `ready=false` + `message`（**禁止**编造 answered、**禁止**拿审计 preview 顶替）；无 trace → 404。`toAskFinal` · `tests/ask/final-mapper.test.ts` · `tests/ask/final-replay.test.ts`。流式 `data-status(phase=running)` 带本轮 `requestId`，且客户端下发的 `X-Request-Id` 被采纳为本轮 id
 - 反馈提交 / 管理队列 API（`routes/feedback`）；queue 接口的 query 参数绑定 `FeedbackQueueQuerySchema` 校验；PATCH `promoted_to_gold` 须 `goldType` + `eval.run`，INSERT `gold_questions`（题面来自 ask；用户 POST 不写题；**不**写 gold.yaml、**不**入队评测）
 - Gateway 切片（`GATEWAY_MODE` mock/http；ask 走 `getGatewayForTenant`；Key 不进日志）；rerank 双节点：`GATEWAY_RERANK_FALLBACK_URL` + `RERANK_MIN_NODES`（staging/prod 默认 2；`services/gateway/resolve.ts`；QUAL-3 测）；**generate fallback opt-in**：快照保留 `fallbackRefs`，`chat` 在 primary 同模型重试耗尽后可切备用 ModelRef（`fallbackUsed=true`；auth/bad_request/content_filter 不盲切；judge 等不走此链；**无** `GENERATE_MIN_NODES`；图层不二次计费；**≠** 生产多活签字）
 - **B2-W**：ask 入口校验 `mode∈allowedModes` / `defaultMode`；settings `docTypes` / `docTypeItems` 读写 + scope 子集闸对**启用码**；τ 字段仍拒绝写入
@@ -151,7 +152,7 @@
 | L2 准出 / 多轮 runner | 题面 + CLI + HTTP 入队 + worker 窗 + 工程 signoffEligible 已落；**无**真跑准出 / 人签；工程绿 ≠ 准出 |
 | L3 自动熔断 / 面板 | **打点+告警+进程内熔断有**（六 counter + 主题投诉 + `l3_guard_alert_total` 含 `l2_stale`；三熔断 kind 闩后关 rewrite 路径；`rewrite_dogfood` 不熔）；**无**写 env / 收窄窗 / Grafana |
 | CRAG / multi_hop | 未进入本阶段范围 |
-| 按 `requestId` 断线重拉 | `GET /ask/:requestId` 只回审计 snapshot+trace，**不是** AskResponse 重放 |
+| 按 `requestId` 断线重拉 | **终态回读已落**：`GET /ask/:requestId/final`（成员闸同审计口；`ready=true` 时 `response` 与在线 `data-ask-final` 同形，零引用按 status/reason 推出，verified 轮引用取自落库 `citations`；不可同形 → `ready=false` + message；无 trace → 404）。审计口 `GET /ask/:requestId` 语义不变（仍**不是** AskResponse 重放）；**无** 起始标记（trace 仍在 finalize 后写），故「还在跑」与「不存在」在 API 层不可辨 —— PRD §2.7 铁律 6 的 `Idempotency-Key` 未做 |
 | 审计管理台 | 无搜索 / 过滤 / 导出；Langfuse 仍 mock 日志 |
 | 完整 ACL / 部门强制隔离 | 开关有、默认关；开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤且带列；可关继承（env + KB 覆盖 + 设置页勾选，未改不写回）；ES 查询期强制 tenantId+kbId，enforce 开且非超管可追加 `ownerDeptId` terms；aclPrincipals 用户 uuid 名单最小已落（PG 把关；ES 查询期非超管 should；**≠** 角色 principal） / **无** 默认开；sensitive complete 须 ACL 就绪（部门路径或显式名单） |
 | 生产 IdP | 仍是临时双 JWT；**B4-W** 已读 `user_roles` hydrate（≠ Better Auth / 密码登录）。启动引导只写 `password_hash`，**无**验密 HTTP。超管绑码写路径已锁全码 |
@@ -202,6 +203,7 @@
 | 问答图 / ask 路由 | `apps/api/src/graph/` · `apps/api/src/routes/ask.ts` · `apps/api/src/services/ask/` |
 | ask 档位（成员） | `routes/ask.ts` `GET …/ask-modes` · `tests/ask/http-ask-modes.test.ts` |
 | ask 审计回溯 | `routes/ask.ts` `GET /ask/:requestId` · `services/ask/traces.ts` `toAskAudit` · `tests/ask/http-audit.test.ts` |
+| ask 断线重拉终态 | `routes/ask.ts` `GET /ask/:requestId/final` · `services/ask/traces.ts` `toAskFinal` · `tests/ask/final-replay.test.ts` · `tests/ask/final-mapper.test.ts` · `tests/ask/trace-citations-column.test.ts` |
 | 空库拒答 200 | `apps/api/src/services/ask/execute.ts` · `routes/ask.ts` · `tests/ask/http-stream.test.ts`（`kb_not_ready → 200`） |
 | 会话 / 反馈 | `apps/api/src/routes/sessions.ts` · `routes/feedback.ts` |
 | 入库 / 策略闸 / 入队 | `routes/documents/`（ARCH-P1a）· `services/chunk-strategies.ts` · `services/queue.ts` · `gates/` · contracts `chunk-strategy.ts` · `async/ingest-job.ts` |

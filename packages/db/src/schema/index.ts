@@ -21,7 +21,7 @@ export { chunkStrategyDefinitions } from './kb/chunk-strategy-definitions.js';
 export { kbChunkStrategies } from './kb/kb-chunk-strategies.js';
 export { askSessions } from './ask/ask-sessions.js';
 export { askTraces } from './ask/ask-traces.js';
-export type { EvidenceSnapshotItem } from './ask/ask-traces.js';
+export type { AskCitationRecord, EvidenceSnapshotItem } from './ask/ask-traces.js';
 export { askFeedback } from './ask/ask-feedback.js';
 export { evalRuns } from './ask/eval-runs.js';
 export { goldQuestions } from './ask/gold-questions.js';

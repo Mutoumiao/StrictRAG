@@ -16,7 +16,7 @@ apps/web/src/
   lib/http.ts
   auth/api.ts · client-session.ts
   api/                    # 集中：按资源域
-    ask.ts                # transport 装配 + GET /ask/:requestId 审计 + GET …/ask-modes（无业务 path 外泄到 UI）
+    ask.ts                # transport 装配（含本轮 x-request-id）+ GET /ask/:requestId 审计 + GET …/final 终态 + GET …/ask-modes（无业务 path 外泄到 UI）
     sessions.ts
     feedback.ts
     knowledge-bases.ts    # GET 身份可见库
@@ -261,6 +261,7 @@ export async function loadSessionList(kbId: string) {
 
 // ask：path 只在 api/ask；终态只信 schema 校验后的 data-ask-final
 // hooks/use-knowledge-ask.ts 调 createAskTransport + AskResponseSchema.safeParse
+// 断线：onError 后按本轮 requestId 单次 GET /ask/:requestId/final 重挂终态（4xx 业务拒不重拉）
 ```
 
 ---
@@ -272,6 +273,7 @@ export async function loadSessionList(kbId: string) {
 | 改路由组合 | `app/**/page.tsx` |
 | 改问答 UI 展示 | `components/ask-panel` 等 |
 | 改流式三态 / 订阅 / 终态校验 | `hooks/use-knowledge-ask.ts` |
+| 改断线重拉终态 / 请求号 | `hooks/use-knowledge-ask.ts`（`recoverFinal`）· `src/api/ask.ts`（`getAskFinal` / `getRequestId`） |
 | 改 ask path / transport / body 装配 / 档位 GET | `src/api/ask.ts` |
 | 改 sessions/feedback HTTP | `src/api/sessions.ts` · `feedback.ts` |
 | 改非流式业务编排（toast/store/多步） | 按需 `*.services.ts`（features 或同域） |
@@ -294,6 +296,7 @@ export async function loadSessionList(kbId: string) {
 - [ ] 类型是否 contracts 优先？  
 - [ ] 是否未为对称空建 `app/**/api.ts` / 空 features？  
 - [ ] ask 是否只信 `data-ask-final` + schema；重试是否 `lastQuestion`？  
+- [ ] 断线重拉是否**只拉一次**、只认 `ready=true`、读不回时走 `unavailable`（把审计快照当答案 = 错）？  
 - [ ] services/hooks 是否 **未** 实现权限/运营码引擎；401/403 是否交 API + 用户可见错误？  
 - [ ] **抽公共（§12.1）**：A 类欠抽 / B 类过抽是否扫过？（同 admin；细节见下）  
 

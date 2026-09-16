@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（schema + client + 检索谓词底座；**无**业务服务层） |
 | 默认依赖模式 | 需要调用方提供 `DATABASE_URL`；时间列使用本地格式字符串（见 ORM PRD） |
 | 关联模块 | `api` 与 `worker` 共用 client / schema；检索闸门谓词被 api retrieve 复用 |
-| 最近更新 | 2026-09-15（ingest_reports.context_source；跨 doc 列仍在） |
+| 最近更新 | 2026-09-16（`ask_traces.citations` 列，migration `0017`；无默认，NULL ≠ []） |
 | Spec | `.trellis/spec/db/backend/` |
 | PRD | `prds/03-data` · `prds/02-engineering/02-orm-drizzle.md` |
 
@@ -42,14 +42,16 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 - **ADR-053**：`chunk_strategy_definitions` · `kb_chunk_strategies`（migration `0009_chunk_strategy_layers`）
 
 ### Schema · ask（S2）
-- `ask_sessions` · `ask_traces`（含 evidence 快照类型）· `ask_feedback`
+- `ask_sessions` · `ask_traces`（含 evidence 快照类型 + **`citations`**）· `ask_feedback`
+- `ask_traces.citations`（migration `0017_ask_traces_citations`；**无默认**）：对象数组 = 当轮引用；`[]` = 当时确实零引用；`NULL` = 迁移前旧文未记录（断线重拉时判 `ready=false`，不冒充 answered）
 - **B10-followup / P2.5-L2P / P2 底线**：`eval_runs`（L1 `golden_2x2` / L2 `session_multiturn`；L2 signoff_eligible 恒 0；migration `0006_b10_eval_runs` + `0010_eval_floor` 增 status / jobId / errorMessage 列）
 - **gold_questions**：运营题面（caseKey 每库唯一；migration `0010_eval_floor`）
 - schema 单测：`tests/ask/ask-schema.test.ts`
 
-### Migrations（journal 16 条，idx 0–15）
-- `0000_phase0_schema_meta` → `0015_ingest_report_cross_doc`（`drizzle/meta/_journal.json`）
+### Migrations（journal 18 条，idx 0–17）
+- `0000_phase0_schema_meta` → `0017_ask_traces_citations`（`drizzle/meta/_journal.json`）
 - 脚本：`db:generate` / `db:migrate` / `db:studio`（运维产品化流水线 **不**在本包宣称）
+- **实测债**：`drizzle/meta/` 只留 `0000_snapshot.json`（`0001–0016` 快照未入库）→ `db:generate` 不产增量、会重写全量 `CREATE TABLE`；当前有效实践是**手写 migration SQL + 手写 journal 条目**（`db:generate` 输出只当对照）。补基线快照仍缺口
 
 ### 查询谓词
 - 默认检索闸门：`status==='ready' && lifecycle==='active'`（`query/retrieval-gate.ts` + 单测）
@@ -93,7 +95,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 | 导出 | `packages/db/src/index.ts` · `schema/index.ts` |
 | 知识库表 | `packages/db/src/schema/kb/*`（`documents.ts` · `chunk-embeddings.ts` · `ingest-jobs.ts` · `ingest-reports.ts` · `kb-settings-audits.ts`） |
 | 设置修改日志 | `schema/kb/kb-settings-audits.ts` · migration `drizzle/0013_kb_settings_audits.sql` · `tests/kb/settings-audits-schema.test.ts` |
-| 问答 / 评测表 | `packages/db/src/schema/ask/*` · `eval-runs.ts` · `gold-questions.ts` · migration `drizzle/0006_b10_eval_runs.sql` · `0010_eval_floor.sql` |
+| 问答 / 评测表 | `packages/db/src/schema/ask/*` · `eval-runs.ts` · `gold-questions.ts` · migration `drizzle/0006_b10_eval_runs.sql` · `0010_eval_floor.sql` · `0017_ask_traces_citations.sql` |
 | 平台 / 部门 | `schema/system/platform-roles.ts` · `departments.ts` |
 | 权限码字典 | `schema/system/permission-definitions.ts` · migration `drizzle/0012_permission_definitions.sql` · `tests/acl/permission-definitions-schema.test.ts` |
 | 检索闸门 | `packages/db/src/query/retrieval-gate.ts` · `query/effective-window.ts` · `tests/retrieve/ready-active-gate.test.ts` · `tests/retrieve/effective-window.test.ts`（导航 `packages/db/tests/index.md`） |

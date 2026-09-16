@@ -257,6 +257,7 @@ export async function executeAsk(
         rewriteUsed: graph.rewriteUsed,
         sessionDeepened: graph.sessionDeepened,
         answer: response.answer,
+        citations: response.citations,
         evidenceSnapshot,
         graphTrace: graph.debug
           ? {

@@ -39,7 +39,8 @@ vi.mock('@ai-sdk/react', () => ({
   },
 }));
 
-vi.mock('@/api/ask', () => ({
+vi.mock('@/api/ask', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/api/ask')>()),
   createAskTransport: vi.fn(() => ({ kind: 'mock-transport' })),
 }));
 

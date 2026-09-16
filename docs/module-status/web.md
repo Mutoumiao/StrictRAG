@@ -7,13 +7,13 @@
 | 成熟度 | **可演示**（S2 用户端薄壳） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT（经 api）· `NEXT_PUBLIC_API_BASE_URL` 默认 `http://127.0.0.1:4000` · 问答 = AI SDK UI Message Stream · rewrite = **服务端强制关**（本包无开关控件）· 知识库 = ui `ClosedSelect` 消费 `GET /knowledge-bases` 可见行（**无**自由粘贴） |
 | 关联模块 | ask 流 / 会话 / 反馈提交：`api`；类型：`contracts`；样式 / 组件：`ui` |
-| 最近更新 | 2026-09-14（文档类型换成员 GET /doc-types 的 ui `ClosedSelect`；空枚举不出选择器；失败不挡提问） |
+| 最近更新 | 2026-09-16（断线按 requestId 单次重拉终态；客户端自铸 `x-request-id`） |
 | Spec | `.trellis/spec/web/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · ask 流相关 API |
 
 ## 一句话状态
 
-Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列表 / 历史回放 + B13 答后反馈（赞/踩/报错/缺文档）+ 档位/知识库/文档类型关闭列表（类型读成员 GET /doc-types）+ 无库空态 + 拒答主按钮 + 429 配额文案 + `coref_unresolved` 拒答卡（主按钮回填不重发）** 已接通；**不是**完整产品 IA，**没有**对外宣传连续追问 / rewrite（服务端仍强制关）。包内配有 Vitest / RTL **P0 红线测试**（R1–R4 / R10；**不是** E2E、**不是** L1 黄金集评测）。
+Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列表 / 历史回放 + B13 答后反馈（赞/踩/报错/缺文档）+ 档位/知识库/文档类型关闭列表（类型读成员 GET /doc-types）+ 无库空态 + 拒答主按钮 + 429 配额文案 + `coref_unresolved` 拒答卡（主按钮回填不重发）+ 断线按 requestId 单次重拉终态（读不回如实说读不回）** 已接通；**不是**完整产品 IA，**没有**对外宣传连续追问 / rewrite（服务端仍强制关）。包内配有 Vitest / RTL **P0 红线测试**（R1–R4 / R10；**不是** E2E、**不是** L1 黄金集评测）。
 
 ---
 
@@ -38,6 +38,7 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列�
 - 配额触顶：流式 fetch 解析 429 限流码 → 错误卡「提问次数已达上限」，**不**装 answered（`tests/ask/quota-429.test.tsx`）
 - 拒答 / 错误时的"重试"：基于 `lastQuestion` 实现（提交后清空输入框不会导致重试按钮失效）
 - **流结束但无 final 的兜底**：`useChat` 的 `status==='ready'` 且仍处于 `loading` 时，报错"流式响应未包含有效终态"（`use-knowledge-ask.ts`；有回归测试）
+- **断线按 requestId 重拉终态**：提问时客户端自铸本轮请求号并随 `x-request-id` 下发（服务端 `requestIdMiddleware` 透传，同值进 `running` part）；流错误后**只拉一次** `GET /ask/:requestId/final` —— `ready=true` 直接重挂 answered / abstained（**不重发提问**），`ready=false` 或 404 走「本轮终态暂不可读」卡（`unavailable`），**禁止**把审计快照或空引用当 answered；4xx 业务拒（鉴权 / 429 配额 / 校验）**不**重拉，保留原错误卡（`tests/ask/reconnect-final-replay.test.ts`）
 
 ### 会话薄壳（S2-#9）
 - 会话列表、新建、切换、历史消息回放
@@ -69,7 +70,7 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列�
 | rewrite / 连续追问 | **未开启**（服务端强制关）；web 只消费 `coref_unresolved` 拒答卡，**不得**对外承诺已支持连续追问 / 已准出 |
 | 反馈列表 / 运营处理 | **提交 UI 已有**（B13 FeedbackBar）；队列处理在 admin |
 | 分片预览全文 | 引用点回是 **当时快照 preview**；现网 `chunk.view` 全文在 admin，web **无** 分片运营页 |
-| 按 `requestId` 断线重拉 | 工单明确不做；`getAskAudit` 不是 AskResponse 重放 |
+| 按 `requestId` 断线重拉 | **终态重挂已落**（`getAskFinal` → `GET /ask/:requestId/final`，单次、只认 `ready=true`，读不回走 `unavailable` 卡）；**无** 轮询 / 后台续传；「还在跑」与「不存在」在 API 层不可辨（trace 仍在 finalize 后写）；`getAskAudit` 仍只是审计快照、**不是** AskResponse 重放 |
 | 多选类型勾选组 / 强制选类型 | 本张单选或不收窄；不是 settings 字典 CRUD |
 | 可搜索完整选择器 / 库目录页 | `ClosedSelect` 只列本次 GET 行；无 combobox；无发现页 |
 | 生产视觉 / product.pen **像素级**定稿 | Soft Bento token + ui 原子组件已接入；**并非**对 product.pen 的全屏像素还原 |
@@ -93,7 +94,7 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列�
 | 首页 / 登录 | `src/app/page.tsx` · `src/app/login/page.tsx` |
 | 鉴权 | `src/components/auth-guard.tsx` · `src/auth/api.ts` · `client-session.ts` |
 | 问答面板 | `src/components/ask-panel.tsx`（`ClosedSelect` 库/档位 · 无库空态 · 列表失败重试 · 建议主按钮 · `coref_unresolved` 回填不重发 · 配额 · 反馈类别 · B11 文档类型可选） |
-| ask 流 | `src/hooks/use-knowledge-ask.ts`（含 ready 无 final 兜底 + getScope + getMode）· `src/api/ask.ts`（`parseScopeDocTypesInput` / `buildAskRequestBody` / `getAskAudit` / `getAskModes` / `throwIfAskFailResponse`）· `ask-panel.tsx`（`lastQuestion` · CitationBlock） |
+| ask 流 | `src/hooks/use-knowledge-ask.ts`（含 ready 无 final 兜底 + 断线单次重拉终态 + getScope + getMode）· `src/api/ask.ts`（`parseScopeDocTypesInput` / `buildAskRequestBody` / `getAskAudit` / `getAskFinal` / `newAskRequestId` / `getAskModes` / `throwIfAskFailResponse`）· `ask-panel.tsx`（`lastQuestion` · CitationBlock · FinalUnavailableCard） |
 | 引用点回 | `src/api/ask.ts` `getAskAudit` · `ask-panel.tsx` CitationBlock · `tests/ask/citation-chunk-detail.test.tsx` |
 | 消费余量测 | `tests/ask/ask-mode.test.tsx` · `empty-kb.test.tsx` · `kb-picker-members-only.test.tsx` · `suggested-actions.test.tsx` · `coref-unresolved.test.tsx` · `quota-429.test.tsx` · `feedback-category.test.tsx` |
 | B11 测 | `tests/ask/scope-top-level.test.ts` · `tests/ask/stream-ready-no-final.test.ts` getScope / getMode |

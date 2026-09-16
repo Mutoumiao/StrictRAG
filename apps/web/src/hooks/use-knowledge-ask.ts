@@ -15,14 +15,18 @@ import {
 } from '@strict-rag/contracts';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { createAskTransport } from '@/api/ask';
+import { createAskTransport, getAskFinal, newAskRequestId } from '@/api/ask';
 import { ApiHttpError } from '@/lib/http';
 
 export type KnowledgeAskView =
   | { type: 'idle' }
   | { type: 'loading'; phase?: string }
+  /** 断线：正按 requestId 取回该轮终态（**不重发提问**） */
+  | { type: 'recovering'; requestId: string }
   | { type: 'answered'; data: AskResponse }
   | { type: 'abstained'; data: AskResponse }
+  /** 终态读不回（未落库 / 未就绪）；**不得**当成 answered 或审计快照 */
+  | { type: 'unavailable'; requestId: string; message: string }
   | { type: 'error'; code: string; message: string; httpStatus?: number };
 
 export type UseKnowledgeAskArgs = {
@@ -47,6 +51,17 @@ function errorViewFromUnknown(err: unknown): Extract<KnowledgeAskView, { type: '
   return { type: 'error', code: 'INTERNAL', message: message || '请求失败' };
 }
 
+/**
+ * 4xx 业务拒（鉴权 / 配额 / 校验）说明这一轮根本没跑起来，重拉不会有终态，
+ * 且重拉会把 429 之类的关键文案冲掉；只有 5xx 与网络中断才值得回读。
+ */
+function worthReconnect(err: unknown): boolean {
+  if (err instanceof ApiHttpError) {
+    return err.httpStatus == null || err.httpStatus >= 500;
+  }
+  return true;
+}
+
 export function useKnowledgeAsk({ kbId, sessionId, getScope, getMode }: UseKnowledgeAskArgs) {
   const sessionIdRef = useRef(sessionId);
   sessionIdRef.current = sessionId;
@@ -57,6 +72,10 @@ export function useKnowledgeAsk({ kbId, sessionId, getScope, getMode }: UseKnowl
 
   const [view, setView] = useState<KnowledgeAskView>({ type: 'idle' });
   const [lastFinal, setLastFinal] = useState<AskResponse | null>(null);
+  /** 本轮请求号：客户端自铸并随 `x-request-id` 下发，断线后据此重拉终态 */
+  const requestIdRef = useRef<string | null>(null);
+  /** 只重拉一次（不做轮询风暴） */
+  const recoveredRef = useRef(false);
 
   const transport = useMemo(() => {
     if (!kbId.trim()) return undefined;
@@ -65,8 +84,48 @@ export function useKnowledgeAsk({ kbId, sessionId, getScope, getMode }: UseKnowl
       getSessionId: () => sessionIdRef.current,
       getScope: () => getScopeRef.current?.(),
       getMode: () => getModeRef.current?.(),
+      getRequestId: () => (requestIdRef.current ??= newAskRequestId()),
     });
   }, [kbId]);
+
+  /**
+   * 断线后按 requestId 取回该轮**终态**：不重发提问、不把审计快照当答案。
+   * 取不回时进 `unavailable`（明说读不回），不得编造 answered。
+   */
+  const recoverFinal = useCallback(async (): Promise<boolean> => {
+    const requestId = requestIdRef.current;
+    if (!requestId || recoveredRef.current) return false;
+    recoveredRef.current = true;
+    setView({ type: 'recovering', requestId });
+    try {
+      const final = await getAskFinal(requestId);
+      // 用户已开新一轮：丢弃本次结果，不得覆盖
+      if (requestIdRef.current !== requestId) return true;
+      if (!final.ready) {
+        setView({ type: 'unavailable', requestId, message: final.message });
+        return true;
+      }
+      setLastFinal(final.response);
+      setView(
+        final.response.status === 'answered'
+          ? { type: 'answered', data: final.response }
+          : { type: 'abstained', data: final.response },
+      );
+      return true;
+    } catch (err) {
+      if (requestIdRef.current !== requestId) return true;
+      if (err instanceof ApiHttpError && err.httpStatus === 404) {
+        setView({
+          type: 'unavailable',
+          requestId,
+          message: '服务端还没有这一轮的终态记录（可能仍在处理中），请稍后再提问一次。',
+        });
+        return true;
+      }
+      setView(errorViewFromUnknown(err));
+      return true;
+    }
+  }, []);
 
   const { sendMessage, status, stop, error, setMessages } = useChat({
     id: `ask-${kbId || 'none'}`,
@@ -108,6 +167,8 @@ export function useKnowledgeAsk({ kbId, sessionId, getScope, getMode }: UseKnowl
     },
     onError: (err) => {
       setView(errorViewFromUnknown(err));
+      // 真断线（网络中断 / 5xx）：只重拉一次终态；4xx 业务拒不动
+      if (worthReconnect(err)) void recoverFinal();
     },
   });
 
@@ -132,7 +193,7 @@ export function useKnowledgeAsk({ kbId, sessionId, getScope, getMode }: UseKnowl
 
   useEffect(() => {
     if (error) {
-      setView(errorViewFromUnknown(error));
+      setView((prev) => (prev.type === 'recovering' ? prev : errorViewFromUnknown(error)));
     }
   }, [error]);
 
@@ -140,6 +201,9 @@ export function useKnowledgeAsk({ kbId, sessionId, getScope, getMode }: UseKnowl
     async (question: string) => {
       const q = question.trim();
       if (!q || !kbId.trim() || !transport) return;
+      // 每轮换新请求号：同 id 两轮会撞 trace，重拉会取到上一轮
+      requestIdRef.current = newAskRequestId();
+      recoveredRef.current = false;
       setLastFinal(null);
       setMessages([]);
       setView({ type: 'loading', phase: 'running' });
@@ -150,6 +214,8 @@ export function useKnowledgeAsk({ kbId, sessionId, getScope, getMode }: UseKnowl
 
   const reset = useCallback(() => {
     stop();
+    requestIdRef.current = null;
+    recoveredRef.current = false;
     setMessages([]);
     setLastFinal(null);
     setView({ type: 'idle' });

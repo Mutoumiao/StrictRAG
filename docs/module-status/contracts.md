@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（支撑 P0/P1 入库 + S2 问答/会话/反馈/成员 + B1–B6 运营契约 + **B12 策略码 / ingest job**；**非**全量 OpenAPI） |
 | 默认依赖模式 | 纯库；无运行时开关 |
 | 关联模块 | 被 `api` · `worker` · `web` · `admin` 消费；是全仓错误码、响应信封、队列名与 **可写分片策略集** 的唯一来源 |
-| 最近更新 | 2026-09-15（PATCH feedback 晋升须 goldType；题面/caseKey/rubric 纯函数） |
+| 最近更新 | 2026-09-16（`AskFinalResponseSchema` 断线重拉终态；`AskSseStatusSchema.requestId`） |
 | Spec | `.trellis/spec/contracts/library/` |
 | PRD | `prds/05-api` · 各域契约与 PRD 短名对齐 |
 
@@ -52,6 +52,7 @@
 - **`KbDocTypeCatalogItemSchema` / `KbDocTypeCatalogSchema`**：设置分区 `{ code, label, sort, enabled }`；code 唯一；PATCH 与 `docTypes` 互斥
 - **`AskReasonSchema`** 含 `no_docs_in_scope`（类型收窄后空集；≠ `kb_not_ready`）
 - **`AskAuditResponseSchema` / `EvidenceSnapshotItemSchema`**：`GET /ask/:requestId` 审计形（当时 chunkId/docId/lifecycle/preview/title + graphTrace）；`.strict()` 拒绝 `text`/`body`/`answer`/`rawQuestion`（`tests/ask/audit-contract.test.ts`）
+- **`AskFinalResponseSchema`**（`ready` 判别联合）：`GET /ask/:requestId/final` 断线重拉终态；`ready=true` 必带与在线同形的 `AskResponse`，`ready=false` 必带 `message` 且 `.strict()` 拒 `response` / 审计字段；`AskSseStatusSchema` 增可选 `requestId`（`tests/ask/final-contract.test.ts`）
 - **`AskRequestSchema`**：`question`（1–8000 字）· `sessionId` · 顶层 `scope` · `options`，`.strict()`
 - **`AskOptionsSchema`**：仅 `stream` / `debug` / `mode` / `locale` 四字段，`.strict()` 拒绝 `tauClaim` / `retrieveK` / `scope`（ADR-050）
 - **`AskScopeSchema`**：顶层 `docTypes`（≤32 个、每个 1–64 字），**禁止**塞进 options（B11）
@@ -127,6 +128,7 @@
 | ask fixtures | `src/ask/fixtures.ts` · `tests/ask/fixtures.test.ts`（R10） |
 | ask 档位 DTO | `src/kb/kb-settings.contract.ts` `AskModesSchema` · `tests/kb/settings-contract.test.ts` |
 | ask 审计 DTO | `src/ask/ask.contract.ts` `AskAuditResponseSchema` · `tests/ask/audit-contract.test.ts` |
+| ask 断线重拉 DTO | `src/ask/ask.contract.ts` `AskFinalResponseSchema` · `AskSseStatusSchema.requestId` · `tests/ask/final-contract.test.ts` |
 | 入库文档 | `src/ingest/document.contract.ts`（`CreateKbBodySchema` · complete/reindex `chunkStrategy` · 可选 `checksumSha256`） |
 | 入库 MIME | `src/ingest/upload-media.ts` · `tests/ingest/upload-media.test.ts` |
 | 分片 | `src/ingest/chunk.contract.ts` |

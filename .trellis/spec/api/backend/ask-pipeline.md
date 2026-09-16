@@ -41,6 +41,7 @@
 | `GET` | `/api/v1/knowledge-bases/:kbId/ask-modes` | `requireKbMember` **始终** | 成员读 `allowedModes`/`defaultMode`；**禁止**经此口回 τ / 质量快照（≠ `GET …/settings`） |
 | `GET` | `/api/v1/knowledge-bases/:kbId/doc-types` | `requireKbMember` **始终** | 成员读 `{ items: [{ code, label }] }`；空枚举 `[]`；**禁止**经此口回 τ（≠ `GET …/settings`） |
 | `GET` | `/api/v1/ask/:requestId` | 登录 + 该 trace 的 KB 成员（`evaluateKbMember`；超管旁路） | **审计回溯**：当时 `evidence_snapshot`（preview 截断）+ `graph_trace`；**禁止**当断线重拉；**禁止**经此通道返回正文 `text`/`body` |
+| `GET` | `/api/v1/ask/:requestId/final` | 同上（成员闸同审计口） | **断线重拉终态**：`ready=true` → `{ requestId, ready, response }`，`response` 与在线 `data-ask-final` **同形**（拒答/闲聊的零引用可由 status/reason 推出，verified 轮的引用取自落库 `citations`）；该列未落库 / status 非终态 / reason 未知 → `ready=false` + `message`，**禁止**编造 answered、**禁止**拿审计 preview 顶替；无 trace → 404（与 `ready=false` 可辨） |
 | `POST` | `/api/v1/knowledge-bases/:kbId/sessions` | 成员闸 | **建会话壳**（X-29）；body `CreateSessionBodySchema`（`title?`）；**201** + `SessionSummary` |
 | `GET` | `/api/v1/knowledge-bases/:kbId/sessions` | 成员闸 | 列表（仅本人线程；query `SessionListQuerySchema`） |
 | `GET` | `/api/v1/knowledge-bases/:kbId/sessions/:sessionId` | 成员闸 + 本人 | 详情/历史壳；历史 **≠** evidence |
@@ -80,7 +81,7 @@
 
 | part type | 语义 | 客户端 |
 |-----------|------|--------|
-| `data-status`（transient） | 进度 `phase`；错误时 `phase=error` + code/message | loading / 即时 error 提示 |
+| `data-status`（transient） | 进度 `phase`；错误时 `phase=error` + code/message；**`phase=running` 带本轮 `requestId`**（断线时客户端据此重拉） | loading / 即时 error 提示 |
 | `data-ask-final`（id=`ask-final`） | **完整** `AskResponse`（`AskResponseSchema.parse`） | **唯一**终态答案源；与同步 `data` 字段同源 |
 
 | 路径 | 行为 |
@@ -341,6 +342,7 @@ route
 | graph | 库内 verified · 库外 abstained · min 否决 · rerank 失败拒答 |
 | retrieve | 非 ready/非 active 不可见；RRF 顺序；mock 模式可测；`http` 失败 loud |
 | ask 路由 | 非成员 403；非法 body 400；mode/docTypes 闸；session 归属 404；`data-ask-final` ≡ 同步 shape |
+| ask 断线重拉 | 终态回读与在线响应**深等**（`toAskFinal`）；verified 轮 `citations` 未落库 → `ready=false` 且无 `response`；拒答/闲聊零引用可回读；非成员 403；无 trace 404；审计口语义不变；`running` part 带本轮 requestId |
 | ask 流异常 | **`execute` mock throw** → 正文含 `data-ask-final`；payload `reason==='internal_guard'` · `status==='abstained'` · `answer===''`；且存在 `data-status` `phase=error` |
 | sessions | 跨 session 零共享；历史 ≠ evidence；list query 非法 limit → 400 |
 | feedback | queue query 非法 status → 400；合法 status 过滤；无 `feedback.queue` → 403；`promoted_to_gold` 无 `goldType` → 400；无 `eval.run` → 403；用户 POST 不写 `gold_questions` |

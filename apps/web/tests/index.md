@@ -22,6 +22,8 @@
 | `ask/abstain-alert.test.tsx` | 拒答以 alert 展示，不得当成普通答案；kb_not_ready 不进系统错误卡。 | P0 R2 · R10 | `AskPanel` | 用 contracts testing 工厂。 | 现行 |
 | `ask/scope-top-level.test.ts` | ask 请求的 scope 必须在顶层，不得进入 options。 | ADR-050 | `buildAskRequestBody · parseScopeDocTypesInput` | 客户端 body 形状；可带 options.mode。 | 现行 |
 | `ask/stream-ready-no-final.test.ts` | 流式 ready 且无合法 final 时不得卡在 loading，必须落到 error。 | P0 R1 | `useKnowledgeAsk` | 流式三态；非法终态 → error；kb_not_ready final 进 abstained；getMode；429 码保留。 | 现行 |
+| `ask/reconnect-final-replay.test.ts` | ask 流式断线后必须按 requestId 重拉该轮终态，读不回时明说不可用，不得当成已回答。 | prds/05-api §2.7 连接中断重拉 · 功能表 §3 流式回答 | `useKnowledgeAsk`（`getAskFinal` · `getRequestId`） | 网络断线重拉；404 / ready=false → unavailable；429 不重拉；每轮换新请求号且不重发提问。 | 现行 |
+| `ask/request-id-header.test.ts` | 本轮请求号必须随 `x-request-id` 下发（断线重拉前提），无号不得发空值。 | prds/05-api §2.7 连接中断重拉 · 功能表 §3 流式回答 | `withRequestId` · `newAskRequestId` | 有号才加头且保留原头；无号不下发；每轮新号非空且不重复。 | 现行 |
 | `ask/ask-mode.test.tsx` | 问答档位必须读库 allowedModes/defaultMode 并传 mode，客户端不可改阈值。 | 功能表 §3 问答档位 | `AskPanel` 档位关闭列表 · `buildAskRequestBody` | 关闭列表只列允许档；默认 defaultMode。 | 现行 |
 | `ask/ask-doc-types.test.tsx` | 文档类型必须读成员 GET /doc-types 关闭列表，禁止逗号自由输入当主路径。 | 功能表 §5.2 文档类型 · ADR-050 · 工单「文档类型成员面最小闭环」 | `AskPanel` 类型关闭列表 · `buildAskRequestBody` | 有枚举才出关闭列表；选一类型后 scope 为该码；空选项不写 scope；失败不挡提问。 | 现行 |
 | `ask/empty-kb.test.tsx` | 无可用知识库时必须阻断提问，引导找管理员开通成员。 | 功能表 §3 无可用知识库 | `AskPanel` 空态 | 列表成功且为空则无提问表、无选择器。 | 现行 |

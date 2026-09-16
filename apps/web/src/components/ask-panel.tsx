@@ -495,8 +495,15 @@ export function AskPanel() {
                   />
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button type="submit" disabled={view.type === 'loading' || !kbSelected}>
-                    {view.type === 'loading' ? `处理中（${view.phase ?? '…'}）` : '提问'}
+                  <Button
+                    type="submit"
+                    disabled={view.type === 'loading' || view.type === 'recovering' || !kbSelected}
+                  >
+                    {view.type === 'loading'
+                      ? `处理中（${view.phase ?? '…'}）`
+                      : view.type === 'recovering'
+                        ? '正在取回本轮终态…'
+                        : '提问'}
                   </Button>
                   {view.type === 'error' ||
                   (view.type === 'abstained' && view.data.reason !== 'coref_unresolved') ? (
@@ -524,11 +531,19 @@ export function AskPanel() {
               正在检索与校验…
             </p>
           ) : null}
+          {view.type === 'recovering' ? (
+            <p className="text-sm text-muted-foreground" role="status">
+              连接中断，正在按请求号取回本轮终态…
+            </p>
+          ) : null}
           {view.type === 'answered' ? (
             <AnsweredCard data={view.data} onSuggestedAction={onSuggestedAction} />
           ) : null}
           {view.type === 'abstained' ? (
             <AbstainedCard data={view.data} onSuggestedAction={onSuggestedAction} />
+          ) : null}
+          {view.type === 'unavailable' ? (
+            <FinalUnavailableCard requestId={view.requestId} message={view.message} />
           ) : null}
           {view.type === 'error' ? (
             <ErrorCard code={view.code} message={view.message} httpStatus={view.httpStatus} />
@@ -840,6 +855,18 @@ function AbstainedCard({
       {data.requestId ? (
         <FeedbackBar key={`feedback-${data.requestId}`} requestId={data.requestId} />
       ) : null}
+    </Alert>
+  );
+}
+
+/** 终态读不回：如实说读不回，不给假答案、不拿审计快照顶替 */
+function FinalUnavailableCard({ requestId, message }: { requestId: string; message: string }) {
+  return (
+    <Alert>
+      <AlertTitle>本轮终态暂不可读</AlertTitle>
+      <AlertDescription className="mt-1.5 text-[13px] text-muted-foreground" role="status">
+        {message}（请求号 {requestId.slice(0, 8)}…）
+      </AlertDescription>
     </Alert>
   );
 }

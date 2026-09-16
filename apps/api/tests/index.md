@@ -52,6 +52,8 @@
 | `ask/es-sparse.test.ts` | 稀疏检索 HTTP 切片按 env 解析，失败不得静默回 mock；buildAclFilter 强制 tenantId+kbId，可选 ownerDeptId terms。 | OPS-1 | `esConfigFromEnv / searchSparseEs / buildAclFilter` | 稀疏检索 HTTP 切片 + ACL filter。 | 现行 |
 | `ask/evidence-verbatim.test.ts` | 当轮 evidence.text 进入 generate/verify 与 citation 必须逐字一致，不得改写。 | 剧本 K4 · prds/10-delivery/03-acceptance-scenarios.md · ADR-037 | `runAskGraph（generateUserPrompt / claim_split / citation.preview）` | 现权威为 evidence.text / PG body，≠ Mongo。 | 现行 |
 | `ask/execute-trace.test.ts` | executeAsk 落 trace 时历史文不得进入 evidence。 | prds/05-api · 历史≠evidence | `executeAsk` | 落库 trace 时只记录本轮 evidence，不把历史文写进快照。 | 现行 |
+| `ask/final-mapper.test.ts` | 终态回读必须与在线终态逐字段同形；不可同形时必须 ready=false 而不是假 answered。 | 功能表 §3 断线重拉终态 · prds/05-api §2.7 契约铁律 5 | `toAskFinal` | verified / 拒答轮重建结果与 executeAsk 在线响应深等；citations 未落库的通过轮、未知 status/reason、坏引用形状一律 ready=false。 | 现行 |
+| `ask/final-replay.test.ts` | 流式断线后必须能按 requestId 取回该轮终态，且读不回时如实说读不回。 | 功能表 §3 断线重拉终态 · prds/05-api §2.7 契约铁律 5 | `GET /ask/:requestId/final` · POST ask 的 running part | 成员得同形终态；通过轮 citations 未落库 → ready=false；拒答旧轮仍可回读；非成员 403；缺失 404；审计口语义不变；running part 带本轮 requestId。 | 现行 |
 | `ask/history-not-evidence.test.ts` | 会话历史与加深窗文本不得进入 evidence / 不得充当 verify 依据。 | 历史≠evidence · prds/04-pipelines | `runAskGraph（history / evidence_snapshot）` | 有 session 仍只凭 evidence 验证；历史与加深窗文本不得进 snapshot/citations。 | 现行 |
 | `ask/http-audit.test.ts` | GET /ask/:requestId 必须按 KB 成员权限回读当时 evidence_snapshot 与 graph_trace。 | prds/05-api §2.9 · 功能表 §5.2 引用回溯 · 剧本 F3 | `GET /ask/:requestId` | 成员 200 得快照；非成员 403；缺失 404；preview 截断；不依赖现网分片。 | 现行 |
 | `ask/http-ask-modes.test.ts` | 成员必须能读库 allowedModes/defaultMode，且不得经此口拿到 τ。 | 功能表 §3 问答档位 | `GET /knowledge-bases/:kbId/ask-modes` | 成员 200；非成员 403；缺库 404；缺设置回默认档；响应无 tauClaim。 | 现行 |
@@ -74,6 +76,7 @@
 | `ask/scope-hr-excludes-finance.test.ts` | hr scope 不得用 finance 文档作答。 | 剧本 X3 | `filterDocsForRetrieve / runRetrieve / runAskGraph` | scope.docTypes=hr 滤掉 finance；无证据或非法 citation 则拒答。 | 现行 |
 | `ask/scoring-rrf.test.ts` | 混合检索的余弦相似与 RRF 融合按预期排序。 | prds/04-pipelines | `cosine / rrfFuse` | 打分与倒数秩融合的纯函数。 | 现行 |
 | `ask/sparse-kb-filter.test.ts` | 共享索引查询必须带 tenantId + kbId term，外库 chunk 不得进 evidence。 | 剧本 O1 | `searchSparseEs / runRetrieve` http sparse | 默认 mock ES；锁 tenantId + kbId filter；部门 terms 另见 es-dept-query-filter。≠ 生产独立索引。 | 现行 |
+| `ask/trace-citations-column.test.ts` | 当轮 citations 必须真的落进 ask_traces 列（断线重拉终态的前提）。 | 功能表 §3 断线重拉终态 · prds/03-data §3.4 | `saveAskTrace` | 传 citations 落列；拒答落 `[]`（≠ 未记录）；未传落 null。 | 现行 |
 | `ask/verify-required.test.ts` | 合法 draft 必须完整 verify；拆句失败或网关错不得 answered。 | P0 R9 · prds/08-quality | `runAskGraph（verify / claim_split）` | happy 必经 generate+claim_split+judge；拆句失败或网关错不得 answered。 | 现行 |
 | `auth/enforce-401.test.ts` | AUTH_ENFORCE 开启且无 Bearer 时必须 401。 | QUAL-1 | `requirePermissionWhenEnforced` | enforce 开且无 Bearer → 401。 | 现行 |
 | `auth/role-hydrate.test.ts` | 每请求角色 hydrate 超时必须回退，缓存不超过 5s。 | B4-W | `role-hydrate middleware` | ≤5s 缓存。 | 现行 |

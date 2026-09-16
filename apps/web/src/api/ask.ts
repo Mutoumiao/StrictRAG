@@ -6,9 +6,11 @@
  */
 
 import {
+  AskFinalResponseSchema,
   AskModesSchema,
   KbDocTypesSchema,
   type AskAuditResponse,
+  type AskFinalResponse,
   type AskMode,
   type AskModes,
   type AskRequest,
@@ -38,7 +40,22 @@ export type AskTransportOptions = {
   getSessionId: () => string | null;
   getScope?: () => AskRequest['scope'];
   getMode?: () => AskMode | undefined;
+  /**
+   * 本轮 requestId（随 `x-request-id` 下发，服务端 `requestIdMiddleware` 透传）。
+   * 断线后按它重拉终态；**每轮必须换新值**（同 id 两轮会撞 trace）。
+   */
+  getRequestId?: () => string;
 };
+
+/**
+ * 每轮请求号。正常浏览器走 `crypto.randomUUID`；缺该 API 的环境退化为「时间戳 + 随机」，
+ * 仍是每轮唯一值即可（该值只在审计/重拉链路内做关联，不参与权限判定）。
+ */
+export function newAskRequestId(): string {
+  const c = globalThis.crypto as { randomUUID?: () => string } | undefined;
+  if (typeof c?.randomUUID === 'function') return c.randomUUID();
+  return `ask-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 /**
  * 解析用户输入的文档类型多值（逗号 / 中文逗号）。
@@ -80,6 +97,14 @@ export async function getAskAudit(requestId: string) {
   return http.get<AskAuditResponse>(`/api/v1/ask/${encodeURIComponent(requestId)}`);
 }
 
+/** GET /ask/:requestId/final 断线重拉终态；`ready=false` 表示该轮终态读不回，不得当 answered */
+export async function getAskFinal(requestId: string): Promise<AskFinalResponse> {
+  const data = await http.get<AskFinalResponse>(
+    `/api/v1/ask/${encodeURIComponent(requestId)}/final`,
+  );
+  return AskFinalResponseSchema.parse(data);
+}
+
 /** GET /knowledge-bases/:kbId/ask-modes 成员档位；不含 τ */
 export async function getAskModes(kbId: string) {
   const data = await http.get<AskModes>(
@@ -94,6 +119,18 @@ export async function getKbDocTypes(kbId: string) {
     `/api/v1/knowledge-bases/${encodeURIComponent(kbId)}/doc-types`,
   );
   return KbDocTypesSchema.parse(data);
+}
+
+/**
+ * 把本轮请求号挂到请求头（纯函数，便于钉契约）。
+ * 服务端 `requestIdMiddleware` 认这个头并采用为**本轮** requestId，
+ * 断线重拉才可能命中同一轮；缺省不下发。
+ */
+export function withRequestId(
+  headers: Record<string, string>,
+  requestId?: string,
+): Record<string, string> {
+  return requestId ? { ...headers, 'x-request-id': requestId } : headers;
 }
 
 function isFailEnvelope(
@@ -159,9 +196,14 @@ function authHeaders(): Record<string, string> {
 export function createAskTransport(opts: AskTransportOptions) {
   const api = `${baseURL()}/api/v1/knowledge-bases/${opts.kbId}/ask`;
 
+  /** 请求头：Bearer + 本轮 requestId（断线重拉的前提） */
+  function requestHeaders(): Record<string, string> {
+    return withRequestId(authHeaders(), opts.getRequestId?.());
+  }
+
   return new DefaultChatTransport({
     api,
-    headers: () => authHeaders(),
+    headers: () => requestHeaders(),
     prepareSendMessagesRequest: ({ messages }) => {
       const lastUser = [...messages].reverse().find((m) => m.role === 'user');
       const question =
@@ -180,7 +222,7 @@ export function createAskTransport(opts: AskTransportOptions) {
 
       return {
         body,
-        headers: authHeaders(),
+        headers: requestHeaders(),
       };
     },
     fetch: async (input, init) => {
