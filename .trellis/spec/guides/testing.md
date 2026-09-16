@@ -293,6 +293,7 @@ index **不能**用来宣称「入库 / ask / 鉴权测全了」；那是 P0 红
 | 仓库脚本 | 仓库根 `scripts/*.test.mjs` 护的是脚本本身，列在 `docs/testing/README.md`，不塞进某个 app 的能力树 |
 | 包内脚本测 | `src/scripts/run-l1-golden.test.ts` 这类是能力测，迁徙时进 `tests/eval/` 等，**不是**仓库根脚本 |
 | 文档护栏 | 读 PRD 的包内护栏（如交付控制台盘点）可留在主包 `tests/docs-guard/`，不要和仓库根脚本混 |
+| 超时预算 | **收集期**的 `await import(重模块)` 不算用例时间；写在 **`it()` 体内**的同类导入**算**。后者的用例要给显式预算（`apps/api/vitest.config.ts` 已设 `testTimeout: 20_000`），否则全量跑并行抢 CPU 时会间歇 `Test timed out in 5000ms`。**只调预算，禁止靠删断言 / 改 mock / skip 变绿** |
 
 Vitest `include` 现行写法：
 
