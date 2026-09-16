@@ -2,8 +2,8 @@
 
 Type: task
 Label: wayfinder:task
-Status: pending
-Assignee: —
+Status: resolved
+Assignee: grok
 Triage: ready-for-agent
 Blocked by: 100
 
@@ -48,6 +48,33 @@ Blocked by: 100
 
 收工：`.trellis/spec/worker/backend/`（ingest 能力矩阵与 chunk/情境一节）+ `.trellis/spec/api/backend/`（若入库报告白名单有专节）+ `docs/module-status/{worker,api,contracts}.md` + 各 `tests/index.md`。Answer 里写明「默认 off 与 ADR-013 的关系」「未做 checkpoint / TPM」。
 
+## Answer
+
+**默认口径（本票钉的，须与 ADR-013 一起读）**：`INGEST_CONTEXTUALIZE_MODE` ∈ `off | http`，**仓库默认 `off`**。ADR-013 的「生产默认 L1」说的是**产品默认**，而仓库的**运行时默认**取 off：没有真 Gateway 时默认 on 只会把每一块都记成 `l0_fallback`（假账）。KB 快照的 `contextMode` 默认值 `l1_llm` **未动**，所以「关 L1 须显式设 `l0_template`」这条口径不受影响。与 `INGEST_OCR_ENABLED`、`SESSION_REWRITE_ENABLED` 同款「能力落地、默认关」。
+
+**做了什么**
+
+- worker 新增 `apps/worker/src/ingest/contextualize-http.ts`：OpenAI 兼容 `/chat/completions`，`temperature=0`，system 提示用 PRD §4.1 冻结措辞（「只输出这一句，不要引号与解释」），user 提示按冻结字段 (`文档标题:` / `文档摘要/前缀:` / `块正文:`) 拼装；输出归一化为**单行**（去引号、压空白），空输出 / 超长（按 PRD ≤25 词折算 200 字符）/ 非 2xx / 畸形响应 / 缺 `GATEWAY_BASE_URL` **一律抛**（不静默返回空串冒充成功）。
+- env：`INGEST_CONTEXTUALIZE_MODE`（默认 off）+ `GATEWAY_CHAT_MODEL`（默认 gpt-4o-mini）。
+- pipeline chunk 段：`contextMode=l1_llm` **且** mode=http 时逐块调用；成功用模型前缀并计 `l1_ok`，失败该块回退 L0、计 `l1_fallback` 并 warn（**不阻断入库、不改正文**）。报告 `contextSource`：**全部块都走上 L1 才写 `l1_llm`，任一块回退即 `l0_fallback`**（块自身 prefix 已各自回退）。零存活块的 EMPTY_CHUNKS 分支行为不变。
+- contracts：`CONTEXT_SOURCES` 增 `l1_llm`（注释同步为「只在真调通时写」）；worker 报告 `keepContextSource` 白名单与 api 映射白名单同步放开 `l1_llm`。
+- 打点：`log.info({ event: 'contextualize_summary', contextualize_l1_ok, contextualize_l0_fallback, contextSource })`。
+
+**没做什么 / 边界（如实说）**
+
+- **PRD 点名的 `contextualize_l1_ok` / `contextualize_l0_fallback` 只作日志字段，不是 `/metrics` 计数器** —— **worker 进程没有任何 metrics 出口**（`metricInc` 只存在于 api，见 `apps/api/src/obs/metrics.ts`）；要变成真计数器得先给 worker 造指标出口，属另一张票。**没有**为了「点名落地」去假造一个计数器。
+- **未做** PRD §4.2 的「结果 checkpoint、重跑跳过已有 prefix」（需断点续传基建）。
+- **未做** per-tenant 计费 / TPM 硬闸（embed TPM 已划出本图）；**未引**厂商 SDK / 本地权重（HTTP OpenAI 兼容）。
+- 未改 `sparseText = contextPrefix + "\n" + body` 与「embed 用 prefix+body」口径；未改正文 body（只加 prefix）；未动 KB `contextMode` 默认值；未改 `prds/00–11`。
+- **未验证真 Gateway**：测例全部注入 `fetchImpl` / `vi.stubGlobal('fetch')`，没有对真 LLM 端点跑过（本环境无真网关）。真实延迟、限流行为未测。
+
+**验证**：`apps/worker` 整包 **34 files / 165 passed**（新增 `tests/ingest/contextualize-http.test.ts` 7 例 + `context-mode-obey.test.ts` 扩 3 例）；contracts `context-mode.test.ts` 5 例；全仓 `pnpm test` 11/11、`pnpm check-types` 8/8、`pnpm lint` 8/8 零 warning（数字见地图本轮收口）。
+
+**测试先红后绿的一处**（值得记）：`packages/contracts/tests/ingest/ingest-report-contract.test.ts` 里原有一条断言 **拒绝** `contextSource: 'l1_llm'` —— 那是「本轮不落 l1_llm」时代的口径。放开枚举后它按预期变红（全仓测试第一次跑就抓到），已改为「三态接受 + 未知值 `l2_llm` 拒」，**不是**放宽断言而是口径随实现更新。
+
+**回写**：`.trellis/spec/worker/backend/ingest-capability-matrix.md`（chunk 行 + ingest_reports 行）· `.trellis/spec/worker/backend/directory-structure.md`；`docs/module-status/{worker,api}.md`；`apps/worker/tests/index.md` 与 `packages/contracts/tests/index.md`。
+
 ## Comments
 
 - 2026-09-16 由 [裁定 98](./98-after-96-order.md) 排为本批第三张：功能表 P1 入场项，worker 已有同型 HTTP 先例，无硬前置。
+- 2026-09-16 完成。默认关（理由见 Answer）；`contextualize_*` 只作日志字段（worker 无 metrics 出口，未假造）。
