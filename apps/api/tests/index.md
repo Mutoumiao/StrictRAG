@@ -31,6 +31,7 @@
 | `acl/departments-http.test.ts` | 部门壳 HTTP 按契约读写。 | B5 | `createDepartmentsRoutes` | 部门壳 HTTP。 | 现行 |
 | `acl/dept-grants-http.test.ts` | 跨部门 grant HTTP 按 DEPT_ACL 约束。 | DEPT_ACL | `createDeptGrantsRoutes` | 跨部门 grant。 | 现行 |
 | `acl/doc-acl-principals.test.ts` | 文档级用户 uuid 名单必须按 null/[]/命中/未命中/bypass 过滤，失败则非名单用户可读。 | P3b 文档 ACL · 覆盖 B2-4 / B2-1 最小 | `isDocVisibleForAclPrincipals / filterDocsForAclPrincipals` | null 可见、[] 不可见、命中可见、未命中/无 userId 不可见、bypass 可见。 | 现行 |
+| `acl/documents-acl-endpoint.test.ts` | 文档 ACL 专用端点须按三态读写，可见性闸与详情同口径。 | prds/05-api §2.4 · prds/09-security §3.6.1 · 功能表 §5.2 | `GET/PUT /documents/:docId/acl` | GET 三态回读；名单外 403、超管旁路 200；PUT null/[]/名单后回读一致；非法 body 400；缺文 404；AUTH_ENFORCE 开时 401/403。 | 现行 |
 | `acl/documents-acl-principals.test.ts` | 文档 aclPrincipals 必须可 PATCH 三态回读，且列表/详情/语料同滤。 | P3b 文档 ACL · 覆盖 B2-4 / B2-1 最小 | `PATCH/GET /documents/:docId · GET /knowledge-bases/:kbId/documents · filterDocsForAclPrincipals` | null 可读、[] 非超管不可读；名单内外分滤；bypass 200；retrieve 语料不含未授权文档。 | 现行 |
 | `acl/documents-dept-filter.test.ts` | 文档列表必须套部门过滤。 | DEPT_ACL | `documents list dept filter` | 文档列表部门过滤。 | 现行 |
 | `acl/kb-member-gate.test.ts` | 无 KB 成员必须 403，授权以码为准。 | 以码为准 | `requireKbMember / requirePermission` | 无成员 403。 | 现行 |

@@ -260,6 +260,26 @@ export const PatchDocumentMetaBodySchema = z
   );
 export type PatchDocumentMetaBody = z.infer<typeof PatchDocumentMetaBodySchema>;
 
+/**
+ * 文档 ACL 名单（PRD 05-api §2.4；安全 PRD §3.6.1）。
+ * 三态：`null` = 字段缺失 → **成员可读**；`[]` = **成员不可读**；非空 = 仅命中者可读。
+ */
+export const DocumentAclSchema = z
+  .object({
+    docId: z.string().uuid(),
+    aclPrincipals: z.array(z.string().uuid()).nullable(),
+  })
+  .strict();
+export type DocumentAcl = z.infer<typeof DocumentAclSchema>;
+
+/** PUT /documents/:docId/acl body：与 PATCH 同一三态（`null` 清回缺省、`[]` 显式空） */
+export const PutDocumentAclBodySchema = z
+  .object({
+    aclPrincipals: z.array(z.string().uuid()).max(256).nullable(),
+  })
+  .strict();
+export type PutDocumentAclBody = z.infer<typeof PutDocumentAclBodySchema>;
+
 /** POST …/documents/:docId/approve | reject */
 export const DocumentApprovalActionResponseSchema = z.object({
   docId: z.string().uuid(),

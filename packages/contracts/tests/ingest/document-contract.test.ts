@@ -16,6 +16,8 @@ import {
   DocumentListItemSchema,
   KnowledgeBaseListItemSchema,
   PatchDocumentMetaBodySchema,
+  DocumentAclSchema,
+  PutDocumentAclBodySchema,
   ReindexDocumentResponseSchema,
   DeleteDocumentResponseSchema,
   SupersedeDocumentBodySchema,
@@ -267,6 +269,43 @@ describe('PatchDocumentMetaBodySchema', () => {
       }).success,
     ).toBe(false);
     expect(PatchDocumentMetaBodySchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe('DocumentAclSchema / PutDocumentAclBodySchema（PRD 05-api §2.4）', () => {
+  const DOC = '018f0000-0000-7000-8000-0000000000d1';
+  const U1 = '018f0000-0000-7000-8000-0000000000e1';
+
+  it('GET 形：null（字段缺失，成员可读）/ []（成员不可读）/ 名单', () => {
+    expect(DocumentAclSchema.safeParse({ docId: DOC, aclPrincipals: null }).success).toBe(true);
+    expect(DocumentAclSchema.safeParse({ docId: DOC, aclPrincipals: [] }).success).toBe(true);
+    expect(DocumentAclSchema.safeParse({ docId: DOC, aclPrincipals: [U1] }).success).toBe(true);
+  });
+
+  it('GET 形：缺字段 / 非法 uuid / 多余字段拒', () => {
+    expect(DocumentAclSchema.safeParse({ docId: DOC }).success).toBe(false);
+    expect(DocumentAclSchema.safeParse({ docId: 'x', aclPrincipals: null }).success).toBe(false);
+    expect(DocumentAclSchema.safeParse({ docId: DOC, aclPrincipals: ['x'] }).success).toBe(false);
+    expect(
+      DocumentAclSchema.safeParse({ docId: DOC, aclPrincipals: null, extra: 1 }).success,
+    ).toBe(false);
+  });
+
+  it('PUT body 三态；缺字段 / 多余字段 / 超 256 拒', () => {
+    expect(PutDocumentAclBodySchema.safeParse({ aclPrincipals: null }).success).toBe(true);
+    expect(PutDocumentAclBodySchema.safeParse({ aclPrincipals: [] }).success).toBe(true);
+    expect(PutDocumentAclBodySchema.safeParse({ aclPrincipals: [U1] }).success).toBe(true);
+    expect(PutDocumentAclBodySchema.safeParse({}).success).toBe(false);
+    expect(PutDocumentAclBodySchema.safeParse({ aclPrincipals: null, extra: 1 }).success).toBe(
+      false,
+    );
+    expect(
+      PutDocumentAclBodySchema.safeParse({
+        aclPrincipals: Array.from({ length: 257 }, (_, i) =>
+          `018f0000-0000-7000-8000-${String(i).padStart(12, '0')}`,
+        ),
+      }).success,
+    ).toBe(false);
   });
 });
 

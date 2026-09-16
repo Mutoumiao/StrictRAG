@@ -40,6 +40,7 @@ DB：`departments` · `user_departments`（`packages/db` · migration `0005_b5_d
 - DTO：`@strict-rag/contracts` · `departments.contract.ts`
 - 权限：`dept.manage`（树）· `user.manage`（归属）
 - 文档 `ownerDeptId` / `visibilityLevel` **字段已落**（GET 详情回读 · **列表项同带** · `PATCH /documents/:docId` 可写部门两列 / 类型 / `aclPrincipals` · `doc.editor` 始终验码；**complete body 可选同写**部门字段与 `aclPrincipals` 后再过 SENS）
+- **文档 ACL 专用入口**（PRD 05-api §2.4）：`GET/PUT /api/v1/documents/:docId/acl`。三态 `null`（字段缺失=KB 成员可读）/ `[]`（成员不可读）/ 非空名单。GET 与**详情共用同一可见性判定**（`docReadDenied`：部门强制开时部门闸 → 名单闸），名单外 403、超管旁路；PUT 权限与 PATCH **同一码** `doc.editor`，**刻意不叠可见性闸** —— `[]` 的文档对非超管本就不可读，写路径若也过闸就谁都无法把它修回来。**不**改检索语义、**不**默认开强制。
 - `dept_cross_grants` 表 + `GET/POST/DELETE /admin/dept-cross-grants`（`dept.manage`）；enforce 开时 retrieve/预览/列表读**未过期** grant（精确 ∪ 有树且双方节点齐全时祖先部门子树；无树/缺节点只精确；**不**读 inheritDown）
 - `DEPT_ACL_ENFORCE` 默认 false；开时 `filterDocsForDeptAcl`：精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树（预览、列表、retrieve 同函数；`inheritDown=false` 只关归属祖先）；`roleBypassesKbMembership` 绕过部门滤（Pino `dept_acl_bypass`）；`DEPT_INHERIT_DOWN` 默认 true（仅 `'false'` 关祖先）；KB `config_json.deptInheritDown` 可覆盖 env（未写跟 env；设置页可勾选，未改不写回）；KB `config_json.deptAclEnforce` 可覆盖 enforce（未写跟 env；GET 未写回读 false；设置页可勾选，未改不写回）；admin 授权行有树时显示部门名、可见级默认中文标签、过期空显示「长期」；归属可选用户（复用平台列表）；ES http 检索 enforce 开且非超管时 `buildAclFilter` 追加 `ownerDeptId` terms（`collectVisibleOwnerDeptIds`）；缺字段不得当全员可见；**无** 默认开 / 文档级用户 uuid 名单已落（列表/详情/chunks/retrieve 同滤；不跟 DEPT_ACL_ENFORCE；ES 查询期非超管 should 收窄）；sensitive complete 须 ACL 就绪（部门路径或显式名单）；**≠** 角色 principal
 

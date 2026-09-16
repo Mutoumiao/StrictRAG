@@ -14,6 +14,8 @@ import {
   type UploadUrlResponse,
   type WriteDocumentResponse,
   PatchDocumentMetaBodySchema,
+  DocumentAclSchema,
+  PutDocumentAclBodySchema,
   PatchLifecycleBodySchema,
   SupersedeDocumentBodySchema,
   ReindexDocumentBodySchema,
@@ -700,25 +702,48 @@ documentRoutes.get('/documents/:docId', requirePermissionWhenEnforced('doc.view'
     return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
   }
   const kb = await documentRepo.getKb(doc.kbId);
-  const enforce = resolveDeptAclEnforce(
-    parseDeptAclEnforceFromConfig(kb?.configJson ?? null),
-  );
   const auth = c.get('auth');
-  const bypass = roleBypassesKbMembership(auth?.roles ?? []);
+  const denied = await docReadDenied({
+    doc,
+    kbConfigJson: kb?.configJson ?? null,
+    userId: auth?.userId,
+    roles: auth?.roles,
+  });
+  if (denied) {
+    return fail(c, BizCode.FORBIDDEN, denied, 403);
+  }
+  return ok(c, toDetail(doc));
+});
+
+/**
+ * 文档可见性闸：部门强制（按 KB/env 开时）→ aclPrincipals 名单。
+ * 返回拒绝文案；通过返回 null。
+ * **详情与 ACL 入口共用同一份判定**：ACL 名单本身也是 ACL 元数据，
+ * 看不到该文档的人不得读它的名单（禁止只在一处加严）。
+ */
+async function docReadDenied(input: {
+  doc: NonNullable<Awaited<ReturnType<typeof documentRepo.getDoc>>>;
+  kbConfigJson: Record<string, unknown> | null;
+  userId?: string | undefined;
+  roles?: readonly string[] | undefined;
+}): Promise<string | null> {
+  const { doc } = input;
+  const bypass = roleBypassesKbMembership(input.roles ?? []);
+  const enforce = resolveDeptAclEnforce(parseDeptAclEnforceFromConfig(input.kbConfigJson ?? null));
   if (enforce) {
     if (bypass) {
       logger.info(
-        { event: 'dept_acl_bypass', userId: auth?.userId, kbId: doc.kbId, docId: doc.id },
+        { event: 'dept_acl_bypass', userId: input.userId, kbId: doc.kbId, docId: doc.id },
         'dept acl bypass',
       );
     } else {
       const [assignments, depts, grants] = await Promise.all([
-        loadDeptAssignments(doc.tenantId, auth?.userId),
+        loadDeptAssignments(doc.tenantId, input.userId),
         loadDeptNodes(doc.tenantId),
-        loadDeptGrants(doc.tenantId, auth?.userId),
+        loadDeptGrants(doc.tenantId, input.userId),
       ]);
       const inheritDown = resolveDeptInheritDown(
-        parseDeptInheritDownFromConfig(kb?.configJson ?? null),
+        parseDeptInheritDownFromConfig(input.kbConfigJson ?? null),
       );
       if (
         !isDocVisibleForDeptAcl(
@@ -732,14 +757,62 @@ documentRoutes.get('/documents/:docId', requirePermissionWhenEnforced('doc.view'
           inheritDown,
         )
       ) {
-        return fail(c, BizCode.FORBIDDEN, 'department acl denied', 403);
+        return 'department acl denied';
       }
     }
   }
-  if (!isDocVisibleForAclPrincipals(doc, { userId: auth?.userId, bypass })) {
-    return fail(c, BizCode.FORBIDDEN, 'document acl denied', 403);
+  if (!isDocVisibleForAclPrincipals(doc, { userId: input.userId, bypass })) {
+    return 'document acl denied';
   }
-  return ok(c, toDetail(doc));
+  return null;
+}
+
+/** GET /api/v1/documents/:docId/acl — 文档 ACL 专用入口（PRD 05-api §2.4）；可见性闸同详情 */
+documentRoutes.get(
+  '/documents/:docId/acl',
+  requirePermissionWhenEnforced('doc.view'),
+  async (c) => {
+    const docId = c.req.param('docId');
+    const doc = await documentRepo.getDoc(docId);
+    if (!doc) {
+      return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
+    }
+    const kb = await documentRepo.getKb(doc.kbId);
+    const auth = c.get('auth');
+    const denied = await docReadDenied({
+      doc,
+      kbConfigJson: kb?.configJson ?? null,
+      userId: auth?.userId,
+      roles: auth?.roles,
+    });
+    if (denied) {
+      return fail(c, BizCode.FORBIDDEN, denied, 403);
+    }
+    return ok(c, DocumentAclSchema.parse({ docId, aclPrincipals: doc.aclPrincipals ?? null }));
+  },
+);
+
+/**
+ * PUT /api/v1/documents/:docId/acl — 三态写（`null` 清回缺省 / `[]` 显式空 / 非空名单）。
+ * 权限与 `PATCH /documents/:docId` **同一码**（`doc.editor`）；**不叠**可见性闸：
+ * `[]` 的文档对非超管本就不可读，若写路径也过闸，谁都无法把它修回来。
+ */
+documentRoutes.put('/documents/:docId/acl', requirePermission('doc.editor'), async (c) => {
+  const docId = c.req.param('docId');
+  const parsed = PutDocumentAclBodySchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) {
+    return fail(c, BizCode.VALIDATION_ERROR, 'invalid body', 400, parsed.error.flatten());
+  }
+  const doc = await documentRepo.getDoc(docId);
+  if (!doc) {
+    return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
+  }
+  await documentRepo.patchMeta(docId, { aclPrincipals: parsed.data.aclPrincipals });
+  const updated = await documentRepo.getDoc(docId);
+  if (!updated) {
+    return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
+  }
+  return ok(c, DocumentAclSchema.parse({ docId, aclPrincipals: updated.aclPrincipals ?? null }));
 });
 
 /** GET /api/v1/documents/:docId/ingest-jobs — 只读账本，不写 */
