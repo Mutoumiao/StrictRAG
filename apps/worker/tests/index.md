@@ -36,7 +36,8 @@
 | `ingest/ingest-report.test.ts` | 入库报告落库只写真事；同 version 更新保留文档内与跨 doc dropped 及情境来源；去重率与计数同源。 | 功能表 §4.3 / §5.2 | `buildIngestReportInsert · persistIngestReport · dedupeCrossDocRate` | 非阻断；含跨 doc 冲突对与 contextSource；分母 0 → 去重率 null；不含 Hit@k。 | 现行 |
 | `ingest/cross-doc-dedupe.test.ts` | 同 KB 跨文档近重复须按字 3-gram Jaccard≥0.9 命中；跨 KB / archived 不比。 | 入库 PRD §5 · 功能表 §6 | `isCrossDocNearDup · findCrossDocConflict · loadCrossDocSearchableChunks` | 无 LSH；不是 pending_review。 | 现行 |
 | `ingest/cross-doc-skip-index.test.ts` | 同 KB 近重复块须 skip_index 不进 manifest，报告写出冲突对；全 skip 不得 ready。 | 入库 PRD §5 · 功能表 §4.3 / §6 | `runIngestStage chunk` | 跨 KB 不比；archived 不挡。 | 现行 |
-| `ingest/context-mode-obey.test.ts` | chunk 必须服从快照 contextMode；L0 只用标题；l1_llm 本轮回退不得声称已跑 L1。 | 入库 PRD §4 · 功能表 §6 | `runIngestStage chunk` | 无 Gateway。禁止字面量 section。 | 现行 |
+| `ingest/context-mode-obey.test.ts` | chunk 必须服从快照 contextMode；L0 只用标题；l1_llm 只有真调通才写 l1_llm，否则回退 L0。 | 入库 PRD §4 / §4.1 / §4.2 · 功能表 §6 | `runIngestStage chunk` | 默认 off 回退 L0（不写假 l1_llm）；http 成功写 l1_llm、失败回退；l0_template 不调 LLM。禁止字面量 section。 | 现行 |
+| `ingest/contextualize-http.test.ts` | L1 情境前缀须走 OpenAI 兼容 chat（temp=0），失败一律抛出以便回退 L0。 | 入库 PRD §4 / §4.1 / §4.2 · 功能表 §6 | `contextualizeChunk · buildContextualizeUserPrompt` | 注入 fetchImpl；429/网络/空输出/超长/缺 baseUrl 都抛，不静默空串。 | 现行 |
 | `ingest/job-ledger.test.ts` | ingest_jobs 阶段账本须记录开始/结束与失败码。 | X-04 | `buildStageStartRow · buildStageEndPatch · recordStageStart · recordStageEnd` | 最小账本行、成功链、失败码、pipeline 接线。 | 现行 |
 | `ingest/mongo-body.test.ts` | 空 Mongo URL 不得真连，走 local id。 | prds/03-data | `localMongoDocId · upsertDocumentBody · findDocumentBody · pingMongo · deleteBodiesForDoc` | 空 url 返回 local:docId / null / false；删正文不连。 | 现行 |
 | `ingest/mock-clean-stage-chain.test.ts` | mock_clean 须从 scanning 走到双就绪 ready。 | 剧本 M3 · prds/10-delivery/03-acceptance-scenarios.md · ADR-039 | `runIngestStage` | 默认 mock ES；≠ 生产扫描 / ≠ 真杀毒。 | 现行 |

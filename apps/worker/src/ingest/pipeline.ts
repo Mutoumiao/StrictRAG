@@ -4,6 +4,7 @@ import {
   l0ContextPrefix,
   parseContextMode,
   resolveContextSource,
+  type ContextSource,
 } from '@strict-rag/contracts';
 import {
   chunkEmbeddings,
@@ -41,6 +42,10 @@ import {
   findCrossDocConflict,
   loadCrossDocSearchableChunks,
 } from './cross-doc-dedupe.js';
+import {
+  CONTEXTUALIZE_DOC_EXCERPT_MAX,
+  contextualizeChunk,
+} from './contextualize-http.js';
 import { persistIngestReport } from './ingest-report.js';
 import { recordStageEnd, recordStageStart, type StageLedgerContext } from './job-ledger.js';
 import {
@@ -523,8 +528,20 @@ async function runIngestStageCore(
         excludeDocId: doc.id,
       });
       const contextMode = parseContextMode(doc.chunkStrategyParams?.contextMode);
-      const contextSource = resolveContextSource(contextMode);
-      const prefix = l0ContextPrefix(doc.title ?? '');
+      const l0Prefix = l0ContextPrefix(doc.title ?? '');
+      // L1 只在 http 模式真调；默认 off 保持「回退 L0」的历史行为（不写假 l1_llm）
+      const l1 =
+        contextMode === 'l1_llm' && env.INGEST_CONTEXTUALIZE_MODE === 'http'
+          ? {
+              baseUrl: env.GATEWAY_BASE_URL,
+              apiKey: env.GATEWAY_API_KEY,
+              model: env.GATEWAY_CHAT_MODEL,
+              title: doc.title ?? '',
+              docExcerpt: (doc.parsedText ?? '').slice(0, CONTEXTUALIZE_DOC_EXCERPT_MAX),
+            }
+          : null;
+      let l1Ok = 0;
+      let l1Fallback = 0;
       for (const body of pieces) {
         const norm = body.toLowerCase();
         if (seen.has(norm)) {
@@ -539,6 +556,17 @@ async function runIngestStageCore(
           continue;
         }
         const id = uuidv7();
+        // L1 情境前缀：逐块调用；失败只影响该块的 prefix（回退 L0），不阻断入库
+        let prefix = l0Prefix;
+        if (l1) {
+          try {
+            prefix = await contextualizeChunk({ ...l1, chunk: body });
+            l1Ok += 1;
+          } catch (err) {
+            l1Fallback += 1;
+            log.warn({ err, docId: doc.id, ordinal }, 'contextualize L1 failed; 回退 L0 prefix');
+          }
+        }
         chunkIds.push(id);
         await db.insert(chunks).values({
           id,
@@ -568,6 +596,20 @@ async function runIngestStageCore(
       if (env.MONGODB_URL.trim()) {
         await upsertChunkBodies({ url: env.MONGODB_URL, rows: chunkBodyRows });
       }
+
+      // 只要有一块没走上 L1，就不声称本轮 l1_llm（块自身 prefix 已各自回退 L0）
+      const contextSource: ContextSource =
+        l1 && l1Ok > 0 && l1Fallback === 0 ? 'l1_llm' : resolveContextSource(contextMode);
+      log.info(
+        {
+          event: 'contextualize_summary',
+          docId: doc.id,
+          contextualize_l1_ok: l1Ok,
+          contextualize_l0_fallback: l1Fallback,
+          contextSource,
+        },
+        'contextualize summary',
+      );
 
       if (chunkIds.length === 0) {
         await setDoc(data.docId, {

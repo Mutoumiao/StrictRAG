@@ -77,7 +77,13 @@ describe('IngestReportItemSchema', () => {
         conflictPairs: [{ ...PAIR, action: 'downrank' }],
       }).success,
     ).toBe(false);
-    expect(IngestReportItemSchema.safeParse({ ...ROW, contextSource: 'l1_llm' }).success).toBe(
+  });
+
+  it('contextSource 三态：l0 / l0_fallback / l1_llm 接受，未知值拒', () => {
+    for (const source of ['l0', 'l0_fallback', 'l1_llm'] as const) {
+      expect(IngestReportItemSchema.safeParse({ ...ROW, contextSource: source }).success).toBe(true);
+    }
+    expect(IngestReportItemSchema.safeParse({ ...ROW, contextSource: 'l2_llm' }).success).toBe(
       false,
     );
   });

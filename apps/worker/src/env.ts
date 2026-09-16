@@ -45,6 +45,13 @@ const EnvSchema = z
     ELASTIC_INDEX: z.string().optional().default('strict_rag_dev'),
     INGEST_EMBED_MODE: z.enum(['mock', 'fail', 'http']).default('mock'),
     GATEWAY_EMBED_MODEL: z.string().optional().default('text-embedding-3-small'),
+    /**
+     * L1 情境前缀（PRD 04 §4 · 功能表 §6 `ingest.contextualize`）。
+     * **默认 off**：无真 Gateway 时默认 on 只会把每一块都记成 `l0_fallback`（假账）；
+     * 开 http 须 `GATEWAY_BASE_URL`，失败仍回退 L0。产品默认（KB 快照 `contextMode`）仍是 `l1_llm`。
+     */
+    INGEST_CONTEXTUALIZE_MODE: z.enum(['off', 'http']).default('off'),
+    GATEWAY_CHAT_MODEL: z.string().optional().default('gpt-4o-mini'),
     INGEST_MIN_EXTRACTED_CHARS: z.coerce.number().int().positive().default(40),
     /** P5 OCR 开闸；默认关。无引擎时不得假抽正文。 */
     INGEST_OCR_ENABLED: z

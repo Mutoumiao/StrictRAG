@@ -43,8 +43,11 @@ export type ChunkStrategyDocFamily = (typeof CHUNK_STRATEGY_DOC_FAMILIES)[number
 export const CONTEXT_MODES = ['l0_template', 'l1_llm'] as const;
 export type ContextMode = (typeof CONTEXT_MODES)[number];
 
-/** 本轮可落库来源。l1_llm 成功要等 Gateway contextualize，禁止先写。 */
-export const CONTEXT_SOURCES = ['l0', 'l0_fallback'] as const;
+/**
+ * 本轮可落库来源。`l1_llm` 只在 worker 真调通 Gateway contextualize 时写；
+ * 任何一块回退 → 本轮记 `l0_fallback`（见 `apps/worker/src/ingest/pipeline.ts`）。
+ */
+export const CONTEXT_SOURCES = ['l0', 'l0_fallback', 'l1_llm'] as const;
 export type ContextSource = (typeof CONTEXT_SOURCES)[number];
 
 export const DEFAULT_CHUNK_STRATEGY_PARAMS = {

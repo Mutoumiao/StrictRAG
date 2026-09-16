@@ -42,7 +42,7 @@
   - 未实现码 400；PATCH `paramOverrides.contextMode` 仅 `l0_template` / `l1_llm`（非法 400）；PATCH **有 diff** 落 `kb_settings_audits`（键 `chunkStrategy.<code>.<field>`；**无 diff 不落**；复用 KB 设置审计表，**不新建表**）；改库启用 **不** 自动 reindex；**无** 平台定义 CRUD 页、**无** paramSchema 通用动态表单引擎
 - 入队：`services/queue.ts` → BullMQ `QUEUE_NAMES.INGEST`（`sr-ingest`）；payload 为 contracts `IngestJobData`；`attempts=3` · backoff 2000ms
 - SQL 集中在 `services/`；路由保持轻量
-- **`GET /api/v1/knowledge-bases/:kbId/ingest-report`**：成员闸 + `doc.view` WhenEnforced；返回该库已落库行（空列表 200；缺库 404）；只写真事（chunkCount / 文档内 dropped / **跨 doc dropped + 冲突对** / **contextSource** / 双就绪 / 对账计数）；**无** pending_review / Hit@k / `l1_llm` 来源 / doc 级路径（`routes/ingest-report.ts` · `tests/ingest/ingest-report-http.test.ts`）
+- **`GET /api/v1/knowledge-bases/:kbId/ingest-report`**：成员闸 + `doc.view` WhenEnforced；返回该库已落库行（空列表 200；缺库 404）；只写真事（chunkCount / 文档内 dropped / **跨 doc dropped + 冲突对** / **跨文档去重率** / **contextSource（l0 / l0_fallback / l1_llm，白名单原样回读）** / 双就绪 / 对账计数）；**无** pending_review / Hit@k / doc 级路径（`routes/ingest-report.ts` · `tests/ingest/ingest-report-http.test.ts`）
 
 ### 分片只读（B1 · ADR-052）
 - `GET /documents/:docId/chunks`：返回当前 `indexVersion` 的分片列表，正文做 preview 截断（**不返回完整 body**），支持 cursor/limit 分页

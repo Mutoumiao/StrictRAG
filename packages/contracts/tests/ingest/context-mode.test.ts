@@ -8,6 +8,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  CONTEXT_SOURCES,
   invalidContextModeOverride,
   l0ContextPrefix,
   parseContextMode,
@@ -32,6 +33,10 @@ describe('contextMode / L0 模板', () => {
   it('l0_template 记 l0；l1_llm 本轮记 l0_fallback', () => {
     expect(resolveContextSource('l0_template')).toBe('l0');
     expect(resolveContextSource('l1_llm')).toBe('l0_fallback');
+  });
+
+  it('可落库来源含 l1_llm（仅在 worker 真调通时写）', () => {
+    expect([...CONTEXT_SOURCES]).toEqual(['l0', 'l0_fallback', 'l1_llm']);
   });
 
   it('overrides 缺键合法；非法 contextMode 给出错误', () => {

@@ -7,7 +7,7 @@
 | 成熟度 | **可联调**（P1 入库状态机；**仅** development/test + mock 栈可起；**staging/production 当前无合法扫描配置**） |
 | 默认依赖模式 | `APP_ENV=development` · 启动探针 `WORKER_PROBE_ON_START=true` · 扫描 = `mock_clean` · 向量 = `mock`（dims=8，枚举 `mock\|fail`）· ES 索引 = `mock`（枚举 `mock\|fail\|http`，**默认 mock**；`http` 须 `ELASTICSEARCH_URL`）· 对象存储 = 默认本地目录；`STORAGE_MODE=s3` 走 RustFS（S3 兼容） · `S3_BUCKET=strict-rag` · Mongo URL 空则 `mongoDocId=local:` · `INGEST_MIN_EXTRACTED_CHARS=40` · `INGEST_OCR_ENABLED=false` · `INGEST_FAILURE_WEBHOOK_URL` **空=不发** · **可运行叠加** `.env.operable.example`（http/s3/mongo；**不**改 Zod 默认） |
 | 关联模块 | 由 `api` 入队触发；写库走 `@strict-rag/db`；队列名 / job payload / 可执行策略集来自 `@strict-rag/contracts`；运行需要 Redis + PostgreSQL |
-| 最近更新 | 2026-09-16（入库报告补跨文档去重率 `dedupeCrossDocRate`；分母 0 → null） |
+| 最近更新 | 2026-09-16（L1 contextualize 真调用、默认 off；入库报告补跨文档去重率） |
 | Spec | `.trellis/spec/worker/backend/` |
 | PRD | `prds/06-async` · `prds/04-pipelines/01-offline-ingest.md` |
 
@@ -40,7 +40,7 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 - **scan**：`mock_infected` 删本地对象 + `MALWARE`；`mock_clean` / `off` 放行；审批重检（ADR-048）在**任意阶段**入口先做，未通过 → `NOT_APPROVED`（非仅 scan）
 - **parse**：读对象（local 或 `STORAGE_MODE=s3`）；过短 → `needs_ocr` + `NO_TEXT_LAYER`（不交 ocr）；完全无文本层且 OCR 开闸 → enqueue `ocr`；有 `MONGODB_URL` 写 `document_bodies`（`upsertDocumentBody` / `findDocumentBody` / `pingMongo`），否则 `mongoDocId=local:{docId}`；冒烟 `pnpm --filter @strict-rag/worker smoke:mongo`
 - **ocr**（P5 开闸）：`INGEST_OCR_ENABLED` 默认 false。可注入 `ocrExtract`；无注入 → `OCR_UNAVAILABLE` 留 `needs_ocr`；低置信 → `needs_review` + `OCR_LOW_CONFIDENCE`；成功且字数达标 → `extractMethod=ocr` 交 chunk。utf8 文本层入队 ocr 拒抽（短页眉不得洗 ready）。运营 reindex 可入队 ocr。staging/prod 开闸无 `INGEST_OCR_ADR_REF` 告警可启动。**≠** 真引擎 / Cloud OCR / 启动自动全库
-- **chunk**：**仅** `structure_paragraph`（contracts `IMPLEMENTED_*`）；未实现 → `UNSUPPORTED_CHUNK_STRATEGY`（**不**静默回落）；读 `chunkStrategyParams.contextMode`：L0 prefix 无路径只用标题（禁止字面量 `section`）；`l0_template` 报告 `contextSource=l0`；`l1_llm` / 缺省 **不**调 Gateway，同一 L0 prefix，报告 `l0_fallback`。写 chunks（含 `mongoBodyId`）+ `chunk_manifests`；`MONGODB_URL` 非空时另写 Mongo `chunk_bodies`（`upsertChunkBodies`，`_id=chunkId`）；`indexVersion = doc.indexVersion+1` 并重置 `embedReady=0` / `esReady=0`
+- **chunk**：**仅** `structure_paragraph`（contracts `IMPLEMENTED_*`）；未实现 → `UNSUPPORTED_CHUNK_STRATEGY`（**不**静默回落）；读 `chunkStrategyParams.contextMode`：L0 prefix 无路径只用标题（禁止字面量 `section`）；`l0_template` 报告 `contextSource=l0`；`l1_llm` / 缺省：**默认（`INGEST_CONTEXTUALIZE_MODE=off`）不调 Gateway，同一 L0 prefix，报告 `l0_fallback`**；置 `http` 时逐块真调 chat（`contextualize-http.ts`，temp=0，PRD §4.1 冻结模板，输出单行且 ≤200 字符），**成功才写 `l1_llm`、任一块失败即回退 L0 并记 `l0_fallback`**（块仍可索引、不阻断），并打 `event=contextualize_summary` 的 `contextualize_l1_ok` / `contextualize_l0_fallback` 计数（**注**：worker 无 metrics 出口，这两个名字只作日志字段，≠ `/metrics` 计数器）。写 chunks（含 `mongoBodyId`）+ `chunk_manifests`；`MONGODB_URL` 非空时另写 Mongo `chunk_bodies`（`upsertChunkBodies`，`_id=chunkId`）；`indexVersion = doc.indexVersion+1` 并重置 `embedReady=0` / `esReady=0`
 - **embed**：mock 伪向量 dims=8 · `model=mock-embed`；缺 embedding 行才补写（幂等 skip）
 - **es_index**：默认 `mockEsStore`；`INGEST_ES_MODE=http` 时 `ensureSparseIndex` + bulk（写 `tenantId`/`kbId`/`docId`/`chunkId`/`sparseText`，有值才写 `ownerDeptId`；`aclPrincipals` 为数组才写，空数组写哨兵 `__acl_none__`）+ 按 doc 对账（映射对齐 api `es-sparse`）；要求 `embedReady`；双就绪 → `status=ready` **且 `lifecycle='draft'`**（**不是** `active`；默认检索闸 `ready∧active` 仍拦，须运营升 lifecycle）
 - **purge**：清对象（有 key）；`mockEsStore.dropDoc`；Mongo URL 空跳过，有值删该 doc 的 document_bodies / chunk_bodies；回写 `objectKey=null`、`embedReady=0`、`esReady=0`；lifecycle 保持 archived。**≠** HTTP ES `_delete_by_query` / PG 行硬删 / chunk 表清扫
@@ -58,12 +58,12 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 - 未知 errorCode **fail-closed 不重试**
 - **账本最小**：`job-ledger.ts` 每 stage 先 insert `running`、结束时写 `succeeded`/`failed`（写失败仅记 warn 日志，不阻断）；**未做** api 入队写 / 查询 API
 - **失败 Webhook 最小**：`INGEST_FAILURE_WEBHOOK_URL` 空则不发；仅 `recordStageEnd` 见 `errorCode` 时 POST JSON（`event=ingest.failed` + tenantId/kbId/docId/stage/errorCode/at，可选 jobId）；超时约 3s、只一次；非 2xx/网络错 warn **不抛**、**不阻断**账本。无 HMAC / 无重试队列 / 无 ask webhook / 无正文与对象路径
-- **入库报告**：`ingest-report.ts` 按 `docId+indexVersion` 落可查询行（双就绪成功；文档内去重清空失败；**同 KB 跨 doc skip_index 冲突对**；**跨文档去重率 `dedupeCrossDocRate`（与计数同源派生；分母 0 → null，不写 0）**；**情境来源 l0 / l0_fallback**；对账失败不标双就绪）；写失败 warn 不阻断；**不含** pending_review / L1 成功计数 / Hit@k / 「高度重复」阈值提示（数据 PRD 无阈值）
+- **入库报告**：`ingest-report.ts` 按 `docId+indexVersion` 落可查询行（双就绪成功；文档内去重清空失败；**同 KB 跨 doc skip_index 冲突对**；**跨文档去重率 `dedupeCrossDocRate`（与计数同源派生；分母 0 → null，不写 0）**；**情境来源 l0 / l0_fallback / l1_llm**；对账失败不标双就绪）；写失败 warn 不阻断；**不含** pending_review / Hit@k / 「高度重复」阈值提示（数据 PRD 无阈值）
 - **同 doc 锁最小**：`doc-lock.ts` 用 Redis `SET NX EX`（默认 TTL 180s）+ token 安全释放；`index.ts` 持锁再跑 stage；抢锁失败 `DOC_LOCK_BUSY` 可重试；**非** Redlock
 
 ### 基础设施
 - 环境变量校验、Pino 日志、与 api 共用 `@strict-rag/db`
-- `GATEWAY_*` 出现在 worker `env.ts` **仅占位校验**；**pipeline 未调用**网关做真实 embed / contextualize
+- `GATEWAY_*` 除 embed 外，另用于 **L1 contextualize**（`INGEST_CONTEXTUALIZE_MODE=http` + `GATEWAY_CHAT_MODEL`）；**默认 off**，未开时不调网关
 
 ---
 
@@ -79,7 +79,7 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 | HTTP API | **禁止**业务 HTTP |
 | `ingest_jobs` 完整运维账本 | **最小 stage 写已有**；无查询面 / 无 api 入队 `queued` |
 | 入库报告完整语义 | 跨 doc skip_index（字 3-gram Jaccard≥0.9）+ 冲突对 + contextSource + **跨文档去重率** 已落；**无** pending_review / 生产 LSH / Hit@k / 「高度重复」阈值提示 |
-| 真 L1 contextualize | prefix 走 L0 模板；`l1_llm` 记 `l0_fallback`；**无** Gateway `purpose=contextualize` |
+| 真 L1 contextualize | **已落但默认关**：`INGEST_CONTEXTUALIZE_MODE=http` 时逐块真调 chat（temp=0，PRD §4.1 模板），成功写 `l1_llm`、任一块失败回退 L0（`l0_fallback`）；**默认 off**（无真 Gateway 时 on 只会全量假 `l0_fallback`）；**无** per-chunk checkpoint（重跑不跳过已有 prefix）；worker **无** metrics 出口（`contextualize_*` 只作日志字段） |
 | dual-ready 自动 `lifecycle=active` | 终态 draft；检索默认可检索性另闸 |
 | purge 生产三存 | mock ES drop + 对象删 + 可选 Mongo；**无** HTTP ES `_delete_by_query` / PG 硬删 / chunk 清扫 |
 | 失败 Webhook 加固 | **最小 POST 已有**；无 HMAC / 重试队列 / admin·KB URL / ask 拒答 webhook |

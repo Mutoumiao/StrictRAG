@@ -13,14 +13,14 @@
 | **scan** | **stub** | `pipeline` `case 'scan'` · `scan-mode-policy` | mock_clean / mock_infected / off；`on` 拒 | 真 ClamAV（QUAL-2） |
 | **parse** | **stub** | `extract-text` + `loadObjectBytes` + 字数闸 | 仅 UTF-8 **txt/md** 当文本层；PDF 最小文本层；无层 / 过短 → `needs_ocr` + `NO_TEXT_LAYER`；开闸时无层 enqueue `ocr` | 复杂版式 |
 | **ocr** | **stub** | `pipeline` `case 'ocr'` · `ocr-policy` | `INGEST_OCR_ENABLED` 默认 false；可注入抽取器；低置信 `needs_review`；无引擎 `OCR_UNAVAILABLE`；utf8 文本层拒抽；运营 reindex 可入队 ocr | 真 Tesseract / Cloud OCR · 启动自动全库重跑 |
-| **chunk** | **done\*** | `splitByChunkStrategy` · manifests · L0 prefix | 仅 `structure_paragraph`；读快照 `contextMode`；无路径只用标题；`l1_llm` 本轮 `l0_fallback`；幂等 resume（X-04-impl） | 真 L1 Gateway contextualize；多策略切分器；结构感知进阶 |
+| **chunk** | **done\*** | `splitByChunkStrategy` · manifests · L0 prefix · **L1 contextualize（`contextualize-http.ts`）** | 仅 `structure_paragraph`；读快照 `contextMode`；无路径只用标题；**`l1_llm` 且 `INGEST_CONTEXTUALIZE_MODE=http` 时真调 chat（temp=0，PRD §4.1 模板），成功写 `l1_llm`、任一块失败回退 L0 并记 `l0_fallback`（块仍可索引、不阻断）**；默认 `off` = 只回退；幂等 resume（X-04-impl） | 多策略切分器；结构感知进阶；per-chunk checkpoint（重跑跳过已有 prefix） |
 | **embed** | **stub** | `INGEST_EMBED_MODE` mock\|fail | 伪向量 dims=8；同 version skip 已有行 | 真 embedding 网关 |
 | **es_index** | **stub** | `mockEsStore` · `INGEST_ES_MODE` · `es-http` | 进程内 Map 对账；`http` 时 mapping/bulk 写 `tenantId`/`kbId`/`docId`/`chunkId`/`sparseText`/`ownerDeptId`（无部门不写该字段）/`aclPrincipals`（null 不写；`[]` 写哨兵 `__acl_none__`） | 真 ES+IK bulk（B8） · 多租户 Router |
 | **purge** | **stub** | `pipeline` `case 'purge'` · `purge.ts` · `mockEsStore.dropDoc` | DELETE 入队；清对象 + mock 稀疏 + Mongo URL 空跳过；PG 行保持 archived | HTTP ES `_delete_by_query` · PG 硬删 / chunk 清扫 |
 | **activate / lifecycle** | **partial** | dual-ready → `status=ready` · `lifecycle=draft` | **不**自动 active；检索第二闸在 api | 运营 activate API 全流程（产品侧） |
 | **ingest_jobs 账本** | **partial** | schema + `job-ledger.ts` | stage 边界写 running→succeeded/failed；无 api 写 / 无查询面 | 运维查询 · 入队侧 queued |
 | **失败 Webhook** | **partial** | `failure-webhook.ts` · `recordStageEnd` | 账本 `errorCode` 时 POST `ingest.failed` JSON；空 URL 不发；~3s 只一次；失败 warn 不阻断 | HMAC / 重试队列 / admin·KB URL / ask webhook |
-| **ingest_reports** | **partial** | `ingest-report.ts` + pipeline + `cross-doc-dedupe.ts` | 双就绪 / 文档内去重清空 / 同 KB 跨 doc skip_index 冲突对 / `contextSource` l0\|l0_fallback / 对账失败落可查询行 / **`dedupeCrossDocRate`**（`crossDocDropped / 三者之和`；分母 0 → null，**不写 0**）| pending_review / downrank / 生产 LSH / Hit@k / l1_llm 成功计数 / 「高度重复」阈值提示（数据 PRD 无阈值） |
+| **ingest_reports** | **partial** | `ingest-report.ts` + pipeline + `cross-doc-dedupe.ts` | 双就绪 / 文档内去重清空 / 同 KB 跨 doc skip_index 冲突对 / `contextSource` l0\|l0_fallback\|**l1_llm** / 对账失败落可查询行 / **`dedupeCrossDocRate`**（`crossDocDropped / 三者之和`；分母 0 → null，**不写 0**）| pending_review / downrank / 生产 LSH / Hit@k / 「高度重复」阈值提示（数据 PRD 无阈值） |
 | **同 doc 并发锁** | **partial** | `doc-lock.ts` · `index.ts` | Redis SET NX EX + token 释放；`DOC_LOCK_BUSY` 可重试 | Redlock / 多 master / 锁运维面 |
 | **物理多队列** | **deferred** | 单 `sr-ingest` + `stage` | 逻辑 stage 折叠 | 见 §1.1 · ADR-060 |
 

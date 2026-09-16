@@ -54,8 +54,8 @@ function keepContextSource(
   existing: string | null | undefined,
   snapshot: ContextSource | null | undefined,
 ): ContextSource | null {
-  if (existing === 'l0' || existing === 'l0_fallback') return existing;
-  if (snapshot === 'l0' || snapshot === 'l0_fallback') return snapshot;
+  if (existing === 'l0' || existing === 'l0_fallback' || existing === 'l1_llm') return existing;
+  if (snapshot === 'l0' || snapshot === 'l0_fallback' || snapshot === 'l1_llm') return snapshot;
   return null;
 }
 

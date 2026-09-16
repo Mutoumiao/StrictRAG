@@ -43,7 +43,9 @@ export function toIngestReportItem(row: {
     dedupeCrossDocRate: row.dedupeCrossDocRate ?? null,
     conflictPairs: row.conflictPairs ?? [],
     contextSource:
-      row.contextSource === 'l0' || row.contextSource === 'l0_fallback'
+      row.contextSource === 'l0' ||
+      row.contextSource === 'l0_fallback' ||
+      row.contextSource === 'l1_llm'
         ? row.contextSource
         : null,
     dualReady: row.dualReady === 1,

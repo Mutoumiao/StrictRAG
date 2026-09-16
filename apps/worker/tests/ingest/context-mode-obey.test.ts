@@ -1,8 +1,8 @@
 /**
- * 目标：chunk 必须服从快照 contextMode；L0 只用标题；l1_llm 本轮回退不得声称已跑 L1。
- * 需求：prds/04-pipelines/01-offline-ingest.md §4 · 功能表 §6
+ * 目标：chunk 必须服从快照 contextMode；L0 只用标题；l1_llm 只有真调通才写 l1_llm，否则回退 L0。
+ * 需求：prds/04-pipelines/01-offline-ingest.md §4 / §4.1 / §4.2 · 功能表 §6
  * 被测：runIngestStage chunk
- * 简介：无 Gateway contextualize。禁止字面量 section。
+ * 简介：默认 off 时 l1_llm 回退 L0（不写假 l1_llm）；http 模式成功写 l1_llm、失败回退；l0_template 不调 LLM。禁止字面量 section。
  */
 
 import {
@@ -12,7 +12,7 @@ import {
   documents,
   ingestReports,
 } from '@strict-rag/db';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { IngestJobData } from '../../src/queues.js';
 
@@ -189,5 +189,66 @@ describe('chunk 服从 contextMode 快照', () => {
     expect(result.errorCode).toBeUndefined();
     expect(state.chunks[0]?.contextPrefix).toBe('考勤制度');
     expect(state.reports[0]).toMatchObject({ contextSource: 'l0_fallback' });
+  });
+});
+
+describe('L1 contextualize（INGEST_CONTEXTUALIZE_MODE=http）', () => {
+  const saved = { mode: workerEnv.INGEST_CONTEXTUALIZE_MODE, base: workerEnv.GATEWAY_BASE_URL };
+
+  beforeEach(() => {
+    harness.state = null;
+    harness.db = null;
+    workerEnv.INGEST_CONTEXTUALIZE_MODE = 'http';
+    workerEnv.GATEWAY_BASE_URL = 'http://gw.local/v1';
+  });
+
+  afterEach(() => {
+    workerEnv.INGEST_CONTEXTUALIZE_MODE = saved.mode;
+    workerEnv.GATEWAY_BASE_URL = saved.base;
+    vi.unstubAllGlobals();
+  });
+
+  it('成功：块 prefix 用模型输出，报告 contextSource=l1_llm', async () => {
+    const fetchImpl = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ choices: [{ message: { content: '考勤制度：请假提交与审批要求' } }] }),
+    }));
+    vi.stubGlobal('fetch', fetchImpl);
+
+    const state = boot({ contextMode: 'l1_llm', chunkTokens: 256 });
+    const result = await runIngestStage(chunkJob());
+
+    expect(result.errorCode).toBeUndefined();
+    expect(state.chunks).toHaveLength(1);
+    expect(state.chunks[0]?.contextPrefix).toBe('考勤制度：请假提交与审批要求');
+    expect(state.reports[0]).toMatchObject({ contextSource: 'l1_llm' });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    // 正文不得被改写（只加 prefix）
+    expect(state.chunks[0]?.bodyText).toBe(BODY);
+  });
+
+  it('失败（429）：回退 L0 prefix，报告 l0_fallback，块仍入库', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 429 })));
+
+    const state = boot({ contextMode: 'l1_llm', chunkTokens: 256 });
+    const result = await runIngestStage(chunkJob());
+
+    expect(result.errorCode).toBeUndefined();
+    expect(state.chunks).toHaveLength(1);
+    expect(state.chunks[0]?.contextPrefix).toBe('考勤制度');
+    expect(state.reports[0]).toMatchObject({ contextSource: 'l0_fallback' });
+  });
+
+  it('l0_template 不调 LLM（即便 http 开着）', async () => {
+    const fetchImpl = vi.fn();
+    vi.stubGlobal('fetch', fetchImpl);
+
+    const state = boot({ contextMode: 'l0_template' });
+    await runIngestStage(chunkJob());
+
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(state.chunks[0]?.contextPrefix).toBe('考勤制度');
+    expect(state.reports[0]).toMatchObject({ contextSource: 'l0' });
   });
 });
