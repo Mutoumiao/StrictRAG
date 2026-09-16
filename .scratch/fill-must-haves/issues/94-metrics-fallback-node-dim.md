@@ -2,8 +2,8 @@
 
 Type: task
 Label: wayfinder:task
-Status: pending
-Assignee: —
+Status: resolved
+Assignee: grok
 Triage: ready-for-agent
 Blocked by: —
 
@@ -46,6 +46,30 @@ PRD 细目：
 
 收工：`.trellis/spec/api/backend/` 指标相关节（`l3-metrics.md` 或 obs 一节）+ `docs/module-status/api.md`（obs / 指标行）。回答里写明「本票只补 `fallback` 与 rerank 节点维，未做 P4 直方图与远端导出」。
 
+## Answer
+
+**做了什么**
+
+- `llm_call_total` 增 `fallback` 维（`apps/api/src/obs/metrics.ts` `recordLlmCall(purpose, ok, fallback?)`），真值**只**取自 Gateway 的 `meta.fallbackUsed`：`apps/api/src/graph/run.ts` 的 `chatFromGateway` 已把该值带进打点。**调用失败时拿不到该值 → 记 `unknown`**，不谎报 `false`（测例显式钉「unknown 不得并进 false」）。
+- rerank 侧补齐 PRD 07 §5.1.1 点名的三个名字：`rerank_node_used{provider,model}` · `rerank_fallback_used_total{provider,model}` · `rerank_fail_total{kind}`。落地点在 **http / mock 两个客户端的端点链内**（`services/gateway/http-client.ts` · `mock-client.ts`）：成功时记「本轮实际用的端点」，`ei > 0` 才算 fallback；每次端点尝试失败记 fail。
+- **口径（本票钉的，Non-PRD-公式）**：rerank **没有** DB `ModelRef`（`resolve.ts` `purposeEndpoints.rerank` 只有 baseUrl/apiKey/model）→ `node` 落**端点标识**，不是 DB provider；`rerank_fail_total{kind}` 记的是**逃出该端点**的 kind（同端点重试耗尽会被重试器归为 `exhausted`）。与调用级 `rerank_total{ok,kind}`（`retrieve.ts` 打点）**两个口径，不互为重复计数**。
+- 测例：`tests/obs/metrics.test.ts` 扩到 3 例（标签聚合含 `fallback`；`unknown` 与 `false` 不混；rerank 三维按端点聚合）+ 新增 `tests/obs/metrics-fallback-wiring.test.ts` 5 例（`chatFromGateway` 真值接线：fallback=true / false / 失败 unknown；mock gateway 双端点：首选失败换端点 → node 记备用端点 + fallback 计数 1 + fail 计数；首选直答 → fallback 0）。全为纯单测，无真 Gateway / 无集群。
+
+**没做什么**
+
+- 未做 P4 级 `rerank_latency_p95` / `rerank_failover_rate_1h` 与任何直方图；未接 Prometheus / Grafana / 告警规则。
+- 未改 Gateway 契约语义（`ChatResult.meta` 只被透出，含义不变）、未改限流与三平面配额语义、未改检索闸与门禁。
+- 未改 `prds/00–11`。
+
+**验证**
+
+- `pnpm --filter @strict-rag/api exec vitest run tests/obs`：**10 files / 60 passed**（含新增 8 例）。
+- `pnpm --filter @strict-rag/api test`：131 files / **840 passed** + 3 skipped，**唯一失败项**是既有脆弱测例 `tests/acl/kb-member-gate.test.ts > POST members without auth → 401`（`Test timed out in 5000ms`，本轮实测 6278ms；此前已用基线对照确认与本图各票无关，见地图「回归债（脆弱测例）」）。本票改动不涉 `createApp` 启动路径。
+- `pnpm --filter @strict-rag/api lint`：仍是**既有 7 条** warning（本票零新增）。
+- `pnpm --filter @strict-rag/api check-types`：绿。
+- 回写：`.trellis/spec/api/backend/model-gateway.md` §9 增「观测」表 + Tests 行；`docs/ops/rate-limit-and-metrics.md`（§3 指标名例 + 变更记录 + §3.3 清单补「`rerank_node_used` 的 `provider` 是内部端点地址，仍勿对公网开放」）；`docs/module-status/api.md`（观测骨架行 + 最近更新）；`apps/api/tests/index.md` 两行。
+
 ## Comments
 
 - 2026-09-16 由 [裁定 93](./93-after-92-order.md) 排为本批首张：功能表级必须项、真值已在手、纯单测可钉。
+- 2026-09-16 完成。切边：只补维，不做 P4 直方图与远端导出；`rerank_total` 调用级口径保持不动。
