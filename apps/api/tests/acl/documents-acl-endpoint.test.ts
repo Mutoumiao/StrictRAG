@@ -186,6 +186,29 @@ describe('PUT /documents/:docId/acl', () => {
     expect(store.rows.find((r) => r.id === DOC_OUT)?.aclPrincipals).toEqual([USER_IN]);
   });
 
+  it('收紧才提示需 reindex（功能表 §5.5 / ADR-009 决策 4），放宽不提示', async () => {
+    const app = buildApp();
+    const editor = await token(USER_IN);
+    const put = (docId: string, aclPrincipals: string[] | null) =>
+      app.request(`/api/v1/documents/${docId}/acl`, {
+        method: 'PUT',
+        headers: { authorization: `Bearer ${editor}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ aclPrincipals }),
+      });
+    const flag = async (res: Response) =>
+      ((await res.json()) as { data: { reindexRequired: boolean } }).data.reindexRequired;
+
+    // 收紧：null → [] / null → 名单 / 名单 → [] / 名单 → 更窄
+    expect(await flag(await put(DOC_NULL, []))).toBe(true);
+    expect(await flag(await put(DOC_OUT, [USER_IN]))).toBe(true);
+    expect(await flag(await put(DOC_OUT, []))).toBe(true);
+    expect(await flag(await put(DOC_IN, [USER_OUT]))).toBe(true);
+    // 放宽 / 不变：[] → null / 名单扩容 / 原值
+    expect(await flag(await put(DOC_EMPTY, null))).toBe(false);
+    expect(await flag(await put(DOC_IN, [USER_IN, USER_OUT]))).toBe(false);
+    expect(await flag(await put(DOC_NULL, null))).toBe(false);
+  });
+
   it('非法 body（非 uuid / 多余字段 / 缺字段）→ 400，且不写仓', async () => {
     const editor = await token(USER_IN);
     const headers = { authorization: `Bearer ${editor}`, 'content-type': 'application/json' };

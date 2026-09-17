@@ -280,6 +280,32 @@ export const PutDocumentAclBodySchema = z
   .strict();
 export type PutDocumentAclBody = z.infer<typeof PutDocumentAclBodySchema>;
 
+/**
+ * PUT /documents/:docId/acl 响应 = GET 形状 + `reindexRequired`。
+ * `aclPrincipals` 是**索引字段**，收紧后 ES 路要等 reindex 才跟上（ADR-009 决策 4 · ES PRD §4.3
+ * 「ACL 收紧须 reindex 后确认」）；该信号只在写入那一刻有意义，GET 不回带。
+ */
+export const PutDocumentAclResponseSchema = DocumentAclSchema.extend({
+  reindexRequired: z.boolean(),
+});
+export type PutDocumentAclResponse = z.infer<typeof PutDocumentAclResponseSchema>;
+
+/**
+ * 收紧判定：**新集合不再是旧集合的超集**（有人失去可读性）。
+ * `null` = 字段缺失 = 该 KB 全体成员可读；`[]` = 无人可读；非空 = 仅命中者可读。
+ * 同一个 `userId` 在旧集合可读、在新集合不可读 → 收紧（`[a] → [b]` 亦算）。
+ */
+export function aclTightens(
+  prev: readonly string[] | null | undefined,
+  next: readonly string[] | null | undefined,
+): boolean {
+  const previous = prev ?? null;
+  const upcoming = next ?? null;
+  if (previous === null) return upcoming !== null;
+  const nextSet = new Set(upcoming ?? []);
+  return previous.some((principal) => !nextSet.has(principal));
+}
+
 /** POST …/documents/:docId/approve | reject */
 export const DocumentApprovalActionResponseSchema = z.object({
   docId: z.string().uuid(),

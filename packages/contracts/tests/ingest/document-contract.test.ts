@@ -18,6 +18,8 @@ import {
   PatchDocumentMetaBodySchema,
   DocumentAclSchema,
   PutDocumentAclBodySchema,
+  PutDocumentAclResponseSchema,
+  aclTightens,
   ReindexDocumentResponseSchema,
   DeleteDocumentResponseSchema,
   SupersedeDocumentBodySchema,
@@ -306,6 +308,37 @@ describe('DocumentAclSchema / PutDocumentAclBodySchema（PRD 05-api §2.4）', (
         ),
       }).success,
     ).toBe(false);
+  });
+
+  it('PUT 响应在 GET 形上带 reindexRequired；缺该字段拒', () => {
+    expect(
+      PutDocumentAclResponseSchema.safeParse({
+        docId: DOC,
+        aclPrincipals: [U1],
+        reindexRequired: true,
+      }).success,
+    ).toBe(true);
+    expect(
+      PutDocumentAclResponseSchema.safeParse({ docId: DOC, aclPrincipals: null }).success,
+    ).toBe(false);
+  });
+
+  it('aclTightens：有人失去可读性才算收紧', () => {
+    const A = U1;
+    const B = '018f0000-0000-7000-8000-0000000000e2';
+    // 收紧
+    expect(aclTightens(null, [])).toBe(true);
+    expect(aclTightens(null, [A])).toBe(true);
+    expect(aclTightens([A, B], [B])).toBe(true);
+    expect(aclTightens([A], [])).toBe(true);
+    expect(aclTightens([A], [B])).toBe(true);
+    expect(aclTightens(undefined, [])).toBe(true);
+    // 放宽 / 不变
+    expect(aclTightens([], null)).toBe(false);
+    expect(aclTightens([A], [A, B])).toBe(false);
+    expect(aclTightens([A], [A])).toBe(false);
+    expect(aclTightens(null, null)).toBe(false);
+    expect(aclTightens(null, undefined)).toBe(false);
   });
 });
 

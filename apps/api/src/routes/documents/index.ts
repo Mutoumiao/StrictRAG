@@ -16,6 +16,8 @@ import {
   PatchDocumentMetaBodySchema,
   DocumentAclSchema,
   PutDocumentAclBodySchema,
+  PutDocumentAclResponseSchema,
+  aclTightens,
   PatchLifecycleBodySchema,
   SupersedeDocumentBodySchema,
   ReindexDocumentBodySchema,
@@ -807,12 +809,33 @@ documentRoutes.put('/documents/:docId/acl', requirePermission('doc.editor'), asy
   if (!doc) {
     return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
   }
+  // 收紧（有人失去可读性）→ ES 索引字段滞后，须 reindex 才对稀疏路生效（ADR-009 决策 4）
+  const reindexRequired = aclTightens(doc.aclPrincipals ?? null, parsed.data.aclPrincipals);
   await documentRepo.patchMeta(docId, { aclPrincipals: parsed.data.aclPrincipals });
   const updated = await documentRepo.getDoc(docId);
   if (!updated) {
     return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
   }
-  return ok(c, DocumentAclSchema.parse({ docId, aclPrincipals: updated.aclPrincipals ?? null }));
+  if (reindexRequired) {
+    logger.info(
+      {
+        event: 'doc_acl_tightened',
+        docId,
+        kbId: doc.kbId,
+        indexVersion: doc.indexVersion,
+        reindexRequired: true,
+      },
+      'doc acl tightened; ES 侧须 reindex 后才最终一致',
+    );
+  }
+  return ok(
+    c,
+    PutDocumentAclResponseSchema.parse({
+      docId,
+      aclPrincipals: updated.aclPrincipals ?? null,
+      reindexRequired,
+    }),
+  );
 });
 
 /** GET /api/v1/documents/:docId/ingest-jobs — 只读账本，不写 */

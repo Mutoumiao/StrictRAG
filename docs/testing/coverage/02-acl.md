@@ -8,7 +8,7 @@
 
 - `AUTH_ENFORCE` **默认关**。`apps/api/tests/auth/enforce-401.test.ts` 只证明开 enforce 且无 Bearer → 401，以及默认关时 WhenEnforced 放行。B1 默认路径**不**当作生产 enforce 已测。
 - `DEPT_ACL_ENFORCE` **默认关**。AE3 为兼容行为；AE4 起强制开属 P3 / 开强制后。
-- 文档级 `aclPrincipals` 用户 uuid 名单最小已落（PG 把关；ES 查询期非超管 should 收窄；不跟 `DEPT_ACL_ENFORCE`；**≠** 角色 principal / 默认开强制）。B2-2 / B2-3 仍延后。
+- 文档级 `aclPrincipals` 用户 uuid 名单最小已落（PG 把关；ES 查询期非超管 should 收窄；不跟 `DEPT_ACL_ENFORCE`；**≠** 角色 principal / 默认开强制）。B2-2 / B2-3 已转**部分测**（收紧外显 `reindexRequired` + 「索引滞后不构成泄漏」夹具）；仍欠：角色码 principal、自动 reindex、dense 反向构造。
 - 成员闸 / 分片 / 面板 / 设置 / 部门走 `requirePermission`（与 enforce 开关无关）；上传 / 审批 / lifecycle 多走 `requirePermissionWhenEnforced`。
 
 ## 剧本 B · 权限（Phase 2 底线 / Phase 3 细粒度）
@@ -40,8 +40,8 @@
 | ID | 期望摘要 | 阶段 | 形态 | 覆盖 | 主包 | 证据 | 缺口 |
 |----|----------|------|------|------|------|------|------|
 | B2-1 | 成员无文档 D 权限，问仅 D 能答的题：不得 verified 泄漏 D；evidence 无 D | P3 文档ACL | 注入 | 部分测 | api | apps/api/tests/acl/doc-acl-principals.test.ts；apps/api/tests/acl/documents-acl-principals.test.ts（`filterDocsForAclPrincipals` 未授权文档不进结果）；`loadCorpusFromDb` 部门滤后再 principals | 无 E2E 问句泄漏 / 无 ask HTTP evidence 断言 |
-| B2-2 | principal 变更（移出 role）+ reindex 后该文档对该用户不可检索 | P3 文档ACL | — | 延后 | api | PG 滤即时生效；无自动 reindex；ES 不写 principals | 角色码 principal / reindex-on-change 未做 |
-| B2-3 | dense 单路亦过文档 ACL（构造「dense 不过滤会召回」） | P3 文档ACL | — | 延后 | api | PG corpus 滤后 dense 同源；无「dense 不过滤会召回」构造 | 无 dense 单路负向夹具 |
+| B2-2 | principal 变更（移出 role）+ reindex 后该文档对该用户不可检索 | P3 文档ACL | 单测 | 部分测 | api | apps/api/tests/acl/documents-acl-endpoint.test.ts（PUT 收紧回 `reindexRequired`）；apps/api/tests/acl/acl-tighten-index-lag.test.ts（PG 闸即时：ES 旧命中不进 evidence） | 角色码 principal 未做；**无自动 reindex**（收紧只外显 `reindexRequired` + 日志，须人工 Reindex；前置：缺「激活 version」表示） |
+| B2-3 | dense 单路亦过文档 ACL（构造「dense 不过滤会召回」） | P3 文档ACL | 单测 | 部分测 | api | apps/api/tests/acl/acl-tighten-index-lag.test.ts（dense 输入即闸后语料，稀疏旧命中被丢弃、语料空则 `kb_not_ready`）；apps/api/tests/acl/doc-acl-principals.test.ts（`filterDocsForAclPrincipals`） | 无「绕过 loader 让 dense 召回不可读块」的显式反向构造（现构造里 loader 就是闸） |
 | B2-4 | 缺省无 `aclPrincipals` → KB 内成员可读；显式 `[]` → 不可读 | P3 文档ACL | 单测 | 已测 | api | apps/api/tests/acl/doc-acl-principals.test.ts（null 可见 / `[]` 不可见）；apps/api/tests/acl/documents-acl-principals.test.ts（PATCH 三态；列表 `[]` 不含、null 含）；packages/contracts/tests/ingest/document-contract.test.ts | — |
 
 **安全签字（原文）**：B1 + B1-A3 试点必签；大库加签 B1-A1；B2 上敏感库前必签。
@@ -140,10 +140,10 @@
 | 覆盖 | 行数 |
 |------|------|
 | 已测 | 22 |
-| 部分测 | 37 |
+| 部分测 | 39 |
 | 缺测 | 2 |
 | 缺实现 | 1 |
-| 延后 | 4 |
+| 延后 | 2 |
 | UAT | 3 |
 | **合计** | **69** |
 
@@ -154,4 +154,4 @@ P2 必签且 `缺测` / `部分测` 才进补测清单。本册该子集：
 - **缺测**：S6（建议，可不进下一批）、Z3（建议）
 - **部分测**（P2必签/契约/授码，不含 AE4+ 与 X6）：B1-2 B1-3 B1-5 B1-8 B1-A3 · S1–S5 S8 S9 · Y1 Y2 Y3 Y5 Y6 · W6 W8 · Z4 Z5 Z6 Z8 · AE1 · X2 X4 X5 X7
 
-AE4–AE8、AE10–AE12 为 P3 / 开强制后；B2 为 P3 文档 ACL（延后）；B1-A4 缺实现。均**不是**本阶段欠测债。
+AE4–AE8、AE10–AE12 为 P3 / 开强制后；B2-2 / B2-3 已部分测（剩余：角色码 principal、自动 reindex、dense 反向构造）；B1-A4 缺实现。均**不是**本阶段欠测债。
