@@ -8,6 +8,8 @@
 | 关联工单 | `.scratch/fill-must-haves/map.md` → `Not yet specified` · 「工程债（迁移工具）」 |
 | 输出用途 | wayfinder 地图「下一张裁定工单」的取证材料 |
 
+> **后记（2026-09-17 · 本批收口时补）**：本报告卡在 `a7aa2bd` 基线，故正文写「缺 `0001`–`0018` 共 **18** 份快照」「基线快照应命名 `0018_snapshot.json`」。本批工单 105 新增了迁移 `0019_ingest_report_contextualize_counts`（手写 SQL + 手写 journal 条目 idx 19），因此**当前事实是**：journal **20** 条（idx 0–19）、缺 `0001`–`0019` 共 **19** 份快照、基线快照应命名 **`0019_snapshot.json`**（**不能**叫 `0020`——那是下一次 `generate` 要写出的文件名）。报告其余结论（死因机制、`check` 假绿、`migrate` 不读快照、生成器无 `IF NOT EXISTS`、零漂移、无生产上线证据、推荐 A1）**不随该编号变化**，仍成立。地图同一处已按 19 修正。
+
 ---
 
 ## 0. 结论先行（TL;DR）
