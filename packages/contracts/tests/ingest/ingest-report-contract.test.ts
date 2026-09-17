@@ -26,6 +26,8 @@ const ROW = {
   dedupeCrossDocRate: 0.2,
   conflictPairs: [PAIR],
   contextSource: 'l0' as const,
+  contextualizeL1Ok: 3,
+  contextualizeL0Fallback: 1,
   dualReady: true,
   embedReady: true,
   esReady: true,
@@ -66,6 +68,24 @@ describe('IngestReportItemSchema', () => {
     const withoutRate: Record<string, unknown> = { ...ROW };
     delete withoutRate.dedupeCrossDocRate;
     expect(IngestReportItemSchema.safeParse(withoutRate).success).toBe(false);
+  });
+
+  it('contextualize 两计数可空（旧行未记录），但不得为负或非整数', () => {
+    const parsed = IngestReportItemSchema.parse({
+      ...ROW,
+      contextualizeL1Ok: null,
+      contextualizeL0Fallback: null,
+    });
+    expect(parsed.contextualizeL1Ok).toBeNull();
+    expect(parsed.contextualizeL0Fallback).toBeNull();
+
+    expect(IngestReportItemSchema.safeParse({ ...ROW, contextualizeL1Ok: -1 }).success).toBe(false);
+    expect(IngestReportItemSchema.safeParse({ ...ROW, contextualizeL0Fallback: 1.5 }).success).toBe(
+      false,
+    );
+    const withoutCounts: Record<string, unknown> = { ...ROW };
+    delete withoutCounts.contextualizeL0Fallback;
+    expect(IngestReportItemSchema.safeParse(withoutCounts).success).toBe(false);
   });
 
   it('拒绝 Hit@k 与 pending_review 装齐字段', () => {

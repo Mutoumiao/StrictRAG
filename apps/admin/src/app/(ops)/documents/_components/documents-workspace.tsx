@@ -55,7 +55,7 @@ import {
   type LoadDepartmentOptionsResult,
 } from '../meta.services';
 import { loadIngestJobs } from '../jobs.services';
-import { dedupeRateLabel, loadIngestReports, NO_INGEST_REPORT_HINT, reportsForDoc } from '../report.services';
+import { contextualizeCountsLabel, dedupeRateLabel, loadIngestReports, NO_INGEST_REPORT_HINT, reportsForDoc } from '../report.services';
 import {
   canArchive,
   canPublish,
@@ -1192,7 +1192,11 @@ export function DocumentsWorkspace() {
                                     v{r.indexVersion} · 分片 {r.chunkCount} · 文档内去重{' '}
                                     {r.internalDropped} · 跨文档去重 {r.crossDocDropped} · 跨文档去重率{' '}
                                     {dedupeRateLabel(r.dedupeCrossDocRate)}
-                                    {r.contextSource ? ` · 情境 ${r.contextSource}` : ''}
+                                    {r.contextSource ? ` · 情境 ${r.contextSource}` : ''} ·{' '}
+                                    {contextualizeCountsLabel(
+                                      r.contextualizeL1Ok,
+                                      r.contextualizeL0Fallback,
+                                    )}
                                     {r.conflictPairs.length > 0
                                       ? ` · 冲突 ${r.conflictPairs.map((p) => p.otherDocId).join(', ')}`
                                       : ''}

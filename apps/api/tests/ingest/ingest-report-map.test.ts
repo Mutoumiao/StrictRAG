@@ -21,6 +21,8 @@ describe('toIngestReportItem', () => {
       crossDocDropped: 2,
       dedupeCrossDocRate: 0.3333333,
       contextSource: 'l0_fallback',
+      contextualizeL1Ok: 5,
+      contextualizeL0Fallback: 1,
       conflictPairs: [
         {
           otherDocId: '01900000-0000-7000-8000-0000000000d2',
@@ -40,6 +42,8 @@ describe('toIngestReportItem', () => {
     expect(item.crossDocDropped).toBe(2);
     expect(item.dedupeCrossDocRate).toBeCloseTo(0.3333333, 6);
     expect(item.contextSource).toBe('l0_fallback');
+    expect(item.contextualizeL1Ok).toBe(5);
+    expect(item.contextualizeL0Fallback).toBe(1);
     expect(item.conflictPairs).toHaveLength(1);
     expect(item.reconcile).toEqual({ ok: true, missingCount: 0, orphanCount: 0 });
   });
@@ -55,6 +59,8 @@ describe('toIngestReportItem', () => {
       crossDocDropped: 0,
       dedupeCrossDocRate: null,
       contextSource: 'bogus',
+      contextualizeL1Ok: null,
+      contextualizeL0Fallback: null,
       conflictPairs: [],
       dualReady: 0,
       embedReady: 0,
@@ -70,5 +76,8 @@ describe('toIngestReportItem', () => {
     // 分母为 0 → 未记录，不得被映射成 0
     expect(item.dedupeCrossDocRate).toBeNull();
     expect(item.contextSource).toBeNull();
+    // 迁移前旧行两计数未记录 → 同样不得填 0
+    expect(item.contextualizeL1Ok).toBeNull();
+    expect(item.contextualizeL0Fallback).toBeNull();
   });
 });

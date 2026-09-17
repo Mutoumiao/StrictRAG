@@ -600,12 +600,20 @@ async function runIngestStageCore(
       // 只要有一块没走上 L1，就不声称本轮 l1_llm（块自身 prefix 已各自回退 L0）
       const contextSource: ContextSource =
         l1 && l1Ok > 0 && l1Fallback === 0 ? 'l1_llm' : resolveContextSource(contextMode);
+      // 报告计数与 contextSource 同口径（PRD 04 §5.2）：文档请求了 L1 而本轮未实际调用
+      // （worker `INGEST_CONTEXTUALIZE_MODE≠http`）时整轮按回退计，不得出现「情境 l0_fallback · L0 回退 0」。
+      const contextualizeL1Ok = l1 ? l1Ok : 0;
+      const contextualizeL0Fallback = l1
+        ? l1Fallback
+        : contextSource === 'l0_fallback'
+          ? chunkIds.length
+          : 0;
       log.info(
         {
           event: 'contextualize_summary',
           docId: doc.id,
-          contextualize_l1_ok: l1Ok,
-          contextualize_l0_fallback: l1Fallback,
+          contextualize_l1_ok: contextualizeL1Ok,
+          contextualize_l0_fallback: contextualizeL0Fallback,
           contextSource,
         },
         'contextualize summary',
@@ -627,6 +635,8 @@ async function runIngestStageCore(
           crossDocDropped,
           conflictPairs,
           contextSource,
+          contextualizeL1Ok,
+          contextualizeL0Fallback,
           dualReady: false,
           embedReady: false,
           esReady: false,
@@ -661,6 +671,8 @@ async function runIngestStageCore(
         crossDocDropped,
         conflictPairs,
         contextSource,
+        contextualizeL1Ok,
+        contextualizeL0Fallback,
         dualReady: false,
         embedReady: false,
         esReady: false,

@@ -1,8 +1,8 @@
 /**
- * 目标：入库报告落库只写真事；同 version 更新保留文档内与跨 doc dropped；去重率与计数同源。
- * 需求：功能表 §4.3 / §5.2 · prds/04-pipelines 入库报告 §5.2
+ * 目标：入库报告落库只写真事；同 version 更新保留文档内与跨 doc dropped；去重率与计数同源；contextualize 两计数不得被后阶段复写。
+ * 需求：功能表 §4.3 / §5.2 · prds/04-pipelines 入库报告 §5.2（指标必出）
  * 被测：buildIngestReportInsert · persistIngestReport · dedupeCrossDocRate
- * 简介：非阻断；含跨 doc 冲突对与 `dedupe_cross_doc_rate`（分母 0 → null）；不含 Hit@k。
+ * 简介：非阻断；含跨 doc 冲突对、`dedupe_cross_doc_rate`（分母 0 → null）与 `contextualize_l1_ok` / `contextualize_l0_fallback`；不含 Hit@k。
  */
 
 import { ingestReports } from '@strict-rag/db';
@@ -31,6 +31,8 @@ const SNAP: IngestReportSnapshot = {
   crossDocDropped: 3,
   conflictPairs: [PAIR],
   contextSource: 'l0',
+  contextualizeL1Ok: 3,
+  contextualizeL0Fallback: 1,
   dualReady: false,
   embedReady: false,
   esReady: false,
@@ -47,6 +49,8 @@ describe('ingest report persist', () => {
     expect(row.dedupeCrossDocRate).toBeCloseTo(1 / 3, 6);
     expect(row.conflictPairs).toEqual([PAIR]);
     expect(row.contextSource).toBe('l0');
+    expect(row.contextualizeL1Ok).toBe(3);
+    expect(row.contextualizeL0Fallback).toBe(1);
     expect(row.dualReady).toBe(0);
     expect(row.reconcileOk).toBeNull();
     expect(row.reconcileMissing).toBeNull();
@@ -102,6 +106,8 @@ describe('ingest report persist', () => {
                   crossDocDropped: 3,
                   conflictPairs: [PAIR],
                   contextSource: 'l0',
+                  contextualizeL1Ok: 3,
+                  contextualizeL0Fallback: 1,
                 },
               ];
             },
@@ -129,6 +135,8 @@ describe('ingest report persist', () => {
       crossDocDropped: 0,
       conflictPairs: [],
       contextSource: null,
+      contextualizeL1Ok: null,
+      contextualizeL0Fallback: null,
       dualReady: true,
       embedReady: true,
       esReady: true,
@@ -140,12 +148,17 @@ describe('ingest report persist', () => {
       internalDropped: number;
       crossDocDropped: number;
       conflictPairs: unknown;
+      contextualizeL1Ok: number | null;
+      contextualizeL0Fallback: number | null;
       dualReady: number;
     };
     expect(patch.internalDropped).toBe(2);
     expect(patch.crossDocDropped).toBe(3);
     expect(patch.conflictPairs).toEqual([PAIR]);
     expect(patch.contextSource).toBe('l0');
+    // 后阶段（es_index）不带计数，不得把 chunk 段已记录值复写成 null
+    expect(patch.contextualizeL1Ok).toBe(3);
+    expect(patch.contextualizeL0Fallback).toBe(1);
     expect(patch.dualReady).toBe(1);
   });
 });

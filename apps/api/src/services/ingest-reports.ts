@@ -15,6 +15,8 @@ export function toIngestReportItem(row: {
   dedupeCrossDocRate: number | null;
   conflictPairs: IngestReportConflictPair[] | null;
   contextSource: string | null;
+  contextualizeL1Ok: number | null;
+  contextualizeL0Fallback: number | null;
   dualReady: number;
   embedReady: number;
   esReady: number;
@@ -48,6 +50,9 @@ export function toIngestReportItem(row: {
       row.contextSource === 'l1_llm'
         ? row.contextSource
         : null,
+    // 同上：NULL = 迁移前旧行未记录，不得改写成 0
+    contextualizeL1Ok: row.contextualizeL1Ok ?? null,
+    contextualizeL0Fallback: row.contextualizeL0Fallback ?? null,
     dualReady: row.dualReady === 1,
     embedReady: row.embedReady === 1,
     esReady: row.esReady === 1,
@@ -74,6 +79,8 @@ export const ingestReportsRepo: IngestReportRepo = {
         dedupeCrossDocRate: ingestReports.dedupeCrossDocRate,
         conflictPairs: ingestReports.conflictPairs,
         contextSource: ingestReports.contextSource,
+        contextualizeL1Ok: ingestReports.contextualizeL1Ok,
+        contextualizeL0Fallback: ingestReports.contextualizeL0Fallback,
         dualReady: ingestReports.dualReady,
         embedReady: ingestReports.embedReady,
         esReady: ingestReports.esReady,

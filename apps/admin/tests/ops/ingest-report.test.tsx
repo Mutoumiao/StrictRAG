@@ -1,14 +1,18 @@
 /**
  * 目标：文档行展开须展示入库报告（含跨文档去重率）；无报告须出「暂无入库报告」；率未记录不得显示 0%。
  * 需求：功能表 §4.3 入库报告入口 · prds/04-pipelines 入库报告 §5.2
- * 被测：DocumentsWorkspace · reportsForDoc · dedupeRateLabel
- * 简介：库级 GET 后按本行 doc 过滤；HTTP 真值在 api。
+ * 被测：DocumentsWorkspace · reportsForDoc · dedupeRateLabel · contextualizeCountsLabel
+ * 简介：库级 GET 后按本行 doc 过滤；未记录的计数与去重率一律明说未记录；HTTP 真值在 api。
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { render, screen, userEvent } from '@/test/test-utils';
-import { dedupeRateLabel, reportsForDoc } from '@/app/(ops)/documents/report.services';
+import {
+  contextualizeCountsLabel,
+  dedupeRateLabel,
+  reportsForDoc,
+} from '@/app/(ops)/documents/report.services';
 import type { IngestReportItem } from '@strict-rag/contracts';
 
 const me = {
@@ -112,6 +116,8 @@ const mine: IngestReportItem = {
   crossDocDropped: 1,
   dedupeCrossDocRate: 0.2,
   contextSource: 'l0' as const,
+  contextualizeL1Ok: 3,
+  contextualizeL0Fallback: 0,
   conflictPairs: [
     {
       otherDocId: OTHER_ID,
@@ -163,7 +169,7 @@ describe('DocumentsWorkspace 入库报告', () => {
     await user.click(await screen.findByText('请假制度'));
     expect(
       await screen.findByText(
-        /v1 · 分片 3 · 文档内去重 1 · 跨文档去重 1 · 跨文档去重率 20.0% · 情境 l0/,
+        /v1 · 分片 3 · 文档内去重 1 · 跨文档去重 1 · 跨文档去重率 20.0% · 情境 l0 · L1 成功 3 · L0 回退 0/,
       ),
     ).toBeInTheDocument();
     expect(screen.getByText(new RegExp(`冲突 ${OTHER_ID}`))).toBeInTheDocument();
@@ -181,6 +187,26 @@ describe('DocumentsWorkspace 入库报告', () => {
     await user.click(await screen.findByText('请假制度'));
     expect(await screen.findByText(/跨文档去重率 未记录（本轮无参与去重的切片）/)).toBeInTheDocument();
     expect(screen.queryByText(/跨文档去重率 0\.0%/)).not.toBeInTheDocument();
+  });
+
+  it('contextualize 计数未记录（迁移前旧行）时明说未记录', async () => {
+    loadIngestReports.mockResolvedValue({
+      ok: true,
+      reports: [{ ...mine, contextualizeL1Ok: null, contextualizeL0Fallback: null }],
+    });
+    render(<DocumentsWorkspace />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByText('请假制度'));
+    expect(await screen.findByText(/L1\/L0 计数未记录/)).toBeInTheDocument();
+  });
+});
+
+describe('contextualizeCountsLabel', () => {
+  it('两计数齐时给数字；任一缺失即整组未记录（不得补 0）', () => {
+    expect(contextualizeCountsLabel(3, 1)).toBe('L1 成功 3 · L0 回退 1');
+    expect(contextualizeCountsLabel(0, 0)).toBe('L1 成功 0 · L0 回退 0');
+    expect(contextualizeCountsLabel(null, 0)).toBe('L1/L0 计数未记录');
+    expect(contextualizeCountsLabel(3, undefined)).toBe('L1/L0 计数未记录');
   });
 });
 

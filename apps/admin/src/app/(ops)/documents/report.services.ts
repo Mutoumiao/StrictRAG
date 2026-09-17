@@ -19,6 +19,20 @@ export function dedupeRateLabel(rate: number | null | undefined): string {
   return `${(rate * 100).toFixed(1)}%`;
 }
 
+/**
+ * `contextualize_l1_ok` / `contextualize_l0_fallback`（PRD 04 §5.2 报告必出）。
+ * **未记录就不给数字**（迁移前旧行）；两者同批写入，任一缺失即整组未记录。
+ */
+export function contextualizeCountsLabel(
+  l1Ok: number | null | undefined,
+  l0Fallback: number | null | undefined,
+): string {
+  if (typeof l1Ok !== 'number' || typeof l0Fallback !== 'number') {
+    return 'L1/L0 计数未记录';
+  }
+  return `L1 成功 ${l1Ok} · L0 回退 ${l0Fallback}`;
+}
+
 export function reportsForDoc(
   reports: readonly IngestReportItem[],
   docId: string,

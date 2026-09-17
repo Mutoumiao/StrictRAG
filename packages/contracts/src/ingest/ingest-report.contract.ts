@@ -30,6 +30,12 @@ export const IngestReportItemSchema = z
     dedupeCrossDocRate: z.number().min(0).max(1).nullable(),
     conflictPairs: z.array(IngestReportConflictPairSchema),
     contextSource: z.enum(CONTEXT_SOURCES).nullable(),
+    /**
+     * `contextualize_l1_ok` / `contextualize_l0_fallback`（PRD 04 §5.2「指标（入库报告必出）」）。
+     * **null = 未记录**（迁移前旧行）；L1 未开启的本轮为 0，须与 `contextSource` 一并判读。
+     */
+    contextualizeL1Ok: z.number().int().nonnegative().nullable(),
+    contextualizeL0Fallback: z.number().int().nonnegative().nullable(),
     dualReady: z.boolean(),
     embedReady: z.boolean(),
     esReady: z.boolean(),

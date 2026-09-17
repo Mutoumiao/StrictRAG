@@ -25,6 +25,10 @@ export type IngestReportSnapshot = {
   crossDocDropped: number;
   conflictPairs: readonly IngestReportConflictPair[];
   contextSource?: ContextSource | null;
+  /** PRD 04 §5.2 `contextualize_l1_ok`；缺省/未记录 = null */
+  contextualizeL1Ok?: number | null;
+  /** PRD 04 §5.2 `contextualize_l0_fallback`；缺省/未记录 = null */
+  contextualizeL0Fallback?: number | null;
   dualReady: boolean;
   embedReady: boolean;
   esReady: boolean;
@@ -73,6 +77,8 @@ export function buildIngestReportInsert(snapshot: IngestReportSnapshot) {
     dedupeCrossDocRate: dedupeCrossDocRate(snapshot),
     conflictPairs: [...snapshot.conflictPairs],
     contextSource: snapshot.contextSource ?? null,
+    contextualizeL1Ok: snapshot.contextualizeL1Ok ?? null,
+    contextualizeL0Fallback: snapshot.contextualizeL0Fallback ?? null,
     dualReady: flag(snapshot.dualReady),
     embedReady: flag(snapshot.embedReady),
     esReady: flag(snapshot.esReady),
@@ -91,6 +97,8 @@ export function buildIngestReportPatch(snapshot: IngestReportSnapshot) {
     dedupeCrossDocRate: row.dedupeCrossDocRate,
     conflictPairs: row.conflictPairs,
     contextSource: row.contextSource,
+    contextualizeL1Ok: row.contextualizeL1Ok,
+    contextualizeL0Fallback: row.contextualizeL0Fallback,
     dualReady: row.dualReady,
     embedReady: row.embedReady,
     esReady: row.esReady,
@@ -109,6 +117,8 @@ export async function persistIngestReport(db: Db, snapshot: IngestReportSnapshot
         crossDocDropped: ingestReports.crossDocDropped,
         conflictPairs: ingestReports.conflictPairs,
         contextSource: ingestReports.contextSource,
+        contextualizeL1Ok: ingestReports.contextualizeL1Ok,
+        contextualizeL0Fallback: ingestReports.contextualizeL0Fallback,
       })
       .from(ingestReports)
       .where(
@@ -124,6 +134,10 @@ export async function persistIngestReport(db: Db, snapshot: IngestReportSnapshot
       crossDocDropped: existing[0]?.crossDocDropped ?? snapshot.crossDocDropped,
       conflictPairs: existing[0]?.conflictPairs ?? snapshot.conflictPairs,
       contextSource: keepContextSource(existing[0]?.contextSource, snapshot.contextSource),
+      // 已记录值不被后阶段（embed / es_index）的空快照复写
+      contextualizeL1Ok: existing[0]?.contextualizeL1Ok ?? snapshot.contextualizeL1Ok ?? null,
+      contextualizeL0Fallback:
+        existing[0]?.contextualizeL0Fallback ?? snapshot.contextualizeL0Fallback ?? null,
     };
     if (existing[0]) {
       await db

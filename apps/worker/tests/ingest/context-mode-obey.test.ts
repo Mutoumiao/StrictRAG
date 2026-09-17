@@ -180,6 +180,8 @@ describe('chunk 服从 contextMode 快照', () => {
     expect(result.errorCode).toBeUndefined();
     expect(state.chunks[0]?.contextPrefix).toBe('考勤制度');
     expect(state.reports[0]).toMatchObject({ contextSource: 'l0_fallback' });
+    // L1 被请求但本轮未实际调用（模式非 http）→ 整轮按回退计，与 contextSource 同口径
+    expect(state.reports[0]).toMatchObject({ contextualizeL1Ok: 0, contextualizeL0Fallback: 1 });
     expect(JSON.stringify(state.reports[0])).not.toMatch(/l1_llm/);
   });
 
@@ -223,6 +225,7 @@ describe('L1 contextualize（INGEST_CONTEXTUALIZE_MODE=http）', () => {
     expect(state.chunks).toHaveLength(1);
     expect(state.chunks[0]?.contextPrefix).toBe('考勤制度：请假提交与审批要求');
     expect(state.reports[0]).toMatchObject({ contextSource: 'l1_llm' });
+    expect(state.reports[0]).toMatchObject({ contextualizeL1Ok: 1, contextualizeL0Fallback: 0 });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     // 正文不得被改写（只加 prefix）
     expect(state.chunks[0]?.bodyText).toBe(BODY);
@@ -238,6 +241,7 @@ describe('L1 contextualize（INGEST_CONTEXTUALIZE_MODE=http）', () => {
     expect(state.chunks).toHaveLength(1);
     expect(state.chunks[0]?.contextPrefix).toBe('考勤制度');
     expect(state.reports[0]).toMatchObject({ contextSource: 'l0_fallback' });
+    expect(state.reports[0]).toMatchObject({ contextualizeL1Ok: 0, contextualizeL0Fallback: 1 });
   });
 
   it('l0_template 不调 LLM（即便 http 开着）', async () => {
@@ -250,5 +254,6 @@ describe('L1 contextualize（INGEST_CONTEXTUALIZE_MODE=http）', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(state.chunks[0]?.contextPrefix).toBe('考勤制度');
     expect(state.reports[0]).toMatchObject({ contextSource: 'l0' });
+    expect(state.reports[0]).toMatchObject({ contextualizeL1Ok: 0, contextualizeL0Fallback: 0 });
   });
 });

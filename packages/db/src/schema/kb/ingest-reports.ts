@@ -30,6 +30,12 @@ export const ingestReports = pgTable(
     dedupeCrossDocRate: real('dedupe_cross_doc_rate'),
     conflictPairs: jsonb('conflict_pairs').$type<IngestReportConflictPair[]>().notNull(),
     contextSource: text('context_source'),
+    /**
+     * `contextualize_l1_ok` / `contextualize_l0_fallback`（PRD 04 §5.2「指标（入库报告必出）」）。
+     * **无默认**：NULL = 迁移前旧行未记录；L1 未开启的本轮为 0（有意义的零，配 `context_source` 判读）。
+     */
+    contextualizeL1Ok: integer('contextualize_l1_ok'),
+    contextualizeL0Fallback: integer('contextualize_l0_fallback'),
     dualReady: integer('dual_ready').notNull(),
     embedReady: integer('embed_ready').notNull(),
     esReady: integer('es_ready').notNull(),
