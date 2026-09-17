@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（S2c 运营薄壳：文档 / 审批 / 成员 / 分片 / 设置 / 模型 + 用户 / 角色 / 部门 + **数据面板** + **反馈队列** + **评测底线**） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT + admin **dev-login**（经 api）· 知识库 = 顶栏关闭列表（本次 GET 可见库，禁止粘贴 uuid）· 菜单 = `clipMenuForShell` 裁剪（catalog 为 SSOT）· API 默认 `http://127.0.0.1:4000` |
 | 关联模块 | API 依赖：`api` 的文档 / 审批 / 成员 / 分片 / 设置 / 模型 / 用户角色 / 部门 / dashboard / **feedback-queue** / **gold-questions · eval/runs**；菜单与权限码：`admin-catalog`；类型：`contracts`；样式：`ui` |
-| 最近更新 | 2026-09-16（审批中心回显提交人；角色页树状授码） |
+| 最近更新 | 2026-09-17（入库报告行展示 `contextualize_l1_ok` / `contextualize_l0_fallback`，未记录明说未记录）；2026-09-16（审批中心回显提交人；角色页树状授码） |
 | Spec | `.trellis/spec/admin/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · 审批 / 成员相关 API |
 
@@ -38,7 +38,7 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 - 点行改 `ownerDeptId` / `visibilityLevel` / `docType` / `aclPrincipals` / **生效区间**：有 `dept.manage` 用部门下拉，否则 uuid 粘贴；类型枚举来自设置 GET（需 `kb.config.write`），否则文本框；名单用 Textarea（逗号或换行）+「仅名单可见」勾选（未勾选且空 → `null`；勾选且空 → `[]`）；生效自/至为空即清除；`doc.editor` 裁保存；无该码只读；**无**用户下拉 / **无**角色 principal
 - 行展开 **Reindex**（`doc.reindex`）：走 `for-upload`；≥2 未选按钮不可提交
 - 行展开 **分片策略（历史，只读）**：展示当时绑定的策略码与参数快照（`chunkStrategy` / `chunkStrategyParams`）；未记录显示「未记录分片策略」/「未记录快照」，不用默认值冒充
-- 行展开 **入库报告**（紧挨「入库阶段」）：库级 GET 后只展示本行；无报告「暂无入库报告」；展示文档内/跨文档去重计数、**跨文档去重率**（未记录 → 「未记录（本轮无参与去重的切片）」，**不显示 0%**）、冲突对 otherDocId、情境来源；**不是**独立抽屉 / 新页；**不是** pending_review
+- 行展开 **入库报告**（紧挨「入库阶段」）：库级 GET 后只展示本行；无报告「暂无入库报告」；展示文档内/跨文档去重计数、**跨文档去重率**（未记录 → 「未记录（本轮无参与去重的切片）」，**不显示 0%**）、冲突对 otherDocId、情境来源 + **`L1 成功 N · L0 回退 M`**（两计数任一未记录 → 「L1/L0 计数未记录」，**不补 0**）；**不是**独立抽屉 / 新页；**不是** pending_review
 - lifecycle（`doc.lifecycle`）：上架仍须 `status=ready` 且仅 draft；可废止 / 归档；**替代**须选后继（`ClosedSelect`，走 `POST …/supersede`）；**删除**走 `DELETE`（归档并入队 purge，不走 PATCH）。检索闸仍 ready∧active，不自动升
 - `DocumentListItem` 的 `embedReady` / `esReady` **已渲染**为向量/稀疏列（适配层标志，**≠** 生产 ES）
 - 上传走 `for-upload` 人选（仅 1 个自动 complete；≥2 弹出策略下拉）；**不是**写死 `structure_paragraph`；未知 MIME / `.exe` **不得**改写成 `text/plain`（`resolveUploadContentType`）；PUT 回的 checksum 传给 complete；创建面 `ClosedSelect` 可标 `ownerDeptId` / `visibilityLevel`（空=库级；默认可见级 20；有 `dept.manage` 才拉部门名；**≠** 仓库默认开强制）

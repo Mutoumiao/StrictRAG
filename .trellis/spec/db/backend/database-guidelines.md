@@ -190,7 +190,7 @@ pnpm --filter @strict-rag/db db:migrate
 - 评审 migration SQL  
 - **生产禁止** `db:push` 直接改线上  
 
-> **Gotcha（实测）**：`drizzle/meta/` 只留了 `0000_snapshot.json`（`0001–0016` 的快照未入库），所以 `db:generate` **不再产出增量**，而是把全部表按当前 schema 重写一遍全量 `CREATE TABLE`。当前有效实践是：**手写 migration SQL（`ALTER TABLE … ADD COLUMN IF NOT EXISTS`）+ 手写 `meta/_journal.json` 条目**（tag 用描述名，如 `0017_ask_traces_citations`、`0018_ingest_report_dedupe_rate`、`0019_ingest_report_contextualize_counts`，`idx` 递增、`when` 递增一天）；`db:generate` 输出只当对照。**禁止**提交全量 `CREATE TABLE` 的生成结果。补基线快照另开工单。
+> **Gotcha（实测）**：`drizzle/meta/` 只留了 `0000_snapshot.json`（**`0001`–`0019` 共 19 份快照未入库**；旧文写的 `0001–0016` 已滞后），所以 `db:generate` **不再产出增量**，而是把全部表按当前 schema 重写一遍全量 `CREATE TABLE`（**25 张**，`schema_meta` 已被 0000 覆盖）。当前有效实践是：**手写 migration SQL（`ALTER TABLE … ADD COLUMN IF NOT EXISTS`）+ 手写 `meta/_journal.json` 条目**（tag 用描述名，如 `0017_ask_traces_citations`、`0018_ingest_report_dedupe_rate`、`0019_ingest_report_contextualize_counts`，`idx` 递增、`when` 递增一天）；`db:generate` 输出只当对照。**禁止**提交全量 `CREATE TABLE` 的生成结果 —— 已装 `drizzle-kit@0.31.10` 的生成器**不输出 `IF NOT EXISTS`**，产物会让 `migrate` 在已建表的库上直接报 `relation "…" already exists`。补基线快照另开工单（取证与 A1 步骤见 `.scratch/fill-must-haves/research-drizzle-meta-baseline.md`）。
 
 ---
 
