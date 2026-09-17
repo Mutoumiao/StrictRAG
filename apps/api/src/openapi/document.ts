@@ -587,6 +587,14 @@ export function buildOpenApiDocument(): OpenApiDocument {
               required: true,
               schema: { type: 'string', format: 'uuid' },
             },
+            {
+              name: 'Idempotency-Key',
+              in: 'header',
+              required: false,
+              schema: { type: 'string', maxLength: 200 },
+              description:
+                'PRD 05-api §2.7 铁律 6：同 key 重试不重跑图；已 finalize 返回同一 requestId 的终态，未 finalize → 409 CONFLICT',
+            },
           ],
           requestBody: {
             required: true,

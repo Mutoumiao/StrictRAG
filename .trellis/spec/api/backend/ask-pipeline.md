@@ -103,6 +103,25 @@
 > **流协议 SSOT（X-07 · ADR-058 · DEC-X2）**：**实现 + 本文 + contracts** 为准（AI SDK UI Message Stream：`data-status` / `data-ask-final`）。  
 > PRD `prds/05-api` §2.7 历史 event 名 `phase/token/error/final` 已由 **ADR-058** 修订为「语义映射到 UI Message parts」；**禁止**再实现旧 `event: final` 自研解析器。
 
+#### 幂等（PRD §2.7 契约铁律 6 · 工单 104）
+
+请求带 `Idempotency-Key` 时：**未 finalize 前同 key 可重试**；**已 finalize 则返回同一 `requestId` 的最终 DTO**；**不得**开第二条并行图。
+
+| 项 | 口径 |
+|----|------|
+| 落点 | Redis `sr:ask:idem:{tenantId}:{userId}:{kbId}:{rawKey}`，TTL **600s**（PRD 03-data §2.1 `ask:idem:{key}` 10m + 存储边界「Redis key 含 tenant」） |
+| 后端 | `services/ask/idempotency.ts`：`AskIdemStore`（`setNxEx` / `get` / `del`）+ 内存实现（**仅测试**）+ ioredis 适配。api 侧共享连接见 `services/redis.ts`（队列与 KV 同一条） |
+| 次序 | 成员闸 / KB 一致 / mode / docTypes 闸 → **幂等短路** → 限流（重试**不**消耗配额） |
+| 命中且在途（无 trace） | **409** `CONFLICT` + `details.requestId` / `details.status='in_flight'`（客户端据此转 `GET /ask/:requestId/final`） |
+| 命中且终态在 | 复用 `toAskFinal`（工单 92 的同一重建器）→ 与 `/final` **同形**；流式写 `data-status(running, 该 requestId)` + `data-ask-final` |
+| 命中但不可同形 | **409** + `details.status='not_replayable'`；**禁止**编造 answered |
+| 跨用户 / 跨 KB | 键含 user + kb，**构造上不可命中**；不得用 `x-request-id` 顶替（前者标识「这一轮」，后者标识「这次请求的重试」） |
+| 失败释放 | 跑图抛错（终态未落库）→ **释放 claim**，同 key 可再试；**禁止**留 10m 假「在途」 |
+| header 形式 | trim 后空 → 视为未带；长度 > 200 → 400 `VALIDATION_ERROR`（**禁止**静默降级成「无幂等」） |
+| 不带该 header | 行为与不带完全一致（零回填、零回退）；**无** env 开关 |
+
+> **Gotcha**：trace 只在 finalize 后写，所以「在途」与「不存在」在 API 层不可辨（都是 404）；幂等键是唯一不发明「起始标记」的区分手段。**禁止**用进程内 Map 实现（多副本下仍会开第二条图，违反硬性「不得」）。
+
 #### 编排分层
 
 ```text

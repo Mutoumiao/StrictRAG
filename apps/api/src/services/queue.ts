@@ -8,23 +8,18 @@ import {
   type IngestJobData,
 } from '@strict-rag/contracts';
 import { Queue } from 'bullmq';
-import { Redis } from 'ioredis';
 
-import { env } from '../env.js';
 import { logger } from '../logger.js';
+import { closeApiRedis, getApiRedis } from './redis.js';
 
 /** 与 worker 同源：`@strict-rag/contracts` IngestJobData */
 export type { IngestJobData, EvalJobData };
 
 let queue: Queue<IngestJobData> | null = null;
 let evalQueue: Queue<EvalJobData> | null = null;
-let redis: Redis | null = null;
 
-function getRedis(): Redis {
-  if (!redis) {
-    redis = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null });
-  }
-  return redis;
+function getRedis() {
+  return getApiRedis();
 }
 
 function getQueue(): Queue<IngestJobData> {
@@ -69,7 +64,7 @@ export async function enqueueEval(data: EvalJobData): Promise<string | undefined
   return job.id;
 }
 
-/** 优雅关闭：关闭 Queue + Redis（幂等） */
+/** 优雅关闭：关闭 Queue + 共享 Redis（幂等） */
 export async function closeQueue(): Promise<void> {
   if (queue) {
     await queue.close();
@@ -79,8 +74,5 @@ export async function closeQueue(): Promise<void> {
     await evalQueue.close();
     evalQueue = null;
   }
-  if (redis) {
-    redis.disconnect();
-    redis = null;
-  }
+  closeApiRedis();
 }

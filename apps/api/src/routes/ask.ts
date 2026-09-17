@@ -39,6 +39,16 @@ import {
   type ExecuteAskResult,
 } from '../services/ask/index.js';
 import {
+  ASK_IDEM_RAW_KEY_MAX,
+  askIdemKey,
+  claimAskIdem,
+  createIoredisAskIdemStore,
+  normalizeIdempotencyKey,
+  releaseAskIdem,
+  type AskIdemStore,
+} from '../services/ask/idempotency.js';
+import { getApiRedis } from '../services/redis.js';
+import {
   resolveOwnedSessionDefault,
   type ResolveOwnedSession,
 } from '../services/ask/session-guard.js';
@@ -72,6 +82,8 @@ export type AskRouteDeps = {
   getTrace?: AskTraceLookup;
   /** GET /ask/:requestId/final 终态回读；测例可注入 */
   getFinal?: AskFinalLookup;
+  /** PRD §2.7 铁律 6 幂等键后端；缺省走 Redis，测例注入内存实现 */
+  idemStore?: AskIdemStore;
 };
 /**
  * POST /api/v1/knowledge-bases/:kbId/ask
@@ -131,6 +143,63 @@ export function createAskRoutes(deps: AskRouteDeps = {}) {
         limit: env.ASK_RATE_LIMIT_RPM,
         store: askRateLimitStore,
       }));
+
+  // 幂等键后端懒建：不带 Idempotency-Key 的请求永不触碰 Redis
+  let idemStore = deps.idemStore;
+  const resolveIdemStore = (): AskIdemStore => {
+    idemStore ??= createIoredisAskIdemStore(getApiRedis());
+    return idemStore;
+  };
+
+  /**
+   * 幂等命中（PRD §2.7 铁律 6）：已 finalize → 复用同一 requestId 的终态 DTO（与在线同形）；
+   * 在途 / 终态不可同形 → 409，**不**开第二条并行图。
+   */
+  async function idemReplay(
+    c: Parameters<typeof ok>[0],
+    input: { prevRequestId: string; wantStream: boolean; log: ReturnType<typeof childLogger> },
+  ) {
+    const { prevRequestId, wantStream, log } = input;
+    const trace = await getFinal(prevRequestId);
+    if (!trace) {
+      log.info({ idem: 'in_flight', requestId: prevRequestId }, 'ask idempotency hit (in flight)');
+      return fail(c, BizCode.CONFLICT, 'ask request in flight', 409, {
+        requestId: prevRequestId,
+        status: 'in_flight',
+      });
+    }
+    const finalBody = AskFinalResponseSchema.parse(toAskFinal(trace));
+    if (!finalBody.ready) {
+      log.info(
+        { idem: 'not_replayable', requestId: prevRequestId },
+        'ask idempotency hit (final not replayable)',
+      );
+      return fail(c, BizCode.CONFLICT, 'ask final not replayable', 409, {
+        requestId: prevRequestId,
+        status: 'not_replayable',
+      });
+    }
+    log.info({ idem: 'replay', requestId: prevRequestId }, 'ask idempotency hit (replay)');
+    if (!wantStream) return ok(c, finalBody.response);
+
+    const replay = createUIMessageStream({
+      execute: async ({ writer }) => {
+        writer.write({
+          type: 'data-status',
+          data: { phase: 'running', requestId: prevRequestId },
+          transient: true,
+        });
+        writer.write({
+          type: 'data-status',
+          data: { phase: 'finalize', status: finalBody.response.status },
+          transient: true,
+        });
+        writer.write({ type: 'data-ask-final', id: 'ask-final', data: finalBody.response });
+      },
+      onError: () => 'ask failed',
+    });
+    return createUIMessageStreamResponse({ stream: replay });
+  }
 
   /** GET /knowledge-bases/:kbId/ask-modes — 成员可读档位；禁止经此口暴露 τ */
   routes.get('/knowledge-bases/:kbId/ask-modes', memberMw, async (c) => {
@@ -252,6 +321,26 @@ export function createAskRoutes(deps: AskRouteDeps = {}) {
     });
 
     // 试点限流（ASK_RATE_LIMIT_RPM>0）；触顶不得 200 空答
+    // 幂等短路在限流**之前**：同 key 重试不消耗配额（PRD 未写，本仓口径）。
+    const wantStream =
+      parsed.data.options?.stream === true ||
+      (c.req.header('accept') ?? '').includes('text/event-stream');
+    const rawIdemKey = normalizeIdempotencyKey(c.req.header('idempotency-key'));
+    if (rawIdemKey && rawIdemKey.length > ASK_IDEM_RAW_KEY_MAX) {
+      return fail(c, BizCode.VALIDATION_ERROR, 'idempotency key too long', 400, {
+        max: ASK_IDEM_RAW_KEY_MAX,
+      });
+    }
+    const idemKey = rawIdemKey
+      ? askIdemKey({ tenantId, userId: auth.userId, kbId, rawKey: rawIdemKey })
+      : null;
+    if (idemKey) {
+      const claim = await claimAskIdem(resolveIdemStore(), idemKey, requestId);
+      if (claim.status === 'reuse') {
+        return idemReplay(c, { prevRequestId: claim.requestId, wantStream, log });
+      }
+    }
+
     const rl = checkLimit(auth.userId, kbId);
     if (!rl.ok) {
       recordRateLimited('ask', 'ask');
@@ -263,22 +352,25 @@ export function createAskRoutes(deps: AskRouteDeps = {}) {
       });
     }
 
-    const wantStream =
-      parsed.data.options?.stream === true ||
-      (c.req.header('accept') ?? '').includes('text/event-stream');
-
     if (!wantStream) {
-      const result = await run(
-        {
-          requestId,
-          kbId,
-          tenantId,
-          userId: auth.userId,
-          membership,
-          body: askBody,
-        },
-        deps.executeDeps,
-      );
+      let result: ExecuteAskResult;
+      try {
+        result = await run(
+          {
+            requestId,
+            kbId,
+            tenantId,
+            userId: auth.userId,
+            membership,
+            body: askBody,
+          },
+          deps.executeDeps,
+        );
+      } catch (err) {
+        // 终态未落库 → 释放 claim，允许同 key 重试（不得留 10m 假「在途」）
+        if (idemKey) await releaseAskIdem(resolveIdemStore(), idemKey).catch(() => undefined);
+        throw err;
+      }
       return respondAsk(c, result, log);
     }
 
@@ -323,6 +415,8 @@ export function createAskRoutes(deps: AskRouteDeps = {}) {
           );
         } catch (err) {
           log.error({ err }, 'ask stream failed');
+          // 终态未落库 → 释放 claim，允许同 key 重试（不得留 10m 假「在途」）
+          if (idemKey) await releaseAskIdem(resolveIdemStore(), idemKey).catch(() => undefined);
           writer.write({
             type: 'data-status',
             data: { phase: 'error', code: BizCode.INTERNAL, message: 'ask failed' },

@@ -31,7 +31,8 @@
 | `acl/departments-http.test.ts` | 部门壳 HTTP 按契约读写。 | B5 | `createDepartmentsRoutes` | 部门壳 HTTP。 | 现行 |
 | `acl/dept-grants-http.test.ts` | 跨部门 grant HTTP 按 DEPT_ACL 约束。 | DEPT_ACL | `createDeptGrantsRoutes` | 跨部门 grant。 | 现行 |
 | `acl/doc-acl-principals.test.ts` | 文档级用户 uuid 名单必须按 null/[]/命中/未命中/bypass 过滤，失败则非名单用户可读。 | P3b 文档 ACL · 覆盖 B2-4 / B2-1 最小 | `isDocVisibleForAclPrincipals / filterDocsForAclPrincipals` | null 可见、[] 不可见、命中可见、未命中/无 userId 不可见、bypass 可见。 | 现行 |
-| `acl/documents-acl-endpoint.test.ts` | 文档 ACL 专用端点须按三态读写，可见性闸与详情同口径。 | prds/05-api §2.4 · prds/09-security §3.6.1 · 功能表 §5.2 | `GET/PUT /documents/:docId/acl` | GET 三态回读；名单外 403、超管旁路 200；PUT null/[]/名单后回读一致；非法 body 400；缺文 404；AUTH_ENFORCE 开时 401/403。 | 现行 |
+| `acl/acl-tighten-index-lag.test.ts` | ACL 收紧后索引滞后（ES 持旧 principals）不得构成泄漏：旧命中必须在 PG 闸被丢掉。 | 功能表 §5.5「收紧须 reindex」· ADR-009 决策 4 · ES PRD §4.3 · 覆盖 B2-2 / B2-3 最小 | `runRetrieve（sparse 命中 → PG 语料求交）` | 语料只剩可读块时旧 chunkId 不进 evidence；语料被清空 → `kb_not_ready`，不凭空 answered。 | 现行 |
+| `acl/documents-acl-endpoint.test.ts` | 文档 ACL 专用端点须按三态读写，可见性闸与详情同口径，收紧须提示 reindex。 | prds/05-api §2.4 · prds/09-security §3.6.1 · 功能表 §5.2 / §5.5 | `GET/PUT /documents/:docId/acl` | GET 三态回读；名单外 403、超管旁路 200；PUT null/[]/名单后回读一致 + `reindexRequired`（收紧 true / 放宽 false）；非法 body 400；缺文 404；AUTH_ENFORCE 开时 401/403。 | 现行 |
 | `acl/documents-acl-principals.test.ts` | 文档 aclPrincipals 必须可 PATCH 三态回读，且列表/详情/语料同滤。 | P3b 文档 ACL · 覆盖 B2-4 / B2-1 最小 | `PATCH/GET /documents/:docId · GET /knowledge-bases/:kbId/documents · filterDocsForAclPrincipals` | null 可读、[] 非超管不可读；名单内外分滤；bypass 200；retrieve 语料不含未授权文档。 | 现行 |
 | `acl/documents-dept-filter.test.ts` | 文档列表必须套部门过滤。 | DEPT_ACL | `documents list dept filter` | 文档列表部门过滤。 | 现行 |
 | `acl/kb-member-gate.test.ts` | 无 KB 成员必须 403，授权以码为准。 | 以码为准 | `requireKbMember / requirePermission` | 无成员 403。 | 现行 |
@@ -61,6 +62,8 @@
 | `ask/http-doc-types.test.ts` | 成员必须能读库文档类型枚举，且不得经此口拿到 τ。 | 功能表 §5.2 文档类型 · ADR-050 · 工单「文档类型成员面最小闭环」 | `GET /knowledge-bases/:kbId/doc-types` | 成员 200 与 settings 枚举一致；catalog 启用项真 label；停用不出；空枚举 items=[]；非成员 403；缺库 404；响应无 tauClaim。 | 现行 |
 | `ask/http-stream.test.ts` | 同步与 SSE 终态字段必须一致；空库走 200 拒答；execute 抛错仍要给出 final。 | prds/05-api | `POST /knowledge-bases/:kbId/ask sync / SSE` | 同步与流式终态一致；kb_not_ready 为 200 拒答信封；execute 抛错仍须给出 final。 | 现行 |
 | `ask/http-validation.test.ts` | POST ask 校验、鉴权与 sessionId 闸必须按契约拒绝非法请求。 | prds/05-api | `POST /knowledge-bases/:kbId/ask` | 非法 body、无鉴权与非法 sessionId 须按契约拒绝。 | 现行 |
+| `ask/idempotency-key.test.ts` | 带 Idempotency-Key 的重试不得重跑问答图，必须复用同一 requestId 的终态；在途与不可回读要可辨。 | prds/05-api §2.7 契约铁律 6 · prds/04-pipelines §8 · prds/03-data §2.1 | `POST /knowledge-bases/:kbId/ask（Idempotency-Key 分支）` | 不带键行为不变；同键重放不跑图且与终态回读口同形；在途 409 `in_flight`；不可同形 409 `not_replayable`；跨用户不命中；非成员 403 不占键；重试不吃配额；超长键 400；空白键视为未带；流式重放写 `data-ask-final`；跑图抛错释放键。 | 现行 |
+| `ask/idempotency-store.test.ts` | 幂等键作用域与后端适配必须可核对：键含 tenant/user/kb 且抢占/复用/释放语义确定。 | prds/03-data §2.1 · prds/01-architecture §3 | `services/ask/idempotency.ts` | TTL 600s；同原始键不同用户/库得到不同键；二次 claim 复用首次 requestId；释放后可重抢；ioredis 适配发 `SET key value EX ttl NX`。 | 现行 |
 | `ask/min-veto.test.ts` | claim 级 min 不达标时整答必须拒答，禁止均值洗白后 answered。 | P0 R8 · prds/08-quality/01-verification-and-abstention.md | `runAskGraph（judge 分数路径）` | 单条低分 claim 即整答拒答，不看均值。 | 现行 |
 | `ask/mode-doc-types-gate.test.ts` | ask 入口按 KB 允许的 mode/docTypes 拦截非法请求。 | B2-W | `POST /knowledge-bases/:kbId/ask mode/docTypes 闸` | mode/docTypes 闸。 | 现行 |
 | `ask/mongo-body.test.ts` | 融合后正文必须从 Mongo 批取权威切片，缺块或拉取失败须 fail-closed。 | prds/03-data/02 §3.2 · prds/04-pipelines §5 步骤 6 · ADR-037 | `batchLoadChunkBodies / composeChunkSlice / runRetrieve loadBodies` | 切片口径 prefix+"\n"+text；注入后 evidence 用批取结果。 | 现行 |
@@ -130,7 +133,7 @@
 | `ingest/write-document-http.test.ts` | 在线编写必须落 Markdown 对象并进 pending，不得入队 scan。 | 功能表 §4.3 · 剧本 V7 最小 · 工单「上传表单标部门最小闭环」 | `POST …/documents/write` | sourceType=write；空白拒；未实现策略 400；可带部门两字段；提交人随令牌落库。无 BlockNote。 | 现行 |
 | `ingest/ocr-rerun-http.test.ts` | 卡在 OCR 闸的文档 reindex 必须入队 ocr；短 utf8 与 ready 仍入队 chunk。 | 剧本 Q7 · ADR-043 · P5 历史 needs_ocr 重跑 | `POST /documents/:docId/reindex` · `reindexEnqueueStage` | 无新 HTTP。不自动全库。≠ 真引擎。 | 现行 |
 | `ingest/ingest-report-http.test.ts` | 库级 GET ingest-report 须成员可读、空列表 200、缺库 404。 | prds/05-api GET ingest-report · 功能表 §5.2 | `GET /knowledge-bases/:kbId/ingest-report` | 回已落库行含跨 doc 冲突对；不是 doc 级路径。 | 现行 |
-| `ingest/ingest-report-map.test.ts` | 入库报告行映射不得把 null 对账或未记录的去重率填成 0 装齐。 | 功能表 §5.2 · prds/04-pipelines §5.2 | `toIngestReportItem` | 查询契约；落库在 worker；去重率 null 原样回读。 | 现行 |
+| `ingest/ingest-report-map.test.ts` | 入库报告行映射不得把 null 对账、未记录的去重率或未记录的 contextualize 计数填成 0 装齐。 | 功能表 §5.2 · prds/04-pipelines §5.2 | `toIngestReportItem` | 查询契约；落库在 worker；去重率与 L1/L0 计数 null 原样回读。 | 现行 |
 | `ingest/reindex-strategy.test.ts` | reindex / complete 按库可用策略计数：仅 1 个可自动，未实现 400。 | B12 · 功能表 §4.5 | `documents reindex / complete` | 未实现 400；选择规则走 available。 | 现行 |
 | `ingest/reject-http.test.ts` | admin 驳回后不得入队 scan。 | 剧本 V5 · prds/10-delivery/03-acceptance-scenarios.md · ADR-048 | `POST /documents/:docId/reject` · `POST …/scan` | reject 200 后 scan 403 且不入队；无独立重提 API。 | 现行 |
 | `ingest/sensitive-complete.test.ts` | 敏感文档 complete 必须过 ACL 就绪闸。 | 审批/密级 · P3b-SENS 解禁 | `documents sensitive complete` | 部门路径或显式名单；null 仍挡。 | 现行 |
