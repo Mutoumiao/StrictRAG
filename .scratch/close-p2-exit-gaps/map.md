@@ -22,9 +22,12 @@ Status: open
 
 <!-- 每关闭一张工单追加一行：名称（链接）+ 一行要点 -->
 
+- [核定 §2.5.2 各 ID 在 HEAD 的真实缺口](./issues/01-verify-gap-is.md) — 11 个挂 ID 收缩为：2 张划出（ACL-CAP 无生产者 · G3 无实现对象）、2 张登记滞后（AB8 已由 06+82 收口 · AC7 已由 78 收口）、2 张补测（E5 的「文档仍 ready」端到端断言 · AA1 的「旧文档 version / 边界不变」数据级断言）、PLANE 缺 R4/R6/R10、TENANT-Q 缺「缺 `tenantId` 即失败」门禁与负向测；三条前置（激活 version 表示 · `pending_review` 三处 · 签字包回填）**均仍未解**。证据：[gap-is-a.md](./research/gap-is-a.md) · [gap-is-b.md](./research/gap-is-b.md)
+- [裁定本图第一批执行顺序](./issues/02-first-batch-order.md) — 一批三张串行（**PLANE R4+R10 → E5 补测 → AA1 补测**，全为无硬前置的收口型工单）；立即可关四张（[ACL-CAP](./issues/06-qual-acl-cap.md) 划出 · [G3](./issues/14-qual-g3-gold-review-gate.md) 划出 · [AC7](./issues/12-qual-ac7-kb-judge-ban.md) 已收口 · [AB8](./issues/15-qual-ab8-strategy-dialog.md) 已收口）；新开五张决定/研究票（[TENANT-Q 口径](./issues/17-dec-tenant-q-scope.md) · [K5 闸](./issues/18-dec-k5-trace-acl.md) · [签字包来源](./issues/16-dec-signoff-package-source.md) · [embed TPM](./issues/19-research-embed-tpm.md) · 及既有的 [激活 version](./issues/03-dec-active-version.md) / [pending_review](./issues/04-dec-pending-review.md)）；不做项见票内。
+
 ## Not yet specified
 
-- **admin 站规清扫**（20 处原生 `<select>` + 4 处旧 ui `Select`：documents 7 · departments 6 · models 3 · settings 2 · chunk-strategy-panel 1 · eval 1；login / chunks / members 用旧 `Select`）：是站规余量，**不是**映射表缺口；本机无浏览器验证手段，替换的视觉回归不可验 → 留在雾里，待具备浏览器验证条件
+- **admin 站规清扫**（20 处原生 `<select>` + 4 处旧 ui `Select`：documents 7 · departments 6 · models 3 · settings 2 · chunk-strategy-panel 1 · eval 1；login / chunks / members 用旧 `Select`）：是站规余量，**不是**映射表缺口；本机无浏览器验证手段，替换的视觉回归不可验 → 留在雾里，待具备浏览器验证条件。**注**：`chunk-strategy-panel.tsx:149-163` 那处已在核查中被点名（QUAL-AB8 的残留），仍归本条
 - **`drizzle/meta` 基线缺失**（`db:generate` 仍不可用，缺 `0001`–`0019` 共 19 份快照）：工程债；推荐路径 A1 见 [`research-drizzle-meta-baseline.md`](../fill-must-haves/research-drizzle-meta-baseline.md)；采纳前须先做类型/默认值级人工走查
 - **`allowedDocIds` 收紧路径 / 成员写面**：准入条件是**先指名真实生产者**（前图裁定 103）；无生产者前不实现
 - **覆盖表 P2 必签 `部分测` 余量**（信任环 A/D/F/H/K/U → 入库闸 L/M/V → 运营壳）：另批补测，不进本图
@@ -32,9 +35,13 @@ Status: open
 
 ## Out of scope
 
+- **QUAL-ACL-CAP（B1-A4 白名单超限拒答）**：全仓无 `allowedDocIds` 生产者（10 处全是文档或负向测试，DB 无列，`retrieve` 无该 reason 出口）→ 实现等于造无生产者半接线 · [已关闭](./issues/06-qual-acl-cap.md)
+- **QUAL-G3（`gold.yaml` 审核闸）**：`gold.yaml` 是静态手写 seed、全仓无生成器 → 没有可加闸的对象；要先有生成器（属新功能）· [已关闭](./issues/14-qual-g3-gold-review-gate.md)
 - **换生产默认**：B8 真 ES+IK 全文、B9 真 RustFS、QUAL-2 真杀毒（延期债；DEC-SCAN 已裁决现阶段允许 `mock_scan`）
 - **业务人签**：B10-followup `businessPass`、签字包人审——人不在环内不代签
 - **P3a Full 图**（CRAG / multi_hop）与 **P4 其余**（门禁包人签 / 再认证 / 数据面板增强 / 独立 `tau_sweep` / `verifier_calib` 入队）
 - **P5 真 OCR 引擎 / Cloud OCR / 启动自动全库重跑**
 - 用本图改 `prds/00–11` 已冻语义（须 ADR → 改 PRD → 升版本）
 - 把「已具备最小 / 默认关」读成「生产已上 / 可签字」
+- **已由前图收口、本图不重复做**：QUAL-AC7（KB 绑 `judge` 已被 78 拒 400）· QUAL-AB8（admin 分片策略弹窗已被 06+82 落）——**登记滞后**，非缺口
+

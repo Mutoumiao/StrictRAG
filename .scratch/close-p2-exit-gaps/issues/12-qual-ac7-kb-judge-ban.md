@@ -1,7 +1,7 @@
 # QUAL-AC7：KB 绑 judge 必须被拒
 
 Type: task
-Status: open
+Status: resolved
 Blocked by: 02
 
 ## Question
@@ -18,4 +18,14 @@ Blocked by: 02
 
 ## Answer
 
-<!-- 解析时写 -->
+**裁定：已由前图 78（KB 消费绑定最小闭环）收口，本图无新工作。**
+
+证据（详见 [`research/gap-is-b.md`](../research/gap-is-b.md)）：
+
+- KB 绑定白名单 schema：`packages/contracts/src/models/model-gateway.contract.ts:172-190` + `KB_CONSUME_PURPOSES`（`:48`）—— `judge` **不在** KB 可绑 purpose 内。
+- 写路径：`apps/api/src/routes/kb-settings.ts:187-210` 对越界 purpose 直接返回 **400 `VALIDATION_ERROR`**（不是 403，因为这是入参白名单拒绝，不是权限不足）。
+- 测例：`apps/api/tests/kb/kb-consume-bindings-http.test.ts:81-97` 已断言 KB 绑 `judge` 被拒。
+- 平台级绑 `judge` 路径不变：`apps/api/src/routes/model-gateway.ts:170-190`。
+- admin KB 设置页不列 `judge`：`apps/admin/src/components/settings-workspace.tsx:459`。
+
+结论：AC7 的 Then 已满足。§2.5.2 的登记系滞后（其实现在 2026-08-24 之前已落）。

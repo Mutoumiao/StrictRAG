@@ -1,7 +1,7 @@
 # QUAL-ACL-CAP：allowedDocIds 超限拒答（含存废判定）
 
 Type: task
-Status: open
+Status: resolved
 Blocked by: 02
 
 ## Question
@@ -20,4 +20,12 @@ Blocked by: 02
 
 ## Answer
 
-<!-- 解析时写 -->
+**裁定：划出范围（不做实现）。**
+
+证据（详见 [`research/gap-is-b.md`](../research/gap-is-b.md)）：
+
+- 契约码只在 `packages/contracts/src/ask/reason.ts:23`，文案只在 `apps/api/src/graph/reasons.ts:93` —— 都是**声明**，不是闸。
+- 全仓 `allowedDocIds` 共 10 处命中，逐处核对后**全是文档或负向测试**（`packages/contracts/tests/ask/contract.test.ts:113`、`apps/api/tests/members/members-http.test.ts:204`），DB schema 无该列，`ACL_DOC_IDS_MAX` **0 命中**。
+- `retrieve` 侧无任何返回 `acl_filter_too_large` 的出口 → 该 reason 今天**不可达**。
+
+结论：与前图裁定 103 同口径 —— 语义已冻但**无生产者**，实现入参闸等于造一条无人调用的半接线，且会给未来的真实生产者预设一个未经产品确认的上限数字。**不做**；`allowedDocIds` 仍在图上 Not yet specified 的「准入条件：先指名真实生产者」条目下。

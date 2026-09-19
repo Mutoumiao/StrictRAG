@@ -1,7 +1,7 @@
 # QUAL-G3：提名黄金集审核闸（含存废判定）
 
 Type: task
-Status: open
+Status: resolved
 Blocked by: 02
 
 ## Question
@@ -20,4 +20,13 @@ Blocked by: 02
 
 ## Answer
 
-<!-- 解析时写 -->
+**裁定：划出范围（不做实现）。**
+
+证据（详见 [`research/gap-is-b.md`](../research/gap-is-b.md)）：
+
+- 前图 84 已落**运营表回流闸**：`apps/api/src/routes/feedback.ts:199-246` 写入 `gold_questions` 前须有 `goldType` + `eval.run` 上下文。这是本仓唯一存在「提名 → 黄金集」的写路径。
+- `gold.yaml` **是静态手写 seed，全仓无生成器**、无写入路径 → 没有可以加审核闸的对象。要在「生成 `gold.yaml`」上加闸，先得有一个生成器，那是新功能而非缺口收口。
+- 功能表 `prds/12-delivery-guides/14-模块需求功能表.md` 内「审核」「提名」**0 命中**（仅 6 处「黄金集」）——前图裁定 93 的口径成立。
+- 剧本原文在 `prds/10-delivery/03-acceptance-scenarios.md:139`。
+
+结论：**缺的是实现对象，不是闸**。若产品线要 G3 的语义，正解是先在功能表/PRD 上把「黄金集生成」列为行，再回来做审核闸 —— 属改冻结语义的前置工作，不在本图。

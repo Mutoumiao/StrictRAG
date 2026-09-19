@@ -1,7 +1,7 @@
 # QUAL-AB8：分片策略「设置」ADR-053 弹窗
 
 Type: task
-Status: open
+Status: resolved
 Blocked by: 02
 
 ## Question
@@ -17,4 +17,14 @@ Blocked by: 02
 
 ## Answer
 
-<!-- 解析时写 -->
+**裁定：已由前图 06（策略三层）+ 82（L0 模板 / contextMode）收口，本图无新工作。**
+
+证据（详见 [`research/gap-is-b.md`](../research/gap-is-b.md)）：
+
+- 设置页挂载：`apps/admin/src/components/settings-workspace.tsx:452` 渲染 `chunk-strategy-panel.tsx`。
+- 「设置」按钮开 `role="dialog"` 的 053 弹窗（面板内），非只读展示。
+- 保存走 `PATCH …/chunk-strategies`（`apps/api/src/routes/chunk-strategies.ts:94-131`），有 diff 时落 `kb_settings_audits` —— 即 AA 语义的服务端侧。
+- 旧文档版本与快照不变（同 AA1 的现有口径）。
+- 测例已登记：`apps/admin/tests/ops/chunk-strategy-panel.test.tsx`。
+
+**残留不在本票**：`apps/admin/src/components/chunk-strategy-panel.tsx:149-163` 仍有 1 处浏览器原生 `<select>`（面板内策略选择），属**站规余量**——图上 Not yet specified 已记（本机无浏览器验证手段，替换的视觉回归不可验）。它不是 AB8 的功能缺口，不挡本图目的地。
