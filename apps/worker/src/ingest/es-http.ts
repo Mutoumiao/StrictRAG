@@ -42,6 +42,18 @@ export type SparseBulkDoc = {
 /** ES exists 不认空数组。显式空写入此哨兵，使字段存在且对真实 userId 无 term 命中。 */
 export const ACL_PRINCIPALS_NONE_SENTINEL = '__acl_none__';
 
+/**
+ * 剧本 O4：`tenantId` 是 bulk builder 的**运行时**硬约束，不靠 TS 类型。
+ * 缺 / 空 / 纯空白 → 构 bulk **即失败**；禁止静默少过滤、禁止补默认租户。
+ */
+function requireTenantId(tenantId: string | undefined | null): string {
+  const t = typeof tenantId === 'string' ? tenantId.trim() : '';
+  if (!t) {
+    throw new Error('missing tenantId in sparseBulkSource; 禁止无租户过滤的 ES 写入');
+  }
+  return t;
+}
+
 const SPARSE_INDEX_PROPERTIES = {
   chunkId: { type: 'keyword' as const },
   tenantId: { type: 'keyword' as const },
@@ -56,7 +68,7 @@ const SPARSE_INDEX_PROPERTIES = {
 export function sparseBulkSource(d: SparseBulkDoc): Record<string, string | string[]> {
   const source: Record<string, string | string[]> = {
     chunkId: d.chunkId,
-    tenantId: d.tenantId,
+    tenantId: requireTenantId(d.tenantId),
     kbId: d.kbId,
     docId: d.docId,
     sparseText: d.sparseText,

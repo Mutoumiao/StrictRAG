@@ -31,6 +31,8 @@ Status: open
 - [裁定 `pending_review` 落点 / 端点 / KB 策略位](./issues/04-dec-pending-review.md) — 落点 = `chunks` 两列 `duplicate_of` + `dedupe_status`（仅取值 `'pending_review'`，处理完回 `NULL`，列名取自数据 PRD §3.2）；KB 策略位 = `config_json.crossDocDedupeAction`（默认 `skip_index`，白名单只收 `skip_index | pending_review`，**`downrank` 一律 400 拒绝**）；端点 = 新增 `POST /documents/:docId/dedupe-conflicts/:chunkId/resolve`（body `{winner:'this'|'other'}`，权限 `doc.editor` + 成员闸，**不新增权限码**）；待审期**保守取「暂不 index」**且**不碰对方文档的既有索引**。
 - [裁定 K5 与超管旁路的关系](./issues/18-dec-k5-trace-acl.md) — **K5 与 #15 不冲突**：#15 允许的是 `super_admin`，K5 约束的是 `platform_admin`，二者在 09-security §5 显式区分；源码把超管的 `users.platform_role` 写成 `'platform_admin'` 造成表面冲突，而**授权路径从不读 `platform_role`**（只认角色码）。今天 K5 范围内的两个口都已 403 且有测例；Langfuse 只有 mock 且**无读取面**，其余出口均不含 evidence 明文 → **今天已具备**。连带关闭 [08](./issues/08-qual-k5-langfuse-acl.md)。真 Langfuse 读取面的成员过滤/哈希载体记入雾中。
 - [核定 embed TPM（R6）的口径](./issues/19-research-embed-tpm.md) — R6 拆两半：**R6-a（非 ready 直至清单全 embed / 无半套 ready / 不丢 chunk）已具备 + 证据**（`EMBED_NOT_READY` 硬闸 · 失败置 failed · 双就绪才 ready · 三处测例）；**R6-b（TPM 触顶反压 + 堆积告警）划出范围** —— PRD 全仓 `TPM` 22 行**全无计数口径**，mock embed 不产生 token/429，`ingest_embed_backlog` 全仓 0 命中且 worker metrics 出口已被前图裁定不开。准入条件记入雾中。
+- [裁定 TENANT-Q 的门禁口径与范围](./issues/17-dec-tenant-q-scope.md) — 门禁落**运行时构造即抛**（不靠 TS 类型），落点选两个纯 builder `buildAclFilter`（query，api）与 `sparseBulkSource`（bulk，api+worker），因 `bulkIndexSparse` 经它构 source 故 bulk 自动覆盖；缺 / 空 / 空白 `tenantId` → 抛（api `EsSparseError(...,'config')`，worker `Error`）。**mock 层不在范围**（PG 文本替身无租户概念）；**独立索引布局随 B8**。
+- [QUAL-TENANT-Q](./issues/05-qual-tenant-query.md) — 已落：两仓 builder 加运行时 `requireTenantId`；新增 api 5 条 + worker 3 条负/正例（含「抛之前不得发 HTTP」）；既有 O1 `kbId` 闸未改写（api 84/507 · worker 30/149 子集回归绿）。
 
 ## Not yet specified
 

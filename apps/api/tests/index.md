@@ -51,6 +51,7 @@
 | `ask/es-sparse-probe.test.ts` | 稀疏探针脚本在缺少 KB 时必须拒绝误跑。 | OPS-1 | `requireProbeKbId` | 非生产 ES 宣称。 | 现行 |
 | `ask/es-dept-query-filter.test.ts` | ES 查询期按部门 ownerDeptId 收窄，缺字段不得当全员可见。 | DEPT_ACL · 工单 ES 查询期部门对称 | `buildAclFilter / searchSparseEs / collectVisibleOwnerDeptIds / runRetrieve` | enforce 默认关；开且非超管才 terms；超管不加；PG 可见级闸仍保留。 | 现行 |
 | `ask/es-principals-query-filter.test.ts` | ES 查询期按文档 aclPrincipals 收窄，缺字段=未设可读，空数组不可命中。 | P3b 文档 ACL · 工单 ES 查询期 principals 对称 | `buildAclFilter / searchSparseEs / sparseBulkSource / runRetrieve` | 不跟 DEPT_ACL_ENFORCE；超管不加 clause；PG 名单闸仍保留；显式空写哨兵。 | 现行 |
+| `ask/es-builder-tenant-required.test.ts` | 无 tenantId 的 ES query / bulk builder 必须失败，不得静默少过滤或回退全租户。 | 剧本 O4 · ADR-041 | `buildAclFilter / sparseBulkSource` | 缺 / 空 / 纯空白 tenantId 即抛；带 tenantId 时租户 + kbId filter 逐位不变（未放宽既有闸）。 | 现行 |
 | `ask/es-sparse.test.ts` | 稀疏检索 HTTP 切片按 env 解析，失败不得静默回 mock；buildAclFilter 强制 tenantId+kbId，可选 ownerDeptId terms。 | OPS-1 | `esConfigFromEnv / searchSparseEs / buildAclFilter` | 稀疏检索 HTTP 切片 + ACL filter。 | 现行 |
 | `ask/evidence-verbatim.test.ts` | 当轮 evidence.text 进入 generate/verify 与 citation 必须逐字一致，不得改写。 | 剧本 K4 · prds/10-delivery/03-acceptance-scenarios.md · ADR-037 | `runAskGraph（generateUserPrompt / claim_split / citation.preview）` | 现权威为 evidence.text / PG body，≠ Mongo。 | 现行 |
 | `ask/execute-trace.test.ts` | executeAsk 落 trace 时历史文不得进入 evidence。 | prds/05-api · 历史≠evidence | `executeAsk` | 落库 trace 时只记录本轮 evidence，不把历史文写进快照。 | 现行 |

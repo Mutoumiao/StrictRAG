@@ -37,6 +37,19 @@ export type SparseBulkDoc = {
 /** ES exists 不认空数组。显式空写入此哨兵，使字段存在且对真实 userId 无 term 命中。 */
 export const ACL_PRINCIPALS_NONE_SENTINEL = '__acl_none__';
 
+/**
+ * 剧本 O4：`tenantId` 是 builder 的**运行时**硬约束，不靠 TS 类型。
+ * 缺 / 空 / 纯空白 → 构查询或构 bulk **即失败**；禁止静默少过滤、禁止回退全租户、禁止补默认租户。
+ * 独立索引布局（B8）同样受此约束——'filter 即使独立也强制'（ADR-041）。
+ */
+function requireTenantId(tenantId: string | undefined | null, where: string): string {
+  const t = typeof tenantId === 'string' ? tenantId.trim() : '';
+  if (!t) {
+    throw new EsSparseError(`missing tenantId in ${where}; 禁止无租户过滤的 ES 查询/写入`, 'config');
+  }
+  return t;
+}
+
 const SPARSE_INDEX_PROPERTIES = {
   chunkId: { type: 'keyword' as const },
   tenantId: { type: 'keyword' as const },
@@ -68,7 +81,7 @@ export type EsAclFilterClause =
 export function sparseBulkSource(d: SparseBulkDoc): Record<string, string | string[]> {
   const source: Record<string, string | string[]> = {
     chunkId: d.chunkId,
-    tenantId: d.tenantId,
+    tenantId: requireTenantId(d.tenantId, 'sparseBulkSource'),
     kbId: d.kbId,
     docId: d.docId,
     sparseText: d.sparseText,
@@ -112,7 +125,7 @@ export function buildAclFilter(input: {
   aclPrincipalUserId?: string;
 }): EsAclFilterClause[] {
   const filter: EsAclFilterClause[] = [
-    { term: { tenantId: input.tenantId } },
+    { term: { tenantId: requireTenantId(input.tenantId, 'buildAclFilter') } },
     { term: { kbId: input.kbId } },
   ];
   const ownerDeptIds = (input.ownerDeptIds ?? []).filter((id) => id.trim().length > 0);
