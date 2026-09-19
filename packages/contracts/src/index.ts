@@ -14,6 +14,7 @@ export * from './ingest/chunk-strategy.js';
 export * from './ingest/chunk-strategy.contract.js';
 export * from './ingest/ingest-job.contract.js';
 export * from './ingest/ingest-report.contract.js';
+export * from './ingest/dedupe-conflict.contract.js';
 export * from './async/queues.js';
 export * from './eval/l1-matrix.js';
 export * from './eval/l2-gold.js';

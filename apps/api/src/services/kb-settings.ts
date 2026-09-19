@@ -7,6 +7,7 @@ import {
   type KbSettings,
   type PatchKbSettingsBody,
   type QualitySnapshot,
+  parseCrossDocDedupeAction,
 } from '@strict-rag/contracts';
 import { formatLocalDateTime, knowledgeBases } from '@strict-rag/db';
 import { eq } from 'drizzle-orm';
@@ -37,8 +38,7 @@ function isAskMode(v: unknown): v is AskMode {
   return v === 'strict' || v === 'balanced' || v === 'fast';
 }
 
-/** 从 config_json 解析档位；缺省全量 + balanced */
-export function parseModesFromConfig(config: Record<string, unknown> | null | undefined): {
+/** 从 config_json 解析档位；缺省全量 + balanced */export function parseModesFromConfig(config: Record<string, unknown> | null | undefined): {
   allowedModes: AskMode[];
   defaultMode: AskMode;
 } {
@@ -304,6 +304,7 @@ export function buildKbSettingsView(input: {
     dataClass: parseDataClassFromConfig(input.row.configJson ?? {}),
     deptInheritDown: parseDeptInheritDownFromConfig(input.row.configJson ?? {}) ?? true,
     deptAclEnforce: parseDeptAclEnforceFromConfig(input.row.configJson ?? {}) ?? false,
+    crossDocDedupeAction: parseCrossDocDedupeAction(input.row.configJson ?? {}),
     qualitySnapshot: input.quality,
     sessionRewrite: { enabledDefault: false, locked: true },
   };
@@ -369,6 +370,10 @@ export function mergeKbSettingsPatch(
   if (body.deptAclEnforce !== undefined) {
     nextConfig.deptAclEnforce = body.deptAclEnforce;
   }
+  const prevDedupeAction = parseCrossDocDedupeAction(row.configJson ?? {});
+  if (body.crossDocDedupeAction !== undefined) {
+    nextConfig.crossDocDedupeAction = body.crossDocDedupeAction;
+  }
 
   const diff: Record<string, { from: unknown; to: unknown }> = {};
   if (nextName !== row.name) diff.name = { from: row.name, to: nextName };
@@ -395,6 +400,15 @@ export function mergeKbSettingsPatch(
   }
   if (body.deptAclEnforce !== undefined && body.deptAclEnforce !== prevEnforce) {
     diff.deptAclEnforce = { from: prevEnforce, to: body.deptAclEnforce };
+  }
+  if (
+    body.crossDocDedupeAction !== undefined &&
+    body.crossDocDedupeAction !== prevDedupeAction
+  ) {
+    diff.crossDocDedupeAction = {
+      from: prevDedupeAction,
+      to: body.crossDocDedupeAction,
+    };
   }
 
   return {

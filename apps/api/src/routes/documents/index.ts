@@ -20,6 +20,8 @@ import {
   aclTightens,
   PatchLifecycleBodySchema,
   SupersedeDocumentBodySchema,
+  ResolveDedupeConflictBodySchema,
+  ResolveDedupeConflictResponseSchema,
   ReindexDocumentBodySchema,
   UploadUrlBodySchema,
   WriteDocumentBodySchema,
@@ -38,6 +40,10 @@ import { childLogger, logger } from '../../logger.js';
 import type { ApiVariables } from '../../middleware/request-id.js';
 import { getForUpload, paramsSnapshotFor } from '../../services/chunk-strategy-catalog.js';
 import { resolveReindexChunkStrategy } from '../../services/chunk-strategies.js';
+import {
+  dedupeConflictRepo,
+  evaluateResolveRequest,
+} from '../../services/dedupe-conflict.js';
 import { evaluateDocumentDelete } from '../../services/document-delete.js';
 import { evaluateSupersedeLink } from '../../services/document-supersede.js';
 import { documentRepo } from '../../services/documents.js';
@@ -609,6 +615,43 @@ documentRoutes.post(
       successorLifecycle: 'active',
     };
     return ok(c, data);
+  },
+);
+
+/**
+ * POST /api/v1/documents/:docId/dedupe-conflicts/:chunkId/resolve — 跨 doc 去重的人工二选一（剧本 E4）。
+ * 权限与 `PATCH /documents/:docId` 同码（`doc.editor`）；**不**代跑 reindex：
+ * 重新入库须持 `doc.reindex`，本端点不替调用方升级权限，只回 `reindexRequired`。
+ */
+documentRoutes.post(
+  '/documents/:docId/dedupe-conflicts/:chunkId/resolve',
+  requirePermission('doc.editor'),
+  async (c) => {
+    const docId = c.req.param('docId');
+    const chunkId = c.req.param('chunkId');
+    const parsed = ResolveDedupeConflictBodySchema.safeParse(
+      await c.req.json().catch(() => ({})),
+    );
+    if (!parsed.success) {
+      return fail(c, BizCode.VALIDATION_ERROR, 'invalid body', 400, parsed.error.flatten());
+    }
+
+    const chunk = await dedupeConflictRepo.getChunk(docId, chunkId);
+    const verdict = evaluateResolveRequest(chunk);
+    if (!verdict.ok) {
+      return fail(c, BizCode[verdict.code], verdict.message, verdict.httpStatus);
+    }
+
+    await dedupeConflictRepo.resolve({ docId, chunkId, winner: parsed.data.winner });
+    return ok(
+      c,
+      ResolveDedupeConflictResponseSchema.parse({
+        docId,
+        chunkId,
+        winner: parsed.data.winner,
+        reindexRequired: parsed.data.winner === 'this',
+      }),
+    );
   },
 );
 

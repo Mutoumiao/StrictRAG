@@ -5,7 +5,9 @@ import { baseColumns } from '../_shard/base-columns.js';
 export type IngestReportConflictPair = {
   otherDocId: string;
   otherChunkId: string;
-  action: 'skip_index';
+  /** KB 策略动作（PRD 04 §5.1）；`pending_review` 时带 `heldChunkId` */
+  action: 'skip_index' | 'pending_review';
+  heldChunkId?: string;
 };
 
 /**

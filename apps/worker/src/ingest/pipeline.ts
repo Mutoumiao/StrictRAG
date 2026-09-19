@@ -5,6 +5,7 @@ import {
   parseContextMode,
   resolveContextSource,
   type ContextSource,
+  type CrossDocDedupeAction,
 } from '@strict-rag/contracts';
 import {
   chunkEmbeddings,
@@ -40,6 +41,7 @@ import { decodeUtf8Text, hasUtf8TextLayer } from './extract-text.js';
 import { extractPdfTextLayer, isPdfObject } from './pdf-text.js';
 import {
   findCrossDocConflict,
+  loadCrossDocDedupeAction,
   loadCrossDocSearchableChunks,
 } from './cross-doc-dedupe.js';
 import {
@@ -541,12 +543,15 @@ async function runIngestStageCore(
       const conflictPairs: Array<{
         otherDocId: string;
         otherChunkId: string;
-        action: 'skip_index';
+        action: CrossDocDedupeAction;
+        heldChunkId?: string;
       }> = [];
       const corpus = await loadCrossDocSearchableChunks(db, {
         kbId: doc.kbId,
         excludeDocId: doc.id,
       });
+      // PRD 04 §5.1：默认 skip_index；pending_review 时入审（块落库但不进 manifest，等人工二选一）
+      const dedupeAction = await loadCrossDocDedupeAction(db, doc.kbId);
       const contextMode = parseContextMode(doc.chunkStrategyParams?.contextMode);
       const l0Prefix = l0ContextPrefix(doc.title ?? '');
       // L1 只在 http 模式真调；默认 off 保持「回退 L0」的历史行为（不写假 l1_llm）
@@ -569,9 +574,31 @@ async function runIngestStageCore(
           continue;
         }
         seen.add(norm);
-        const conflict = findCrossDocConflict(body, corpus);
+        const conflict = findCrossDocConflict(body, corpus, dedupeAction);
         if (conflict) {
           crossDocDropped += 1;
+          if (dedupeAction === 'pending_review') {
+            // 入审队列：块落库（报告可点开冲突对、resolve 端点可处理），但**不进 manifest**
+            // → 不 embed / 不 ES（PRD 04 §5.1「暂均不 index」，保守取法）
+            const heldId = uuidv7();
+            await db.insert(chunks).values({
+              id: heldId,
+              tenantId: doc.tenantId,
+              kbId: doc.kbId,
+              docId: doc.id,
+              indexVersion,
+              ordinal,
+              preview: body.slice(0, 200),
+              bodyText: body,
+              contextPrefix: l0Prefix,
+              tokenCount: Math.ceil(body.length / 4),
+              duplicateOf: conflict.otherChunkId,
+              dedupeStatus: 'pending_review',
+            });
+            conflictPairs.push({ ...conflict, heldChunkId: heldId });
+            ordinal += 1;
+            continue;
+          }
           conflictPairs.push(conflict);
           continue;
         }

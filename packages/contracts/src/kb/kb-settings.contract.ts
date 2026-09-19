@@ -65,6 +65,20 @@ export type KbDocTypeCatalog = z.infer<typeof KbDocTypeCatalogSchema>;
 export const DataClassSchema = z.enum(['internal', 'sensitive']);
 export type DataClass = z.infer<typeof DataClassSchema>;
 
+/** 跨 doc 去重动作（PRD 04 §5.1）。`downrank` 是 PRD 合法取值但**本仓未实现**，不进白名单。 */
+export const CrossDocDedupeActionSchema = z.enum(['skip_index', 'pending_review']);
+export type CrossDocDedupeAction = z.infer<typeof CrossDocDedupeActionSchema>;
+export const DEFAULT_CROSS_DOC_DEDUPE_ACTION: CrossDocDedupeAction = 'skip_index';
+
+/** config_json 读取：缺省 / 非法值一律回落默认（旧行、脏数据都不放大） */
+export function parseCrossDocDedupeAction(
+  config: Record<string, unknown> | null | undefined,
+): CrossDocDedupeAction {
+  return config?.crossDocDedupeAction === 'pending_review'
+    ? 'pending_review'
+    : DEFAULT_CROSS_DOC_DEDUPE_ACTION;
+}
+
 /** GET 只读：质量 snapshot（禁止经 settings 写 τ） */
 export const QualitySnapshotSchema = z.object({
   tauClaim: z.number().min(0).max(1),
@@ -97,6 +111,8 @@ export const KbSettingsSchema = z.object({
   deptInheritDown: z.boolean().default(true),
   /** 缺省 / 旧行 = false（产品默认关强制）；运行时未写跟 env */
   deptAclEnforce: z.boolean().default(false),
+  /** 缺省 / 旧行 = skip_index（PRD 04 §5.1 默认）；`pending_review` 时冲突块入审、须人工二选一 */
+  crossDocDedupeAction: CrossDocDedupeActionSchema.default(DEFAULT_CROSS_DOC_DEDUPE_ACTION),
   qualitySnapshot: QualitySnapshotSchema,
   sessionRewrite: SessionRewriteLockSchema,
 });
@@ -131,6 +147,8 @@ export const PatchKbSettingsBodySchema = z
     dataClass: DataClassSchema.optional(),
     deptInheritDown: z.boolean().optional(),
     deptAclEnforce: z.boolean().optional(),
+    /** 只收 `skip_index` / `pending_review`；PRD 的 `downrank` 本仓未实现 → 400 明确拒绝 */
+    crossDocDedupeAction: CrossDocDedupeActionSchema.optional(),
   })
   .strict()
   .refine((v) => Object.keys(v).length > 0, { message: '至少提供一个可写字段' })

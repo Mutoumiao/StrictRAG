@@ -116,6 +116,7 @@
 | `ingest/chunk-strategies.test.ts` | 已实现分片策略可写；未实现必须 400，禁止静默 default。仅 1 个可自动，≥2 未选须 400。 | B12 · X-03 · 功能表 §4.5 | `chunk-strategies` | 禁静默 default；绑定/reindex 选择规则。 | 现行 |
 | `ingest/chunks-http.test.ts` | chunks HTTP 只读路由按成员与文档闸返回。 | B1 | `createChunkRoutes` | chunks HTTP。 | 现行 |
 | `ingest/chunks-query.test.ts` | 分片只读查询返回 preview/body 契约。 | ADR-052 · B1 | `buildPreview / buildBody` | 分片只读查询。 | 现行 |
+| `ingest/dedupe-conflict-resolve.test.ts` | 待审重复块的人工二选一必须只动该块两列，且不代替持 doc.reindex 的人重跑。 | 剧本 E4 · 入库 PRD §5.1 · 数据 PRD §3.2 | `POST /documents/:docId/dedupe-conflicts/:chunkId/resolve` | winner=other 保留 duplicate_of；winner=this 清并回 reindexRequired；非待审 400 / 不存在 404 / 坏 body 400。 | 现行 |
 | `ingest/complete-size.test.ts` | complete 体积超限必须拒绝。 | 上传/complete 限 | `checkUploadByteSize` | complete 体积闸。 | 现行 |
 | `ingest/upload-media.test.ts` | upload-url / PUT 必须拒绝未知 MIME，不得默许 octet-stream。 | ADR-039 · 功能表 §5.2 | `checkUploadMedia · POST upload-url · PUT /internal/objects` | 415 `UNSUPPORTED_MEDIA_TYPE`；不建档。 | 现行 |
 | `ingest/upload-size-tier.test.ts` | 上传生效上限须按族取档：MD/TXT 更严（默认 10 MiB），其余 50 MiB，族级可关。 | 功能表 §5.2 / §6「MD/TXT 可更严」· prds/09-security §7 | `effectiveMaxUploadBytes` | 默认 10/50 MiB；族级 0 = 关闭；仍受 min 约束。 | 现行 |

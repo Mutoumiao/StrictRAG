@@ -15,5 +15,11 @@ export const chunks = pgTable('chunks', {
   contextPrefix: text('context_prefix'),
   tokenCount: integer('token_count'),
   mongoBodyId: text('mongo_body_id'),
+  /**
+   * 跨 doc 去重（入 PRD 04 §5.1 / 数据 PRD §3.2）：
+   * `duplicate_of` = 命中的权威 chunk；`dedupe_status` 仅取值 `pending_review`（处理完回 NULL）。
+   */
+  duplicateOf: uuid('duplicate_of'),
+  dedupeStatus: text('dedupe_status'),
   meta: jsonb('meta').$type<Record<string, unknown>>().default({}),
 });

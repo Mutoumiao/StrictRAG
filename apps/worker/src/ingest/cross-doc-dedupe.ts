@@ -1,9 +1,10 @@
 /**
  * 同 KB 跨文档近重复（最小闭环）。
- * 字 3-gram Jaccard ≥ 0.9 → skip_index。不是生产 MinHash LSH。
+ * 字 3-gram Jaccard ≥ 0.9。动作由 KB 策略 `crossDocDedupeAction` 决定（PRD 04 §5.1）。
  */
 
-import { chunks, documents, type Db } from '@strict-rag/db';
+import { parseCrossDocDedupeAction, type CrossDocDedupeAction } from '@strict-rag/contracts';
+import { chunks, documents, knowledgeBases, type Db } from '@strict-rag/db';
 import { eq } from 'drizzle-orm';
 
 export const CROSS_DOC_SHINGLE_N = 3;
@@ -18,8 +19,23 @@ export type CrossDocChunk = {
 export type CrossDocConflict = {
   otherDocId: string;
   otherChunkId: string;
-  action: 'skip_index';
+  action: CrossDocDedupeAction;
+  /** `pending_review` 入审时：被拦下的**本块** id（报告可点开冲突对 → 拿它去 resolve） */
+  heldChunkId?: string;
 };
+
+/** KB 策略：`config_json.crossDocDedupeAction`；缺省 / 脏值 = skip_index */
+export async function loadCrossDocDedupeAction(
+  db: Db,
+  kbId: string,
+): Promise<CrossDocDedupeAction> {
+  const rows = await db
+    .select({ configJson: knowledgeBases.configJson })
+    .from(knowledgeBases)
+    .where(eq(knowledgeBases.id, kbId))
+    .limit(1);
+  return parseCrossDocDedupeAction(rows[0]?.configJson ?? null);
+}
 
 const SEARCHABLE_LIFECYCLES = new Set(['draft', 'active']);
 
@@ -54,13 +70,14 @@ export function isCrossDocNearDup(left: string, right: string): boolean {
 export function findCrossDocConflict(
   body: string,
   corpus: readonly CrossDocChunk[],
+  action: CrossDocDedupeAction = 'skip_index',
 ): CrossDocConflict | null {
   for (const other of corpus) {
     if (isCrossDocNearDup(body, other.bodyText)) {
       return {
         otherDocId: other.docId,
         otherChunkId: other.chunkId,
-        action: 'skip_index',
+        action,
       };
     }
   }

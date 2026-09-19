@@ -1,13 +1,19 @@
 import { z } from 'zod';
 
 import { CONTEXT_SOURCES } from './chunk-strategy.js';
+import { CrossDocDedupeActionSchema } from '../kb/kb-settings.contract.js';
 
-/** 跨文档 skip_index 冲突对。pending_review / downrank 不在本形状。 */
+/**
+ * 跨文档去重冲突对（PRD 04 §5.1）。
+ * `action` 取 KB 策略的动作；`pending_review` 时带 `heldChunkId` = 被拦下入审的**本块** id
+ * （运营从报告点开冲突对 → 拿它调 resolve 端点）。
+ */
 export const IngestReportConflictPairSchema = z
   .object({
     otherDocId: z.string().uuid(),
     otherChunkId: z.string().uuid(),
-    action: z.literal('skip_index'),
+    action: CrossDocDedupeActionSchema,
+    heldChunkId: z.string().uuid().optional(),
   })
   .strict();
 export type IngestReportConflictPair = z.infer<typeof IngestReportConflictPairSchema>;
