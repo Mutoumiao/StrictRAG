@@ -7,6 +7,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { within } from '@testing-library/react';
 import { render, screen, userEvent, waitFor } from '@/test/test-utils';
 
 const me = {
@@ -37,6 +38,7 @@ import { ChunksWorkspace } from '@/app/(ops)/chunks/_components/chunks-workspace
 
 const KB_STORAGE = 'strict-rag:admin:last-kb-id';
 const DOC_A = '01900000-0000-7000-8000-0000000000d1';
+const DOC_B = '01900000-0000-7000-8000-0000000000d2';
 const CHUNK_1 = '01900000-0000-7000-8000-0000000000c1';
 const CHUNK_2 = '01900000-0000-7000-8000-0000000000c2';
 const CHUNK_3 = '01900000-0000-7000-8000-0000000000c3';
@@ -119,5 +121,46 @@ describe('ChunksWorkspace', () => {
     expect(await screen.findByText('第一块完整正文')).toBeInTheDocument();
     expect(loadChunkBody).not.toHaveBeenCalledWith(DOC_A, CHUNK_2);
     expect(loadChunkBody).not.toHaveBeenCalledWith(DOC_A, CHUNK_3);
+  });
+
+  it('Z4：详情带 body；bodyTruncated 为 true 时明示已截断', async () => {
+    const user = userEvent.setup();
+    loadChunkBody.mockResolvedValue({
+      ok: true,
+      detail: {
+        ...chunkRow(CHUNK_1, 0, '第一块 preview'),
+        body: '第一块完整正文',
+        bodyTruncated: true,
+      },
+    });
+    render(<ChunksWorkspace />);
+
+    await user.selectOptions(await screen.findByLabelText('文档'), DOC_A);
+    await screen.findByText('第一块 preview');
+    await user.click(screen.getByRole('button', { name: '第一块 preview' }));
+
+    expect(await screen.findByText('第一块完整正文')).toBeInTheDocument();
+    expect(screen.getByText(/已截断/)).toBeInTheDocument();
+  });
+
+  it('Z8：独立二级「分片」页可选文档并列块（薄 UI 可达）', async () => {
+    const user = userEvent.setup();
+    loadChunkDocs.mockResolvedValue({
+      ok: true,
+      rows: [docRow, { ...docRow, id: DOC_B, title: '考勤制度' }],
+    });
+    render(<ChunksWorkspace />);
+
+    const select = await screen.findByLabelText('文档');
+    expect(within(select).getByRole('option', { name: /差旅制度/ })).toBeInTheDocument();
+    expect(within(select).getByRole('option', { name: /考勤制度/ })).toBeInTheDocument();
+
+    await user.selectOptions(select, DOC_A);
+
+    expect(await screen.findByRole('columnheader', { name: '#' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'preview' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'tokens' })).toBeInTheDocument();
+    expect(screen.getByText('第一块 preview')).toBeInTheDocument();
+    expect(screen.getByText('indexVersion=3 · status=ready · lifecycle=active')).toBeInTheDocument();
   });
 });

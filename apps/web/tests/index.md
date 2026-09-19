@@ -26,6 +26,7 @@
 | `ask/request-id-header.test.ts` | 本轮请求号必须随 `x-request-id` 下发（断线重拉前提），无号不得发空值。 | prds/05-api §2.7 连接中断重拉 · 功能表 §3 流式回答 | `withRequestId` · `newAskRequestId` | 有号才加头且保留原头；无号不下发；每轮新号非空且不重复。 | 现行 |
 | `ask/ask-mode.test.tsx` | 问答档位必须读库 allowedModes/defaultMode 并传 mode，客户端不可改阈值。 | 功能表 §3 问答档位 | `AskPanel` 档位关闭列表 · `buildAskRequestBody` | 关闭列表只列允许档；默认 defaultMode。 | 现行 |
 | `ask/ask-doc-types.test.tsx` | 文档类型必须读成员 GET /doc-types 关闭列表，禁止逗号自由输入当主路径。 | 功能表 §5.2 文档类型 · ADR-050 · 工单「文档类型成员面最小闭环」 | `AskPanel` 类型关闭列表 · `buildAskRequestBody` | 有枚举才出关闭列表；选一类型后 scope 为该码；空选项不写 scope；失败不挡提问。 | 现行 |
+| `ask/no-upload-surface.test.tsx` | web 问答面不得露出上传/写入入口；误露也不放行写 API。 | 剧本 S9 · ADR-045 焊死 #2 | `AskPanel`（可交互控件面） | 页面可用但无上传钮 / 文件选择器 / 文档入口。API 侧 403 真值在 api。 | 现行 |
 | `ask/empty-kb.test.tsx` | 无可用知识库时必须阻断提问，引导找管理员开通成员。 | 功能表 §3 无可用知识库 | `AskPanel` 空态 | 列表成功且为空则无提问表、无选择器。 | 现行 |
 | `ask/kb-picker-members-only.test.tsx` | 知识库切换只能选本次可见库，禁止粘贴任意 uuid；列表失败不得当开通成员空态。 | 功能表 §3 知识库切换 | `AskPanel` 知识库关闭列表 | 只能选 GET 返回的 id；脏缓存不提问；失败可重试且文案与空态可区分。 | 现行 |
 | `ask/suggested-actions.test.tsx` | 拒答建议动作必须按 reason 出主按钮，而不是只做列表文案。 | 功能表 §3 建议动作 | `AskPanel` SuggestedActionBar | 首项主按钮；换问法回填；缺文档提交类别。 | 现行 |

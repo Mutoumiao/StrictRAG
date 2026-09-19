@@ -107,3 +107,31 @@ describe('runAskGraph M2 generate+citations', () => {
     expect(r.reason).toBe('model_abstained');
   });
 });
+
+describe('剧本 X7 · citation 必须落在 scope 语料内（不得只滤前端）', () => {
+  it('generate 引用场外 chunk → 该引用被丢弃，citation 与 evidence 都不含它', async () => {
+    const OUT_OF_SCOPE = '77777777-7777-7777-8777-777777777777';
+    const r = await runAskGraph(
+      baseInput({ question: '年假有多少天？', scope: { docTypes: ['hr'] } }),
+      deps({
+        chat: scriptedChat({
+          generate: JSON.stringify({
+            answer: '年假为15天。',
+            citations: [CHUNK, OUT_OF_SCOPE],
+            insufficient: false,
+          }),
+          claim_split: JSON.stringify({
+            claims: [{ text: '年假为15天', chunkIds: [CHUNK] }],
+          }),
+          judge: JSON.stringify({ scores: [0.9] }),
+        }),
+      }),
+    );
+
+    expect(r.status).toBe('answered');
+    expect(r.citations.map((c) => c.chunkId)).toEqual([CHUNK]);
+    expect(r.evidence_snapshot.every((e) => e.chunkId === CHUNK)).toBe(true);
+    expect(r.citations.map((c) => c.chunkId)).not.toContain(OUT_OF_SCOPE);
+    expect(r.answer).not.toContain(OUT_OF_SCOPE);
+  });
+});

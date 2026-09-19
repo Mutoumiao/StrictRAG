@@ -218,4 +218,51 @@ describe('adminWriteAuditMiddleware', () => {
     await app.request('/api/v1/knowledge-bases/kb1/ask', { method: 'POST' });
     expect(info).not.toHaveBeenCalled();
   });
+
+  it('剧本 B1-5：超管非成员的管理写仍落 admin_write，且日志上下文带库 id 可追溯', async () => {
+    const info = vi.fn();
+    const childLogger = vi
+      .spyOn(loggerMod, 'childLogger')
+      .mockReturnValue({
+        info,
+        warn: vi.fn(),
+        error: vi.fn(),
+        debug: vi.fn(),
+        child: vi.fn(),
+      } as unknown as ReturnType<typeof loggerMod.childLogger>);
+
+    const app = new Hono<{ Variables: ApiVariables }>();
+    app.use('*', requestIdMiddleware);
+    app.use('*', adminWriteAuditMiddleware);
+    app.post('/api/v1/knowledge-bases/:kbId/members', (c) => {
+      // 显式全权：超管可非成员；审计不得因此缺席
+      c.set('auth', {
+        userId: 'u-sa',
+        sessionId: 's1',
+        app: 'admin',
+        roles: ['super_admin'],
+        tenantId: 't1',
+      });
+      return c.json({ ok: true }, 201);
+    });
+
+    const res = await app.request('/api/v1/knowledge-bases/kb-sa/members', {
+      method: 'POST',
+      headers: { 'x-request-id': 'req-audit-b15' },
+    });
+
+    expect(res.status).toBe(201);
+    expect(info).toHaveBeenCalledTimes(1);
+    const [payload] = info.mock.calls[0] as [Record<string, unknown>];
+    expect(payload.event).toBe('admin_write');
+    expect(payload.path).toBe('/api/v1/knowledge-bases/kb-sa/members');
+    expect(childLogger).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestId: 'req-audit-b15',
+        userId: 'u-sa',
+        tenantId: 't1',
+        kbId: 'kb-sa',
+      }),
+    );
+  });
 });

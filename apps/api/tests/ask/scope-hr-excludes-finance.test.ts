@@ -149,4 +149,37 @@ describe('X3 hr scope excludes finance evidence', () => {
       expect(r.answer).toBe('');
     }
   });
+
+  it('X2：hr scope 下 answered 轮 citation 只能来自 hr 文档（不得出现 finance chunk）', async () => {
+    const r = await runAskGraph(
+      baseInput({
+        question: '入职体检要做什么？',
+        scope: { docTypes: ['hr'] },
+      }),
+      {
+        chat: scriptedChat({
+          generate: JSON.stringify({
+            answer: '入职需完成体检与培训。',
+            citations: [HR_CHUNK, FIN_CHUNK],
+            insufficient: false,
+          }),
+          claim_split: JSON.stringify({
+            claims: [{ text: '入职需完成体检与培训', chunkIds: [HR_CHUNK] }],
+          }),
+          judge: JSON.stringify({ scores: [0.9] }),
+        }),
+        retrieveDeps: retrieveDeps(),
+      },
+    );
+
+    expect(r.status).toBe('answered');
+    expect(r.reason).toBe('verified');
+    const cited = r.citations.map((c) => c.chunkId);
+    expect(cited).toContain(HR_CHUNK);
+    expect(cited).not.toContain(FIN_CHUNK);
+    expect(cited.every((id) => id === HR_CHUNK)).toBe(true);
+    // 引用与 evidence 快照同一 scope：整轮都不含 finance
+    noFinance(r.evidence_snapshot);
+    expect(JSON.stringify(r.evidence_snapshot)).not.toContain('15天');
+  });
 });

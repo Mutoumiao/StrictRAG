@@ -57,4 +57,32 @@ describe('stricterThanPilot bind to eval run', () => {
     expect(snapshot.evalBindId).toContain(evalRunId);
     expect(compareHardGates(snapshot.gates).direction).toBe('equal');
   });
+
+  it('剧本 T3：加严提案未绑 L1 重跑且无人签 → 只标加严、不得标「已签字」', () => {
+    const { snapshot, verdict } = bindQualitySnapshotToEval({
+      snapshotId: 'snap-t3',
+      kbId: 'kb-1',
+      evalRunId: null,
+      ranAt: '2026-09-20T00:00:00.000Z',
+      retrieve_mode: 'live',
+      tauClaim: 0.5,
+      gates: { ...PILOT_HARD_GATES, cRateMax: 0.03 },
+      proposal: true,
+      signoffEligible: true,
+      coverage: 0.5,
+      caseReasons: ['verified'],
+    });
+
+    // 加严标记本身成立（diff 变严）
+    expect(snapshot.stricterThanPilot).toBe(true);
+    expect(snapshot.gate_bundle).toBe('stricter');
+    expect(snapshot.gates.cRateMax).toBe(0.03);
+
+    // 但「已签字」不成立：没有 2×2 run 身份、没有人签
+    expect(snapshot.evalRunId).toBeNull();
+    expect(snapshot.evalBindId).toBe('report:kb-1:2026-09-20T00:00:00.000Z');
+    expect(verdict.signedPackage).toBe(false);
+    expect(verdict.businessPass).toBe(false);
+    expect(verdict.reasons).toContain('missing_signatures');
+  });
 });

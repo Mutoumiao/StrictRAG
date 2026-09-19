@@ -176,3 +176,38 @@ describe('summarizeLatencies', () => {
     expect(s.p95Ms).toBeGreaterThanOrEqual(100);
   });
 });
+
+describe('剧本 W6 · 面板不承载 τ / 门禁写入', () => {
+  it('面板无写路由：PATCH/PUT/POST summary 与 tracks 一律 404，且响应体无 τ 字段', async () => {
+    const { accessToken } = await token(['super_admin']);
+    const app = buildApp();
+    const headers = {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    };
+
+    for (const [method, path] of [
+      ['PATCH', '/api/v1/admin/dashboard/summary'],
+      ['PUT', '/api/v1/admin/dashboard/summary'],
+      ['POST', '/api/v1/admin/dashboard/summary'],
+      ['PATCH', '/api/v1/admin/dashboard/tracks'],
+      ['POST', '/api/v1/admin/dashboard/tracks'],
+    ] as const) {
+      const res = await app.request(path, {
+        method,
+        headers,
+        body: JSON.stringify({ tauClaim: 0.9 }),
+      });
+      expect(res.status, `${method} ${path}`).toBe(404);
+    }
+
+    const summary = await app.request('/api/v1/admin/dashboard/summary', {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    expect(summary.status).toBe(200);
+    const body = (await summary.json()) as { data: Record<string, unknown> };
+    expect(body.data).not.toHaveProperty('tauClaim');
+    expect(body.data).not.toHaveProperty('gates');
+    expect(JSON.stringify(body.data)).not.toContain('tau');
+  });
+});

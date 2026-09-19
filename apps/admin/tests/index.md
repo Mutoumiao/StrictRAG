@@ -34,18 +34,21 @@
 | `ops/document-ops-label.test.ts` | 文档列表运营标签必须按 status × lifecycle 映射八态，失败则合成一个模糊状态。 | 功能表 §4.3 | `opsLabel` | 终态优先；原串另列。 | 现行 |
 | `ops/document-reindex.test.ts` | Reindex 人选在可用策略 ≥2 时未选不得提交。 | 功能表 §4.3 | `pickReindexChunkStrategy` | HTTP 闸在 api。 | 现行 |
 | `ops/chunk-strategy-panel.test.tsx` | 知识库设置分片策略弹窗必须能启用策略并保存 recommended，且可把 contextMode 打到 L0。 | 功能表 §4.5 · 入库 PRD §4 | `ChunkStrategyPanel` | HTTP 真值在 api。l0_template 标召回增强关闭。 | 现行 |
-| `ops/chunks-workspace.test.tsx` | 分片薄页未点详情时不得预拉正文，失败则一次选文档打满全文接口。 | 剧本 Z3 · ADR-052 | `ChunksWorkspace` | 选文档只走 list；loadChunkBody 仅点击某块触发一次且只拉该块。HTTP 真值在 api。 | 现行 |
+| `ops/chunks-workspace.test.tsx` | 分片薄页未点详情时不得预拉正文；点击后详情带 body 并标截断；页面可选文档并列块。 | 剧本 Z3 / Z4 / Z8 · ADR-052 | `ChunksWorkspace` | 选文档只走 list；点击拉该块详情（truncated 提示）；薄页可选文档 + 表头列。HTTP 真值在 api。 | 现行 |
+| `ops/feedback-workspace.test.tsx` | 反馈队列 open 单必须能按审核口径关单（linked_doc），关单后不再出面按钮。 | 剧本 G2 · ADR-019 · 功能表 §4.1 | `FeedbackWorkspace` | 关单用例参数与状态回显；无 feedback.queue 只提示。HTTP 真值在 api。 | 现行 |
+| `ops/models-workspace.test.tsx` | 模型网关页 Key 只写不回显：password 型、编辑留空、请求不夹带旧明文。 | 剧本 AD10 · ADR-055 | `ModelsWorkspace` | 列表只显示「已配置 Key」；无码 403 态且不加载。HTTP 真值在 api。 | 现行 |
 | `ops/document-upload.test.ts` | 上传服务必须按 upload-url → PUT → complete 调用，失败则入口顺序错乱。 | 上传入口 · ADR-039 · 工单「上传表单标部门最小闭环」 | `uploadAdminDocument · resolveUploadContentType · toCreateDocAclFields` | 未知类型不调 upload-url；complete 带 checksum 与可选部门字段。体积闸真值在 api。 | 现行 |
 | `ops/document-write.test.ts` | 在线编写提交必须带非空标题与正文，并走 write HTTP。 | 功能表 §4.3 在线编写 · 工单「上传表单标部门最小闭环」 | `canSubmitWrite · writeAdminDocument` | HTTP 真值在 api。可带部门两字段。无 BlockNote。 | 现行 |
 | `ops/document-strategy-snapshot.test.ts` | 文档详情必须只读看到绑定的分片策略与快照，未记录时如实说「未记录」。 | 功能表 §4.5 · prds/05-api 文档元数据 · ADR-053 | `strategySnapshotLabel` | 不新增写路径；HTTP 真值在 api 列表项。 | 现行 |
 | `ops/documents-workspace.test.tsx` | 文档列表薄页必须按码控制详情/保存/部门列，失败则运营交互与权限不符。 | 文档运营 UI · 工单「上传表单标部门最小闭环」 · 工单「文档绑定策略参数快照只读审计最小闭环」 | `DocumentsWorkspace · deptLabel / readyColLabel / visibilityLabel / strategySnapshotLabel` | 含类型列、运营标签、Reindex、归档、删除、在线编写区、创建面部门关闭列表；行展开名单与生效区间、入库报告、**分片策略（历史，只读）**；PATCH 含 effectiveFrom/To；有码可选后继替代；删除走 DELETE 不走 PATCH。 | 现行 |
+| `ops/documents-needs-ocr.test.tsx` | 卡 OCR 闸的文档须在列表可见，且不得被当成可上架。 | 剧本 Q1 · prds/10-delivery/03-acceptance-scenarios.md · ADR-043 | `DocumentsWorkspace` | needs_ocr 行显示「需 OCR」与原始串、双就绪列未就绪；有 doc.lifecycle 也不出「上架 active」。HTTP 真值在 api。 | 现行 |
 | `ops/ingest-report.test.tsx` | 文档行展开须展示入库报告（含跨文档去重率与 contextualize 两计数）；无报告出「暂无入库报告」；未记录的率与计数不得显示 0。 | 功能表 §4.3 · prds/04-pipelines §5.2 | `DocumentsWorkspace · reportsForDoc · dedupeRateLabel · contextualizeCountsLabel` | 库级 GET 后按本行过滤；展示跨 doc 计数、去重率、冲突对与 L1 成功/L0 回退；未记录就明说未记录。 | 现行 |
 | `ops/eval-workspace.test.tsx` | 评测薄页无码须 403；有码才列出题目并入队 L1/L2。 | 功能表 §4.1 · prds/05-api §2.8 · 覆盖 C4 · 覆盖 C2 · 覆盖 C3 | `EvalWorkspace` | HTTP 真值在 api；本页不跑批；L1 有 scored 时展示 Hit@k；有 tauStar / judgeAuroc 时展示该值。 | 现行 |
 | `ops/feedback-comment-escape.test.tsx` | 反馈 comment 含 `<script>` 必须当文本展示，不得当 HTML 解析。 | 剧本 K6 · prds/10-delivery/03-acceptance-scenarios.md | `FeedbackWorkspace` | comment 走 React 文本节点原样可见。 | 现行 |
 | `ops/feedback-promote-gold.test.tsx` | 有 feedback.queue 与 eval.run 才能纳入黄金集；无 eval.run 不得展示按钮。 | ADR-019 · 功能表 §4.1 · prds/05-api §2.6 | `FeedbackWorkspace` | HTTP 真值在 api；ClosedSelect 题型。不是 gold.yaml。 | 现行 |
 | `ops/kb-settings-services.test.ts` | 设置服务必须把类型分区草稿编成 catalog，失败则 PATCH 写出错误 docTypeItems。 | 功能表 §4.2 文档类型 · ADR-054 · 工单「类型分区 CRUD 最小闭环」· 工单「KB 消费绑定最小闭环」 | `draftsFromSettings / draftsToCatalog / catalogsEqual / draftsToKbConsumeBindings` | 不写 URL；不再把逗号串当主路径；KB 绑定空档跟随平台。 | 现行 |
 | `ops/kb-settings-doc-types.test.tsx` | 知识库设置文档类型必须逐条增删改，禁止逗号串当主路径。 | 功能表 §4.2 文档类型 · ADR-054 · 工单「类型分区 CRUD 最小闭环」 | `SettingsWorkspace` 类型分区 | HTTP 真值在 api；本页只断言 PATCH 发 docTypeItems。 | 现行 |
-| `ops/kb-settings-workspace.test.tsx` | KB 设置薄页必须按 kb.config.write 显隐，未改勾选不得 PATCH 强制/继承。 | B2 设置 UI · 工单「KB 消费绑定最小闭环」 | `SettingsWorkspace` | mode 真值在 api；sensitive 说明为 ACL 就绪；消费绑定三档 ClosedSelect。 | 现行 |
+| `ops/kb-settings-workspace.test.tsx` | KB 设置薄页必须按 kb.config.write 显隐，分区齐全，质量区只读。 | B2 设置 UI · 剧本 AB1 / AB5 · 工单「KB 消费绑定最小闭环」 | `SettingsWorkspace` | mode 真值在 api；六分区齐全；质量区无写入控件且保存不夹带 τ。 | 现行 |
 | `ops/roles-permission-tree.test.tsx` | 角色授码必须按菜单树分组，且任何 catalog 码都不得被静默丢掉。 | IA §2.4 · 功能表 §4.1 · prds/09-security 角色树 UI | `buildPermissionTree · RolesWorkspace` | 分组来自 `MENU_TREE`；未挂菜单的码仍可见可勾。鉴权真值在 api。 | 现行 |
 | `ops/settings-audit.test.tsx` | 知识库设置页必须展示本库修改日志；无行时须出「暂无修改日志」。 | 功能表 §4.2 | `SettingsWorkspace` | mock services；有行展示时间 / 操作者 / 字段旧→新。 | 现行 |
 | `ops/members-workspace.test.tsx` | 成员页有 member.manage 才能改角色；改下拉须走 PUT 用例。 | prds/05-api §2.2 · 功能表 §5.2 成员 | `MembersWorkspace` | HTTP 真值在 api。 | 现行 |

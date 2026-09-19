@@ -22,9 +22,9 @@ P2 必签。API 已有提交/队列；admin 有薄队列页（comment 文本节�
 
 | ID | 期望摘要 | 阶段 | 形态 | 覆盖 | 主包 | 证据 | 缺口 |
 |----|----------|------|------|------|------|------|------|
-| G1 | 对 abstained 提交 missing_doc，状态 open | P2必签 | 单测 | 部分测 | api · web | apps/api/tests/feedback/http.test.ts（`category: 'missing_doc'` → 201/`status=open`）· apps/web/tests/ask/feedback-category.test.tsx（缺文档按钮提交 missing_doc） | 未断言「仅 abstained 可开单」。 |
-| G2 | 管理员 linked_doc / 上传后队列可关闭 | P2必签 | 单测 | 部分测 | api | apps/api/tests/feedback/http.test.ts（PATCH `dismissed` 后 `status=open` 列表为空）· apps/admin/tests/ops/feedback-comment-escape.test.tsx（K6 comment 文本节点，≠ 本步关单） | 只测 `dismissed`；未测 `linked_doc`、上传后关闭。admin 关单路径无 RTL。 |
-| G3 | 提名黄金集须测试/产品审核后才进 gold | P2必签 | 单测 | 部分测 | api · admin | apps/api/tests/feedback/promote-gold.test.ts · apps/admin/tests/ops/feedback-promote-gold.test.tsx · packages/contracts/tests/ask/feedback-promote-gold.test.ts | 运营表：用户 POST 不写题，队列点纳入才 INSERT `gold_questions`。缺：未审不得进 `gold.yaml`（QUAL-G3 工程种子仍缺口）。 |
+| G1 | 对 abstained 提交 missing_doc，状态 open | P2必签 | 单测 | 部分测 | api · web | apps/api/tests/feedback/http.test.ts（`剧本 G1 / G2 / S3`：真跑一轮 `runAskGraph` 并断言 `status=abstained`，同一 requestId 提交 `missing_doc` → 201 `status=open`、`handlerId=null`，运营 open 队列可见）· apps/web/tests/ask/feedback-category.test.tsx（缺文档按钮提交 missing_doc） | 补测后仍缺一截：负向「仅 abstained 可开单」无闸可断言——`apps/api/src/routes/feedback.ts:99-150` 不读轮次状态，`TraceLookup` 无 status 字段；本行只补了正例。 |
+| G2 | 管理员 linked_doc / 上传后队列可关闭 | P2必签 | 单测 | 部分测 | api · admin | apps/api/tests/feedback/http.test.ts（`剧本 G2`：PATCH `status=linked_doc` → 200 + `resolvedAt` + `handlerId`；open 队列空、`status=linked_doc` 队列含该单）· apps/admin/tests/ops/feedback-workspace.test.tsx（open 单点「已关联文档」→ `resolveFeedback(fbId,'linked_doc')` + 状态回显；已关单行不再出现关单钮；无 `feedback.queue` 只提示无权限） | 补测后仍缺一截：「上传后关闭」——全仓仅 `apps/admin/src/app/(ops)/feedback/_components/feedback-workspace.tsx:126` 手动 `linked_doc`，**无上传联动代码**，无从断言。 |
+| G3 | 提名黄金集须测试/产品审核后才进 gold | P2必签 | 单测 | 已测 | api · admin | apps/api/tests/docs-guard/gold-review-guard.test.ts（`剧本 G3` 文件写路径护栏：凡源码提及 `gold.yaml` 的文件，其写文件 API 附近不得出现该名录；L1 名录只有读侧入口（`run-l1-golden.ts` 路径常量 + `loadGold`），运营纳入落 `gold_questions` 表）· apps/api/tests/feedback/promote-gold.test.ts · apps/admin/tests/ops/feedback-promote-gold.test.tsx · packages/contracts/tests/ask/feedback-promote-gold.test.ts | —（补测：无「点一下即写 gold.yaml」代码路径已由护栏断言；≠ 测试/产品真审签流程） |
 
 ## 剧本 N · At-rest 加密与备份契约
 
@@ -49,7 +49,7 @@ O1/O2/O4 为 P2 代码门禁必签；O3/O5–O11 在启用独立索引或 stagin
 | ID | 期望摘要 | 阶段 | 形态 | 覆盖 | 主包 | 证据 | 缺口 |
 |----|----------|------|------|------|------|------|------|
 | O1 | 两租户同共享索引：A ask 永不返回 B 的 chunk | P2必签代码门禁 | 单测 | 已测 | api | apps/api/tests/ask/sparse-kb-filter.test.ts | 锁 kbId term + 外库 chunk 丢弃。默认 mock ES。**≠ tenantId 闸**（O4 已按 builder 层必填回写，见该行） |
-| O2 | Router 默认全部指向共享名；写入/查询一致 | P2必签代码门禁 | 单测 | 部分测 | api | apps/api/tests/ask/es-sparse.test.ts · apps/worker/tests/ingest/es-http.test.ts（默认 index=`strict_rag_dev`） | 两边默认名一致。无 Router 对象、无写查一体断言。 |
+| O2 | Router 默认全部指向共享名；写入/查询一致 | P2必签代码门禁 | 单测 | 部分测 | api | apps/api/tests/ask/es-sparse.test.ts（`剧本 O2`：env 无路由覆盖时 `esConfigFromEnv` 的 `index` = `strict_rag_dev`，实际请求 URL 为 `/strict_rag_dev/_search`，filter 仍为 tenantId + kbId 两条 term）· apps/worker/tests/ingest/es-http.test.ts（默认 index=`strict_rag_dev`） | 补测后仍缺一截：写侧落点 `apps/worker/tests/ingest/es-http.test.ts` 超出补测批 3 允许范围，**只补了 api 查侧**（默认共享名即查询 URL）；写侧同源仍缺，仍无 Router 对象、无写查一体断言。 |
 | O3 | 配置一租户独立 index 后，该租户写/查只打独立名 | 独立索引演练 | UAT | 延后 | api | docs/module-status/api.md（≠ 多租户 Router / B8） | 独立索引能力未做。 |
 | O4 | 无 `tenantId` 的 query builder → 单测/门禁失败（独立索引亦然） | P2必签代码门禁 | 单测 | 已测 | api · worker | `apps/api/tests/ask/es-builder-tenant-required.test.ts` · `apps/worker/tests/ingest/es-builder-tenant-required.test.ts`（缺 / 空 / 空白 `tenantId` → builder 失败且不发 HTTP；带 `tenantId` 时 `kbId` 与租户 filter 原位不变）· 源码 `apps/api/src/services/retrieve/es-sparse.ts` · `apps/worker/src/ingest/es-http.ts` | builder 层 tenantId 必填已测。**≠ 全仓：`apps/worker/src/ingest/es-http.ts` 的 `listIndexedChunkIds`（第三处 ES 查询路径 · 孤儿清理的 ES 侧入口）原先只按 `docId` 查 → 第三处路径的补闸见 wayfinder 工单 `../../../.scratch/p2-exit-evidence/issues/13-es-query-third-path-tenant-gate.md`**（工作区源码已加 `tenantId` 必填 + `term: tenantId` 过滤，测例与验收尚未收口）；本行只主张 query/bulk builder 闸，≠ 生产多租户已验 |
 | O5 | staging：回填 → chunkId 集一致 → 切 router → 查询单边新 → 共享无残留 | 独立索引演练 | UAT | 延后 | worker | apps/worker/tests/ingest/es-http.test.ts（`reconcileIndexed` 仅对账集合） | 迁移演练未做。 |
@@ -71,7 +71,7 @@ P1/P3/P4/P6 为 P2 配置/单测必签。`online_sample` 未启 → P4/P5/P7–P
 | P3 | verify 路径 Gateway 仅 `judge`；抽样路径仅 `judge_aux` | P2单测必签 | 单测 | 部分测 | api | apps/api/tests/ask/verify-required.test.ts · apps/api/src/services/gateway/resolve.ts（`ChatPurpose` 无 `judge_aux`） | 源码侧待定：先裁清哪一侧错，再决定改源码还是回 PRD 裁口径。`apps/api/src/services/gateway/resolve.ts` 的 `ChatPurpose` 无 `judge_aux`，全仓亦无 online_sample 抽样链；verify 走 `judge` 有图测（`tests/ask/verify-required.test.ts`）。禁止写成「待补测」 |
 | P4 | mock `judge_aux` 全链失败 → 不调用 `judge` 链；仅 `judge_aux_fail`；ask 仍正常 | 启用 online_sample 时 | 注入 | 延后 | api | — | `online_sample` 未启。 |
 | P5 | 抽样调用后用户 ask 的 `maxLLMCalls` 不因 aux 增长 | 启用 online_sample 时 | 单测 | 延后 | api | apps/api/tests/ask/budget.test.ts（仅 ask 图 LLM/retrieve 预算） | 无 aux 预算隔离测。 |
-| P6 | L1 门禁条件无 `aux_*`；类型层 aux 与 min_support 不可互赋 | P2单测必签 | 单测 | 部分测 | api | apps/api/src/eval/adr046-snapshot.ts（`PILOT_HARD_GATES` 无 `aux_*`）· apps/api/tests/eval/adr046-snapshot.test.ts | 硬门对象无 aux 键。类型层「aux 与 min_support 不可互赋」未测。 |
+| P6 | L1 门禁条件无 `aux_*`；类型层 aux 与 min_support 不可互赋 | P2单测必签 | 单测 | 已测 | api | apps/api/tests/eval/adr046-snapshot.test.ts（`剧本 P6` 两条：试点硬门键名无 `aux_*` / `min_support` / `minSupport`；类型层用 `@ts-expect-error` 拒绝 `auxJudgeAuroc` 进硬门键、`TauSweepCase.minSupport` 不接受 aux 分数对象）· apps/api/src/eval/adr046-snapshot.ts（`PILOT_HARD_GATES` 无 `aux_*`） | —（补测：键名与类型层两向均已断言） |
 | P7 | 改 `judge_aux` → 审计 + 旧基线 superseded；不强制 Verifier 校准集 | 启用 online_sample 时 | UAT | 延后 | api | — | 辅模型换绑作业未开。 |
 | P8 | 改 `judge` → 须触发 ADR-016 校准路径（与 P7 对照） | 启用 online_sample 时 | UAT | 延后 | api | — | 主 Judge 换绑校准未开。 |
 | P9 | 敏感 KB Cloud 明文 aux → 拒；self-host 或只评结构可 | 启用 online_sample 时 | UAT | 延后 | api | — | aux 敏感策略未做。 |
@@ -103,9 +103,9 @@ T1–T7、T9 为 P2 必签（契约/夹具/文档）。T8/T10 在多 KB 或放�
 
 | ID | 期望摘要 | 阶段 | 形态 | 覆盖 | 主包 | 证据 | 缺口 |
 |----|----------|------|------|------|------|------|------|
-| T1 | 未声明加严的 KB → 门禁包 = 试点默认（C≤5% 等）可打印 | P2必签 | 单测 | 部分测 | api | apps/api/src/eval/adr046-snapshot.ts（`PILOT_HARD_GATES.cRateMax=0.05`）· apps/api/tests/eval/adr046-snapshot.test.ts（试点全等 → equal） | 常量可打印。无「未声明加严 KB 加载即该包」HTTP/运行时测。 |
-| T2 | 将 C 上限改为 8% 无 ADR/合规会签 → 配置门禁拒绝或发布检查失败 | P2必签 | 单测 | 部分测 | api | apps/api/tests/eval/adr046-snapshot.test.ts（`cRateMax` 放宽 → looser，`signedPackage=false`） | 纯函数拒放宽。无发布/配置 HTTP 拒绝路径。 |
-| T3 | 提案 C≤3% 未重跑 2×2 → 不得标记 `stricter_than_pilot` 已签字 | P2必签 | 单测 | 部分测 | api | apps/api/tests/eval/adr046-snapshot.test.ts（缺四要素 → 不得标已签字） | 四要素缺提案/签字已测。未专测「未绑定 L1 重跑」。 |
+| T1 | 未声明加严的 KB → 门禁包 = 试点默认（C≤5% 等）可打印 | P2必签 | 单测 | 部分测 | api | apps/api/tests/eval/adr046-snapshot.test.ts（`剧本 T1`：不传 gates → `snapshot.gates` ≡ `PILOT_HARD_GATES`、`gate_bundle='pilot'`、`stricterThanPilot=false`、`loosenedKeys=[]`，且 `cRateMax=0.05` / `coverageMin=0.4` / `citationCompleteMin=0.99` 可逐项读出）· apps/api/src/eval/adr046-snapshot.ts | 补测后仍缺一截：本行证据只在纯函数/写侧，无「未声明加严 KB 加载即该包」的 HTTP / 运行时入口（`adr046-snapshot.ts` 全仓无运行时读取 / 加载入口）。 |
+| T2 | 将 C 上限改为 8% 无 ADR/合规会签 → 配置门禁拒绝或发布检查失败 | P2必签 | 单测 | 部分测 | api | apps/api/tests/eval/adr046-snapshot.test.ts（`剧本 T2`：`cRateMax:0.08` → `direction='looser'`、`loosenedKeys=['cRateMax']`、`stricterThanPilot=false`、`gate_bundle='pilot'`、`signedPackage/businessPass=false` + `reasons` 含 `loosened_hard_gate`；`writeBoundSnapshot` 落盘裁决同样拒绝） | 补测后仍缺一截：无发布 / 配置 HTTP 拒绝路径（仓内无该闸；纯函数与落盘裁决已拒放宽）。 |
+| T3 | 提案 C≤3% 未重跑 2×2 → 不得标记 `stricter_than_pilot` 已签字 | P2必签 | 单测 | 部分测 | api | apps/api/tests/eval/stricter-than-pilot-bind.test.ts（`剧本 T3`：`evalRunId=null` + proposal + 无人签 → `stricterThanPilot=true`、`gate_bundle='stricter'`，但 `evalBindId='report:kb-1:…'`、`signedPackage/businessPass=false`、`reasons` 含 `missing_signatures`）· apps/api/tests/eval/adr046-snapshot.test.ts | 补测后仍缺一截：`apps/api/src/eval/adr046-snapshot.ts:129` 的 `l1RerunBound` 用 `kbId && ranAt` 也算真，故「无 evalRunId 即不得 bindable / 不得写绑定」**不成立**（同文件测例「无 evalRunId 时用 report:kb:ranAt 绑定」已固化该回退）；本行只断言 `signedPackage/businessPass=false` + `missing_signatures`。 |
 | T4 | 提案 + L1 重跑 + 业务/产品签字 + 配置快照绑定 → 可生效加严包 | P2必签 | 单测 | 部分测 | api | apps/api/tests/eval/adr046-snapshot.test.ts（四要素齐 + 未放宽 + live 覆盖>0 → `signedPackage`） | **阻塞方：业务/产品人签（UAT）**；测例用注入布尔，非真实签字流。 |
 | T5 | 加严包「覆盖↑ 且 C 上限↑」→ 拒绝（diff 校验失败） | P2必签 | 单测 | 已测 | api | apps/api/tests/eval/adr046-snapshot.test.ts（coverageMin↑ 且 cRateMax↑ → `direction=looser`） | — |
 | T6 | KB 快照 τ/门禁数字 = 已签字包；篡改快照 → 加载拒绝或不一致告警失败 | P2必签 | 单测 | 部分测 | api | apps/api/tests/eval/adr046-snapshot.test.ts（`bindQualitySnapshotToEval` / `writeBoundSnapshot`） | 源码侧待定：先裁清哪一侧错，再决定改源码还是回 PRD 裁口径。`apps/api/src/eval/adr046-snapshot.ts:175,218` 只有写侧 + CLI，全仓无运行时读取 / 加载入口；绑定身份稳定已测。禁止写成「待补测」 |
@@ -120,13 +120,13 @@ P2 必签（UI 可薄，契约不可缺）。
 
 | ID | 期望摘要 | 阶段 | 形态 | 覆盖 | 主包 | 证据 | 缺口 |
 |----|----------|------|------|------|------|------|------|
-| AB1 | 有 `kb.config.write` 打开「知识库设置」见分区：基本信息 / 文档类型 / 分片策略入口 / 问答档位 / 质量只读 / 会话锁 | P2必签 | 单测 | 部分测 | admin | apps/admin/src/app/(ops)/kb/settings/_components/settings-workspace.tsx · apps/admin/tests/ops/kb-settings-workspace.test.tsx | 页上有上述分区。测例只盖权限/分级/部门勾选，不断言分区齐全。 |
-| AB2 | 改 `name`、`allowedModes`、`defaultMode` 并保存 → 200、有审计；随后 ask 用新 mode 白名单 | P2必签 | 单测 | 部分测 | api | apps/api/tests/kb/settings-http.test.ts（PATCH 白名单 200 回读）· apps/api/tests/kb/settings-audit-http.test.ts（有 diff 的 PATCH → GET 见该行；空 diff 不增行）· apps/api/tests/obs/admin-write-audit.test.ts（settings PATCH 应打 `admin_write` Pino，不落表）· apps/api/tests/ask/mode-doc-types-gate.test.ts | HTTP 保存 + 可查询 diff 已测。未串「PATCH 后 ask 用新白名单」。`admin_write` 仍是中间件 Pino，不落表。 |
+| AB1 | 有 `kb.config.write` 打开「知识库设置」见分区：基本信息 / 文档类型 / 分片策略入口 / 问答档位 / 质量只读 / 会话锁 | P2必签 | 单测 | 已测 | admin | apps/admin/tests/ops/kb-settings-workspace.test.tsx（`剧本 AB1`：六个分区标题齐（基本信息 / 文档类型 / 问答档位 / 质量（只读）/ 会话 rewrite（锁）/ 分片策略），且分区内关键控件在（名称、默认档位、「新增类型」））· apps/admin/src/app/(ops)/kb/settings/_components/settings-workspace.tsx | —（补测：分区齐全已断言） |
+| AB2 | 改 `name`、`allowedModes`、`defaultMode` 并保存 → 200、有审计；随后 ask 用新 mode 白名单 | P2必签 | 单测 | 已测 | api | apps/api/tests/kb/settings-http.test.ts（`剧本 AB2`：同一个 app 内 PATCH `allowedModes=['fast']` / `defaultMode='fast'` → 200；GET `ask-modes` 回读一致；随后 ask balanced → 400、ask fast → 200 且 `data.mode='fast'`）· apps/api/tests/kb/settings-audit-http.test.ts（有 diff 的 PATCH → GET 见该行；空 diff 不增行）· apps/api/tests/obs/admin-write-audit.test.ts（settings PATCH 应打 `admin_write` Pino，不落表）· apps/api/tests/ask/mode-doc-types-gate.test.ts | —（补测：PATCH → ask 用新白名单的同 app 往返已串；`admin_write` 仍是中间件 Pino，不落表） |
 | AB3 | ask `options.mode` ∉ `allowedModes` → 400 | P2必签 | 单测 | 已测 | api | apps/api/tests/ask/mode-doc-types-gate.test.ts · apps/api/tests/kb/ask-mode-doc-types.test.ts | mode 不在允许列表 → 400/`mode not allowed`。 |
 | AB4 | PATCH body 含 `tauClaim`（或 crag / allowDegraded）→ 400；运行时 τ 不变 | P2必签 | 契约+单测 | 已测 | api | apps/api/tests/kb/settings-http.test.ts（PATCH `tauClaim` → 400）· packages/contracts/tests/kb/settings-contract.test.ts（拒 `tauClaim` / `allowDegradedGenerate` / `cragOk`） | GET `qualitySnapshot.tauClaim` 来自 env，PATCH 拒写。 |
-| AB5 | 质量区仅展示 τ + 签字包信息；无写入控件；GET 可读 snapshot | P2必签 | 单测 | 部分测 | api | apps/api/tests/kb/settings-http.test.ts（GET 含只读 `qualitySnapshot.tauClaim`）· apps/admin/src/app/(ops)/kb/settings/_components/settings-workspace.tsx（质量只读区） | API GET 已测。admin 测例未断言无 τ 滑块/写入控件。 |
+| AB5 | 质量区仅展示 τ + 签字包信息；无写入控件；GET 可读 snapshot | P2必签 | 单测 | 已测 | api · admin | apps/admin/tests/ops/kb-settings-workspace.test.tsx（`剧本 AB5`：质量区显示 `tauClaim` / `0.7` / `gatePackageId` / `—`；区内无 textbox / spinbutton / button / slider；点保存后请求体不含 `tauClaim` 与 `qualitySnapshot`）· apps/api/tests/kb/settings-http.test.ts（GET 含只读 `qualitySnapshot.tauClaim`）· apps/admin/src/app/(ops)/kb/settings/_components/settings-workspace.tsx（质量只读区） | —（补测：无写入控件 + 保存不夹带已断言） |
 | AB6 | 无 `kb.config.write` → 菜单隐藏或页 403；PATCH 403 | P2必签 | 单测 | 已测 | api | apps/api/tests/kb/settings-http.test.ts（doc_operator GET 403）· apps/admin/tests/ops/kb-settings-workspace.test.tsx（无码 403 态）· packages/admin-catalog/tests/acl/catalog-clip.test.ts | API 与薄页均拒无码。 |
-| AB7 | 维护 docTypes 后 GET doc-types：列表与设置一致 | P2必签 | 单测 | 部分测 | api | apps/api/tests/ask/http-doc-types.test.ts（成员 GET 与 settings 枚举一致；空枚举 `[]`）· apps/api/tests/kb/ask-mode-doc-types.test.ts（config 解析）· apps/admin/tests/ops/kb-settings-services.test.ts（`parseDocTypesInput`） | 独立 `GET …/doc-types` 已测。未串 PATCH settings 后立刻 GET doc-types 的同一 app 往返。 |
+| AB7 | 维护 docTypes 后 GET doc-types：列表与设置一致 | P2必签 | 单测 | 已测 | api | apps/api/tests/kb/doc-type-catalog-http.test.ts（同一 app：PATCH `docTypeItems`（hr 启用 / legal 停用）→ 200 回读含真 label；随后成员 GET `…/doc-types` 只含启用项且 label 为真值；重复码 400）· apps/api/tests/ask/http-doc-types.test.ts · apps/api/tests/kb/ask-mode-doc-types.test.ts · apps/admin/tests/ops/kb-settings-services.test.ts | —（本批**未新增测例**：经核对，既有 `apps/api/tests/kb/doc-type-catalog-http.test.ts` 已具实质断言——PATCH 后同 app GET doc-types 往返一致且只列启用项，故判 `已测`） |
 | AB8 | 分片策略「设置」打开 053 弹窗；保存服 AA 语义 | P2必签 | 单测 | 已测 | admin | `apps/admin/tests/ops/chunk-strategy-panel.test.tsx`（「设置」弹窗、保存 `enabled`、`paramOverrides.contextMode`、文案「不会自动全库 reindex」；recommended 下拉有 UI、未单独断言）· `apps/admin/src/app/(ops)/kb/settings/_components/settings-workspace.tsx` | —（弹窗 + 保存 + 文案已测；complete/reindex 策略闸在入库分册） |
 
 ## 剧本 AC · 模型供应商与绑定
@@ -140,7 +140,7 @@ P2 必签。缺 URL 走 mock 的网关测 ≠ 生产双节点已测。
 | AC3 | 平台绑定 generate/embed/rerank/judge/judge_aux 合法 ModelRef → 200；类型不匹配 → 400 | P2必签 | 单测+契约 | 已测 | api | apps/api/tests/gateway/bindings-http.test.ts（embed 绑 llm → 400；五 purpose 合法 → 200）· packages/contracts/tests/system/model-gateway-contract.test.ts（`requiredModelTypeForPurpose`） | — |
 | AC4 | prod/staging 绑 judge≡judge_aux 同 provider+model → 拒绝保存/加载 | P2必签 | 单测 | 部分测 | api | apps/api/tests/gateway/bindings-http.test.ts（同模 400 / 文案含 judge） | 保存拒绝已测（同模 400 / 文案含 judge）。**阻塞方：同 P1（真进程启动 / 加载同模失败），非单测可覆盖。** |
 | AC5 | rerank fallback 链长 &lt; `RERANK_MIN_NODES` → 拒绝（ADR-034） | P2必签 | 单测 | 已测 | api | apps/api/tests/gateway/resolve-mock.test.ts（staging http 单节点抛 `/RERANK_MIN_NODES/`；双 URL 接受） | 配置闸已测。mock 双节点重试 ≠ 生产双节点签字。 |
-| AC6 | KB 设置选 generate/embed/rerank 覆盖；ask/入库解析用 KB 选择；审计 | P2必签 | 单测 | 部分测 | api | apps/api/tests/gateway/resolve-mock.test.ts（`mergeBindingRows` KB 覆盖 generate）· apps/api/src/routes/kb-settings.ts（GET/PUT KB bindings） | 合并覆盖已测。无 KB PUT HTTP 测；无 ask/入库解析用 KB 选择的端到端。 |
+| AC6 | KB 设置选 generate/embed/rerank 覆盖；ask/入库解析用 KB 选择；审计 | P2必签 | 单测 | 已测 | api | apps/api/tests/gateway/resolve-mock.test.ts（`剧本 AC6`：KB 行覆盖平台行后 `resolveChatModel(cfg,'generate')==='kb-chat'`、`cfg.models.embed==='kb-embed'`、`purposeEndpoints.chat` 指向 KB 供应商的 baseUrl / apiKey）· apps/api/tests/kb/kb-consume-bindings-http.test.ts（KB PUT bindings 200；写 judge → 400 不落行）· apps/api/tests/kb/create-kb-with-models.test.ts · apps/api/tests/obs/admin-write-audit.test.ts（`PATCH /knowledge-bases/:kbId/settings` 打 `admin_write`）· apps/api/src/routes/kb-settings.ts（GET/PUT KB bindings） | —（补测：KB 选择进解析结果的端到端已断言；审计走中间件 Pino，不落表） |
 | AC7 | KB 尝试绑 judge → 400/403 | P2必签 | 单测 | 已测 | api | `apps/api/tests/kb/kb-consume-bindings-http.test.ts`（KB 侧 PUT judge → 400 且不落行）· `apps/api/src/routes/kb-settings.ts` | —（KB 写入口已拒 judge） |
 | AC8 | 无 `model.gateway.manage` 调 Provider API → 403 | P2必签 | 单测 | 已测 | api | apps/api/tests/gateway/bindings-http.test.ts（kb_admin GET providers → 403/`model.gateway.manage`） | — |
 | AC9 | `model-catalog` 仅启用模型；无凭证字段 | P2必签 | 单测 | 已测 | api | apps/api/tests/gateway/bindings-http.test.ts（仅 `enabled:true`；body 不含 secret） | — |
@@ -155,12 +155,12 @@ P2 必签。api listen 前引导函数已接；createApp 不跑。
 | AD2 | 缺 SUPER_ADMIN_* 且无超管启动 → 启动失败 | P2必签 | 单测 | 已测 | api | apps/api/tests/acl/superadmin-bootstrap.test.ts（抛 `SuperAdminBootstrapError`） | index.ts 失败走 `process.exit(1)`，单测不真退出。 |
 | AD3 | 已有超管再启动 → 不用 env 重置密码；码仍补齐 | P2必签 | 单测 | 已测 | api | apps/api/tests/acl/superadmin-bootstrap.test.ts（哈希不变 + 码仍全）· `system-roles-skip-reseed.test.ts`（ensure 跳过重种子）· `platform-users-roles.test.ts`（PUT/PATCH 改少超管码 400） | 写路径锁已测。引导页 / 密码登录仍未做。 |
 | AD4 | 超管建角色：树勾选 doc.* 等保存 → 200；审计 | P2必签 | 单测 | 已测 | api | apps/api/tests/acl/platform-users-roles.test.ts（POST 合法码 201；未知码 400）· apps/api/tests/obs/admin-write-audit.test.ts（`/admin/roles` 写应审计） | 审计为中间件命中，非本 POST 日志体。 |
-| AD5 | 超管建平台用户并绑该角色；用户登录 admin 后 `/me/permissions` = 角色并集 | P2必签 | 单测 | 部分测 | api | apps/api/tests/acl/platform-users-roles.test.ts（POST 用户 + 绑角色 201，列表含 `roleCodes`）；apps/api/tests/acl/me-permissions.test.ts（`GET /me/permissions` = 模板并集，与 `/auth/me` 同源） | 无「建用户 + 绑自定义角色后登录」链路；现测是模板角色并集。 |
+| AD5 | 超管建平台用户并绑该角色；用户登录 admin 后 `/me/permissions` = 角色并集 | P2必签 | 单测 | 已测 | api | apps/api/tests/acl/platform-users-roles.test.ts（`剧本 AD5`：超管 POST 自定义角色 `hr_ops`（码 `admin.shell` / `doc.view` / `doc.upload`）→ 201；POST 用户并绑该角色 → 201 且 `roleCodes=['hr_ops']`；该用户令牌 GET `/me/permissions` 恰为三角色码并集且不含 `approval.decide`）· apps/api/tests/acl/me-permissions.test.ts（`GET /me/permissions` = 模板并集，与 `/auth/me` 同源） | —（补测：建自定义角色 → 绑角色 → 该用户并集的链路已直打，非模板并集） |
 | AD6 | 无 `user.manage` 调用户 API → 403 | P2必签 | 单测 | 已测 | api | apps/api/tests/acl/platform-users-roles.test.ts（kb_admin GET users → 403/`user.manage`） | — |
 | AD7 | 禁用唯一超管 / 剥超管角色至 0 → 400 | P2必签 | 单测 | 已测 | api | apps/api/tests/acl/platform-users-roles.test.ts（唯一 active 超管 disable/剥角色 → 400/`last active super_admin`） | — |
 | AD8 | 角色绑 catalog 外 code → 400 | P2必签 | 单测+契约 | 已测 | api | apps/api/tests/acl/platform-users-roles.test.ts（`not.a.real.code` → 400/`invalid`）· packages/contracts/tests/system/platform-users-roles-contract.test.ts | — |
-| AD9 | 菜单无「系统设置」空壳（P2）；默认树不出现；模型 Key 不在系统域 | P2必签 | 单测 | 部分测 | admin-catalog | packages/admin-catalog/src/menu-tree.ts（无「系统设置」href）· packages/admin-catalog/tests/acl/catalog-clip.test.ts · packages/admin-catalog/src/permissions.ts（`system.settings` 预留） | clip 后无该空壳路由。未断言「模型 Key 不在系统域」的 UI 结构。 |
-| AD10 | 供应商页 Key：password/掩码；GET 无明文 | P2必签 | 单测 | 部分测 | api | apps/api/tests/gateway/bindings-http.test.ts（GET 无明文）· packages/contracts/tests/system/model-gateway-contract.test.ts（读出口 `hasApiKey`）· apps/admin/src/app/(ops)/models/_components/models-workspace.tsx（`type=password`） | API 读出口已测。admin 掩码无 RTL。 |
+| AD9 | 菜单无「系统设置」空壳（P2）；默认树不出现；模型 Key 不在系统域 | P2必签 | 单测 | 已测 | admin-catalog | packages/admin-catalog/tests/acl/catalog-clip.test.ts（`剧本 AD9`：默认树 / `super_admin` 裁剪 / 按码裁剪三态都不含「系统设置」标签，也无 `/system`、`/settings` href；带「设置」的项只有 `/kb/settings`，且 `/models`（标签「模型网关」）归「系统」组、`/kb/settings` 归「知识库」组）· packages/admin-catalog/src/menu-tree.ts（无「系统设置」href）· packages/admin-catalog/src/permissions.ts（`system.settings` 预留） | —（补测：空壳路由 + 「模型 Key 不在设置域」两向已断言） |
+| AD10 | 供应商页 Key：password/掩码；GET 无明文 | P2必签 | 单测 | 已测 | api · admin | apps/admin/tests/ops/models-workspace.test.tsx（`AD10`：列表只回「已配置 Key」，页面无 `sk-` / `apiKeyEnc`；API Key 输入 `type=password`、编辑既有供应商时留空、保存请求体不含 `apiKey` 也不含 `sk-`；无 `model.gateway.manage` 走页内 403 态且不加载）· apps/api/tests/gateway/bindings-http.test.ts（GET 无明文）· packages/contracts/tests/system/model-gateway-contract.test.ts（读出口 `hasApiKey`） | —（补测：admin 掩码 RTL 已补） |
 
 ## 剧本 I · 观测边界
 
@@ -176,21 +176,21 @@ Phase 4 建议，**不挡 P2** → 默认延后。I2 指标与 I4 双轨可部�
 
 ## 本分册计数
 
-行数须与上表合计一致。2026-09-20 按行级「阶段 + 覆盖」机械重数两轮：第一轮修正 G3 行级是 `部分测`、AD1–AD3 行级是 `已测`、O4 / R10 / AB8 / AC7 行级为 `已测`（故索引汇总原用的 AD / G 子表与 `缺实现 10` 已过期）；第二轮随守卫补测再改 —— **N2 已补测**（`apps/worker/tests/ingest/mongo-body.test.ts`，缺测 → 已测）、**C4 已补测**（`packages/contracts/tests/eval/l1-hit-at-k.test.ts` 的「未映射不得伪命中」护栏，部分测 → 已测；逻辑 id→uuid 映射本身仍是**跑批前人工步骤**，见该行）。
+行数须与上表合计一致。2026-09-20 按行级「阶段 + 覆盖」机械重数三轮：第一轮修正 G3 行级是 `部分测`、AD1–AD3 行级是 `已测`、O4 / R10 / AB8 / AC7 行级为 `已测`（故索引汇总原用的 AD / G 子表与 `缺实现 10` 已过期）；第二轮随守卫补测再改 —— **N2 已补测**（`apps/worker/tests/ingest/mongo-body.test.ts`，缺测 → 已测）、**C4 已补测**（`packages/contracts/tests/eval/l1-hit-at-k.test.ts` 的「未映射不得伪命中」护栏，部分测 → 已测；逻辑 id→uuid 映射本身仍是**跑批前人工步骤**，见该行）；**第三轮（补测批 3）：G3 · P6 · AB1 AB2 AB5 AB7 · AC6 · AD5 AD9 AD10 共 10 行由 `部分测` → `已测`；G1 / G2 / O2 · T1 / T2 / T3 因仍有一截未断言保持 `部分测`**（见各行「缺口」列）。
 
 | 剧本 | 步骤数 | 已测 | 部分测 | 缺测 | 缺实现 | 延后 | UAT |
 |------|--------|------|--------|------|--------|------|-----|
 | C | 5 | 1 | 3 | 0 | 0 | 0 | 1 |
-| G | 3 | 0 | 3 | 0 | 0 | 0 | 0 |
+| G | 3 | 1 | 2 | 0 | 0 | 0 | 0 |
 | N | 9 | 1 | 0 | 0 | 0 | 0 | 8 |
 | O | 11 | 2 | 1 | 0 | 0 | 8 | 0 |
-| P | 11 | 0 | 3 | 0 | 1 | 7 | 0 |
+| P | 11 | 1 | 2 | 0 | 1 | 7 | 0 |
 | R | 12 | 6 | 1 | 0 | 2 | 3 | 0 |
 | T | 10 | 3 | 5 | 0 | 0 | 2 | 0 |
-| AB | 8 | 4 | 4 | 0 | 0 | 0 | 0 |
-| AC | 9 | 6 | 3 | 0 | 0 | 0 | 0 |
-| AD | 10 | 7 | 3 | 0 | 0 | 0 | 0 |
+| AB | 8 | 8 | 0 | 0 | 0 | 0 | 0 |
+| AC | 9 | 7 | 2 | 0 | 0 | 0 | 0 |
+| AD | 10 | 10 | 0 | 0 | 0 | 0 | 0 |
 | I | 5 | 0 | 2 | 0 | 0 | 3 | 0 |
-| **合计** | **93** | **30** | **28** | **0** | **3** | **23** | **9** |
+| **合计** | **93** | **40** | **18** | **0** | **3** | **23** | **9** |
 
 ID 闭集（93）：C1–C5；G1–G3；N1–N9；O1–O11；P1–P11；R1–R12；T1–T10；AB1–AB8；AC1–AC9；AD1–AD10；I1–I5。

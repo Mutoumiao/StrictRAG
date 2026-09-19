@@ -436,6 +436,39 @@ describe('runRetrieve preferredDocIds', () => {
   });
 });
 
+describe('B1-A3 跨 KB 召回负向（allowedDocIds=null ≠ 放开跨库）', () => {
+  it('共享索引返回他库 chunkId：语料求交丢弃，且 ES 查询与语料装载都只带本库 kbId', async () => {
+    const OTHER_KB_CHUNK = '01900000-0000-7000-8000-0000000000cf';
+    const corpus = [chunk('c1', 'employee leave policy allows 15 days annual leave')];
+    const seenCorpusKb: string[] = [];
+    const seenSparse: Array<{ tenantId: string; kbId: string }> = [];
+
+    const r = await runRetrieve(
+      { tenantId: 'tenant-1', kbId: 'kb1', question: 'annual leave policy', membership: 'member' },
+      deps(corpus, {
+        esMode: 'http',
+        loadCorpus: async (input) => {
+          seenCorpusKb.push(input.kbId);
+          return corpus;
+        },
+        sparseSearch: async (input) => {
+          seenSparse.push({ tenantId: input.tenantId, kbId: input.kbId });
+          return [OTHER_KB_CHUNK, 'c1'];
+        },
+      }),
+    );
+
+    expect(seenCorpusKb).toEqual(['kb1']);
+    expect(seenSparse).toEqual([{ tenantId: 'tenant-1', kbId: 'kb1' }]);
+
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.evidence.map((e) => e.chunkId)).toContain('c1');
+    expect(r.evidence.map((e) => e.chunkId)).not.toContain(OTHER_KB_CHUNK);
+    expect(JSON.stringify(r.evidence)).not.toContain(OTHER_KB_CHUNK);
+  });
+});
+
 describe('dual gate is caller corpus responsibility', () => {
   /**
    * isDefaultRetrievable 已在 packages/db 单测；

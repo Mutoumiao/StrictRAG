@@ -11,6 +11,11 @@ import { uuidv7 } from 'uuidv7';
 
 import { ok } from '../../src/lib/response.js';
 import { requestIdMiddleware, type ApiVariables } from '../../src/middleware/request-id.js';
+import { documentRoutes } from '../../src/routes/documents/index.js';
+import { createKbSettingsRoutes } from '../../src/routes/kb-settings.js';
+import { createMemberRoutes } from '../../src/routes/members.js';
+import { createMemoryKbSettingsRepo } from '../../src/services/kb-settings.js';
+import { createMemoryMembersRepo } from '../../src/services/members.js';
 import { issueTokenPair } from '../../src/auth/identity/token-service.js';
 import {
   attachAuthMiddleware,
@@ -19,6 +24,50 @@ import {
   requireKbScope,
   requirePermission,
 } from '../../src/auth/middleware.js';
+
+/** 剧本 B1-5 / Y5：docs 路由是模块单例；本文件把成员资格钉成「非成员」，超管须靠旁路全权 */
+vi.mock('../../src/services/members.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/services/members.js')>();
+  return {
+    ...actual,
+    membersRepo: { ...actual.membersRepo, isMember: async () => false },
+  };
+});
+
+vi.mock('../../src/services/documents.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/services/documents.js')>();
+  const doc = {
+    id: '01900000-0000-7000-8000-0000000000d5',
+    kbId: '01900000-0000-7000-8000-000000000099',
+    tenantId: '01900000-0000-7000-8000-000000000001',
+    title: '差旅制度',
+    status: 'ready',
+    lifecycle: 'draft',
+    approvalStatus: 'approved',
+    objectKey: null,
+    chunkStrategy: 'structure_paragraph',
+    uploadedBy: null,
+    ownerDeptId: null,
+    aclPrincipals: null,
+    docType: null,
+    effectiveFrom: null,
+    effectiveTo: null,
+  };
+  return {
+    ...actual,
+    documentRepo: {
+      ...actual.documentRepo,
+      listDocsByKb: async () => [],
+      getKb: async (id: string) => ({
+        id,
+        tenantId: '01900000-0000-7000-8000-000000000001',
+        configJson: {},
+      }),
+      getDoc: async (id: string) => (id === doc.id ? doc : null),
+      patchMeta: async () => undefined,
+    },
+  };
+});
 
 async function token(roles: string[], userId = uuidv7()) {
   const pair = await issueTokenPair({
@@ -276,5 +325,100 @@ describe('ARCH-P1b-1 requireKbScope + request-scoped membership cache', () => {
     expect(res.status).toBe(401);
     const body = (await res.json()) as { error: { code: string } };
     expect(body.error.code).toBe('UNAUTHORIZED');
+  });
+});
+
+describe('剧本 B1-5 / Y5 · super_admin 非成员的显式全权（真实文档路由）', () => {
+  const KB_ID = '01900000-0000-7000-8000-000000000099';
+  const TENANT_ID = '01900000-0000-7000-8000-000000000001';
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  /** 真实 documents 单例；成员资格 mock 为 false（非成员） */
+  function buildDocApp() {
+    const app = new Hono<{ Variables: AuthVariables }>();
+    app.use('*', requestIdMiddleware);
+    app.use('*', attachAuthMiddleware);
+    app.route('/api/v1', documentRoutes);
+    return app;
+  }
+
+  /** KB 设置 + 成员路由（deps 注入内存仓）；成员资格一律 false（非成员） */
+  function buildManageApp() {
+    const app = new Hono<{ Variables: AuthVariables }>();
+    app.use('*', requestIdMiddleware);
+    app.use('*', attachAuthMiddleware);
+    app.route(
+      '/api/v1',
+      createKbSettingsRoutes({
+        repo: createMemoryKbSettingsRepo([
+          { id: KB_ID, name: '制度库', description: null, configJson: {} },
+        ]),
+        auditRepo: { insert: async () => undefined, listByKb: async () => [] },
+        qualitySnapshot: async () => ({ tauClaim: 0.7, gatePackageId: null, effectiveAt: null }),
+        resolveKbMember: async () => false,
+      }),
+    );
+    app.route(
+      '/api/v1',
+      createMemberRoutes({
+        members: createMemoryMembersRepo(),
+        getKb: async (id) => (id === KB_ID ? { id: KB_ID, tenantId: TENANT_ID } : null),
+        resolveKbMember: async () => false,
+      }),
+    );
+    return app;
+  }
+
+  it('Y5：super_admin 非成员列文档 → 200（AUTH_ENFORCE=true 也放行）', async () => {
+    vi.stubEnv('AUTH_ENFORCE', 'true');
+    const { accessToken } = await token(['super_admin']);
+    const res = await buildDocApp().request(`/api/v1/knowledge-bases/${KB_ID}/documents`, {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { ok: boolean; data: unknown[] };
+    expect(body.ok).toBe(true);
+    expect(body.data).toEqual([]);
+  });
+
+  it('B1-5：super_admin 非成员仍可管理该库（KB 设置 / 成员）→ 200；有码非超管非成员 → 403 非成员', async () => {
+    const app = buildManageApp();
+
+    const sa = await token(['super_admin']);
+    const saHeaders = {
+      authorization: `Bearer ${sa.accessToken}`,
+      'content-type': 'application/json',
+    };
+    const settings = await app.request(`/api/v1/knowledge-bases/${KB_ID}/settings`, {
+      method: 'PATCH',
+      headers: saHeaders,
+      body: JSON.stringify({ name: '改名后' }),
+    });
+    expect(settings.status).toBe(200);
+
+    const invite = await app.request(`/api/v1/knowledge-bases/${KB_ID}/members`, {
+      method: 'POST',
+      headers: saHeaders,
+      body: JSON.stringify({ email: 'newbie@test.local', role: 'read' }),
+    });
+    expect(invite.status).toBe(201);
+
+    // 对照：kb_admin 有同一批码但非该库成员 → 403 且文案指向成员资格（不是缺码）
+    const admin = await token(['kb_admin']);
+    const denied = await app.request(`/api/v1/knowledge-bases/${KB_ID}/settings`, {
+      method: 'PATCH',
+      headers: {
+        authorization: `Bearer ${admin.accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ name: '不该生效' }),
+    });
+    expect(denied.status).toBe(403);
+    const deniedBody = (await denied.json()) as { error: { code: string; message: string } };
+    expect(deniedBody.error.code).toBe('FORBIDDEN');
+    expect(deniedBody.error.message).toContain('not a knowledge base member');
   });
 });

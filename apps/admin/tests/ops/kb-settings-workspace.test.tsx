@@ -300,6 +300,56 @@ describe('SettingsWorkspace', () => {
     expect(screen.getByText(/不是\s*ES/)).toBeInTheDocument();
   });
 
+  it('剧本 AB1：有 kb.config.write 时六个分区齐全', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', KB_ID);
+    me.permissions = ['admin.shell', 'kb.config.write'];
+    loadKbSettings.mockResolvedValue({ ok: true, settings });
+
+    render(<SettingsWorkspace />);
+
+    for (const name of ['基本信息', '文档类型', '问答档位', '质量（只读）', '会话 rewrite（锁）']) {
+      expect(await screen.findByRole('heading', { name }), `缺分区：${name}`).toBeInTheDocument();
+    }
+    // 分片策略入口由子面板提供（AB8 另测弹窗内容）
+    expect(screen.getByRole('heading', { name: '分片策略' })).toBeInTheDocument();
+    // 分区内的关键控件确实在
+    expect(screen.getByLabelText('名称')).toBeInTheDocument();
+    expect(screen.getByLabelText('默认档位')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '新增类型' })).toBeInTheDocument();
+  });
+
+  it('剧本 AB5：质量区只读（展示 τ 与签字包，无写入控件，保存也不夹带 τ）', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', KB_ID);
+    me.permissions = ['admin.shell', 'kb.config.write'];
+    loadKbSettings.mockResolvedValue({ ok: true, settings });
+    saveKbSettings.mockResolvedValue({ ok: true, settings, text: '已保存' });
+
+    render(<SettingsWorkspace />);
+    const user = userEvent.setup();
+
+    const heading = await screen.findByRole('heading', { name: '质量（只读）' });
+    const section = heading.closest('section');
+    expect(section).not.toBeNull();
+
+    expect(within(section!).getByText('tauClaim')).toBeInTheDocument();
+    expect(within(section!).getByText('0.7')).toBeInTheDocument();
+    expect(within(section!).getByText('gatePackageId')).toBeInTheDocument();
+    expect(within(section!).getByText('—')).toBeInTheDocument();
+
+    expect(within(section!).queryByRole('textbox')).not.toBeInTheDocument();
+    expect(within(section!).queryByRole('spinbutton')).not.toBeInTheDocument();
+    expect(within(section!).queryByRole('button')).not.toBeInTheDocument();
+    expect(within(section!).queryByRole('slider')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '保存' }));
+    await waitFor(() => {
+      expect(saveKbSettings).toHaveBeenCalledTimes(1);
+    });
+    const body = saveKbSettings.mock.calls[0]![1] as Record<string, unknown>;
+    expect(body).not.toHaveProperty('tauClaim');
+    expect(body).not.toHaveProperty('qualitySnapshot');
+  });
+
   it('加载后可见三档消费绑定；选生成覆盖后保存 PUT 不含 judge', async () => {
     const ref = '01900000-0000-7000-8000-0000000000aa#chat';
     localStorage.setItem('strict-rag:admin:last-kb-id', KB_ID);

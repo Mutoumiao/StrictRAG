@@ -216,6 +216,41 @@ describe('members CRUD success (memory repo)', () => {
     expect(missing.status).toBe(404);
   });
 
+  it('剧本 B1-3：doc_operator 邀请与移除成员都 403，且不产生副作用', async () => {
+    const { userId, accessToken } = await token(['doc_operator']);
+    const target = uuidv7();
+    const repo = createMemoryMembersRepo();
+    repo.seedUser({ id: target, email: 'b13@test.local' });
+    const seeded = await repo.invite({ kbId: KB, userId: target, role: 'read' });
+    expect(seeded.ok).toBe(true);
+
+    const { app } = buildApp({ members: new Set([userId, target]), repo });
+
+    const invite = await app.request(`/api/v1/knowledge-bases/${KB}/members`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ email: 'another@test.local', role: 'read' }),
+    });
+    expect(invite.status).toBe(403);
+    const inviteBody = (await invite.json()) as { error: { code: string; message: string } };
+    expect(inviteBody.error.code).toBe('FORBIDDEN');
+    expect(inviteBody.error.message).toContain('member.manage');
+
+    const remove = await app.request(`/api/v1/knowledge-bases/${KB}/members/${target}`, {
+      method: 'DELETE',
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    expect(remove.status).toBe(403);
+
+    // 未落副作用：既有成员没被删，角色没被改
+    expect(repo.isMember(target, KB)).toBe(true);
+    const listed = await repo.list(KB);
+    expect(listed.find((r) => r.userId === target)?.role).toBe('read');
+  });
+
   it('PUT 无 member.manage → 403', async () => {
     const { userId, accessToken } = await token(['doc_operator']);
     const { app } = buildApp({ members: new Set([userId]) });

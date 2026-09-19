@@ -1,7 +1,7 @@
 # 让 Phase 2 出口可核对（账本归零 + 必签测证补齐）
 
 Label: wayfinder:map
-Status: open（前沿：09）
+Status: open（前沿：14）
 
 ## Destination
 
@@ -40,6 +40,7 @@ Status: open（前沿：09）
 - [补测批 2 · 入库闸与双就绪](./issues/08-tests-batch-2-ingest-gates.md) — 19 行（L1–L5 · L9 · M1 · M2 · M5 · M6 · Q1 · Q2 · Q5 · Q10 · V1 · V2 · V6 · V8 · AA6）新增 **38 条 `it`** + 共享夹具 `ingest-harness.ts`。硬门都钉住了：ES 失败不得 ready（**向量已写仍不可检索**）· 重索引期间 `activeIndexVersion` 不动、只有双就绪那一条 UPDATE 原子切换 · Head 是权威闸（`declaredByteSize` 声称小仍 413）· 未 embed 不得 es_index · 夹带 `status=ready` 一律 400。**四处如实记「无法断言」**：L5 的「api 入队写账本」无落点（`queue.ts` 只 `q.add`）· 部分「ask 检不到」以装载闸主锚表达 · V6 的 Then 写 403 实测 400+404（**未**为凑数放宽 schema）· Q10 不真启进程。**验证**：worker 47/212 · api 155/935+3skip · contracts 27/225 · admin 36/175；收口时全仓 **11/11**。
 - [反向复核：这轮回写是否引入新的高估](./issues/12-research-writeback-countercheck.md) — 逐行核 **67 处**改动：**成立 53 · 新高估 1 · 需收紧 13**。**新高估那条**：`db.md` 把「只在**仓外副本**达成」的硬验收写成「仓内跑出」——**正向审计永远查不出这种错**（它只查「说的比做的大」，不查「说的位置不对」）。**13 处需收紧**分三类：三处两说（K5 / 「无处置」/ §0.6 L3 口径 / spec drizzle 口径）· 证据只覆盖 Then 的一半（V4 → **退回 `部分测`**；AB8 · N2 · C4 的「映射层已补」实为「补了护栏测」）· 指针与真跑（`parse-*` 悬空 → `extract-text.ts`；HALF-MONGO/SMOKE/SEED 无仓内真跑记录）。**14 条修正已全部应用**。它另核过：计数与合计逐格相符 · 被改动的行里**没有一处**把 `AUTH_ENFORCE` 等开关说成已开 · 11 个新 issue 指针全部真实存在。
 - [第三条 ES 查询路径补租户闸](./issues/13-es-query-third-path-tenant-gate.md) — 由反向复核挖出：`listIndexedChunkIds`（孤儿清理的 ES 对账入口）原只按 `docId` 查、无租户闸也不失败，故「全仓 query builder 必带租户」仍不成立。已补 `requireTenantId(tenantId, where)` + 查询体加 `term: tenantId`，调用点（`pipeline.ts:939`，**唯一调用者**，1 行越界已评审接受）跟着传 `doc.tenantId`。**取舍：加 filter 而非只加校验** —— 与 `buildAclFilter` 口径统一；不加也不泄漏（docId 是 uuid v7 全局唯一），属加严。新增 3 条 `it`（缺/空/纯空白拒绝且断言 **fetch 零调用** + 正常路径对照）。至此 **worker 全部 ES HTTP 查询与写入都在闸内**。
+- [补测批 3 · 鉴权矩阵与运营壳](./issues/09-tests-batch-3-authz-ops.md) — 38 行处理完、新增 **约 49 条 `it`**（8 新文件 + 19 文件补 `it`）。**夹具先行**：`enforce-permission-matrix`（测试内 `vi.stubEnv` 开 enforce、`isMember` 恒 true → 403 只能源于缺码）一次吃掉 B1-2 / B1-8 / S2 / S8 / Y3。**七处如实记「无法断言 / 口径冲突」**：G1 负向无闸可断言（`feedback.ts` 不读轮次状态）· G2 无上传联动代码 · S3 读面 `doc.view` 与 `web_consumer` 空模板码冲突 · S5 `kb_members.role` 不参与写闸 · T1–T3 `l1RerunBound` 用 `kbId && ranAt` 也算真 · O2 写侧超范围 · AB7 既有测例已够。**验证**：api 160/971+3skip · admin 38/185 · web 19/56 · admin-catalog 1/13；全仓 **11/11**。**额外发现 → 立工单 [14](./14-dec-doc-write-kb-membership.md)**。
 
 ## Not yet specified
 

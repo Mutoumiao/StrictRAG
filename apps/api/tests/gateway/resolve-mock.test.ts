@@ -132,6 +132,54 @@ describe('applyBindingsToGatewayConfig (B3-W)', () => {
     expect(cfg.bindingSource).toBe('env');
     expect(cfg.models.chat).toBe(envCfg.models.chat);
   });
+
+  it('剧本 AC6：KB 选择覆盖平台绑定后，解析出的 generate 端点即 KB 指定的供应商', () => {
+    const kbProviderId = '01900000-0000-7000-8000-0000000000bb';
+    const platforms = [
+      { id: providerId, baseUrl: 'http://platform-gw.local/v1', apiKeyEnc: 'platform-key' },
+      { id: kbProviderId, baseUrl: 'http://kb-gw.local/v1', apiKeyEnc: 'kb-key' },
+    ].map((p) => ({
+      ...p,
+      enabled: 1,
+      timeoutMs: 30_000,
+      modelsJson: [
+        { name: 'platform-chat', type: 'llm', enabled: true },
+        { name: 'kb-chat', type: 'llm', enabled: true },
+        { name: 'kb-embed', type: 'embedding', enabled: true, dimensions: 16 },
+      ],
+    }));
+
+    // 平台行 = generate→platform provider；KB 行 = generate/embed→KB 选择
+    const merged = mergeBindingRows(
+      [
+        { purpose: 'generate', primaryRef: `${providerId}#platform-chat` },
+        { purpose: 'embed', primaryRef: `${providerId}#db-embed` },
+      ],
+      [
+        { purpose: 'generate', primaryRef: `${kbProviderId}#kb-chat` },
+        { purpose: 'embed', primaryRef: `${kbProviderId}#kb-embed` },
+      ],
+    );
+
+    const cfg = applyBindingsToGatewayConfig(
+      buildGatewayConfig({
+        APP_ENV: 'test',
+        GATEWAY_MODE: 'http',
+        GATEWAY_BASE_URL: 'http://env.local/v1',
+        GATEWAY_API_KEY: 'env-key',
+        GATEWAY_CHAT_MODEL: 'env-chat',
+        RERANK_MIN_NODES: 1,
+      }),
+      { providers: platforms, bindings: merged },
+    );
+
+    // ask / 入库解析实际用的是 KB 选择，不是平台行也不是 env
+    expect(resolveChatModel(cfg, 'generate')).toBe('kb-chat');
+    expect(cfg.models.chat).toBe('kb-chat');
+    expect(cfg.models.embed).toBe('kb-embed');
+    expect(cfg.purposeEndpoints?.chat?.baseUrl).toBe('http://kb-gw.local/v1');
+    expect(cfg.purposeEndpoints?.chat?.apiKey).toBe('kb-key');
+  });
 });
 
 describe('withSameModelRetry', () => {

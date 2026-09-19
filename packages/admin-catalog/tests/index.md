@@ -14,7 +14,7 @@
 
 | 文件 | 目标 | 需求锚点 | 被测 | 简介 | 状态 |
 |------|------|----------|------|------|------|
-| `acl/catalog-clip.test.ts` | 码表、角色模板与菜单树必须一致，clip 后只保留有码且已落地的路由。 | ADR-056 | `defaultCodesForRoles · filterMenuByCodes · clipMenuForShell` | 无 React；只校验码表、模板、菜单树一致且可裁剪。 | 现行 |
+| `acl/catalog-clip.test.ts` | 码表、角色模板与菜单树必须一致，clip 后只保留有码且已落地的路由；默认树无「系统设置」空壳。 | ADR-056 · 剧本 AD9 | `defaultCodesForRoles · filterMenuByCodes · clipMenuForShell` | 无 React；只校验码表、模板、菜单树一致且可裁剪；模型网关不寄生在设置域。 | 现行 |
 
 ## 待处理
 

@@ -13,6 +13,7 @@ import {
   collectMenuHrefs,
   filterMenuByCodes,
   MENU_TREE,
+  type MenuNode,
 } from '../../src/menu-tree.js';
 import { defaultCodesForRoles } from '../../src/role-templates.js';
 
@@ -121,5 +122,41 @@ describe('clipMenuForShell', () => {
     const onlyDocs = new Set(['/documents']);
     const hrefs = collectMenuHrefs(clipMenuForShell(codes, MENU_TREE, onlyDocs));
     expect(hrefs).toEqual(['/documents']);
+  });
+});
+
+describe('剧本 AD9 · 默认菜单没有「系统设置」空壳', () => {
+  function flatten(nodes: readonly MenuNode[]): MenuNode[] {
+    const out: MenuNode[] = [];
+    for (const n of nodes) {
+      out.push(n);
+      if (n.children) out.push(...flatten(n.children));
+    }
+    return out;
+  }
+
+  const SUPER_CODES = defaultCodesForRoles(['super_admin']);
+
+  it('默认树与 super_admin 裁剪结果都不出现「系统设置」项或 /system 路由', () => {
+    for (const tree of [MENU_TREE, clipMenuForShell(SUPER_CODES), filterMenuByCodes(MENU_TREE, SUPER_CODES)]) {
+      const nodes = flatten(tree);
+      expect(nodes.some((n) => n.label.includes('系统设置'))).toBe(false);
+      expect(nodes.some((n) => n.href === '/system' || n.href === '/settings')).toBe(false);
+    }
+  });
+
+  it('模型 Key 入口挂在「模型网关」，不寄生在设置域下', () => {
+    const nodes = flatten(MENU_TREE);
+    const models = nodes.find((n) => n.href === '/models');
+    expect(models?.label).toBe('模型网关');
+
+    // 唯一带「设置」的项是知识库设置，且与模型网关分属不同分组
+    const settings = nodes.filter((n) => n.label.includes('设置'));
+    expect(settings.map((n) => n.href)).toEqual(['/kb/settings']);
+
+    const groupOf = (href: string): string | undefined =>
+      MENU_TREE.find((g) => g.children?.some((child) => child.href === href))?.label;
+    expect(groupOf('/models')).toBe('系统');
+    expect(groupOf('/kb/settings')).toBe('知识库');
   });
 });

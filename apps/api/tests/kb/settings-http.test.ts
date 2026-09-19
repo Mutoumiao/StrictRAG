@@ -15,6 +15,8 @@ import { requestIdMiddleware } from '../../src/middleware/request-id.js';
 import { createMemoryKbSettingsAuditRepo } from '../../src/services/kb-settings-audit.js';
 import { createMemoryKbSettingsRepo } from '../../src/services/kb-settings.js';
 import { createKbSettingsRoutes } from '../../src/routes/kb-settings.js';
+import { createAskRoutes } from '../../src/routes/ask.js';
+import { deps as graphDeps, happyChat } from '../ask/_support/graph-harness.js';
 
 const KB = '01900000-0000-7000-8000-000000000099';
 const TENANT = '01900000-0000-7000-8000-000000000001';
@@ -341,5 +343,89 @@ describe('kb settings routes (ADR-054 / B2)', () => {
       { headers: { authorization: `Bearer ${accessToken}` } },
     );
     expect(res.status).toBe(404);
+  });
+});
+
+describe('剧本 AB2 · PATCH 设置后同一个 app 立刻按新 mode 白名单问', () => {
+  it('PATCH allowedModes=[fast] → ask-modes 回读一致；ask balanced 400、fast 200', async () => {
+    const { userId, accessToken } = await token(['kb_admin']);
+    const repo = createMemoryKbSettingsRepo([
+      {
+        id: KB,
+        name: 'Demo KB',
+        description: 'hello',
+        configJson: { allowedModes: ['strict', 'balanced', 'fast'], defaultMode: 'balanced' },
+      },
+    ]);
+    const resolveKbMember = async (uid: string, kbId: string) => kbId === KB && uid === userId;
+
+    const app = new Hono<{ Variables: AuthVariables }>();
+    app.use('*', requestIdMiddleware);
+    app.use('*', attachAuthMiddleware);
+    app.route(
+      '/api/v1',
+      createKbSettingsRoutes({
+        repo,
+        auditRepo: createMemoryKbSettingsAuditRepo(),
+        qualitySnapshot: () => ({ tauClaim: 0.55, gatePackageId: null, effectiveAt: null }),
+        resolveKbMember,
+      }),
+    );
+    app.route(
+      '/api/v1',
+      createAskRoutes({
+        resolveKbMember,
+        getKb: async (id) => (id === KB ? { id: KB, tenantId: TENANT } : null),
+        settingsRepo: repo,
+        execute: async (params) => {
+          const { executeAsk } = await import('../../src/services/ask/execute.js');
+          return executeAsk(params, {
+            skipTrace: true,
+            graphDeps: graphDeps({
+              chat: happyChat,
+              retrieve: async () => ({ ok: false, reason: 'low_retrieval' }),
+            }),
+          });
+        },
+        resolveOwnedSession: async () => true,
+      }),
+    );
+
+    const headers = {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    };
+
+    const patched = await app.request(`/api/v1/knowledge-bases/${KB}/settings`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ allowedModes: ['fast'], defaultMode: 'fast' }),
+    });
+    expect(patched.status).toBe(200);
+
+    const modes = await app.request(`/api/v1/knowledge-bases/${KB}/ask-modes`, {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    expect(modes.status).toBe(200);
+    const modesBody = (await modes.json()) as {
+      data: { allowedModes: string[]; defaultMode: string };
+    };
+    expect(modesBody.data.allowedModes).toEqual(['fast']);
+    expect(modesBody.data.defaultMode).toBe('fast');
+
+    const denied = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ question: '年假有多少天？', options: { mode: 'balanced' } }),
+    });
+    expect(denied.status).toBe(400);
+
+    const allowed = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ question: '年假有多少天？', options: { mode: 'fast' } }),
+    });
+    expect(allowed.status).toBe(200);
+    expect(((await allowed.json()) as { data: { mode: string } }).data.mode).toBe('fast');
   });
 });

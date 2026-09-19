@@ -136,6 +136,78 @@ describe('departments routes (ADR-057 / B5 shell)', () => {
     expect(body.error.message).toContain('cycle');
   });
 
+  it('剧本 AE1：建部门树 → M 为负责人 + E 主部门 = 人事（同一剧本）', async () => {
+    const { accessToken } = await token(['super_admin']);
+    const { app, repo } = buildApp();
+    const headers = {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    };
+    const eUser = uuidv7();
+    const mUser = uuidv7();
+    repo.registerUser(TENANT, eUser);
+    repo.registerUser(TENANT, mUser);
+
+    const root = (await (
+      await app.request('/api/v1/admin/departments', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ name: '公司', code: 'corp' }),
+      })
+    ).json()) as { data: { id: string } };
+
+    const hr = (await (
+      await app.request('/api/v1/admin/departments', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ name: '人事', parentId: root.data.id, code: 'hr' }),
+      })
+    ).json()) as { data: { id: string; path: string } };
+    expect(hr.data.path).toContain(root.data.id);
+
+    // M：人事负责人
+    const mAssign = await app.request(`/api/v1/admin/users/${mUser}/departments`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({
+        assignments: [{ deptId: hr.data.id, isPrimary: true, isLeader: true }],
+      }),
+    });
+    expect(mAssign.status).toBe(200);
+
+    // E：人事员工（主部门，不是负责人）
+    const eAssign = await app.request(`/api/v1/admin/users/${eUser}/departments`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({
+        assignments: [{ deptId: hr.data.id, isPrimary: true, isLeader: false }],
+      }),
+    });
+    expect(eAssign.status).toBe(200);
+
+    const eView = (await (
+      await app.request(`/api/v1/admin/users/${eUser}/departments`, {
+        headers: { authorization: `Bearer ${accessToken}` },
+      })
+    ).json()) as {
+      data: { assignments: Array<{ deptId: string; isPrimary: boolean; isLeader: boolean }> };
+    };
+    expect(eView.data.assignments).toEqual([
+      expect.objectContaining({ deptId: hr.data.id, isPrimary: true, isLeader: false }),
+    ]);
+
+    const mView = (await (
+      await app.request(`/api/v1/admin/users/${mUser}/departments`, {
+        headers: { authorization: `Bearer ${accessToken}` },
+      })
+    ).json()) as {
+      data: { assignments: Array<{ deptId: string; isPrimary: boolean; isLeader: boolean }> };
+    };
+    expect(mView.data.assignments).toEqual([
+      expect.objectContaining({ deptId: hr.data.id, isPrimary: true, isLeader: true }),
+    ]);
+  });
+
   it('禁用部门后 PUT 归属含该 dept → 400；挂到 active → 200', async () => {
     const { accessToken } = await token(['super_admin']);
     const { app, repo } = buildApp();

@@ -97,3 +97,36 @@ describe('searchSparseEs', () => {
     ).rejects.toBeInstanceOf(EsSparseError);
   });
 });
+
+describe('剧本 O2 · Router 默认指向共享索引名', () => {
+  it('env 无路由覆盖时查询只打共享名 strict_rag_dev，且 filter 仍是 tenant+kb', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ hits: { hits: [] } }),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const cfg = esConfigFromEnv({ ELASTICSEARCH_URL: 'http://es:9200' });
+    expect(cfg).not.toBeNull();
+    expect(cfg!.index).toBe('strict_rag_dev');
+
+    const ids = await searchSparseEs(cfg!, {
+      tenantId: 'tenant-1',
+      kbId: 'kb-1',
+      question: 'leave',
+      size: 5,
+    });
+    expect(ids).toEqual([]);
+
+    const call = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(String(call[0])).toBe('http://es:9200/strict_rag_dev/_search');
+    expect(call[1].method).toBe('POST');
+    const body = JSON.parse(String(call[1].body)) as {
+      query: { bool: { filter: unknown[] } };
+    };
+    expect(body.query.bool.filter).toEqual([
+      { term: { tenantId: 'tenant-1' } },
+      { term: { kbId: 'kb-1' } },
+    ]);
+  });
+});

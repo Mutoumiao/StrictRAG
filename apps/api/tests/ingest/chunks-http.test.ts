@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 
 import { attachAuthMiddleware, type AuthVariables } from '../../src/auth/middleware.js';
+import { invalidateRoleCache, setRoleAuthzLoader } from '../../src/auth/role-hydrate.js';
 import { issueTokenPair } from '../../src/auth/identity/token-service.js';
 import { requestIdMiddleware } from '../../src/middleware/request-id.js';
 import {
@@ -204,5 +205,66 @@ describe('chunk routes (ADR-052)', () => {
     const app = buildApp();
     const res = await app.request(`/api/v1/documents/${DOC}/chunks`);
     expect(res.status).toBe(401);
+  });
+});
+
+describe('剧本 Z5 · 授 chunk.view 后 doc_operator 可读 list 与 detail', () => {
+  it('默认 doc_operator 403；授码（角色并集含 chunk.view）后 list 200 + detail 200 带 body', async () => {
+    const app = buildApp();
+    const { userId, accessToken } = await token(['doc_operator']);
+
+    const denied = await app.request(`/api/v1/documents/${DOC}/chunks`, {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    expect(denied.status).toBe(403);
+
+    // 授码：DB 角色并集里加 chunk.view（此处以 loader 注入表达同一真值来源）
+    setRoleAuthzLoader(async () => ({ roles: ['doc_operator'], codes: ['chunk.view'] }));
+    try {
+      const list = await app.request(`/api/v1/documents/${DOC}/chunks?limit=10`, {
+        headers: { authorization: `Bearer ${accessToken}` },
+      });
+      expect(list.status).toBe(200);
+      const listBody = (await list.json()) as { data: { items: unknown[]; indexVersion: number } };
+      expect(listBody.data.indexVersion).toBe(2);
+      expect(listBody.data.items).toHaveLength(2);
+
+      const detail = await app.request(
+        `/api/v1/documents/${DOC}/chunks/01900000-0000-7000-8000-0000000000c1`,
+        { headers: { authorization: `Bearer ${accessToken}` } },
+      );
+      expect(detail.status).toBe(200);
+      const detailBody = (await detail.json()) as { data: { body: string } };
+      expect(detailBody.data.body).toContain('full body zero');
+    } finally {
+      setRoleAuthzLoader(null);
+      invalidateRoleCache();
+      void userId;
+    }
+  });
+});
+
+describe('剧本 Z6 · 历史 indexVersion 不提供浏览', () => {
+  it('显式传 version 参数被忽略：仍只回当前激活版本，旧版块 detail 仍 404', async () => {
+    const app = buildApp();
+    const { accessToken } = await token(['kb_admin']);
+    const headers = { authorization: `Bearer ${accessToken}` };
+
+    const list = await app.request(`/api/v1/documents/${DOC}/chunks?limit=10&version=1`, {
+      headers,
+    });
+    expect(list.status).toBe(200);
+    const body = (await list.json()) as {
+      data: { indexVersion: number; items: { indexVersion: number }[] };
+    };
+    expect(body.data.indexVersion).toBe(2);
+    expect(body.data.items.every((i) => i.indexVersion === 2)).toBe(true);
+    expect(body.data.items).toHaveLength(2);
+
+    const oldDetail = await app.request(
+      `/api/v1/documents/${DOC}/chunks/01900000-0000-7000-8000-0000000000c9?version=1`,
+      { headers },
+    );
+    expect(oldDetail.status).toBe(404);
   });
 });

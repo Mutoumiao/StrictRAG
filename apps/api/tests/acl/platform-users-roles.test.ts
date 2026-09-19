@@ -7,12 +7,18 @@
 
 import { ALL_PERMISSION_CODES } from '@strict-rag/admin-catalog';
 import { Hono } from 'hono';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 
 import { attachAuthMiddleware, type AuthVariables } from '../../src/auth/middleware.js';
 import { issueTokenPair } from '../../src/auth/identity/token-service.js';
+import {
+  createDbRoleAuthzLoader,
+  invalidateRoleCache,
+  setRoleAuthzLoader,
+} from '../../src/auth/role-hydrate.js';
 import { requestIdMiddleware } from '../../src/middleware/request-id.js';
+import { meRoutes } from '../../src/routes/auth.js';
 import { DEV_DEFAULT_TENANT } from '../../src/services/members.js';
 import {
   createMemoryPlatformUsersRolesRepo,
@@ -381,5 +387,67 @@ describe('platform users/roles routes (ADR-056 / B4)', () => {
     const body = (await res.json()) as { error: { code: string; message: string } };
     expect(body.error.code).toBe('RULE_VIOLATION');
     expect(body.error.message).toContain('cannot disable system super_admin');
+  });
+});
+
+describe('剧本 AD5 · 绑自定义角色后 /me/permissions 即该角色并集', () => {
+  afterEach(() => {
+    setRoleAuthzLoader(null);
+    invalidateRoleCache();
+  });
+
+  it('超管建自定义角色 → 建用户绑该角色 → 该用户 /me/permissions = 角色并集', async () => {
+    const repo = createMemoryPlatformUsersRolesRepo();
+    setRoleAuthzLoader(createDbRoleAuthzLoader(repo));
+
+    const app = new Hono<{ Variables: AuthVariables }>();
+    app.use('*', requestIdMiddleware);
+    app.use('*', attachAuthMiddleware);
+    app.route('/api/v1', createPlatformUsersRolesRoutes({ repo }));
+    app.route('/api/v1/me', meRoutes);
+
+    const superTok = await token(['super_admin']);
+    const adminHeaders = {
+      authorization: `Bearer ${superTok.accessToken}`,
+      'content-type': 'application/json',
+    };
+
+    const createdRole = await app.request('/api/v1/admin/roles', {
+      method: 'POST',
+      headers: adminHeaders,
+      body: JSON.stringify({
+        code: 'hr_ops',
+        name: '人事运营',
+        codes: ['admin.shell', 'doc.view', 'doc.upload'],
+      }),
+    });
+    expect(createdRole.status).toBe(201);
+    const role = (await createdRole.json()) as { data: { id: string; codes: string[] } };
+    expect(role.data.codes).toEqual(['admin.shell', 'doc.view', 'doc.upload']);
+
+    const createdUser = await app.request('/api/v1/admin/users', {
+      method: 'POST',
+      headers: adminHeaders,
+      body: JSON.stringify({
+        email: 'hr@example.com',
+        displayName: 'HR Ops',
+        roleIds: [role.data.id],
+      }),
+    });
+    expect(createdUser.status).toBe(201);
+    const user = (await createdUser.json()) as { data: { id: string; roleCodes: string[] } };
+    expect(user.data.roleCodes).toEqual(['hr_ops']);
+
+    // 该用户登录令牌（claims 与 DB 绑定可不同：真值以 DB 角色并集为准）
+    const { accessToken } = await token(['doc_operator'], user.data.id);
+    const me = await app.request('/api/v1/me/permissions', {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    expect(me.status).toBe(200);
+    const perms = (await me.json()) as { data: { permissions: string[] } };
+    expect(new Set(perms.data.permissions)).toEqual(
+      new Set(['admin.shell', 'doc.view', 'doc.upload']),
+    );
+    expect(perms.data.permissions).not.toContain('approval.decide');
   });
 });

@@ -11,6 +11,8 @@ import path from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import type { TauSweepCase } from '@strict-rag/contracts';
+
 import {
   PILOT_HARD_GATES,
   allInternalGuard,
@@ -210,5 +212,91 @@ describe('bindQualitySnapshotToEval + writeBoundSnapshot', () => {
     const { snapshot } = bindQualitySnapshotToEval({ ...base, evalRunId: null });
     expect(snapshot.evalBindId).toBe('report:kb-live:2026-08-14T12:00:00.000Z');
     expect(snapshot.fourElements.l1RerunBound).toBe(true);
+  });
+});
+
+describe('剧本 T1 · 未声明加严的 KB 锚定试点默认包', () => {
+  it('不传 gates → 门禁包 = pilot 默认、无加严标记、可逐项打印数字', () => {
+    const { snapshot } = bindQualitySnapshotToEval({
+      snapshotId: 'snap-t1',
+      kbId: 'kb-default',
+      ranAt: '2026-09-20T00:00:00.000Z',
+      retrieve_mode: 'mock',
+      tauClaim: 0.5,
+      signoffEligible: false,
+      coverage: null,
+    });
+
+    expect(snapshot.gates).toEqual(PILOT_HARD_GATES);
+    expect(snapshot.gate_bundle).toBe('pilot');
+    expect(snapshot.stricterThanPilot).toBe(false);
+    expect(snapshot.loosenedKeys).toEqual([]);
+    expect(compareHardGates(snapshot.gates).direction).toBe('equal');
+    // 「可打印」即数字可从快照条目读出，不是只有常量本身
+    expect(snapshot.gates.cRateMax).toBe(0.05);
+    expect(snapshot.gates.coverageMin).toBe(0.4);
+    expect(snapshot.gates.citationCompleteMin).toBe(0.99);
+  });
+});
+
+describe('剧本 T2 · 放宽硬门（无 ADR / 会签）不得生效', () => {
+  it('C 上限改 8% → looser：不加严、不标已签字包、不翻业务 PASS，写出的裁决也拒绝', () => {
+    const gates: HardGates = { ...PILOT_HARD_GATES, cRateMax: 0.08 };
+    const { snapshot, verdict } = bindQualitySnapshotToEval({
+      snapshotId: 'snap-t2',
+      kbId: 'kb-loosen',
+      evalRunId: 'eval-live-loosen',
+      ranAt: '2026-09-20T00:00:00.000Z',
+      retrieve_mode: 'live',
+      tauClaim: 0.5,
+      gates,
+      proposal: true,
+      businessR: true,
+      productA: true,
+      signoffEligible: true,
+      coverage: 0.5,
+      caseReasons: ['verified'],
+    });
+
+    expect(compareHardGates(snapshot.gates).direction).toBe('looser');
+    expect(snapshot.loosenedKeys).toEqual(['cRateMax']);
+    expect(snapshot.stricterThanPilot).toBe(false);
+    expect(snapshot.gate_bundle).toBe('pilot');
+    expect(verdict.signedPackage).toBe(false);
+    expect(verdict.businessPass).toBe(false);
+    expect(verdict.reasons).toContain('loosened_hard_gate');
+
+    // 落盘产物同样拒绝：任何下游读该文件都看不到 signedPackage=true
+    const dir = tmp();
+    const { jsonPath } = writeBoundSnapshot(dir, snapshot, verdict);
+    const written = JSON.parse(readFileSync(jsonPath, 'utf8')) as {
+      snapshot: { gates: { cRateMax: number }; stricterThanPilot: boolean };
+      verdict: { signedPackage: boolean; businessPass: boolean; reasons: string[] };
+    };
+    expect(written.snapshot.gates.cRateMax).toBe(0.08);
+    expect(written.snapshot.stricterThanPilot).toBe(false);
+    expect(written.verdict.signedPackage).toBe(false);
+    expect(written.verdict.businessPass).toBe(false);
+    expect(written.verdict.reasons).toContain('loosened_hard_gate');
+  });
+});
+
+describe('剧本 P6 · L1 门禁条件不含 aux_*', () => {
+  it('试点硬门键名无 aux_ / min_support（aux 分不得进 L1 门禁）', () => {
+    const keys = Object.keys(PILOT_HARD_GATES);
+    expect(keys.some((k) => k.toLowerCase().startsWith('aux'))).toBe(false);
+    expect(keys).not.toContain('min_support');
+    expect(keys).not.toContain('minSupport');
+  });
+
+  it('类型层：aux_* 不得写进硬门键，aux 分数对象不得当 min_support 传递', () => {
+    // @ts-expect-error aux_* 不是试点硬门键（类型层拒绝 aux 混入 L1 门禁）
+    const withAux: HardGates = { ...PILOT_HARD_GATES, auxJudgeAuroc: 0.9 };
+    expect(withAux.cRateMax).toBe(PILOT_HARD_GATES.cRateMax);
+
+    type MinSupport = NonNullable<TauSweepCase['minSupport']>;
+    // @ts-expect-error aux 分数对象不是 min_support 数值（两者不可互赋）
+    const wrong: MinSupport = { auxJudgeAuroc: 0.9 };
+    expect(wrong).not.toBeNull();
   });
 });
