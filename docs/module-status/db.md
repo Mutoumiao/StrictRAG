@@ -51,7 +51,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 ### Migrations（journal 22 条，idx 0–21）
 - `0000_phase0_schema_meta` → `0021_chunks_dedupe_review`（`drizzle/meta/_journal.json`）
 - 脚本：`db:generate` / `db:migrate` / `db:studio`（运维产品化流水线 **不**在本包宣称）
-- **实测债**：`drizzle/meta/` 只留 `0000_snapshot.json`（**`0001`–`0021` 共 21 份快照未入库**；旧文写的 `0001–0016` 已滞后）→ `db:generate` 不产增量、会重写全量 `CREATE TABLE`（25 张表），且 `drizzle-kit check` **假绿**；已装 `drizzle-kit@0.31.10` **不输出 `IF NOT EXISTS`**，故其产物会让 `migrate` 在已建表的库上报 `relation already exists`。当前有效实践是**手写 migration SQL + 手写 journal 条目**（`db:generate` 输出只当对照）。**禁止**提交 generate 全量产出；补基线快照（路径 A1）仍缺口，取证见 `.scratch/fill-must-haves/research-drizzle-meta-baseline.md`
+- **基线快照（2026-09-20 已补）**：`drizzle/meta/` 现有 `0000_snapshot.json` 与 **`0021_snapshot.json`**（`0001`–`0020` 仍缺，属历史缺口；`generate` 只读排序**末位**快照，故不影响可用性）→ `drizzle-kit generate` **恢复可用**，硬验收 = 仓内跑出 `No schema changes, nothing to migrate 😴`。`drizzle-kit check` 仍**假绿**、**不得**单独用作验收；已装 `drizzle-kit@0.31.10` **不输出 `IF NOT EXISTS`**，故**禁止**提交 generate 的全量 `CREATE TABLE` 产物（会让 `migrate` 在已建表的库上报 `relation already exists`）。当前有效实践仍是**手写 migration SQL + 手写 journal 条目**
 
 ### 查询谓词
 - 默认检索闸门：`status==='ready' && lifecycle==='active'`（`query/retrieval-gate.ts` + 单测）
