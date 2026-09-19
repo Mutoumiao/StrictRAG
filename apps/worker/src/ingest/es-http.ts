@@ -43,13 +43,13 @@ export type SparseBulkDoc = {
 export const ACL_PRINCIPALS_NONE_SENTINEL = '__acl_none__';
 
 /**
- * 剧本 O4：`tenantId` 是 bulk builder 的**运行时**硬约束，不靠 TS 类型。
- * 缺 / 空 / 纯空白 → 构 bulk **即失败**；禁止静默少过滤、禁止补默认租户。
+ * 剧本 O4：`tenantId` 是 bulk builder / 查询 builder 的**运行时**硬约束，不靠 TS 类型。
+ * 缺 / 空 / 纯空白 → 构 bulk 或构查询 **即失败**；禁止静默少过滤、禁止补默认租户。
  */
-function requireTenantId(tenantId: string | undefined | null): string {
+function requireTenantId(tenantId: string | undefined | null, where: string): string {
   const t = typeof tenantId === 'string' ? tenantId.trim() : '';
   if (!t) {
-    throw new Error('missing tenantId in sparseBulkSource; 禁止无租户过滤的 ES 写入');
+    throw new Error(`missing tenantId in ${where}; 禁止无租户过滤的 ES 查询/写入`);
   }
   return t;
 }
@@ -68,7 +68,7 @@ const SPARSE_INDEX_PROPERTIES = {
 export function sparseBulkSource(d: SparseBulkDoc): Record<string, string | string[]> {
   const source: Record<string, string | string[]> = {
     chunkId: d.chunkId,
-    tenantId: requireTenantId(d.tenantId),
+    tenantId: requireTenantId(d.tenantId, 'sparseBulkSource'),
     kbId: d.kbId,
     docId: d.docId,
     sparseText: d.sparseText,
@@ -178,7 +178,18 @@ export async function bulkIndexSparse(
   return { indexed: docs.length };
 }
 
-export async function listIndexedChunkIds(cfg: EsHttpConfig, docId: string): Promise<string[]> {
+/**
+ * 回读某文档已索引的 chunkId（孤儿清理的对账入口）。
+ * 与 `buildAclFilter` · `sparseBulkSource` 同闸：缺 / 空 / 纯空白 `tenantId` **运行时即抛**，不靠 TS 类型。
+ * 查询体带 `term: tenantId`：uuid v7 的 docId 今天已全局唯一，但闸口统一为「每条 ES 查询都带租户」；
+ * 若索引里租户不匹配（或该字段非 keyword），命中为 0 → 上层 `reconcileIndexed` 判 not ok，属 fail-closed 不放行。
+ */
+export async function listIndexedChunkIds(
+  cfg: EsHttpConfig,
+  docId: string,
+  tenantId: string | undefined | null,
+): Promise<string[]> {
+  const tenant = requireTenantId(tenantId, 'listIndexedChunkIds');
   const base = trimUrl(cfg.baseUrl);
   const timeoutMs = cfg.timeoutMs ?? 15_000;
   const res = await fetch(`${base}/${encodeURIComponent(cfg.index)}/_search`, {
@@ -187,7 +198,7 @@ export async function listIndexedChunkIds(cfg: EsHttpConfig, docId: string): Pro
     signal: AbortSignal.timeout(timeoutMs),
     body: JSON.stringify({
       size: 10_000,
-      query: { term: { docId } },
+      query: { bool: { filter: [{ term: { tenantId: tenant } }, { term: { docId } }] } },
       _source: ['chunkId'],
     }),
   });

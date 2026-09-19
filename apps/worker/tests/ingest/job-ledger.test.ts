@@ -1,11 +1,14 @@
 /**
- * 目标：ingest_jobs 阶段账本须记录开始/结束与失败码。
- * 需求：X-04
- * 被测：buildStageStartRow · buildStageEndPatch · recordStageStart · recordStageEnd
- * 简介：最小账本行、成功链、失败码、pipeline 接线。
+ * 目标：ingest_jobs 阶段账本须记录开始/结束与失败码；阶段链 embed → es_index 与文档状态链可观测。
+ * 需求：X-04 · 剧本 L5（Bull Board / ingest_jobs 可见 embedding → indexing_es → ready）
+ * 被测：buildStageStartRow · buildStageEndPatch · recordStageStart · recordStageEnd · runIngestStage 接线
+ * 简介：最小账本行、成功链、失败码、pipeline 接线；另跑一遍 chunk→embed→es_index 断言账本 jobName 链
+ *       与 documents 状态链 chunking→embedding→indexing_es→ready。默认 mock 栈（≠ 生产 ES）。
  */
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { IngestJobData } from '../../src/queues.js';
+import { doc, objectStoreMock } from './_support/ingest-harness.js';
 import {
   buildStageEndPatch,
   buildStageStartRow,
@@ -19,6 +22,21 @@ import {
 vi.mock('../../src/ingest/failure-webhook.js', () => ({
   notifyIngestFailure: async () => undefined,
 }));
+
+// job-ledger 静态 import 会经 logger 触发 env.js mock 工厂，故夹具须在 import 前就绪
+const h = await vi.hoisted(async () =>
+  (await import('./_support/ingest-harness.js')).createHarness(),
+);
+
+vi.mock('../../src/env.js', () => ({ env: h.env }));
+vi.mock('../../src/db.js', () => ({ getDb: () => h.db }));
+vi.mock('../../src/ingest/object-store.js', () => objectStoreMock(h));
+
+const { runIngestStage } = await import('../../src/ingest/pipeline.js');
+const { mockEsStore } = await import('../../src/ingest/es-store.js');
+
+const BODY =
+  '请假须提前一个工作日提交书面申请，部门负责人审批后方可休假。未按流程办理的视为旷工处理。';
 
 function ledgerCtx(stage: string): StageLedgerContext {
   return { tenantId: 't', kbId: 'k', docId: 'd', stage };
@@ -54,9 +72,7 @@ describe('buildStageStartRow', () => {
     expect(row.queue).toBe('sr-ingest');
     expect(row.indexVersion).toBe(3);
     expect(row.payload).toEqual({ stage: 'embed' });
-    expect(row.id).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
-    );
+    expect(row.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
   });
 });
 
@@ -167,12 +183,64 @@ describe('pipeline wiring contract (static)', () => {
   it('pipeline imports recordStageStart/End from job-ledger', async () => {
     const fs = await import('node:fs/promises');
     const path = await import('node:path');
-    const src = await fs.readFile(
-      path.join(process.cwd(), 'src/ingest/pipeline.ts'),
-      'utf8',
-    );
+    const src = await fs.readFile(path.join(process.cwd(), 'src/ingest/pipeline.ts'), 'utf8');
     expect(src).toMatch(/recordStageStart/);
     expect(src).toMatch(/recordStageEnd/);
     expect(src).toMatch(/from ['"]\.\/job-ledger\.js['"]/);
+  });
+});
+
+describe('阶段链与账本（剧本 L5）', () => {
+  beforeEach(() => {
+    h.reset();
+    h.env.INGEST_ES_MODE = 'mock';
+    h.env.INGEST_EMBED_MODE = 'mock';
+    mockEsStore.reset();
+  });
+
+  it('账本记 chunk/embed/es_index，文档状态链 embedding → indexing_es → ready', async () => {
+    const state = h.boot(
+      { parsedText: BODY, status: 'parsed', extractMethod: 'text' },
+      Buffer.from(BODY, 'utf8'),
+    );
+    const current = doc(state);
+    const job = (stage: IngestJobData['stage']): IngestJobData => ({
+      docId: current.id,
+      kbId: current.kbId,
+      tenantId: current.tenantId,
+      stage,
+    });
+
+    const chunked = await runIngestStage(job('chunk'));
+    const embedded = await runIngestStage(chunked.next!);
+    const indexed = await runIngestStage(embedded.next!);
+
+    expect(indexed.errorCode).toBeUndefined();
+    expect(indexed.done).toBe(true);
+    expect(doc(state).status).toBe('ready');
+
+    // Bull Board / 列表可见的账本行：逻辑 stage = job 名，物理队列仍单条 sr-ingest
+    expect(state.jobs.inserted.map((j) => j.jobName)).toEqual(['chunk', 'embed', 'es_index']);
+    expect(state.jobs.inserted.map((j) => j.status)).toEqual(['running', 'running', 'running']);
+    expect(state.jobs.inserted.map((j) => j.queue)).toEqual([
+      'sr-ingest',
+      'sr-ingest',
+      'sr-ingest',
+    ]);
+    expect(state.jobs.updated.map((u) => u.status)).toEqual([
+      'succeeded',
+      'succeeded',
+      'succeeded',
+    ]);
+    expect(state.jobs.updated.map((u) => u.payload)).toEqual([
+      { stage: 'chunk', nextStage: 'embed' },
+      { stage: 'embed', nextStage: 'es_index' },
+      { stage: 'es_index', terminal: true },
+    ]);
+
+    // 文档状态链：可观测 embed 段与 ES 段，末尾才是 ready
+    expect(state.statusSeq).toEqual(['chunking', 'embedding', 'indexing_es', 'ready']);
+    expect(doc(state).embedReady).toBe(1);
+    expect(doc(state).esReady).toBe(1);
   });
 });

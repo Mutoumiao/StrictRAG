@@ -69,7 +69,7 @@
 | K2 | 非成员 ask → 403（脱敏不替代权限） | P2必签 | 单测 | 已测 | apps/api | apps/api/tests/acl/kb-member-gate.test.ts · apps/api/tests/ask/http-validation.test.ts | — |
 | K3 | 敏感语料未 doc_acl：不入池检查表勾选 | P2必签 | UAT | UAT | — | — | 人签检查表；非自动化 |
 | K4 | generate 输入、verify 输入、citation 文本、Mongo body 逐字一致（当轮切片） | P2必签 | 单测 | 已测 | apps/api | apps/api/tests/ask/evidence-verbatim.test.ts | 当轮 evidence.text 进 generate/claim_split/citation。**≠ Mongo**（权威未接） |
-| K5 | `platform_admin` 非 kb_member 查 Langfuse/审计 → 无该 KB evidence 明文 | P2必签 | 单测 | 缺实现 | apps/api | — | Langfuse 默认关；无非成员读 trace 的明文 ACL |
+| K5 | `platform_admin` 非 kb_member 查 Langfuse/审计 → 无该 KB evidence 明文 | P2必签 | 单测 | 已测 | apps/api | apps/api/tests/ask/http-audit.test.ts:200（非该 KB 成员查 `GET /ask/:requestId` → 403 `FORBIDDEN`；闸在成员身份、非角色） | Langfuse 仅 memory mock 且**无读取面**（无路由消费）→ 本步骤判定为已具备（见 `.trellis/tasks/08-06-project-backlog/status.md` §2.5.2 QUAL-K5 · 交付控制台 §0.5 #7）；**≠** 真 Langfuse SDK（真 SDK 未接，Langfuse 侧仍「部分」） |
 | K6 | feedback 含 `<script>` → 渲染消毒；制度正文含 `<` → 原样不被 escape 破坏 | P2必签 | 单测 | 已测 | apps/admin · apps/web · apps/api | apps/admin/tests/ops/feedback-comment-escape.test.tsx · apps/web/tests/ask/answer-lt-passthrough.test.tsx · apps/api/tests/ask/body-lt-passthrough.test.ts | React 文本节点转义；web 反馈无 comment 输入。≠ 另接消毒库 |
 | K7 | 若已签入库 PII：脱敏仅在入库完成；retrieve 读到的 body 已是权威脱敏正文，无双真相 | 运维 | 单测 | 延后 | apps/worker | — | 随 PII 策略启用；源码无入库 PII |
 
@@ -109,13 +109,13 @@
 | 项 | 数 |
 |----|----|
 | 步骤数 | 64 |
-| 已测 | 25 |
+| 已测 | 26 |
 | 部分测 | 25 |
 | 缺测 | 0 |
-| 缺实现 | 1 |
+| 缺实现 | 0 |
 | 延后 | 11 |
 | UAT | 2 |
 
-行数须与上表一致：A4 + D17 + F3 + H12 + K7 + U9 + J12 = 64；25+25+0+1+11+2 = 64（2026-09-20 按行级「阶段 + 覆盖」机械重数，原表写 24/26 与行级差 1）。
+行数须与上表一致：A4 + D17 + F3 + H12 + K7 + U9 + J12 = 64；26+25+0+0+11+2 = 64（2026-09-20 按行级「阶段 + 覆盖」机械重数：原表写 24/26 与行级差 1；本轮到 **K5 由 `缺实现` 改 `已测`** —— 审计口非成员 403 已测，Langfuse 侧无读取面，故第三轮为 26/25/0/0）。
 
 P2 必签子集中 `缺测` / `部分测` 才是下一批补测清单（延后 / 缺实现 / UAT 不进欠债）。

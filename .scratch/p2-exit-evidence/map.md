@@ -1,7 +1,7 @@
 # 让 Phase 2 出口可核对（账本归零 + 必签测证补齐）
 
 Label: wayfinder:map
-Status: open（前沿：08 · 09）
+Status: open（前沿：09）
 
 ## Destination
 
@@ -37,11 +37,15 @@ Status: open（前沿：08 · 09）
 - [补测批 1 · 信任环收口](./issues/07-tests-batch-1-trust-loop.md) — 11 行全部补到有实质断言，**无「无法断言」行**。新建 6 文件（建库配模型可解析 · 上传→ready→active→成员 ask 可命中一条串联 · POST 与 SSE 双路 `answerKind=knowledge` · 拒答 `suggestedActions` 随 reason 变 · 库外假前提拒答 · generate 全链失败走图 `abstained/internal_guard`）+ 补 4 文件（fast 模式不含 `purpose=route` · 拒答轮不下发 `text-delta` · 手机号 evidence 逐字一致 · 会话分页与跨会话窗隔离）。断言全落在可观测终态，未用 skip。**验证**：api **148 文件 / 919 通过 + 3 skipped**；全仓收口 `pnpm test` **11/11**。
 - [补测批 4 · 边界护栏](./issues/10-tests-batch-4-guards.md) — **3 行补成 + 1 行拒绝造假绿**：N2 Mongo 读写无应用层加密 wrapper（3 条护栏，字段集锁死）· Z3 未点详情不预拉 chunk body · C4 Hit@k 逻辑 id→uuid 映射层（**未**接进签字公式）。**S6 无法断言**：admin 菜单只按平台码裁剪、`/auth/me` 无 `byKb`、切库只写 localStorage → 覆盖表原写「缺测（源码已具备）」与源码冲突，**已改判 `缺实现`**；403 真值在 api（S5）。两条落点路径见工单。三包测试 193 / 173 / 224 通过，`check-types` 8/8、`lint` 8/8 零 warning。
 - [`drizzle/meta` 基线：补齐 `0021` 快照](./issues/11-drizzle-meta-baseline.md) — `packages/db/drizzle/meta/0021_snapshot.json` 已落盘（26 表）。全程在**仓外副本**生成（`mklink /J` 挂 node_modules），只取快照、丢弃副本产出的 `0022_*.sql`；`id`/`prevId` 无需手改（`randomUUID` + 工具自动写 `0000` 的 `id`）。**硬验收达成**：副本跑 `generate` 打印 `No schema changes, nothing to migrate 😴`，且跑完文件数不变；仓库侧只多那一份未跟踪文件。人工走查 26 表 / 355 列 / 11 唯一约束全一致。**顺带发现**：`ingest_reports` 两个列在迁移 `0015` 有 `DEFAULT`、schema 无 —— 已记入雾中。**同 PR 回写**：`docs/module-status/db.md` 与 db spec 的「缺 21 份」口径改为「基线已补、`generate` 恢复可用」（裁定 8）。
+- [补测批 2 · 入库闸与双就绪](./issues/08-tests-batch-2-ingest-gates.md) — 19 行（L1–L5 · L9 · M1 · M2 · M5 · M6 · Q1 · Q2 · Q5 · Q10 · V1 · V2 · V6 · V8 · AA6）新增 **38 条 `it`** + 共享夹具 `ingest-harness.ts`。硬门都钉住了：ES 失败不得 ready（**向量已写仍不可检索**）· 重索引期间 `activeIndexVersion` 不动、只有双就绪那一条 UPDATE 原子切换 · Head 是权威闸（`declaredByteSize` 声称小仍 413）· 未 embed 不得 es_index · 夹带 `status=ready` 一律 400。**四处如实记「无法断言」**：L5 的「api 入队写账本」无落点（`queue.ts` 只 `q.add`）· 部分「ask 检不到」以装载闸主锚表达 · V6 的 Then 写 403 实测 400+404（**未**为凑数放宽 schema）· Q10 不真启进程。**验证**：worker 47/212 · api 155/935+3skip · contracts 27/225 · admin 36/175；收口时全仓 **11/11**。
+- [反向复核：这轮回写是否引入新的高估](./issues/12-research-writeback-countercheck.md) — 逐行核 **67 处**改动：**成立 53 · 新高估 1 · 需收紧 13**。**新高估那条**：`db.md` 把「只在**仓外副本**达成」的硬验收写成「仓内跑出」——**正向审计永远查不出这种错**（它只查「说的比做的大」，不查「说的位置不对」）。**13 处需收紧**分三类：三处两说（K5 / 「无处置」/ §0.6 L3 口径 / spec drizzle 口径）· 证据只覆盖 Then 的一半（V4 → **退回 `部分测`**；AB8 · N2 · C4 的「映射层已补」实为「补了护栏测」）· 指针与真跑（`parse-*` 悬空 → `extract-text.ts`；HALF-MONGO/SMOKE/SEED 无仓内真跑记录）。**14 条修正已全部应用**。它另核过：计数与合计逐格相符 · 被改动的行里**没有一处**把 `AUTH_ENFORCE` 等开关说成已开 · 11 个新 issue 指针全部真实存在。
+- [第三条 ES 查询路径补租户闸](./issues/13-es-query-third-path-tenant-gate.md) — 由反向复核挖出：`listIndexedChunkIds`（孤儿清理的 ES 对账入口）原只按 `docId` 查、无租户闸也不失败，故「全仓 query builder 必带租户」仍不成立。已补 `requireTenantId(tenantId, where)` + 查询体加 `term: tenantId`，调用点（`pipeline.ts:939`，**唯一调用者**，1 行越界已评审接受）跟着传 `doc.tenantId`。**取舍：加 filter 而非只加校验** —— 与 `buildAclFilter` 口径统一；不加也不泄漏（docId 是 uuid v7 全局唯一），属加严。新增 3 条 `it`（缺/空/纯空白拒绝且断言 **fetch 零调用** + 正常路径对照）。至此 **worker 全部 ES HTTP 查询与写入都在闸内**。
 
 ## Not yet specified
 
 - **两处镜像不在版本库里**（工单 05 发现的硬事实）：`.gitignore:58-59` 把 **`/prds` 与 `.trellis/tasks/`** 整个排除在 git 之外。也就是说三处状态镜像里，**交付控制台与总 backlog 没有版本历史**，任何回写都不留痕、无法用 `git diff` 复核，只能靠读磁盘。是否让它们进版本库属仓库所有者决策（**不是**本图能改的），但「可核对」的定义应该把这条写进去
-- **复核这一轮回写本身**：本图由审计驱动回写，回写完还需一次「反向复核」（镜像是否引入了新的高估）。做法待定：是再发一张 research，还是沿用本图的 34 条清单逐条复读
+- **把反向复核固化成流程**（工单 12 的结论）：本图的教训是「只做正向回写不够」——**正向审计查不出「验证发生在哪」写错**（新高估那条就是把仓外副本验收写成仓内）。下一张图若再做镜像回写，应把「对抗性复核」列为**回写工单的后继依赖**，而不是可选动作。这条要不要提升为仓库纪律（写进 `.trellis/spec/guides/` 或 `docs/agents/`），须先定
+- **两处镜像怎么复核**（前一条的落地难处）：`/prds` 与 `.trellis/tasks/` 不在 git，`git diff` 取不到改动前状态，复核只能「以磁盘现状 + 源码对账」——本轮就是这么做的，但这意味着**无法知道镜像「原来」写了什么**，也回滚不了
 - **S6 改判带出的真问题**（工单 06 / 10）：`admin` 的写菜单只按**平台码**裁剪，`/auth/me` 没有 `byKb`，切库只写 localStorage。所以「按当前 KB 角色裁菜单」在 admin 层**不存在实现**。要让它有落点只有两条路：给 `/auth/me` 加 `byKb`（契约变更，须走 contracts + PRD 侧确认），或把该断言移回 api（扩 `kb-member-gate`）。选哪条是**产品/契约决定**，不在本图
 - **`ingest_reports` 的两个默认值漂移**（工单 11 走查发现）：`cross_doc_dropped` / `conflict_pairs` 在手写迁移 `0015` 里带 `DEFAULT 0` / `DEFAULT '[]'::jsonb`，而 `packages/db/src/schema/kb/ingest-reports.ts:27,33` 只声明 `.notNull()` 无 default。按「源码为真」schema 是源，但改哪一侧（补 schema default 还是出手写迁移去掉 default）要先裁口径 —— 这是**两个源文件之间**的漂移，不是镜像漂移，故不在本图目的地内
 - **16 行「源码与 Then 不一致 / 源码无落点」**：如 `route-rules.ts:32-77` 的 `route_post_block=true` 分支不可达且无 `route_source=rule_knowledge` 取值 · `H5e` 的 debug / maintenance 开关全仓无落点 · `H1` 的 `Retry-After` 头（PRD 原文是「可带」）。这些要么改源码、要么回 PRD 裁口径，**不是补测能解决的**。准入条件是先裁清「哪一侧错」，再决定开实现票还是开 PRD 修订票

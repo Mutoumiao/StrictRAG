@@ -1,22 +1,18 @@
 /**
- * 目标：OCR 开闸后无文本层才进独立 ocr stage；关闸行为不变；低置信不得 ready。
+ * 目标：OCR 开闸后无文本层才进独立 ocr stage；关闸行为不变；低置信不得 ready；OCR 与扫描阶段错误码不得混用。
  * 需求：剧本 Q5 · Q8 · Q9 · ADR-043 · P5 OCR 开闸
- * 被测：runIngestStage · ocrStartupWarning · assertIngestBullOutcome
- * 简介：默认关。注入抽取器才续跑。无引擎不得假正文。
+ * 被测：runIngestStage · ocrStartupWarning · assertIngestBullOutcome · NON_RETRYABLE_INGEST_CODES
+ * 简介：默认关。注入抽取器才续跑。无引擎不得假正文。逻辑 stage ocr 与 scan 分码（物理队列仍单条 sr-ingest）。
  */
 
 import { UnrecoverableError } from 'bullmq';
-import {
-  chunkEmbeddings,
-  chunkManifests,
-  chunks,
-  documents,
-} from '@strict-rag/db';
+import { chunkEmbeddings, chunkManifests, chunks, documents } from '@strict-rag/db';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { IngestJobData } from '../../src/queues.js';
 import { ocrStartupWarning } from '../../src/ocr-policy.js';
 import { assertIngestBullOutcome } from '../../src/ingest/bull-outcome.js';
+import { NON_RETRYABLE_INGEST_CODES } from '../../src/ingest/idempotency.js';
 
 const SCAN_PDF = Buffer.from('%PDF-\n%%EOF', 'latin1');
 const OCR_TEXT =
@@ -267,5 +263,55 @@ describe('OCR 开闸最小闭环', () => {
     expect(() => assertIngestBullOutcome('OCR_LOW_CONFIDENCE')).toThrow(UnrecoverableError);
     expect(() => assertIngestBullOutcome('MALWARE')).toThrow(UnrecoverableError);
     expect(() => assertIngestBullOutcome('OCR_UNAVAILABLE')).toThrow(UnrecoverableError);
+  });
+
+  it('Q5：scan 与 ocr 逻辑 stage 分码，MALWARE 与 OCR_* / NO_TEXT_LAYER 不混用', async () => {
+    const reseed = (): MemState => {
+      const fresh: MemState = { doc: seedDoc(), chunks: [], manifests: [], embeddings: [] };
+      harness.state = fresh;
+      harness.db = createMemDb(fresh);
+      return fresh;
+    };
+
+    // scan 感染：只出 MALWARE，不借 OCR 码 / NO_TEXT_LAYER
+    workerEnv.INGEST_SCAN_MODE = 'mock_infected';
+    reseed();
+    const infected = await runIngestStage(job('scan'));
+    expect(infected.errorCode).toBe('MALWARE');
+    expect(infected.errorCode).not.toMatch(/^OCR_/);
+    expect(infected.errorCode).not.toBe('NO_TEXT_LAYER');
+    workerEnv.INGEST_SCAN_MODE = 'mock_clean';
+
+    // parse 无文本层且闸关：NO_TEXT_LAYER（非 OCR_*），也不得假装 OCR 引擎故障
+    workerEnv.INGEST_OCR_ENABLED = false;
+    reseed();
+    const parsedClosed = await runIngestStage(job('parse'));
+    expect(parsedClosed.errorCode).toBe('NO_TEXT_LAYER');
+    expect(parsedClosed.errorCode).not.toMatch(/^OCR_/);
+    expect(parsedClosed.next).toBeUndefined();
+
+    // ocr stage 无引擎：OCR_UNAVAILABLE 落在 OCR_* 命名空间
+    workerEnv.INGEST_OCR_ENABLED = true;
+    const state = reseed();
+    await runIngestStage(job('parse'));
+    const ocr = await runIngestStage(job('ocr'));
+    expect(ocr.errorCode).toMatch(/^OCR_/);
+    expect(ocr.errorCode).toBe('OCR_UNAVAILABLE');
+    expect(state.doc.errorCode).toBe('OCR_UNAVAILABLE');
+    expect(state.doc.errorCode).not.toBe('MALWARE');
+    expect(state.doc.errorCode).not.toBe('NO_TEXT_LAYER');
+
+    // 码表侧：MALWARE 与 OCR_* 分列、无重复、互不相等
+    const ocrCodes = NON_RETRYABLE_INGEST_CODES.filter((code) => code.startsWith('OCR_'));
+    expect(ocrCodes).toEqual([
+      'OCR_UNAVAILABLE',
+      'OCR_LOW_CONFIDENCE',
+      'OCR_EMPTY',
+      'OCR_TOO_SHORT',
+    ]);
+    expect(NON_RETRYABLE_INGEST_CODES).toContain('MALWARE');
+    expect(ocrCodes).not.toContain('MALWARE');
+    expect(ocrCodes).not.toContain('NO_TEXT_LAYER');
+    expect(new Set(NON_RETRYABLE_INGEST_CODES).size).toBe(NON_RETRYABLE_INGEST_CODES.length);
   });
 });

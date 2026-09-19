@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（S2c 运营薄壳：文档 / 审批 / 成员 / 分片 / 设置 / 模型 + 用户 / 角色 / 部门 + **数据面板** + **反馈队列** + **评测底线**） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT + admin **dev-login**（经 api）· 知识库 = 顶栏关闭列表（本次 GET 可见库，禁止粘贴 uuid）· 菜单 = `clipMenuForShell` 裁剪（catalog 为 SSOT）· API 默认 `http://127.0.0.1:4000` |
 | 关联模块 | API 依赖：`api` 的文档 / 审批 / 成员 / 分片 / 设置 / 模型 / 用户角色 / 部门 / dashboard / **feedback-queue** / **gold-questions · eval/runs**；菜单与权限码：`admin-catalog`；类型：`contracts`；样式：`ui` |
-| 最近更新 | 2026-09-19（对照 `docs/module-status/admin.md` 与源码复核：分片策略弹窗、KB 设置三写已具备；`pending_review` 审阅面**未做**）；2026-09-17（入库报告行展示 `contextualize_l1_ok` / `contextualize_l0_fallback`，未记录明说未记录）；2026-09-16（审批中心回显提交人；角色页树状授码） |
+| 最近更新 | 2026-09-20（复核：分片策略弹窗 `chunk-strategy-panel.tsx`、KB 设置 docTypes / 策略 / 绑定三写已具备；`pending_review` 审阅面**未做**）；2026-09-17（入库报告行展示 `contextualize_l1_ok` / `contextualize_l0_fallback`，未记录明说未记录）；2026-09-16（审批中心回显提交人；角色页树状授码） |
 | Spec | `.trellis/spec/admin/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · 审批 / 成员相关 API |
 

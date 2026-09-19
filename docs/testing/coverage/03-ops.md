@@ -13,7 +13,7 @@
 | C1 | 黄金集 1:1、seed 固定，产出 2×2 | 签字剧；工程 seed 可测 | 单测+注入 | 部分测 | api · worker | apps/api/tests/eval/l1-matrix.test.ts · apps/api/tests/eval/l1-cli.test.ts · apps/api/tests/eval/http-eval-runs.test.ts · apps/worker/tests/eval/run-l1-batch.test.ts · fixtures/l1/gold.yaml | 已断言 A–D 格、error 出格、coverage=A/(A+B)、mock 时 `signoffEligible=false`、gold≥30+30、HTTP 入队。缺：live 固定 seed 真跑 2×2 数字、业务题面人审。**阻塞方：live 真跑 + 业务/产品人签（签字剧），非离线可补。** |
 | C2 | τ 扫描得 tau* | 签字剧 | 单测 | 部分测 | api · worker · contracts | packages/contracts/tests/eval/l1-tau-sweep.test.ts · apps/api/tests/eval/l1-cli.test.ts · apps/worker/tests/eval/run-l1-batch.test.ts | 挂现有 L1 批跑离线扫网格；有 minSupport 才翻转；tau* = 试点硬门最大 τ；不改本跑 2×2 / 不写 env。缺：live 真跑数字、把 tau* 接到运行时、独立 `tau_sweep` 入队。**阻塞方：live 真跑 + tau* 接运行时（未接线），非离线可补。** |
 | C3 | Judge 校准产出 AUROC 报告 | 签字剧 | 单测 | 部分测 | api · worker · contracts | packages/contracts/tests/eval/l1-judge-auroc.test.ts · apps/api/tests/eval/l1-cli.test.ts · apps/worker/tests/eval/run-l1-batch.test.ts · fixtures/l1/judge-calibration.json | 独立校准集 + Mann-Whitney；注入打分器才有数；单类/无分 → null。不用 gold type 当 label。不进 2×2 / signoffEligible。缺：live judge 真跑、把实测 AUROC 接到签字公式、独立 `verifier_calib` 入队。**阻塞方：live judge 真跑 + 人签，非离线可补。** |
-| C4 | 有 expectedDocIds 时算 Hit@k | 签字剧 | 单测 | 已测 | api · worker · contracts | packages/contracts/tests/eval/l1-hit-at-k.test.ts · apps/api/tests/eval/l1-cli.test.ts · apps/worker/tests/eval/run-l1-batch.test.ts | 有非空 expected 按 evidence.docId 交集计分；无名单不计分；不进 2×2 / signoffEligible。逻辑 id→uuid 映射层已补：逻辑 id 与 KB uuid 互不命中且不抛错 · 换 uuid 后命中 · 只认 trim 后全等 |
+| C4 | 有 expectedDocIds 时算 Hit@k | 签字剧 | 单测 | 已测 | api · worker · contracts | packages/contracts/tests/eval/l1-hit-at-k.test.ts · apps/api/tests/eval/l1-cli.test.ts · apps/worker/tests/eval/run-l1-batch.test.ts | 有非空 expected 按 evidence.docId 交集计分；无名单不计分；不进 2×2 / signoffEligible。逻辑 id→uuid 仍是**跑批前人工步骤**（`fixtures/l1/README.md:23`；`fixtures/l1/gold.yaml` 写逻辑 id，`run-l1-golden.ts:437` / `run-l1-batch.ts:115` 直比 `evidence.docId`）→ 未映射时 Hit@k 恒 0；本轮补的是「未映射不得伪命中」护栏（`packages/contracts/tests/eval/l1-hit-at-k.test.ts`：互不命中且不抛错 · 换 uuid 后命中 · 只认 trim 后全等） |
 | C5 | 签字页对照试点门禁，RACI 人签 | 签字剧；工程绿≠PASS | UAT | UAT | api | apps/api/tests/eval/l1-matrix.test.ts（`computeSignoffEligible`）· apps/api/tests/eval/adr046-snapshot.test.ts · fixtures/l1/RACI.md | 工程可算 `signoffEligible`；签字 PASS 须 live + 四要素 + RACI 人签。mock coverage 禁进签字叙事。 |
 
 ## 剧本 G · 反馈闭环
@@ -33,7 +33,7 @@ P2 部署/运维必过（ADR-040）。形态是部署检查表，勿编造单测
 | ID | 期望摘要 | 阶段 | 形态 | 覆盖 | 主包 | 证据 | 缺口 |
 |----|----------|------|------|------|------|------|------|
 | N1 | 五面加密：Mongo/PG/ES/RustFS/Redis 持久化全开，缺一面即部署失败 | P2部署必过 | 部署检查表 | UAT | — | docs/ops/at-rest-checklist.md | 检查单默认未检；本 chore 不实现加密栈。 |
-| N2 | Mongo 读写无应用层字段 encrypt wrapper；ask body 与剧本 K 单一真相仍绿 | P2部署必过 | 单测 | 已测 | worker | apps/worker/tests/ingest/mongo-body.test.ts | 源码无字段级加密 wrapper（`mongo-body.ts` 无 `node:crypto`）；护栏 3 条：正文 `$set` 与明文逐字节相等且字段集锁死 `docId/kbId/text/updatedAt` · `upsertChunkBodies` 逐块同口径（出现 `ciphertext/enc/iv` 即红）· `findDocumentBody` 回读无应用层解密 |
+| N2 | Mongo 读写无应用层字段 encrypt wrapper；ask body 与剧本 K 单一真相仍绿 | P2部署必过 | 单测 | 已测 | worker · api | apps/worker/tests/ingest/mongo-body.test.ts · apps/api/tests/ask/mongo-body.test.ts（ask 侧 body 单一真相 / 缺块 fail-closed） | 源码无字段级加密 wrapper（`mongo-body.ts` 无 `node:crypto`）；护栏 3 条：正文 `$set` 与明文逐字节相等且字段集锁死 `docId/kbId/text/updatedAt` · `upsertChunkBodies` 逐块同口径（出现 `ciphertext/enc/iv` 即红）· `findDocumentBody` 回读无应用层解密 |
 | N3 | 非 api/worker 网段默认不可连 Mongo 管理口 | P2运维联签 | 部署检查表 | UAT | — | docs/ops/at-rest-checklist.md | 网络隔离属部署，无单测。 |
 | N4 | dump/snapshot 加密；明文备份不得离生产网 | P2部署必过 | 部署检查表 | UAT | — | docs/ops/at-rest-checklist.md | 备份加密未自动化。 |
 | N5 | staging：加密备份解密恢复成功；恢复日志无 body 全文 | P2部署必过 | UAT | UAT | — | docs/ops/at-rest-checklist.md | 恢复演练，无自动化。 |
@@ -51,7 +51,7 @@ O1/O2/O4 为 P2 代码门禁必签；O3/O5–O11 在启用独立索引或 stagin
 | O1 | 两租户同共享索引：A ask 永不返回 B 的 chunk | P2必签代码门禁 | 单测 | 已测 | api | apps/api/tests/ask/sparse-kb-filter.test.ts | 锁 kbId term + 外库 chunk 丢弃。默认 mock ES。**≠ tenantId 闸**（O4 已按 builder 层必填回写，见该行） |
 | O2 | Router 默认全部指向共享名；写入/查询一致 | P2必签代码门禁 | 单测 | 部分测 | api | apps/api/tests/ask/es-sparse.test.ts · apps/worker/tests/ingest/es-http.test.ts（默认 index=`strict_rag_dev`） | 两边默认名一致。无 Router 对象、无写查一体断言。 |
 | O3 | 配置一租户独立 index 后，该租户写/查只打独立名 | 独立索引演练 | UAT | 延后 | api | docs/module-status/api.md（≠ 多租户 Router / B8） | 独立索引能力未做。 |
-| O4 | 无 `tenantId` 的 query builder → 单测/门禁失败（独立索引亦然） | P2必签代码门禁 | 单测 | 已测 | api · worker | `apps/api/tests/ask/es-builder-tenant-required.test.ts` · `apps/worker/tests/ingest/es-builder-tenant-required.test.ts`（缺 / 空 / 空白 `tenantId` → builder 失败且不发 HTTP；带 `tenantId` 时 `kbId` 与租户 filter 原位不变）· 源码 `apps/api/src/services/retrieve/es-sparse.ts` · `apps/worker/src/ingest/es-http.ts` | —（builder 层 tenantId 必填已测；≠ 生产多租户已验） |
+| O4 | 无 `tenantId` 的 query builder → 单测/门禁失败（独立索引亦然） | P2必签代码门禁 | 单测 | 已测 | api · worker | `apps/api/tests/ask/es-builder-tenant-required.test.ts` · `apps/worker/tests/ingest/es-builder-tenant-required.test.ts`（缺 / 空 / 空白 `tenantId` → builder 失败且不发 HTTP；带 `tenantId` 时 `kbId` 与租户 filter 原位不变）· 源码 `apps/api/src/services/retrieve/es-sparse.ts` · `apps/worker/src/ingest/es-http.ts` | builder 层 tenantId 必填已测。**≠ 全仓：`apps/worker/src/ingest/es-http.ts` 的 `listIndexedChunkIds`（第三处 ES 查询路径 · 孤儿清理的 ES 侧入口）原先只按 `docId` 查 → 第三处路径的补闸见 wayfinder 工单 `../../../.scratch/p2-exit-evidence/issues/13-es-query-third-path-tenant-gate.md`**（工作区源码已加 `tenantId` 必填 + `term: tenantId` 过滤，测例与验收尚未收口）；本行只主张 query/bulk builder 闸，≠ 生产多租户已验 |
 | O5 | staging：回填 → chunkId 集一致 → 切 router → 查询单边新 → 共享无残留 | 独立索引演练 | UAT | 延后 | worker | apps/worker/tests/ingest/es-http.test.ts（`reconcileIndexed` 仅对账集合） | 迁移演练未做。 |
 | O6 | 切换前只旧、切换后只新；无双索引联合查询 | 独立索引演练 | UAT | 延后 | api | — | 无切 router 实现。 |
 | O7 | 独立 mapping 与共享一致；手改独立 mapping → 告警/门禁 | 独立索引演练 | UAT | 延后 | worker | apps/worker/src/ingest/es-http.ts（mapping 最小字段） | 无独立 template 对账闸。 |
@@ -127,7 +127,7 @@ P2 必签（UI 可薄，契约不可缺）。
 | AB5 | 质量区仅展示 τ + 签字包信息；无写入控件；GET 可读 snapshot | P2必签 | 单测 | 部分测 | api | apps/api/tests/kb/settings-http.test.ts（GET 含只读 `qualitySnapshot.tauClaim`）· apps/admin/src/app/(ops)/kb/settings/_components/settings-workspace.tsx（质量只读区） | API GET 已测。admin 测例未断言无 τ 滑块/写入控件。 |
 | AB6 | 无 `kb.config.write` → 菜单隐藏或页 403；PATCH 403 | P2必签 | 单测 | 已测 | api | apps/api/tests/kb/settings-http.test.ts（doc_operator GET 403）· apps/admin/tests/ops/kb-settings-workspace.test.tsx（无码 403 态）· packages/admin-catalog/tests/acl/catalog-clip.test.ts | API 与薄页均拒无码。 |
 | AB7 | 维护 docTypes 后 GET doc-types：列表与设置一致 | P2必签 | 单测 | 部分测 | api | apps/api/tests/ask/http-doc-types.test.ts（成员 GET 与 settings 枚举一致；空枚举 `[]`）· apps/api/tests/kb/ask-mode-doc-types.test.ts（config 解析）· apps/admin/tests/ops/kb-settings-services.test.ts（`parseDocTypesInput`） | 独立 `GET …/doc-types` 已测。未串 PATCH settings 后立刻 GET doc-types 的同一 app 往返。 |
-| AB8 | 分片策略「设置」打开 053 弹窗；保存服 AA 语义 | P2必签 | 单测 | 已测 | admin | `apps/admin/tests/ops/chunk-strategy-panel.test.tsx`（「设置」弹窗、保存 recommended、文案「不会自动全库 reindex」）· `apps/admin/src/app/(ops)/kb/settings/_components/settings-workspace.tsx` | —（弹窗 + 保存 + 文案已测；complete/reindex 策略闸在入库分册） |
+| AB8 | 分片策略「设置」打开 053 弹窗；保存服 AA 语义 | P2必签 | 单测 | 已测 | admin | `apps/admin/tests/ops/chunk-strategy-panel.test.tsx`（「设置」弹窗、保存 `enabled`、`paramOverrides.contextMode`、文案「不会自动全库 reindex」；recommended 下拉有 UI、未单独断言）· `apps/admin/src/app/(ops)/kb/settings/_components/settings-workspace.tsx` | —（弹窗 + 保存 + 文案已测；complete/reindex 策略闸在入库分册） |
 
 ## 剧本 AC · 模型供应商与绑定
 
@@ -176,7 +176,7 @@ Phase 4 建议，**不挡 P2** → 默认延后。I2 指标与 I4 双轨可部�
 
 ## 本分册计数
 
-行数须与上表合计一致。2026-09-20 按行级「阶段 + 覆盖」机械重数两轮：第一轮修正 G3 行级是 `部分测`、AD1–AD3 行级是 `已测`、O4 / R10 / AB8 / AC7 行级为 `已测`（故索引汇总原用的 AD / G 子表与 `缺实现 10` 已过期）；第二轮随守卫补测再改 —— **N2 已补测**（`apps/worker/tests/ingest/mongo-body.test.ts`，缺测 → 已测）、**C4 已补测**（`packages/contracts/tests/eval/l1-hit-at-k.test.ts` 逻辑 id→uuid 映射层，部分测 → 已测）。
+行数须与上表合计一致。2026-09-20 按行级「阶段 + 覆盖」机械重数两轮：第一轮修正 G3 行级是 `部分测`、AD1–AD3 行级是 `已测`、O4 / R10 / AB8 / AC7 行级为 `已测`（故索引汇总原用的 AD / G 子表与 `缺实现 10` 已过期）；第二轮随守卫补测再改 —— **N2 已补测**（`apps/worker/tests/ingest/mongo-body.test.ts`，缺测 → 已测）、**C4 已补测**（`packages/contracts/tests/eval/l1-hit-at-k.test.ts` 的「未映射不得伪命中」护栏，部分测 → 已测；逻辑 id→uuid 映射本身仍是**跑批前人工步骤**，见该行）。
 
 | 剧本 | 步骤数 | 已测 | 部分测 | 缺测 | 缺实现 | 延后 | UAT |
 |------|--------|------|--------|------|--------|------|-----|

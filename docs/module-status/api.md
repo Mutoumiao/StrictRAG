@@ -160,7 +160,7 @@
 | 完整 ACL / 部门强制隔离 | 开关有、默认关；开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤且带列；可关继承（env + KB 覆盖 + 设置页勾选，未改不写回）；ES 查询期强制 tenantId+kbId，enforce 开且非超管可追加 `ownerDeptId` terms；aclPrincipals 用户 uuid 名单最小已落（PG 把关；ES 查询期非超管 should；**≠** 角色 principal） / **无** 默认开；sensitive complete 须 ACL 就绪（部门路径或显式名单） |
 | 生产 IdP | 仍是临时双 JWT；**B4-W** 已读 `user_roles` hydrate（≠ Better Auth / 密码登录）。启动引导只写 `password_hash`，**无**验密 HTTP。超管绑码写路径已锁全码 |
 | 成员 `allowedDocIds` / 检索 ACL 闸 | PUT 只改 `role`；`GET /me/permissions` 无 `byKb` |
-| 入库报告完整语义 | 库级 GET 含跨 doc 冲突对（`action` ∈ `skip_index|pending_review`，入审带 `heldChunkId`）、**`dedupeCrossDocRate`** 与 **`contextualizeL1Ok` / `contextualizeL0Fallback`**（三者 null 均原样回读，不填 0）；**有** `pending_review` 冲突对但**无**处置 / 聚合指标、**无** admin 审阅面 / L0 vs L1 Hit@k / 「高度重复」阈值提示 |
+| 入库报告完整语义 | 库级 GET 含跨 doc 冲突对（`action` ∈ `skip_index|pending_review`，入审带 `heldChunkId`）、**`dedupeCrossDocRate`** 与 **`contextualizeL1Ok` / `contextualizeL0Fallback`**（三者 null 均原样回读，不填 0）；**有** `pending_review` 冲突对（带 `heldChunkId`，可经 `POST …/dedupe-conflicts/:chunkId/resolve` 人工二选一）但**无**自动处置 / **无**聚合指标、**无** admin 审阅面 / L0 vs L1 Hit@k / 「高度重复」阈值提示 |
 | DELETE / 三存对齐 | DELETE 写 archived 并入队 purge；worker mock 适配器清对象 / mock ES / 可选 Mongo；**无** PG 硬删 / chunk 清扫 / HTTP ES `_delete_by_query` |
 | MD/TXT 更严体积 / 魔数嗅探 | **按族更严上限已落**（`INGEST_MAX_TEXT_FILE_BYTES` 默认 10 MiB，对 MD/TXT 生效；设 0 关闭；族级 > 通用则启动即拒）；**无** 文件头（魔数）嗅探 —— PRD 与功能表均无此要求，属加固 |
 | 三平面配额全文 | ask/ingest 进程内 RPM 分 store 已落（默认 0=关）；**无** embed TPM / `maxEmbedCalls` / staging fail-closed / aux 运行时 / Redis 集群 / L0 网关 |

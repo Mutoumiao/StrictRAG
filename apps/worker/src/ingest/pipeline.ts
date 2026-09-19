@@ -936,7 +936,7 @@ async function runIngestStageCore(
               aclPrincipals: doc.aclPrincipals,
             })),
           );
-          const indexed = await listIndexedChunkIds(cfg, doc.id);
+          const indexed = await listIndexedChunkIds(cfg, doc.id, doc.tenantId);
           report = reconcileIndexed(indexed, manifest.chunkIds);
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
