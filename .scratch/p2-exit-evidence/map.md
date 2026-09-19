@@ -1,7 +1,7 @@
 # 让 Phase 2 出口可核对（账本归零 + 必签测证补齐）
 
 Label: wayfinder:map
-Status: open（前沿：04 · 06 · 07 · 10 · 11）
+Status: open（前沿：08 · 09）
 
 ## Destination
 
@@ -33,11 +33,17 @@ Status: open（前沿：04 · 06 · 07 · 10 · 11）
 - [上一图「雾中项」的可达性核定](./issues/03-research-fog-reachability.md) — **今天可做 4 / 需先补 PRD 或 ADR 3 / 外部阻塞 1 / 无对象 2**。「需先补 PRD」的三项（`pending_review` interim 键名 · embed TPM 口径 · `downrank` 降权口径）都要走 ADR → 改 PRD → 升版本，**划出本图**。本图采纳与「可核对」直接相关的两项：`drizzle/meta` 基线（缺口已从 19 份增至 **21 份**，基线名应为 `0021_snapshot.json`）与覆盖表余量。admin 审阅面与站规清扫留雾。
 - [裁定镜像回写的九处口径](./issues/04-dec-mirror-writeback-rules.md) — 九条裁定：① 新增完成标签 **「已关闭（划出）」**（不表示已实现、不计入子包分子；对应仓库既有 `wontfix`）；② §2.5.2 表头一律按**子项**计数 → 「划出 3」改 **4**；③ §0.4 分母 = §0.2 定义里的 ID 数 → P2-L 改 **3 / 5**，OPS-STACK 移出为脚注；④ L3 分三档，三处统一为「**有**进程内闩后停用 rewrite / **无**写 env 的全局关 / **无**面板」（源码 `metrics.ts:71-77` + `execute.ts:153-157` 为据）；⑤ 矩阵日期戳写「全量核对 **2026-09-20**」；⑥ **B10-followup 的 live 真跑数字降级为「仅存 task 叙事」**（`artifacts/` 被 gitignore，仓内不留证），三态仍「部分」；⑦ 矩阵「入库闭环」行末补 L7 / E4；⑧ `drizzle/meta` 口径分两步（05 写 21 份 → 工单 11 落地后改「已补齐」）；⑨「真跑」措辞三处同改。另排除 `check:module-status` 的两条误报并留档基线报告。
 - [回写三处状态镜像（账本归零）](./issues/05-writeback-mirrors.md) — 审计的 **25 处低估全部改完**：§2.5.2 十一行改写（已完成 8 · 部分 1 · 已关闭（划出）2）并**清掉所有指向不存在 task 目录的悬空指针** · 交付控制台 §0.5 十一行 + **§0.7 十四行 HALF-\*（原全写「未开始」）** + §0.2/§0.3/§0.4 + 变更日志三条 · `docs/module-status/` 矩阵两处反向陈述与五份包文元信息 + 三处「无 `pending_review`」旧句 · spec 的快照缺口 19 → **21** 并加口径自检。**验证**：`pnpm check:module-status` **39 → 36 条**，**「时效」整类清零**，剩余 36 条经判读全是脚本误报（点号目录 / 概念名 / 指标名）；两份报告留档。**重大发现**：`.gitignore` 把 **`/prds` 与 `.trellis/tasks/` 整个排除在 git 外**，故 A、B 两处回写**是纯磁盘改动、无版本历史、无法 `git diff` 复核** —— 已记入本图雾中。
+- [回写覆盖表：11 行过期标注 + 4 处汇总矛盾 + 23 行阻塞登记](./issues/06-coverage-table-writeback.md) — 11 行里 **10 行改 `已测`**，**只有 L7 降为「部分测」**（Then 里的「周期触发」本仓无调度基建、真 ES 侧属 B8，把剩下的那一小截写进缺口列而非笼统「部分测」）。四处计数矛盾按**行级机械重数**修正（不迁就旧数）。23 行阻塞登记写进各分册「缺口」列，其中 **16 行「源码与 Then 不一致」统一标注「源码侧待定」并给源码出处**。收口时又加改两处：**S6 改判 `缺测` → `缺实现`**（守卫补测核出 admin 层无该实现）· **N2 / Z3 / C4 回写 `已测`**。终态：**279 行 · 已测 98 · 部分测 122 · 缺测 0 · 缺实现 7 · 延后 38 · UAT 14**，**P2 必签 `缺测` 清零**。
+- [补测批 1 · 信任环收口](./issues/07-tests-batch-1-trust-loop.md) — 11 行全部补到有实质断言，**无「无法断言」行**。新建 6 文件（建库配模型可解析 · 上传→ready→active→成员 ask 可命中一条串联 · POST 与 SSE 双路 `answerKind=knowledge` · 拒答 `suggestedActions` 随 reason 变 · 库外假前提拒答 · generate 全链失败走图 `abstained/internal_guard`）+ 补 4 文件（fast 模式不含 `purpose=route` · 拒答轮不下发 `text-delta` · 手机号 evidence 逐字一致 · 会话分页与跨会话窗隔离）。断言全落在可观测终态，未用 skip。**验证**：api **148 文件 / 919 通过 + 3 skipped**；全仓收口 `pnpm test` **11/11**。
+- [补测批 4 · 边界护栏](./issues/10-tests-batch-4-guards.md) — **3 行补成 + 1 行拒绝造假绿**：N2 Mongo 读写无应用层加密 wrapper（3 条护栏，字段集锁死）· Z3 未点详情不预拉 chunk body · C4 Hit@k 逻辑 id→uuid 映射层（**未**接进签字公式）。**S6 无法断言**：admin 菜单只按平台码裁剪、`/auth/me` 无 `byKb`、切库只写 localStorage → 覆盖表原写「缺测（源码已具备）」与源码冲突，**已改判 `缺实现`**；403 真值在 api（S5）。两条落点路径见工单。三包测试 193 / 173 / 224 通过，`check-types` 8/8、`lint` 8/8 零 warning。
+- [`drizzle/meta` 基线：补齐 `0021` 快照](./issues/11-drizzle-meta-baseline.md) — `packages/db/drizzle/meta/0021_snapshot.json` 已落盘（26 表）。全程在**仓外副本**生成（`mklink /J` 挂 node_modules），只取快照、丢弃副本产出的 `0022_*.sql`；`id`/`prevId` 无需手改（`randomUUID` + 工具自动写 `0000` 的 `id`）。**硬验收达成**：副本跑 `generate` 打印 `No schema changes, nothing to migrate 😴`，且跑完文件数不变；仓库侧只多那一份未跟踪文件。人工走查 26 表 / 355 列 / 11 唯一约束全一致。**顺带发现**：`ingest_reports` 两个列在迁移 `0015` 有 `DEFAULT`、schema 无 —— 已记入雾中。**同 PR 回写**：`docs/module-status/db.md` 与 db spec 的「缺 21 份」口径改为「基线已补、`generate` 恢复可用」（裁定 8）。
 
 ## Not yet specified
 
 - **两处镜像不在版本库里**（工单 05 发现的硬事实）：`.gitignore:58-59` 把 **`/prds` 与 `.trellis/tasks/`** 整个排除在 git 之外。也就是说三处状态镜像里，**交付控制台与总 backlog 没有版本历史**，任何回写都不留痕、无法用 `git diff` 复核，只能靠读磁盘。是否让它们进版本库属仓库所有者决策（**不是**本图能改的），但「可核对」的定义应该把这条写进去
 - **复核这一轮回写本身**：本图由审计驱动回写，回写完还需一次「反向复核」（镜像是否引入了新的高估）。做法待定：是再发一张 research，还是沿用本图的 34 条清单逐条复读
+- **S6 改判带出的真问题**（工单 06 / 10）：`admin` 的写菜单只按**平台码**裁剪，`/auth/me` 没有 `byKb`，切库只写 localStorage。所以「按当前 KB 角色裁菜单」在 admin 层**不存在实现**。要让它有落点只有两条路：给 `/auth/me` 加 `byKb`（契约变更，须走 contracts + PRD 侧确认），或把该断言移回 api（扩 `kb-member-gate`）。选哪条是**产品/契约决定**，不在本图
+- **`ingest_reports` 的两个默认值漂移**（工单 11 走查发现）：`cross_doc_dropped` / `conflict_pairs` 在手写迁移 `0015` 里带 `DEFAULT 0` / `DEFAULT '[]'::jsonb`，而 `packages/db/src/schema/kb/ingest-reports.ts:27,33` 只声明 `.notNull()` 无 default。按「源码为真」schema 是源，但改哪一侧（补 schema default 还是出手写迁移去掉 default）要先裁口径 —— 这是**两个源文件之间**的漂移，不是镜像漂移，故不在本图目的地内
 - **16 行「源码与 Then 不一致 / 源码无落点」**：如 `route-rules.ts:32-77` 的 `route_post_block=true` 分支不可达且无 `route_source=rule_knowledge` 取值 · `H5e` 的 debug / maintenance 开关全仓无落点 · `H1` 的 `Retry-After` 头（PRD 原文是「可带」）。这些要么改源码、要么回 PRD 裁口径，**不是补测能解决的**。准入条件是先裁清「哪一侧错」，再决定开实现票还是开 PRD 修订票
 - **`pending_review` 的 admin 审阅面**：端点 + DTO（带 `heldChunkId`）已齐，缺的只是 admin 一个二选一控件（`documents-workspace.tsx:1186-1203`），RTL 可离线验收。它**不构成镜像漂移**（`admin.md` 已如实写「无待审 UI」），故未进前沿；若本图提前收口可作为下一张图的起点
 - **admin 站规清扫**（20 处原生 `<select>` + 3 处旧 ui `Select`）：行为级可验、**视觉回归不可验**（仓内无 playwright / 视觉 diff）。持续留在雾里，待具备浏览器验证条件

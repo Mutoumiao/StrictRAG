@@ -34,6 +34,7 @@
 | `ops/document-ops-label.test.ts` | 文档列表运营标签必须按 status × lifecycle 映射八态，失败则合成一个模糊状态。 | 功能表 §4.3 | `opsLabel` | 终态优先；原串另列。 | 现行 |
 | `ops/document-reindex.test.ts` | Reindex 人选在可用策略 ≥2 时未选不得提交。 | 功能表 §4.3 | `pickReindexChunkStrategy` | HTTP 闸在 api。 | 现行 |
 | `ops/chunk-strategy-panel.test.tsx` | 知识库设置分片策略弹窗必须能启用策略并保存 recommended，且可把 contextMode 打到 L0。 | 功能表 §4.5 · 入库 PRD §4 | `ChunkStrategyPanel` | HTTP 真值在 api。l0_template 标召回增强关闭。 | 现行 |
+| `ops/chunks-workspace.test.tsx` | 分片薄页未点详情时不得预拉正文，失败则一次选文档打满全文接口。 | 剧本 Z3 · ADR-052 | `ChunksWorkspace` | 选文档只走 list；loadChunkBody 仅点击某块触发一次且只拉该块。HTTP 真值在 api。 | 现行 |
 | `ops/document-upload.test.ts` | 上传服务必须按 upload-url → PUT → complete 调用，失败则入口顺序错乱。 | 上传入口 · ADR-039 · 工单「上传表单标部门最小闭环」 | `uploadAdminDocument · resolveUploadContentType · toCreateDocAclFields` | 未知类型不调 upload-url；complete 带 checksum 与可选部门字段。体积闸真值在 api。 | 现行 |
 | `ops/document-write.test.ts` | 在线编写提交必须带非空标题与正文，并走 write HTTP。 | 功能表 §4.3 在线编写 · 工单「上传表单标部门最小闭环」 | `canSubmitWrite · writeAdminDocument` | HTTP 真值在 api。可带部门两字段。无 BlockNote。 | 现行 |
 | `ops/document-strategy-snapshot.test.ts` | 文档详情必须只读看到绑定的分片策略与快照，未记录时如实说「未记录」。 | 功能表 §4.5 · prds/05-api 文档元数据 · ADR-053 | `strategySnapshotLabel` | 不新增写路径；HTTP 真值在 api 列表项。 | 现行 |

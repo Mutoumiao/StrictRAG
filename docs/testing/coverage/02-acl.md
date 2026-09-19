@@ -50,12 +50,12 @@
 
 | ID | 期望摘要 | 阶段 | 形态 | 覆盖 | 主包 | 证据 | 缺口 |
 |----|----------|------|------|------|------|------|------|
-| S1 | 仅 KB-A `read` 打开 admin → 403 或 302→web（壳不可用） | P2必签 | 单测 | 部分测 | admin | apps/admin/tests/shell/auth-guard.test.tsx（无 `admin.shell` 清会话并 `/login`）；packages/admin-catalog/tests/acl/catalog-clip.test.ts（`web_consumer` 无 `admin.shell`、空码） | 实现跳 `/login`，非 403、非 302→web |
+| S1 | 仅 KB-A `read` 打开 admin → 403 或 302→web（壳不可用） | P2必签 | 单测 | 部分测 | admin | apps/admin/tests/shell/auth-guard.test.tsx（无 `admin.shell` 清会话并 `/login`）；packages/admin-catalog/tests/acl/catalog-clip.test.ts（`web_consumer` 无 `admin.shell`、空码） | 源码侧待定：先裁清哪一侧错，再决定改源码还是回 PRD 裁口径。`apps/admin/src/components/auth-guard.tsx`（挂 `app/(ops)/layout.tsx`）实现清会话跳 `/login`，与 Then「403 或 302→web」不一致（`apps/admin/tests/shell/auth-guard.test.tsx`）。禁止写成「待补测」 |
 | S2 | 同上 U 直调上传 / 成员 / config / lifecycle / 评测 → 403 | P2必签 | 单测 | 部分测 | api | apps/api/tests/acl/members-http.test.ts（无 `member.manage` 403）；apps/api/tests/kb/settings-http.test.ts（无 `kb.config.write` 403）；apps/api/tests/auth/enforce-401.test.ts | 上传 / 审批 / lifecycle / 评测走 WhenEnforced，默认关未打 403 |
 | S3 | 同上 U：web ask + 文档元数据列表 + 提交 feedback 可达 | P2必签 | 单测 | 部分测 | api | apps/api/tests/acl/kb-member-gate.test.ts（成员 ask 200）；apps/api/tests/ask/http-validation.test.ts | web 无 pure read 三入口测；文档列表 `doc.view` WhenEnforced 默认关；feedback 提交未按 read 角色测 |
-| S4 | KB-A `read` + KB-B `write` → 可进 admin | P2必签 | 单测 | 部分测 | admin | apps/admin/tests/shell/auth-guard.test.tsx（有 `admin.shell` 渲染子树）；packages/admin-catalog/tests/acl/catalog-clip.test.ts（`doc_operator` 有壳码） | 进壳只看平台码，无「多 KB 角色并集」用例 |
+| S4 | KB-A `read` + KB-B `write` → 可进 admin | P2必签 | 单测 | 部分测 | admin | apps/admin/tests/shell/auth-guard.test.tsx（有 `admin.shell` 渲染子树）；packages/admin-catalog/tests/acl/catalog-clip.test.ts（`doc_operator` 有壳码） | 源码侧待定：先裁清哪一侧错，再决定改源码还是回 PRD 裁口径。`apps/admin/src/components/auth-guard.tsx` 进壳只认平台码（`admin.shell`），「KB-A read + KB-B write → 可进壳」在现码模型下不成立（`packages/admin-catalog/tests/acl/catalog-clip.test.ts`）。禁止写成「待补测」 |
 | S5 | 同上 V：对 KB-A 写 403；对 KB-B 写可达 | P2必签 | 单测 | 部分测 | api | apps/api/tests/acl/kb-member-gate.test.ts（非本库成员 manage 403）；apps/api/tests/kb/settings-http.test.ts（kb_admin 非成员 403） | 无同一用户跨两库写隔离 HTTP |
-| S6 | admin 从 KB-B 切到 KB-A → 写菜单隐藏或写路由 403 | 建议 | 单测 | 缺测 | admin | apps/admin/src/lib/kb-context.ts（手填 uuid）；菜单按全局码裁剪，不按当前 KB 角色 | 源码可换 KB id；无「切换后写菜单隐藏 / 写路由 403」测 |
+| S6 | admin 从 KB-B 切到 KB-A → 写菜单隐藏或写路由 403 | 建议 | 单测 | 缺实现 | admin | apps/admin/src/lib/kb-context.ts（手填 uuid）；菜单按全局码裁剪，不按当前 KB 角色 | **源码未做**：菜单 = `clipMenuForShell(me.permissions)`（`apps/admin/src/components/admin-shell.tsx:76-83`），`/auth/me` 无 `byKb`（`packages/contracts/src/auth/session.contract.ts:53-66` 注释「本批不返回 byKb」），切库只写 localStorage（`lib/kb-context.ts`）→ admin 层**不存在**按当前 KB 角色裁菜单。403 真值在 api（见 S5）。要让它有落点：先给 `/auth/me` 加 `byKb`，或把断言移回 api。**禁止**写假测 |
 | S7 | admin 根 loader/中间件无「仅 read 放行」分支 | P2必签 | 单测 | 已测 | admin | apps/admin/tests/shell/auth-guard.test.tsx（无 `admin.shell` 不渲染子树；有码才放行） | — |
 | S8 | mock 绕过壳中间件 → handler 仍按矩阵 403 | P2必签 | 单测 | 部分测 | api | apps/api/tests/acl/members-http.test.ts；apps/api/tests/kb/settings-http.test.ts；apps/api/tests/ops/dashboard-http.test.ts（直打 API 无码 403） | 上传 / 审批 WhenEnforced 默认关，绕过壳仍可能 200 |
 | S9 | web 误对 read 露出上传按钮 → 调上传 API 仍 403 | P2必签 | 单测 | 部分测 | admin | apps/admin/tests/ops/documents-workspace.test.tsx（无 `doc.upload` 藏文件选择） | web 无上传钮误露测；上传 API 默认不 enforce |
@@ -70,7 +70,7 @@
 | Y3 | 同上用户调审批通过 → 403（无 `approval.decide`） | P2必签 | 单测 | 部分测 | api | 同 B1-8：permission-resolve + catalog-clip + approvals-workspace | 同 B1-8：approve HTTP 默认不 enforce |
 | Y4 | kb_admin 审批通过 → 200；随后可 scan | P2必签 | 单测 | 已测 | api | apps/api/tests/ingest/approve-then-scan.test.ts | kb_admin approve 200 后 scan 200 且 enqueue stage=scan。不测禁自审（V3） |
 | Y5 | super_admin 非 kb_members 对某 KB ask / 列文档 → 200 | P2必签 | 单测 | 部分测 | api | apps/api/tests/acl/kb-member-gate.test.ts（超管非成员 ask 200）；apps/api/tests/kb/visible-list.test.ts（bypass 见全部库）；apps/api/tests/acl/documents-dept-filter.test.ts（超管跨部门预览 200，enforce 开） | 列文档「超管非成员」HTTP 未专测；与部门绕过不是同一 Then |
-| Y6 | 无 `admin.shell` 打开 admin → 403/302→web | P2必签 | 单测 | 部分测 | admin | apps/admin/tests/shell/auth-guard.test.tsx（无码 → `/login`）；packages/admin-catalog/tests/acl/catalog-clip.test.ts | 跳 `/login`，非 403、非 302→web |
+| Y6 | 无 `admin.shell` 打开 admin → 403/302→web | P2必签 | 单测 | 部分测 | admin | apps/admin/tests/shell/auth-guard.test.tsx（无码 → `/login`）；packages/admin-catalog/tests/acl/catalog-clip.test.ts | 源码侧待定（同 S1）：先裁清哪一侧错，再决定改源码还是回 PRD 裁口径。`apps/admin/src/components/auth-guard.tsx` 无码清会话跳 `/login`，非 403、非 302→web（`apps/admin/tests/shell/auth-guard.test.tsx`）。禁止写成「待补测」 |
 | Y7 | 菜单：doc_operator 无「角色与权限 / 模型」等平台二级 | P2必签 | 单测 | 已测 | admin-catalog | packages/admin-catalog/tests/acl/catalog-clip.test.ts（doc_operator clip 仅 `/documents`；kb_admin 无 `/models` `/dashboard`）；apps/admin/tests/shell/menu-clip.test.tsx（按码裁剪，无码无审批/面板） | — |
 | Y8 | 仅藏菜单、直调 `member.manage` API → 403 | P2必签 | 单测 | 已测 | api | apps/api/tests/acl/members-http.test.ts（doc_operator GET members 403）；apps/api/tests/acl/kb-member-gate.test.ts（缺码 403） | — |
 
@@ -93,7 +93,7 @@
 |----|----------|------|------|------|------|------|------|
 | Z1 | 无 `chunk.view`（默认 doc_operator）打开分片菜单/list API → 菜单无或 403 | P2必签 | 单测 | 已测 | api | apps/api/tests/ingest/chunks-http.test.ts（`doc_operator 默认无 chunk.view → 403`）；packages/admin-catalog/tests/acl/catalog-clip.test.ts（doc_operator clip 无 `/chunks`） | — |
 | Z2 | kb_admin 或超管 `GET …/documents/:id/chunks` → 200；有 preview；无 body（或恒空） | P2必签 | 单测 | 已测 | api | apps/api/tests/ingest/chunks-http.test.ts（kb_admin list 200、有 preview、无 body、仅当前 indexVersion）；packages/contracts/tests/ingest/chunk-contract.test.ts（list item schema 无 `body`） | — |
-| Z3 | 未点详情时前端不得预拉全部 chunk body | 建议 | 单测 | 缺测 | admin | apps/admin/src/app/(ops)/chunks/_components/chunks-workspace.tsx（选文档只 `loadChunkList`；`loadChunkBody` 仅 `onOpenChunk`） | 无 chunks 工作区 RTL / 网络抽检 |
+| Z3 | 未点详情时前端不得预拉全部 chunk body | 建议 | 单测 | 已测 | admin | apps/admin/tests/ops/chunks-workspace.test.tsx | 选文档只调 `loadChunkList(docId,{limit:50})`，3 条 preview 全渲染后 `loadChunkBody` 零调用；点某块后恰一次且为该 chunkId，另两块不拉 |
 | Z4 | 点击某块 → `GET …/chunks/:chunkId` → 200 + body（可 truncated） | P2必签 | 单测 | 部分测 | api | apps/api/tests/ingest/chunks-http.test.ts（detail 200 + body；超 64KiB `bodyTruncated`）；apps/api/tests/ingest/chunks-query.test.ts（`buildBody`）；packages/contracts/tests/ingest/chunk-contract.test.ts | HTTP 已测；无「点击才拉」UI |
 | Z5 | 给 doc_operator 授 `chunk.view` 后重复 Z2/Z4 → 200 | P2必签 | 单测 | 部分测 | api | apps/api/tests/acl/platform-users-roles.test.ts（PUT 角色码 200）；apps/api/tests/ingest/chunks-http.test.ts（kb_admin 有默认码 200） | 无「授码给 doc_operator 再 list/detail 200」 |
 | Z6 | 请求历史 indexVersion（若实现参数）→ 忽略或 400；P2 不提供历史浏览 | P2必签 | 单测 | 部分测 | api | apps/api/tests/ingest/chunks-http.test.ts（list 仅当前 version；旧 version chunk detail 404）；packages/contracts/tests/ingest/chunk-contract.test.ts（query 无 version 字段） | 无「显式传历史 version 参数 → 忽略/400」 |
@@ -128,22 +128,22 @@
 | X1 | ask 不带 `scope`（或 `docTypes:[]`）→ 200；可命中 hr 与 finance（及未分类） | P2契约必签 | 单测 | 已测 | api | apps/api/tests/ask/ready-active-corpus.test.ts（空 `docTypes` 不按类型滤，双闸后 hr 与另一类型均在）；apps/web/tests/ask/scope-top-level.test.ts（空/[] 不塞 scope）；packages/contracts/tests/ask/contract.test.ts | — |
 | X2 | `scope.docTypes:["hr"]` 且问句能被 D_hr 支撑 → answered 时 citation 仅来自 hr | P2契约必签 | 单测 | 部分测 | api | apps/api/tests/ask/ready-active-corpus.test.ts（`scope.docTypes` 双闸后再滤，只留 hr）；apps/api/tests/ask/http-validation.test.ts / apps/api/tests/ask/mode-doc-types-gate.test.ts（顶层 scope 入口） | 无 answered citation 不含 finance chunk 的图路径断言；检索层 `runRetrieve` 未按 scope 对称测 |
 | X3 | 同上，知识只在 D_fin → 拒答或无 finance 证据（不得用 finance 作答却声称 hr scope） | P2契约必签 | 单测 | 已测 | api | apps/api/tests/ask/scope-hr-excludes-finance.test.ts | hr scope 滤掉 finance；只 fin 有知识则拒答，evidence 无 fin |
-| X4 | `docTypes:["no_such_type"]` → 400 | P2契约必签 | 单测 | 部分测 | api | apps/api/tests/ask/mode-doc-types-gate.test.ts（scope.docTypes 不在 KB 允许列表 → 400）；apps/api/tests/kb/ask-mode-doc-types.test.ts（子集闸） | KB 未配 `docTypes` 时任意类型放行（`kbDocTypes: []`）；非「未知类型一律 400」 |
-| X5 | 单测：dense 与 ES filter 均含 `doc_type∈hr`；禁止一路全库一路过滤 | P2契约必签 | 单测 | 部分测 | api | apps/api/tests/ask/ready-active-corpus.test.ts（装载层滤类型）；apps/api/src/services/retrieve/corpus.ts（先滤再 dense∥sparse） | 无 dense/ES **查询期** `doc_type` 对称断言；ES 切片仅 `kbId`+match |
+| X4 | `docTypes:["no_such_type"]` → 400 | P2契约必签 | 单测 | 部分测 | api | apps/api/tests/ask/mode-doc-types-gate.test.ts（scope.docTypes 不在 KB 允许列表 → 400）；apps/api/tests/kb/ask-mode-doc-types.test.ts（子集闸） | 源码侧待定：先裁清哪一侧错，再决定改源码还是回 PRD 裁口径。`apps/api/src/routes/ask.ts`（`assertScopeDocTypesAllowed`：KB 未配 `docTypes` 时放行任意类型）与 Then「未知类型一律 400」不一致（`tests/ask/mode-doc-types-gate.test.ts` · `tests/kb/ask-mode-doc-types.test.ts`）。禁止写成「待补测」 |
+| X5 | 单测：dense 与 ES filter 均含 `doc_type∈hr`；禁止一路全库一路过滤 | P2契约必签 | 单测 | 部分测 | api | apps/api/tests/ask/ready-active-corpus.test.ts（装载层滤类型）；apps/api/src/services/retrieve/corpus.ts（先滤再 dense∥sparse） | 源码侧待定：先裁清哪一侧错，再决定改源码还是回 PRD 裁口径。`apps/api/src/services/retrieve/es-sparse.ts` 查询期仅 `kbId` + match，未下 `doc_type` filter，与 `apps/api/src/services/retrieve/corpus.ts`（装载层先滤再 dense∥sparse）不对称（属 B8 ES 切片）。禁止写成「待补测」 |
 | X6 | 未选类型时 UI 仍可提问；不强制选类型；不 400 | P2.x UI | 单测 | 部分测 | web | apps/web/tests/ask/scope-top-level.test.ts（空输入不收窄、body 无 scope）；apps/web/src/components/ask-panel.tsx（标签「可选」，placeholder 空=不收窄） | 无 RTL「不选类型仍可提交」；P2.x |
 | X7 | 伪造「只滤前端 citation」实现 → 验收不通过（须检索层） | P2契约必签 | 单测 | 部分测 | api | apps/api/tests/ask/ready-active-corpus.test.ts（语料装载已滤）；packages/contracts/tests/ask/contract.test.ts（scope 顶层，禁嵌 options） | 无「generate/citation 仍带场外 chunk」负向护栏 |
 
 ## 本分册计数
 
-行数须与上表一致（每 ID 一行，共 69）。
+行数须与上表一致（每 ID 一行，共 69）。2026-09-20 按行级「阶段 + 覆盖」机械重数两轮：第一轮修分册计数表原写的「已测 22 / 部分测 39 / 延后 2」（其中「延后 2」在行级无对应行）；第二轮随 S6 / Z3 复核结果再改 —— **Z3 已补测**（`apps/admin/tests/ops/chunks-workspace.test.tsx`，缺测 → 已测），**S6 改判 `缺实现`**（缺测 → 缺实现，源码侧确无按当前 KB 角色裁菜单，见该行「缺口」列）。
 
 | 覆盖 | 行数 |
 |------|------|
-| 已测 | 22 |
+| 已测 | 25 |
 | 部分测 | 39 |
-| 缺测 | 2 |
-| 缺实现 | 1 |
-| 延后 | 2 |
+| 缺测 | 0 |
+| 缺实现 | 2 |
+| 延后 | 0 |
 | UAT | 3 |
 | **合计** | **69** |
 
@@ -151,7 +151,7 @@
 
 P2 必签且 `缺测` / `部分测` 才进补测清单。本册该子集：
 
-- **缺测**：S6（建议，可不进下一批）、Z3（建议）
+- **缺测**：无（原 S6 / Z3 已按 2026-09-20 复核处理：Z3 已补测，S6 实为 `缺实现` 已改判）
 - **部分测**（P2必签/契约/授码，不含 AE4+ 与 X6）：B1-2 B1-3 B1-5 B1-8 B1-A3 · S1–S5 S8 S9 · Y1 Y2 Y3 Y5 Y6 · W6 W8 · Z4 Z5 Z6 Z8 · AE1 · X2 X4 X5 X7
 
 AE4–AE8、AE10–AE12 为 P3 / 开强制后；B2-2 / B2-3 已部分测（剩余：角色码 principal、自动 reindex、dense 反向构造）；B1-A4 缺实现。均**不是**本阶段欠测债。

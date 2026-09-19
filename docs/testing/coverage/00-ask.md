@@ -20,7 +20,7 @@
 |----|----------|------|------|------|------|------|------|
 | D1 | answered + chitchat + answerKind=chitchat，无 citation 区 | P2必签 | 单测 | 已测 | apps/api | apps/api/tests/ask/retrieve-outcomes.test.ts · apps/api/tests/obs/tracer.test.ts | — |
 | D2 | 制度题不得 chitchat | P2必签 | 单测 | 已测 | apps/api | apps/api/tests/ask/route-rules.test.ts · apps/api/tests/ask/verify-required.test.ts | — |
-| D-拼句 | 「你好，请问差旅住宿标准」不得 chitchat（后置禁词闸；应 single）；`route_post_block` 可为 true 或 `route_source=rule_knowledge` | P2必签 | 单测 | 部分测 | apps/api | apps/api/tests/ask/route-rules.test.ts | 测的是「你好，年假政策」→ single；未覆盖原句，未断言 `route_post_block` |
+| D-拼句 | 「你好，请问差旅住宿标准」不得 chitchat（后置禁词闸；应 single）；`route_post_block` 可为 true 或 `route_source=rule_knowledge` | P2必签 | 单测 | 部分测 | apps/api | apps/api/tests/ask/route-rules.test.ts | 源码侧待定：先裁清哪一侧错，再决定改源码还是回 PRD 裁口径。`apps/api/src/graph/route-rules.ts:32-77`：`route_post_block=true` 分支在纯规则路径不可达，全仓亦无 `route_source=rule_knowledge` 取值（仅 `'rule'` / `'fallback_single'`）→ Then 无从断言；现有 `route-rules.test.ts` 只覆盖「你好，年假政策」→ single。禁止写成「待补测」 |
 | D-fast | `mode=fast` 下模糊/非寒暄非制度短句不调 LLM route（无 purpose=route，或 `route_llm_skipped=fast_mode`）；走 single | P2必签 | 单测 | 部分测 | apps/api | apps/api/tests/ask/route-rules.test.ts · apps/api/tests/ask/rewrite-disabled.test.ts · apps/api/tests/ask/verify-required.test.ts | 全 mode 纯规则、happy 无 purpose=route；未断言 fast 专标 `route_llm_skipped=fast_mode` |
 | D3 | 库外假前提 abstained，非 chitchat answered | P2必签 | 单测 | 部分测 | apps/api | apps/api/tests/ask/retrieve-outcomes.test.ts | 空证据 `low_retrieval`；无假前提问句夹具 |
 | D4 | Phase 2 MVP 无 grade span 亦可；合法 draft 有 verify | P2必签 | 单测 | 已测 | apps/api | apps/api/tests/ask/verify-required.test.ts | — |
@@ -48,15 +48,15 @@
 
 | ID | 期望摘要 | 阶段 | 形态 | 覆盖 | 主包 | 证据 | 缺口 |
 |----|----------|------|------|------|------|------|------|
-| H1 | 短时超限刷 ask → 429 `RATE_LIMITED`；可带 Retry-After | P2必签 | 单测 | 部分测 | apps/api · apps/web | apps/api/tests/obs/rate-limit.test.ts · apps/web/tests/ask/quota-429.test.tsx | 429 + JSON `retryAfterSec`；web 配额文案已测。无 `Retry-After` 响应头断言 |
+| H1 | 短时超限刷 ask → 429 `RATE_LIMITED`；可带 Retry-After | P2必签 | 单测 | 部分测 | apps/api · apps/web | apps/api/tests/obs/rate-limit.test.ts · apps/web/tests/ask/quota-429.test.tsx | 源码侧待定：先裁清哪一侧错，再决定改源码还是回 PRD 裁口径。主断言已具备（429 + `RATE_LIMITED` + `retryAfterSec`，`tests/obs/rate-limit.test.ts` · `quota-planes.test.ts`）；`Retry-After` 头在 PRD 原文是「可带」，`apps/api/src` 全仓不设该头 → 先裁「该支删还是补头」。禁止写成「待补测」 |
 | H2 | `GET /health` 进程存活 200 | P2必签 | 单测 | 已测 | apps/api | apps/api/tests/env/health-ready.test.ts | — |
 | H3 | `GET /ready`：停 PG 或 Redis → 503 或 status=fail | P2必签 | 单测 | 已测 | apps/api | apps/api/tests/env/ready-hard-deps.test.ts | mock createDb / ioredis，不停本机 PG |
 | H4 | Gateway 不可用（软依赖）：ready 可为 degraded 仍 200 | P2必签 | 单测 | 已测 | apps/api | apps/api/tests/env/ready-soft-gateway.test.ts | Gateway fetch 失败仍 200 / ready=true；checks.gateway=down |
 | H5 | Gateway 全链失败时 ask → `abstained` + `internal_guard`（或等价），无 knowledge 胡答 | P2必签 | 单测 | 部分测 | apps/api | apps/api/tests/gateway/resolve-mock.test.ts · apps/api/tests/gateway/generate-fallback.test.ts · apps/api/tests/ask/http-stream.test.ts | 失败映射 + SSE execute 抛错；generate ModelRef fallback 已在 gateway 层测（opt-in）。无 generate 全链失败走图的夹具；≠ 生产多活 |
-| H5b | staging/production 双节点：断 primary rerank，备用可达；ask 可走完；非仅因 primary 挂而全员 `rerank_unavailable` | P2必签 | 单测 | 部分测 | apps/api | apps/api/tests/gateway/resolve-mock.test.ts | mock 双节点 fallback；≠ staging/production 双节点签字 |
+| H5b | staging/production 双节点：断 primary rerank，备用可达；ask 可走完；非仅因 primary 挂而全员 `rerank_unavailable` | P2必签 | 单测 | 部分测 | apps/api | apps/api/tests/gateway/resolve-mock.test.ts | 阻塞方：真双节点部署 + 人签，非单测可覆盖。`resolve-mock.test.ts` 仅 mock 双节点 fallback；staging/production 真断 primary 属运维验收剧 |
 | H5c | Rerank 全链失败 → `rerank_unavailable`，禁止无 rerank 的正常 answered | P2必签 | 单测 | 已测 | apps/api | apps/api/tests/ask/retrieve-outcomes.test.ts · apps/api/tests/ask/retrieve-run.test.ts · apps/api/tests/ask/http-stream.test.ts | — |
-| H5d | 配置链长 < `RERANK_MIN_NODES` → 启动失败 / 拒绝加载配置 | P2必签 | 单测 | 部分测 | apps/api | apps/api/tests/gateway/resolve-mock.test.ts | `buildGatewayConfig` 链长短于 min 抛错；非进程启动失败 |
-| H5e | debug / maintenance 试图 RRF-only 出 knowledge answered → 拒绝；仅可 `abstained` + 详细 trace 或暂停 ask | P2必签 | 单测 | 部分测 | apps/api | apps/api/tests/ask/retrieve-run.test.ts | rerank 失败禁 RRF-only answered；无 debug/maintenance 开关夹具 |
+| H5d | 配置链长 < `RERANK_MIN_NODES` → 启动失败 / 拒绝加载配置 | P2必签 | 单测 | 部分测 | apps/api | apps/api/tests/gateway/resolve-mock.test.ts | 阻塞方：真进程启动路径（`apps/api/src/index.ts` 启动加载器 + 真 env）。纯函数侧 `buildGatewayConfig` 链长 < `RERANK_MIN_NODES` 抛错、「拒绝加载配置」支已具备（`resolve-mock.test.ts`）；剩「进程启动失败」非单测可覆盖 |
+| H5e | debug / maintenance 试图 RRF-only 出 knowledge answered → 拒绝；仅可 `abstained` + 详细 trace 或暂停 ask | P2必签 | 单测 | 部分测 | apps/api | apps/api/tests/ask/retrieve-run.test.ts | 源码侧待定：先裁清哪一侧错，再决定改源码还是回 PRD 裁口径。`apps/api/src/env.ts` 全仓无 debug / maintenance / degraded 开关，Then 无落点；现有 `retrieve-run.test.ts` 只盖「rerank 失败禁 RRF-only answered」。禁止写成「待补测」 |
 | H5f | claim_split 失败 → `claim_split_failed` / 拒答，无跳过 verify 的 answered | P2必签 | 单测 | 已测 | apps/api | apps/api/tests/ask/verify-required.test.ts | — |
 | H6 | SSE 拒答路径：token 缓冲作废；`final` 与同步 DTO 一致 | P2必签 | 单测 | 部分测 | apps/api · apps/web | apps/api/tests/ask/http-stream.test.ts · apps/web/tests/ask/stream-ready-no-final.test.ts | SSE `data-ask-final`≡sync 与抛错空答；P2 不推 text-delta，未单测「缓冲作废」 |
 | H7 | 问句含特殊字符/HTML 片段：检索语义不被 HTML escape 破坏；可正常走库内/库外逻辑 | P2必签 | 单测 | 已测 | apps/api | apps/api/tests/ask/question-html-passthrough.test.ts | retrieve.question 等于原始 HTML/实体字符串 |
@@ -84,7 +84,7 @@
 | U5 | 在 B ask 带 `sessionId=B` → 200；历史/近窗不得含 A 的 Vue 内容 | P2必签 | 单测 | 部分测 | apps/api | apps/api/tests/sessions/http.test.ts · apps/api/tests/ask/history-not-evidence.test.ts | GET 历史隔离；未在 B 上 ask React 并断言近窗不含 Vue |
 | U6 | 不带 sessionId ask 与单轮一致；不污染 A/B | P2必签 | 单测 | 已测 | apps/api | apps/api/tests/ask/rewrite-disabled.test.ts · apps/api/tests/ask/verify-required.test.ts | — |
 | U7 | 非成员访问 sessions → 403 | P2必签 | 单测 | 已测 | apps/api | apps/api/tests/sessions/http.test.ts | — |
-| U8 | P2 配置 `sessionRewriteEnabledDefault=true` 无 L2 → 启动/配置拒绝或 ask rewrite 路径 400 `SESSION_REWRITE_DISABLED` | P2必签 | 契约 | 部分测 | packages/contracts · apps/api | packages/contracts/tests/kb/settings-contract.test.ts · apps/api/tests/kb/settings-http.test.ts · apps/api/tests/env/defaults.test.ts | 默认关 + PATCH 拒写；env true 可 dogfood；无 400 `SESSION_REWRITE_DISABLED` / 无「无 L2 强制 true」启动失败。≠ rewrite-min 全文 |
+| U8 | P2 配置 `sessionRewriteEnabledDefault=true` 无 L2 → 启动/配置拒绝或 ask rewrite 路径 400 `SESSION_REWRITE_DISABLED` | P2必签 | 契约 | 部分测 | packages/contracts · apps/api | packages/contracts/tests/kb/settings-contract.test.ts · apps/api/tests/kb/settings-http.test.ts · apps/api/tests/env/defaults.test.ts | 源码侧待定：先裁清哪一侧错，再决定改源码还是回 PRD 裁口径。`apps/api/src/routes/kb-settings.ts:111-115` 已 PATCH → 400 `SESSION_REWRITE_DISABLED`（`settings-http.test.ts:297` 已断言）；剩「无 L2 却强制 true → 启动失败」在 `apps/api/src/env.ts` 无检测 / 启动闸。禁止写成「待补测」 |
 | U9 | 产品材料可写「多会话」；不得写 P2 已支持连续指代 | P2必签 | 文档护栏 | UAT | — | — | 无产品材料自动化护栏 |
 
 ## 剧本 J · 会话多轮
@@ -93,7 +93,7 @@
 |----|----------|------|------|------|------|------|------|
 | J7 | `sessionRewriteEnabledDefault=false` 下带 `sessionId` ask → 200 单轮主路径；`rewriteUsed=false`；消息写入该 session（非 400） | P2必签 | 单测 | 已测 | apps/api | apps/api/tests/ask/rewrite-disabled.test.ts · apps/api/tests/ask/execute-trace.test.ts · apps/api/tests/ask/http-validation.test.ts | — |
 | J7b | 不带 sessionId 与单轮一致 | P2必签 | 单测 | 已测 | apps/api | apps/api/tests/ask/rewrite-disabled.test.ts · apps/api/tests/ask/verify-required.test.ts | — |
-| J7c | 未 L2 强制开 rewrite / 误开配置 → 拒绝或 `SESSION_REWRITE_DISABLED`（见 U8） | P2必签 | 契约 | 部分测 | packages/contracts · apps/api | packages/contracts/src/common/biz-code.ts · packages/contracts/tests/kb/settings-contract.test.ts · apps/api/tests/env/defaults.test.ts | 码存在且默认关；无误开 → 400 `SESSION_REWRITE_DISABLED` 夹具 |
+| J7c | 未 L2 强制开 rewrite / 误开配置 → 拒绝或 `SESSION_REWRITE_DISABLED`（见 U8） | P2必签 | 契约 | 部分测 | packages/contracts · apps/api | packages/contracts/src/common/biz-code.ts · packages/contracts/tests/kb/settings-contract.test.ts · apps/api/tests/env/defaults.test.ts | 源码侧待定（同 U8）：先裁清哪一侧错，再决定改源码还是回 PRD 裁口径。`packages/contracts/src/common/biz-code.ts` 有码、`apps/api/src/routes/kb-settings.ts:111-115` 已 400；剩「无 L2 却强制 true」在 `apps/api/src/env.ts` 无落点。禁止写成「待补测」 |
 | J7d | 同会话连续「它呢？」（P2）不得靠聊天历史消解成功当知识答案；禁止 `rewriteUsed=true` | P2必签 | 单测 | 已测 | apps/api | apps/api/tests/ask/rewrite-disabled.test.ts | — |
 | J1 | 已有 session；问「差旅住宿标准」→ answered + citations（库内有据时） | P2.5 | 单测 | 部分测 | apps/api | apps/api/tests/ask/rewrite-min.test.ts · apps/api/tests/ask/execute-trace.test.ts | ≠ 默认开 / ≠ L2 准出 |
 | J2 | 同 session「那餐补呢？」主题为餐补；answered 则 citation 合法；evidence 无上轮 answer 全文 | P2.5 | 单测 | 部分测 | apps/api | apps/api/tests/ask/rewrite-min.test.ts · apps/api/tests/ask/history-not-evidence.test.ts | ≠ 默认开 / ≠ L2 准出 |
@@ -109,13 +109,13 @@
 | 项 | 数 |
 |----|----|
 | 步骤数 | 64 |
-| 已测 | 24 |
-| 部分测 | 26 |
+| 已测 | 25 |
+| 部分测 | 25 |
 | 缺测 | 0 |
 | 缺实现 | 1 |
 | 延后 | 11 |
 | UAT | 2 |
 
-行数须与上表一致：A4 + D17 + F3 + H12 + K7 + U9 + J12 = 64；24+26+0+1+11+2 = 64。
+行数须与上表一致：A4 + D17 + F3 + H12 + K7 + U9 + J12 = 64；25+25+0+1+11+2 = 64（2026-09-20 按行级「阶段 + 覆盖」机械重数，原表写 24/26 与行级差 1）。
 
 P2 必签子集中 `缺测` / `部分测` 才是下一批补测清单（延后 / 缺实现 / UAT 不进欠债）。

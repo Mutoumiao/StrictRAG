@@ -1,8 +1,8 @@
 /**
- * 目标：会话壳 HTTP 在 rewrite 默认关闭下可用。
- * 需求：rewrite 默认关
- * 被测：createSessionRoutes
- * 简介：会话壳 HTTP。
+ * 目标：会话壳 HTTP 可用；列表分页与越界按契约；在 B 会话发问时近窗与历史窗不得含 A 的文本。
+ * 需求：剧本 U2 · 剧本 U5 · 历史≠evidence · rewrite 默认关
+ * 被测：createSessionRoutes · createAskRoutes（executeAsk 近窗装载）
+ * 简介：多会话建/列/详情、limit/offset 分页边界；B 会话 ask 的近窗只取本 session transcript。
  */
 
 import { Hono } from 'hono';
@@ -11,12 +11,19 @@ import { uuidv7 } from 'uuidv7';
 
 import { attachAuthMiddleware, type AuthVariables } from '../../src/auth/middleware.js';
 import { issueTokenPair } from '../../src/auth/identity/token-service.js';
+import type { GraphDeps } from '../../src/graph/run.js';
 import { requestIdMiddleware } from '../../src/middleware/request-id.js';
+import { createAskRoutes, type AskRouteDeps } from '../../src/routes/ask.js';
 import {
   createMemorySessionsRepo,
   type SessionsRepo,
 } from '../../src/services/sessions.js';
 import { createSessionRoutes } from '../../src/routes/sessions.js';
+import {
+  evidenceOk,
+  rewriteHappyChat,
+  type GraphChat,
+} from '../ask/_support/graph-harness.js';
 
 const KB = '01900000-0000-7000-8000-0000000000aa';
 const TENANT = '01900000-0000-7000-8000-000000000001';
@@ -36,6 +43,7 @@ function buildApp(opts: {
   members?: Set<string>;
   sessions?: SessionsRepo;
   kbExists?: boolean;
+  askExecute?: AskRouteDeps['execute'];
 }) {
   const members = opts.members ?? new Set<string>();
   const app = new Hono<{ Variables: AuthVariables }>();
@@ -50,6 +58,22 @@ function buildApp(opts: {
       sessions: opts.sessions,
     }),
   );
+  if (opts.askExecute) {
+    const repo = opts.sessions;
+    app.route(
+      '/api/v1',
+      createAskRoutes({
+        resolveKbMember: async (userId, kbId) => kbId === KB && members.has(userId),
+        getKb: async (id) => (id === KB ? { id: KB, tenantId: TENANT } : null),
+        settingsRepo: { get: async () => null, update: async () => null },
+        execute: opts.askExecute,
+        resolveOwnedSession: async ({ sessionId, kbId, userId }) => {
+          if (!repo) return false;
+          return Boolean(await repo.getOwned({ sessionId, kbId, userId }));
+        },
+      }),
+    );
+  }
   return app;
 }
 
@@ -199,5 +223,190 @@ describe('sessions shell routes', () => {
       headers: { authorization: `Bearer ${u2.accessToken}` },
     });
     expect(res.status).toBe(404);
+  });
+
+  it('U2: 列表 limit/offset 分页切片，越界空页与非法参数 400', async () => {
+    const { userId, accessToken } = await token(['web_consumer']);
+    const mem = createMemorySessionsRepo();
+    const app = buildApp({ members: new Set([userId]), sessions: mem });
+
+    const mk = async (title: string) => {
+      const res = await app.request(`/api/v1/knowledge-bases/${KB}/sessions`, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${accessToken}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ title }),
+      });
+      expect(res.status).toBe(201);
+      return ((await res.json()) as { data: { sessionId: string } }).data.sessionId;
+    };
+    const ids = [await mk('S1'), await mk('S2'), await mk('S3')];
+
+    const list = async (query: string) => {
+      const res = await app.request(`/api/v1/knowledge-bases/${KB}/sessions?${query}`, {
+        headers: { authorization: `Bearer ${accessToken}` },
+      });
+      return res;
+    };
+
+    const page1Res = await list('limit=2&offset=0');
+    expect(page1Res.status).toBe(200);
+    const page1 = ((await page1Res.json()) as { data: { items: { sessionId: string }[] } }).data
+      .items;
+    expect(page1).toHaveLength(2);
+
+    const page2Res = await list('limit=2&offset=2');
+    expect(page2Res.status).toBe(200);
+    const page2 = ((await page2Res.json()) as { data: { items: { sessionId: string }[] } }).data
+      .items;
+    expect(page2).toHaveLength(1);
+
+    const seen = [...page1, ...page2].map((i) => i.sessionId);
+    expect(new Set(seen).size).toBe(3);
+    expect([...seen].sort()).toEqual([...ids].sort());
+
+    // 越界：offset 超过总数 → 200 空页（不是 500 / 不是回第一页）
+    const beyondRes = await list('limit=2&offset=99');
+    expect(beyondRes.status).toBe(200);
+    expect(
+      ((await beyondRes.json()) as { data: { items: unknown[] } }).data.items,
+    ).toEqual([]);
+
+    for (const q of ['limit=0', 'limit=101', 'offset=-1', 'limit=abc']) {
+      const bad = await list(q);
+      expect(bad.status).toBe(400);
+      expect(((await bad.json()) as { error: { code: string } }).error.code).toBe('VALIDATION_ERROR');
+    }
+  });
+
+  it('U5: 在 B 会话发问时近窗与历史窗不得含 A 会话的文本', async () => {
+    const { userId, accessToken } = await token(['web_consumer']);
+    const mem = createMemorySessionsRepo();
+    const A_QUESTION = 'A会话里的餐补机密原文XYZ';
+    const A_ANSWER = 'A机密答案XYZ';
+    const B_QUESTION = 'React 有几个大版本？';
+    const ASK_QUESTION = 'React 有几个大版本？';
+
+    const windows: string[][] = [];
+    const rewritePrompts: string[] = [];
+    const chat: GraphChat = async (purpose, messages) => {
+      if (purpose === 'rewrite') {
+        rewritePrompts.push(messages.find((m) => m.role === 'user')?.content ?? '');
+      }
+      return rewriteHappyChat(purpose, messages);
+    };
+
+    const { executeAsk } = await import('../../src/services/ask/execute.js');
+    const { clipSessionWindow, isExplicitSessionBackref } = await import(
+      '../../src/services/ask/session-window.js'
+    );
+
+    const graphDeps: GraphDeps = {
+      rewriteEnabled: true,
+      chat,
+      retrieve: async () => ({
+        ok: true,
+        evidence: evidenceOk,
+        meta: { esMode: 'mock', candidateCount: 1, denseHits: 1, sparseHits: 1 },
+      }),
+      loadSessionWindow: async (input) => {
+        const messages = await mem.listMessages({
+          sessionId: input.sessionId,
+          kbId: input.kbId,
+          userId: input.userId,
+        });
+        const window = clipSessionWindow(messages, {
+          deepened: isExplicitSessionBackref(ASK_QUESTION),
+        });
+        windows.push(window.map((w) => w.content));
+        return window;
+      },
+    };
+
+    const app = buildApp({
+      members: new Set([userId]),
+      sessions: mem,
+      askExecute: (params) =>
+        executeAsk(params, { skipTrace: true, sessions: mem, graphDeps }),
+    });
+
+    const mk = async (title: string) => {
+      const res = await app.request(`/api/v1/knowledge-bases/${KB}/sessions`, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${accessToken}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ title }),
+      });
+      return ((await res.json()) as { data: { sessionId: string } }).data.sessionId;
+    };
+    const sidA = await mk('A');
+    const sidB = await mk('B');
+
+    mem.appendTrace({
+      sessionId: sidA,
+      kbId: KB,
+      userId,
+      requestId: 'r-a',
+      question: A_QUESTION,
+      answer: A_ANSWER,
+      status: 'answered',
+      reason: 'verified',
+    });
+    mem.appendTrace({
+      sessionId: sidB,
+      kbId: KB,
+      userId,
+      requestId: 'r-b',
+      question: B_QUESTION,
+      answer: 'React 有若干大版本。',
+      status: 'answered',
+      reason: 'verified',
+    });
+
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        question: ASK_QUESTION,
+        sessionId: sidB,
+        options: { debug: true },
+      }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: {
+        status: string;
+        sessionId: string | null;
+        debug?: { rewriteUsed?: boolean };
+      };
+    };
+    expect(body.data.sessionId).toBe(sidB);
+    expect(body.data.status).toBe('answered');
+    expect(body.data.debug?.rewriteUsed).toBe(true);
+
+    // 近窗（store 级 window(B)）：只含 B 的轮次
+    expect(windows).toHaveLength(1);
+    const windowText = windows.flat().join('|');
+    expect(windowText).toContain('React');
+    expect(windowText).not.toContain(A_QUESTION);
+    expect(windowText).not.toContain(A_ANSWER);
+
+    // 进 rewrite 的近窗文本同样不得含 A 原文
+    expect(rewritePrompts).toHaveLength(1);
+    expect(rewritePrompts[0]).toContain('React');
+    expect(rewritePrompts[0]).not.toContain(A_QUESTION);
+    expect(rewritePrompts[0]).not.toContain(A_ANSWER);
+
+    // 响应与落库 transcript 都按 session 隔离
+    expect(JSON.stringify(body.data)).not.toContain(A_ANSWER);
+    expect(mem.dumpTraces(sidB).every((t) => t.question.includes('React'))).toBe(true);
+    expect(mem.dumpTraces(sidA).every((t) => t.question.includes('XYZ'))).toBe(true);
   });
 });

@@ -1,8 +1,8 @@
 /**
- * 目标：同步与 SSE 终态字段必须一致；空库走 200 拒答；execute 抛错仍要给出 final。
- * 需求：prds/05-api
+ * 目标：同步与 SSE 终态字段必须一致；空库走 200 拒答；execute 抛错仍要给出 final；拒答轮不得推伪流式 token。
+ * 需求：prds/05-api · 剧本 H6
  * 被测：POST /knowledge-bases/:kbId/ask sync / SSE
- * 简介：同步与流式终态一致；kb_not_ready 为 200 拒答信封；execute 抛错仍须给出 final。
+ * 简介：同步与流式终态一致；kb_not_ready 为 200 拒答信封；execute 抛错仍须给出 final；拒答无 text-delta。
  */
 
 import { Hono } from 'hono';
@@ -514,5 +514,80 @@ describe('POST ask sync + SSE', () => {
     expect(JSON.stringify(finalPayload.suggestedActions)).toBe(
       JSON.stringify(sync.data.suggestedActions),
     );
+  });
+
+  it('H6: 真实图拒答轮 SSE 不得下发 text-delta（仅 data-status / data-ask-final）', async () => {
+    const { executeAsk } = await import('../../src/services/ask/execute.js');
+    const { userId, accessToken } = await token(['web_consumer']);
+    const evidence = [
+      {
+        chunkId: CHUNK,
+        docId: DOC,
+        title: '休假',
+        text: '员工年假为15天',
+        preview: '15天',
+        lifecycle: 'active' as const,
+        score: 0.9,
+      },
+    ];
+    const app = buildApp({
+      members: new Set([userId]),
+      execute: (params) =>
+        executeAsk(params as Parameters<typeof executeAsk>[0], {
+          skipTrace: true,
+          graphDeps: {
+            retrieve: async () => ({
+              ok: true as const,
+              evidence,
+              meta: { esMode: 'mock' as const, candidateCount: 1, denseHits: 1, sparseHits: 1 },
+            }),
+            chat: async (purpose: string) => {
+              if (purpose === 'generate') {
+                return JSON.stringify({
+                  answer: '库内未写明该内容。',
+                  citations: [CHUNK],
+                  insufficient: true,
+                });
+              }
+              throw new Error(`拒答轮不得再调 ${purpose}`);
+            },
+          },
+        }),
+    });
+
+    const res = await app.request(`/api/v1/knowledge-bases/${KB}/ask`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+        accept: 'text/event-stream',
+      },
+      body: JSON.stringify({ question: '年假', options: { stream: true } }),
+    });
+    expect(res.status).toBe(200);
+    const text = await res.text();
+
+    // P2 不推未校验 token 的伪流式：拒答轮不得出现任何 text 增量
+    expect(text).not.toContain('text-delta');
+    expect(text.toLowerCase()).not.toContain('text-start');
+    const partTypes = [...text.matchAll(/"type":"(data-[^"]+)"/g)].map((m) => m[1]);
+    expect(new Set(partTypes)).toEqual(new Set(['data-status', 'data-ask-final']));
+
+    const finalChunk = text
+      .split('\n')
+      .filter((l) => l.startsWith('data: '))
+      .map((l) => {
+        try {
+          return JSON.parse(l.slice(6)) as Record<string, unknown>;
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean)
+      .find((o) => o!.type === 'data-ask-final');
+    const finalPayload = finalChunk!.data as Record<string, unknown>;
+    expect(finalPayload.status).toBe('abstained');
+    expect(finalPayload.reason).toBe('model_abstained');
+    expect(finalPayload.answer).toBe('');
   });
 });

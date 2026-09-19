@@ -44,6 +44,8 @@
 | `acl/retrieve-dept-acl.test.ts` | 检索期按部门 ACL 过滤可见文档。 | DEPT_ACL | `filterDocsForDeptAcl` | 默认 enforce 关。 | 现行 |
 | `acl/system-roles-skip-reseed.test.ts` | 已有 isSystem 角色则不再 insert 系统角色。 | 剧本 AD3（部分） | `ensureSystemRoles` | 只锁跳过重种子，≠ 补码、≠ 不重置密码。补码见 `superadmin-bootstrap`。 | 现行 |
 | `acl/superadmin-bootstrap.test.ts` | 空库须能按 env 引导出 active 超管与 catalog 全码；缺 env 须失败；已有超管不得改哈希。 | 剧本 AD1–AD3 · ADR-056 | `bootstrapSuperAdmin` · `createApp` | 直接调引导函数；AD2 抛错；createApp 不自动跑；upsert 不静默删；kb_admin 自定义码不覆盖。 | 现行 |
+| `ask/abstain-suggested-actions.test.ts` | 拒答轮必须给出非空且随 reason 变的 suggestedActions，同步与 SSE 同形。 | 剧本 A4 · P2必签 · prds/08-quality/01-verification-and-abstention.md | `POST /knowledge-bases/:kbId/ask（sync / SSE）` | 三种拒答 reason 各有主按钮且互不相同。 | 现行 |
+| `ask/answer-kind.test.ts` | 库内 verified 轮必须回 answerKind=knowledge，寒暄轮 chitchat，拒答轮不谎报。 | 剧本 A3 · P2必签 · prds/05-api | `POST /knowledge-bases/:kbId/ask（sync / SSE）` | 同步与 data-ask-final 同判 answerKind。 | 现行 |
 | `ask/body-lt-passthrough.test.ts` | 制度正文中的 `<` 必须原样进入 generate，不得被 HTML escape 成 `&lt;`。 | 剧本 K6 · prds/10-delivery/03-acceptance-scenarios.md · ADR-037 | `runAskGraph（generate / claim_split user 消息）` | evidence.text 含尖括号时 prompt 保留原字符。feedback 脚本消毒不在本包。 | 现行 |
 | `ask/budget.test.ts` | mode 预算表与 tryCharge 闸；检索/LLM 额度耗尽不得 answered。 | ADR-032 · prds/04-pipelines | `budgetForMode / tryChargeLlm / tryChargeRetrieve / runAskGraph 预算路径` | 校验 mode 默认额度与 tryCharge；检索/LLM 耗尽须 abstained。 | 现行 |
 | `ask/citations.test.ts` | 非法 citation 不得 answered；混合法/非法只保留证据 id 并仍走 verify。 | prds/08-quality | `runAskGraph（generate+citations）` | 非法引用拒答；混合引用只留证据 id；insufficient 走 model_abstained。 | 现行 |
@@ -53,15 +55,17 @@
 | `ask/es-principals-query-filter.test.ts` | ES 查询期按文档 aclPrincipals 收窄，缺字段=未设可读，空数组不可命中。 | P3b 文档 ACL · 工单 ES 查询期 principals 对称 | `buildAclFilter / searchSparseEs / sparseBulkSource / runRetrieve` | 不跟 DEPT_ACL_ENFORCE；超管不加 clause；PG 名单闸仍保留；显式空写哨兵。 | 现行 |
 | `ask/es-builder-tenant-required.test.ts` | 无 tenantId 的 ES query / bulk builder 必须失败，不得静默少过滤或回退全租户。 | 剧本 O4 · ADR-041 | `buildAclFilter / sparseBulkSource` | 缺 / 空 / 纯空白 tenantId 即抛；带 tenantId 时租户 + kbId filter 逐位不变（未放宽既有闸）。 | 现行 |
 | `ask/es-sparse.test.ts` | 稀疏检索 HTTP 切片按 env 解析，失败不得静默回 mock；buildAclFilter 强制 tenantId+kbId，可选 ownerDeptId terms。 | OPS-1 | `esConfigFromEnv / searchSparseEs / buildAclFilter` | 稀疏检索 HTTP 切片 + ACL filter。 | 现行 |
-| `ask/evidence-verbatim.test.ts` | 当轮 evidence.text 进入 generate/verify 与 citation 必须逐字一致，不得改写。 | 剧本 K4 · prds/10-delivery/03-acceptance-scenarios.md · ADR-037 | `runAskGraph（generateUserPrompt / claim_split / citation.preview）` | 现权威为 evidence.text / PG body，≠ Mongo。 | 现行 |
+| `ask/evidence-verbatim.test.ts` | 当轮 evidence.text 进入 generate/verify 与 citation 必须逐字一致，不得改写（含工号与手机号片段）。 | 剧本 K1 · 剧本 K4 · prds/10-delivery/03-acceptance-scenarios.md · ADR-037 | `runAskGraph（generateUserPrompt / claim_split / citation.preview）` | 现权威为 evidence.text / PG body，≠ Mongo。 | 现行 |
 | `ask/execute-trace.test.ts` | executeAsk 落 trace 时历史文不得进入 evidence。 | prds/05-api · 历史≠evidence | `executeAsk` | 落库 trace 时只记录本轮 evidence，不把历史文写进快照。 | 现行 |
+| `ask/false-premise.test.ts` | 库外假前提问句必须拒答，不得被当成 chitchat answered，也不得拿不对题证据硬答。 | 剧本 D3 · P2必签 · prds/08-quality | `runAskGraph（route + retrieve + generate 拒答边）· ruleRoute` | 无证据 low_retrieval；仅有不对题邻居证据 model_abstained。 | 现行 |
 | `ask/final-mapper.test.ts` | 终态回读必须与在线终态逐字段同形；不可同形时必须 ready=false 而不是假 answered。 | 功能表 §3 断线重拉终态 · prds/05-api §2.7 契约铁律 5 | `toAskFinal` | verified / 拒答轮重建结果与 executeAsk 在线响应深等；citations 未落库的通过轮、未知 status/reason、坏引用形状一律 ready=false。 | 现行 |
 | `ask/final-replay.test.ts` | 流式断线后必须能按 requestId 取回该轮终态，且读不回时如实说读不回。 | 功能表 §3 断线重拉终态 · prds/05-api §2.7 契约铁律 5 | `GET /ask/:requestId/final` · POST ask 的 running part | 成员得同形终态；通过轮 citations 未落库 → ready=false；拒答旧轮仍可回读；非成员 403；缺失 404；审计口语义不变；running part 带本轮 requestId。 | 现行 |
+| `ask/gateway-chain-fail.test.ts` | generate 绑定全链失败时走图必须 abstained internal_guard，禁止 knowledge 胡答。 | 剧本 H5 · P2必签 · prds/07-models · ADR-055 | `runAskGraph · chatFromGateway · createMockGateway（generate 链）` | primary 与备用都失败仍拒答；有证据也不 answered，且不再进 verify。 | 现行 |
 | `ask/history-not-evidence.test.ts` | 会话历史与加深窗文本不得进入 evidence / 不得充当 verify 依据。 | 历史≠evidence · prds/04-pipelines | `runAskGraph（history / evidence_snapshot）` | 有 session 仍只凭 evidence 验证；历史与加深窗文本不得进 snapshot/citations。 | 现行 |
 | `ask/http-audit.test.ts` | GET /ask/:requestId 必须按 KB 成员权限回读当时 evidence_snapshot 与 graph_trace。 | prds/05-api §2.9 · 功能表 §5.2 引用回溯 · 剧本 F3 | `GET /ask/:requestId` | 成员 200 得快照；非成员 403；缺失 404；preview 截断；不依赖现网分片。 | 现行 |
 | `ask/http-ask-modes.test.ts` | 成员必须能读库 allowedModes/defaultMode，且不得经此口拿到 τ。 | 功能表 §3 问答档位 | `GET /knowledge-bases/:kbId/ask-modes` | 成员 200；非成员 403；缺库 404；缺设置回默认档；响应无 tauClaim。 | 现行 |
 | `ask/http-doc-types.test.ts` | 成员必须能读库文档类型枚举，且不得经此口拿到 τ。 | 功能表 §5.2 文档类型 · ADR-050 · 工单「文档类型成员面最小闭环」 | `GET /knowledge-bases/:kbId/doc-types` | 成员 200 与 settings 枚举一致；catalog 启用项真 label；停用不出；空枚举 items=[]；非成员 403；缺库 404；响应无 tauClaim。 | 现行 |
-| `ask/http-stream.test.ts` | 同步与 SSE 终态字段必须一致；空库走 200 拒答；execute 抛错仍要给出 final。 | prds/05-api | `POST /knowledge-bases/:kbId/ask sync / SSE` | 同步与流式终态一致；kb_not_ready 为 200 拒答信封；execute 抛错仍须给出 final。 | 现行 |
+| `ask/http-stream.test.ts` | 同步与 SSE 终态字段必须一致；空库走 200 拒答；execute 抛错仍要给出 final；拒答轮不得推伪流式 token。 | prds/05-api · 剧本 H6 | `POST /knowledge-bases/:kbId/ask sync / SSE` | 同步与流式终态一致；kb_not_ready 为 200 拒答信封；execute 抛错仍须给出 final；拒答无 text-delta。 | 现行 |
 | `ask/http-validation.test.ts` | POST ask 校验、鉴权与 sessionId 闸必须按契约拒绝非法请求。 | prds/05-api | `POST /knowledge-bases/:kbId/ask` | 非法 body、无鉴权与非法 sessionId 须按契约拒绝。 | 现行 |
 | `ask/idempotency-key.test.ts` | 带 Idempotency-Key 的重试不得重跑问答图，必须复用同一 requestId 的终态；在途与不可回读要可辨。 | prds/05-api §2.7 契约铁律 6 · prds/04-pipelines §8 · prds/03-data §2.1 | `POST /knowledge-bases/:kbId/ask（Idempotency-Key 分支）` | 不带键行为不变；同键重放不跑图且与终态回读口同形；在途 409 `in_flight`；不可同形 409 `not_replayable`；跨用户不命中；非成员 403 不占键；重试不吃配额；超长键 400；空白键视为未带；流式重放写 `data-ask-final`；跑图抛错释放键。 | 现行 |
 | `ask/idempotency-store.test.ts` | 幂等键作用域与后端适配必须可核对：键含 tenant/user/kb 且抢占/复用/释放语义确定。 | prds/03-data §2.1 · prds/01-architecture §3 | `services/ask/idempotency.ts` | TTL 600s；同原始键不同用户/库得到不同键；二次 claim 复用首次 requestId；释放后可重抢；ioredis 适配发 `SET key value EX ttl NX`。 | 现行 |
@@ -77,7 +81,7 @@
 | `ask/rewrite-disabled.test.ts` | rewrite 关闭或无 loader 时不得改写问句、不得 500。 | SESSION_REWRITE_ENABLED 默认关 | `runAskGraph（rewrite 关）` | 关开关、无会话、fast、无 loader 时不调用 rewrite，也不 500。 | 现行 |
 | `ask/rewrite-min.test.ts` | rewrite 最小开路径：弱指代独立问句、未解析则不检索、回指四态派生正确。 | prds/04-pipelines P2.5 rewrite min | `runAskGraph（rewrite 开）` | 开 rewrite 时检索用独立问句；未解析不检索；session/document/external 回指四态。 | 现行 |
 | `ask/rewrite-parse.test.ts` | 改写输出必须是合法独立问句；resolved=false / 非法 JSON / 空白须抛错。 | prds/04-pipelines rewrite | `parseRewriteOutput` | standalone 合法才通过；resolved=false、非法 JSON、空白 standalone 抛错。 | 现行 |
-| `ask/route-rules.test.ts` | 闲聊走 chitchat，知识/政策问句走 single，禁止政策句被当成闲聊。 | prds/04-pipelines/02-online-ask-langgraph.md | `ruleRoute` | 问候为 chitchat；带知识/政策词的问句必须 single。 | 现行 |
+| `ask/route-rules.test.ts` | 闲聊走 chitchat，知识/政策问句走 single，禁止政策句被当成闲聊；fast 档不得调 LLM route。 | prds/04-pipelines/02-online-ask-langgraph.md · 剧本 D-fast | `ruleRoute · runAskGraph（chat purpose 序列）` | 问候为 chitchat；带知识/政策词的问句必须 single；fast 模糊短句走 single 且无 purpose=route。 | 现行 |
 | `ask/scope-hr-excludes-finance.test.ts` | hr scope 不得用 finance 文档作答。 | 剧本 X3 | `filterDocsForRetrieve / runRetrieve / runAskGraph` | scope.docTypes=hr 滤掉 finance；无证据或非法 citation 则拒答。 | 现行 |
 | `ask/scoring-rrf.test.ts` | 混合检索的余弦相似与 RRF 融合按预期排序。 | prds/04-pipelines | `cosine / rrfFuse` | 打分与倒数秩融合的纯函数。 | 现行 |
 | `ask/sparse-kb-filter.test.ts` | 共享索引查询必须带 tenantId + kbId term，外库 chunk 不得进 evidence。 | 剧本 O1 | `searchSparseEs / runRetrieve` http sparse | 默认 mock ES；锁 tenantId + kbId filter；部门 terms 另见 es-dept-query-filter。≠ 生产独立索引。 | 现行 |
@@ -133,6 +137,7 @@
 | `ingest/gates-live.test.ts` | live 闸组合在真实 handler 下拒绝未审批 complete。 | complete 闸 | `createApp document gates` | 无 Docker / not ready 时 skip。 | 现行 |
 | `ingest/jobs-query.test.ts` | 入库任务列表项映射保持查询契约。 | prds/06-async | `toIngestJobListItem` | 入队在 api，消费在 worker。 | 现行 |
 | `ingest/no-self-approve.test.ts` | 提交人不得批自己的单（四眼）；认不出 actor 或提交人时不得误伤运营台。 | prds/09-security 禁自审默认（P2）· ADR-048 #4 · 剧本 V3 | `POST /documents/:docId/approve` · `POST /documents/:docId/reject` | 自审 403 且不写审批；他人审批 200 并记审批人；无 actor / 提交人未知不拦；已通过幂等不改判。 | 现行 |
+| `ingest/upload-to-active-retrievable.test.ts` | 上传 complete 进审批后仍不可检索；只有双就绪（ready∧active）才允许成员 ask 命中该文档。 | 剧本 A2 · P2必签 · P0 R7 · prds/04-pipelines/01-offline-ingest.md | `documents upload-url / complete / lifecycle · POST /knowledge-bases/:kbId/ask` | 未就绪 ask 拒答 kb_not_ready、PATCH active 409；ready 后 active 才 answered 且 citation 指该文档。 | 现行 |
 | `ingest/write-document-http.test.ts` | 在线编写必须落 Markdown 对象并进 pending，不得入队 scan。 | 功能表 §4.3 · 剧本 V7 最小 · 工单「上传表单标部门最小闭环」 | `POST …/documents/write` | sourceType=write；空白拒；未实现策略 400；可带部门两字段；提交人随令牌落库。无 BlockNote。 | 现行 |
 | `ingest/ocr-rerun-http.test.ts` | 卡在 OCR 闸的文档 reindex 必须入队 ocr；短 utf8 与 ready 仍入队 chunk。 | 剧本 Q7 · ADR-043 · P5 历史 needs_ocr 重跑 | `POST /documents/:docId/reindex` · `reindexEnqueueStage` | 无新 HTTP。不自动全库。≠ 真引擎。 | 现行 |
 | `ingest/ingest-report-http.test.ts` | 库级 GET ingest-report 须成员可读、空列表 200、缺库 404。 | prds/05-api GET ingest-report · 功能表 §5.2 | `GET /knowledge-bases/:kbId/ingest-report` | 回已落库行含跨 doc 冲突对；不是 doc 级路径。 | 现行 |
@@ -144,6 +149,7 @@
 | `kb/chunk-strategies-http.test.ts` | 分片策略 catalog / for-upload / 库启用 PATCH 必须落库语义，无码 403，未知码 400；contextMode 非法拒写。 | 功能表 §4.5 · ADR-053 · 入库 PRD §4 | `createChunkStrategyRoutes` | kb.config.write 写面；for-upload 给上传人选。 | 现行 |
 | `kb/chunk-strategy-preserves-docs.test.ts` | 保存分片策略必须不改既有文档的 index_version、chunk 边界与参数快照。 | 剧本 AA1 · ADR-053 | `createChunkStrategyRoutes` PATCH · `applyKbChunkStrategyPatch` | 文档+chunk 夹具深等；文档写仓若被调用即改夹具 → 变红；含「策略行确已变」的正向对照与无 diff 不落审计。 | 现行 |
 | `kb/chunk-strategy-audit.test.ts` | 分片策略 PATCH 有 diff 必须落服务端修改日志，无 diff 不得落，且不得改旧文档版本与快照。 | IA §2.2 · 功能表 §4.2 / §4.5 · 剧本 AA1 | `createChunkStrategyRoutes` PATCH · `applyKbChunkStrategyPatch` diff | 复用 KB 设置审计表（不新建表）；只动 kb_chunk_strategies。 | 现行 |
+| `kb/create-kb-with-models.test.ts` | 建 KB 后必须能把 generate/embed/rerank 三个消费绑定配到位并解析成运行时网关配置。 | 剧本 A1 · P2必签 · prds/05-api §2.1 · ADR-055 | `POST /knowledge-bases · PUT /knowledge-bases/:kbId/model-bindings · applyBindingsToGatewayConfig` | 三通道解析到 DB provider（含 embed 维度）；未配通道回落 env，不假装已配。 | 现行 |
 | `kb/create-kb.test.ts` | 创建知识库必须指定首位库管，且租户只认令牌、不认 body。 | prds/05-api §2.1 | `POST /knowledge-bases` | 写入 kb_members(role=admin)；缺用户 404。≠ 成员 PUT。 | 现行 |
 | `kb/data-class-complete.test.ts` | sensitive 文档 complete 必须过 ACL 就绪闸。 | P3b-SENS | `parseDataClassFromConfig / isSensitiveCompleteBlocked` | 部门路径或显式名单；null 仍挡。 | 现行 |
 | `kb/doc-type-catalog.test.ts` | 知识库类型分区必须从 config 解析 catalog，停用码不得进入启用列表。 | 功能表 §4.2 文档类型 · ADR-054 · 工单「类型分区 CRUD 最小闭环」 | `parseDocTypeCatalogFromConfig / parseDocTypesFromConfig / mergeKbSettingsPatch / toMemberDocTypeItems` | 旧 string[] 合成全启用；简写 PATCH 写成 catalog。 | 现行 |
@@ -166,7 +172,7 @@
 | `obs/rate-limit.test.ts` | 超限必须返回 429 RATE_LIMITED。 | ARCH-P2-4 | `checkFixedWindowRateLimit / POST ask 429` | 超限返回 429 RATE_LIMITED；ask 路由走同一闸。 | 现行 |
 | `obs/tracer.test.ts` | memory tracer 记录主链 span，executeAsk 接线不得丢 span。 | ARCH-P2-4 | `createMemoryTracer / executeAsk` | 内存 tracer 记下主链 span；executeAsk 接线不得丢 span。 | 现行 |
 | `ops/dashboard-http.test.ts` | 面板 summary 按 B6 返回聚合；tracks 分开展示质量与延迟且不改 summary 信封。 | B6 · 剧本 I4 | `createDashboardRoutes / summarizeLatencies` | summary HTTP + 双轨 tracks。 | 现行 |
-| `sessions/http.test.ts` | 会话壳 HTTP 在 rewrite 默认关闭下可用。 | rewrite 默认关 | `createSessionRoutes` | 会话壳 HTTP。 | 现行 |
+| `sessions/http.test.ts` | 会话壳 HTTP 可用；列表分页与越界按契约；在 B 会话发问时近窗不得含 A 的文本。 | 剧本 U2 · 剧本 U5 · 历史≠evidence · rewrite 默认关 | `createSessionRoutes · createAskRoutes（executeAsk 近窗装载）` | 多会话建/列/详情与 limit/offset 边界；B 会话 ask 的近窗只取本 session transcript。 | 现行 |
 | `sessions/session-window.test.ts` | 近窗裁剪后历史不得当作 citation。 | 历史≠evidence | `clipSessionWindow / resolveBackReference` | 不把历史当 citation。 | 现行 |
 
 ## 待处理
