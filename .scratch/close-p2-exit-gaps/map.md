@@ -14,6 +14,7 @@ Status: open
 - 每轮先读：本图、`docs/agents/issue-tracker.md`、`docs/agents/domain.md`、`docs/testing/coverage.md` + 相关分册、`.trellis/tasks/08-06-project-backlog/research/coverage-gap-impl.md`、相关包 `docs/module-status/`。写代码前读 `.trellis/spec/` 对应包。
 - **本图携带执行**：工单可以动手写代码补缺口，不只锁决策。缺口**只**在本图工单上做；`.trellis/tasks/08-06-project-backlog/` 只留指针与勾选。同一缺口**禁止**再 `task.py create` 平行实现任务。
 - **门禁**：每收一张工单跑 `pnpm check-types` + `pnpm lint` + 相关包测试；收口批次跑全仓 `pnpm test`。测例只进 `<包>/tests/<能力>/<意图>.test.ts(x)`，文件头目标/简介用简体中文，并登记 index。
+- **本图收口门禁（2026-09-19）**：`pnpm check-types` **8/8** · `pnpm lint` **8/8 零 warning** · `pnpm test` **11/11**（api **139** 文件 / **887** 通过 + 3 skipped · worker 35 文件；**零超时**）。各工单 Answer 里的「见地图收口数字」指本行。
 - **站规（UI）**：web / admin 新下拉必须基于 `@strict-rag/ui` 关闭列表，禁止浏览器原生 `<select>` 外壳。`Button` / `Input` / `Textarea` 仍走 ui 包。
 - **质量红线不放宽**：检索→约束生成→验证→拒答；min 否决；合法 draft 必 verify；历史≠evidence；门禁只加严不放宽；双就绪∧active 检索闸。
 - 不改仓库默认开关以示「完成」：`AUTH_ENFORCE`、`DEPT_ACL_ENFORCE`、rewrite、OCR、`INGEST_CONTEXTUALIZE_MODE` 的默认值不在本图放宽或收紧。
@@ -33,6 +34,7 @@ Status: open
 - [核定 embed TPM（R6）的口径](./issues/19-research-embed-tpm.md) — R6 拆两半：**R6-a（非 ready 直至清单全 embed / 无半套 ready / 不丢 chunk）已具备 + 证据**（`EMBED_NOT_READY` 硬闸 · 失败置 failed · 双就绪才 ready · 三处测例）；**R6-b（TPM 触顶反压 + 堆积告警）划出范围** —— PRD 全仓 `TPM` 22 行**全无计数口径**，mock embed 不产生 token/429，`ingest_embed_backlog` 全仓 0 命中且 worker metrics 出口已被前图裁定不开。准入条件记入雾中。
 - [裁定 TENANT-Q 的门禁口径与范围](./issues/17-dec-tenant-q-scope.md) — 门禁落**运行时构造即抛**（不靠 TS 类型），落点选两个纯 builder `buildAclFilter`（query，api）与 `sparseBulkSource`（bulk，api+worker），因 `bulkIndexSparse` 经它构 source 故 bulk 自动覆盖；缺 / 空 / 空白 `tenantId` → 抛（api `EsSparseError(...,'config')`，worker `Error`）。**mock 层不在范围**（PG 文本替身无租户概念）；**独立索引布局随 B8**。
 - [QUAL-TENANT-Q](./issues/05-qual-tenant-query.md) — 已落：两仓 builder 加运行时 `requireTenantId`；新增 api 5 条 + worker 3 条负/正例（含「抛之前不得发 HTTP」）；既有 O1 `kbId` 闸未改写（api 84/507 · worker 30/149 子集回归绿）。
+- [裁定签字包 gatePackageId / effectiveAt 的数据来源](./issues/16-dec-signoff-package-source.md) — PRD 逐字点名权威来源是 **`eval_runs`**（§6.0 四要素之四「KB 配置快照绑定 `eval_runs`」+ ADR-061 双轨），且 `qualitySnapshot` **只读、无写路径**（05-api §2.1）。裁定：**读时派生**（不加列、不加 migration、不加写路径）；有资格者 = `signoffEligible` ∧ live ∧ RACI 人签 ∧ 携带 ADR-046 快照的**最近一条**；`effectiveAt` 取该行已记录的创建时间（**不新增「签字时刻」字段**）；无合格者保持 `null`（不代签、不回落 env）。**不做**「运行时参数改从签字包加载」（与 ADR-007 `tauClaim` 唯一源冲突，须 ADR）。→ 派生实现另开 [20](./issues/20-qual-signoff-package-derive.md)。
 
 ## Not yet specified
 
