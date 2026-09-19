@@ -1,0 +1,70 @@
+module-status 婕傜Щ鎶ュ憡 路 36 鏉?
+鈹€鈹€ 1-璺緞锛?锛?  [db.md] `.scratch/fill-must-haves/research-drizzle-meta-baseline.md`
+      鏈寘涓庡叏浠撳潎鏈壘鍒?鈹€鈹€ 2-env锛?锛?  [api.md] STORAGE_MODE=s3
+      浠ｇ爜榛樿 local锛坅pi/src/env.ts锛?  [worker.md] STORAGE_MODE=s3
+      浠ｇ爜榛樿 local锛坵orker/src/env.ts锛?鈹€鈹€ 3-绗﹀彿锛?3锛?  [api.md] `UNSUPPORTED_MEDIA_TYPE`
+      鍏宠仈鍖咃紙api/contracts/db/admin-catalog锛夊鍑轰腑涓嶅瓨鍦紙鍙兘涓烘蹇靛悕锛屽彲鍔犲叆榛戝悕鍗曪級
+  [api.md] `FORBIDDEN`
+      鍏宠仈鍖咃紙api/contracts/db/admin-catalog锛夊鍑轰腑涓嶅瓨鍦紙鍙兘涓烘蹇靛悕锛屽彲鍔犲叆榛戝悕鍗曪級
+  [api.md] `DEV_DEFAULT_TENANT`
+      鍏宠仈鍖咃紙api/contracts/db/admin-catalog锛夊鍑轰腑涓嶅瓨鍦紙鍙兘涓烘蹇靛悕锛屽彲鍔犲叆榛戝悕鍗曪級
+  [api.md] `RULE_VIOLATION`
+      鍏宠仈鍖咃紙api/contracts/db/admin-catalog锛夊鍑轰腑涓嶅瓨鍦紙鍙兘涓烘蹇靛悕锛屽彲鍔犲叆榛戝悕鍗曪級
+  [api.md] `RULE_VIOLATION`
+      鍏宠仈鍖咃紙api/contracts/db/admin-catalog锛夊鍑轰腑涓嶅瓨鍦紙鍙兘涓烘蹇靛悕锛屽彲鍔犲叆榛戝悕鍗曪級
+  [api.md] `NULL`
+      鍏宠仈鍖咃紙api/contracts/db/admin-catalog锛夊鍑轰腑涓嶅瓨鍦紙鍙兘涓烘蹇靛悕锛屽彲鍔犲叆榛戝悕鍗曪級
+  [api.md] `GENERATE_MIN_NODES`
+      鍏宠仈鍖咃紙api/contracts/db/admin-catalog锛夊鍑轰腑涓嶅瓨鍦紙鍙兘涓烘蹇靛悕锛屽彲鍔犲叆榛戝悕鍗曪級
+  [api.md] `RATE_LIMITED`
+      鍏宠仈鍖咃紙api/contracts/db/admin-catalog锛夊鍑轰腑涓嶅瓨鍦紙鍙兘涓烘蹇靛悕锛屽彲鍔犲叆榛戝悕鍗曪級
+  [api.md] `CONFLICT`
+      鍏宠仈鍖咃紙api/contracts/db/admin-catalog锛夊鍑轰腑涓嶅瓨鍦紙鍙兘涓烘蹇靛悕锛屽彲鍔犲叆榛戝悕鍗曪級
+  [db.md] `NULL`
+      鍏宠仈鍖咃紙db锛夊鍑轰腑涓嶅瓨鍦紙鍙兘涓烘蹇靛悕锛屽彲鍔犲叆榛戝悕鍗曪級
+  [worker.md] `OCR_UNAVAILABLE`
+      鍏宠仈鍖咃紙worker/contracts/db锛夊鍑轰腑涓嶅瓨鍦紙鍙兘涓烘蹇靛悕锛屽彲鍔犲叆榛戝悕鍗曪級
+  [worker.md] `OCR_LOW_CONFIDENCE`
+      鍏宠仈鍖咃紙worker/contracts/db锛夊鍑轰腑涓嶅瓨鍦紙鍙兘涓烘蹇靛悕锛屽彲鍔犲叆榛戝悕鍗曪級
+  [README.md] `GENERATE_MIN_NODES`
+      鍏宠仈鍖咃紙api/worker/web/admin/contracts/db/admin-catalog/ui/eslint-config/typescript-config锛夊鍑轰腑涓嶅瓨鍦紙鍙兘涓烘蹇靛悕锛屽彲鍔犲叆榛戝悕鍗曪級
+鈹€鈹€ 5-琛紙20锛?  [api.md] `node_used`
+      db schema 琛ㄦ竻鍗曚腑涓嶅瓨鍦紙鍙兘涓哄瓧娈?鐘舵€佽瘝锛屽彲鍔犲叆榛戝悕鍗曪級
+  [api.md] `null`
+      db schema 琛ㄦ竻鍗曚腑涓嶅瓨鍦紙鍙兘涓哄瓧娈?鐘舵€佽瘝锛屽彲鍔犲叆榛戝悕鍗曪級
+  [api.md] `null`
+      db schema 琛ㄦ竻鍗曚腑涓嶅瓨鍦紙鍙兘涓哄瓧娈?鐘舵€佽瘝锛屽彲鍔犲叆榛戝悕鍗曪級
+  [api.md] `null`
+      db schema 琛ㄦ竻鍗曚腑涓嶅瓨鍦紙鍙兘涓哄瓧娈?鐘舵€佽瘝锛屽彲鍔犲叆榛戝悕鍗曪級
+  [api.md] `admin_write`
+      db schema 琛ㄦ竻鍗曚腑涓嶅瓨鍦紙鍙兘涓哄瓧娈?鐘舵€佽瘝锛屽彲鍔犲叆榛戝悕鍗曪級
+  [api.md] `node_used`
+      db schema 琛ㄦ竻鍗曚腑涓嶅瓨鍦紙鍙兘涓哄瓧娈?鐘舵€佽瘝锛屽彲鍔犲叆榛戝悕鍗曪級
+  [api.md] `llm_call_total`
+      db schema 琛ㄦ竻鍗曚腑涓嶅瓨鍦紙鍙兘涓哄瓧娈?鐘舵€佽瘝锛屽彲鍔犲叆榛戝悕鍗曪級
+  [api.md] `null`
+      db schema 琛ㄦ竻鍗曚腑涓嶅瓨鍦紙鍙兘涓哄瓧娈?鐘舵€佽瘝锛屽彲鍔犲叆榛戝悕鍗曪級
+  [db.md] `dedupe_status`
+      db schema 琛ㄦ竻鍗曚腑涓嶅瓨鍦紙鍙兘涓哄瓧娈?鐘舵€佽瘝锛屽彲鍔犲叆榛戝悕鍗曪級
+  [db.md] `contextualize_l0_fallback`
+      db schema 琛ㄦ竻鍗曚腑涓嶅瓨鍦紙鍙兘涓哄瓧娈?鐘舵€佽瘝锛屽彲鍔犲叆榛戝悕鍗曪級
+  [db.md] `active_index_version`
+      db schema 琛ㄦ竻鍗曚腑涓嶅瓨鍦紙鍙兘涓哄瓧娈?鐘舵€佽瘝锛屽彲鍔犲叆榛戝悕鍗曪級
+  [db.md] `visibility_level`
+      db schema 琛ㄦ竻鍗曚腑涓嶅瓨鍦紙鍙兘涓哄瓧娈?鐘舵€佽瘝锛屽彲鍔犲叆榛戝悕鍗曪級
+  [db.md] `acl_principals`
+      db schema 琛ㄦ竻鍗曚腑涓嶅瓨鍦紙鍙兘涓哄瓧娈?鐘舵€佽瘝锛屽彲鍔犲叆榛戝悕鍗曪級
+  [db.md] `duplicate_of`
+      db schema 琛ㄦ竻鍗曚腑涓嶅瓨鍦紙鍙兘涓哄瓧娈?鐘舵€佽瘝锛屽彲鍔犲叆榛戝悕鍗曪級
+  [db.md] `dedupe_status`
+      db schema 琛ㄦ竻鍗曚腑涓嶅瓨鍦紙鍙兘涓哄瓧娈?鐘舵€佽瘝锛屽彲鍔犲叆榛戝悕鍗曪級
+  [db.md] `dedupe_status`
+      db schema 琛ㄦ竻鍗曚腑涓嶅瓨鍦紙鍙兘涓哄瓧娈?鐘舵€佽瘝锛屽彲鍔犲叆榛戝悕鍗曪級
+  [db.md] `pending_review`
+      db schema 琛ㄦ竻鍗曚腑涓嶅瓨鍦紙鍙兘涓哄瓧娈?鐘舵€佽瘝锛屽彲鍔犲叆榛戝悕鍗曪級
+  [db.md] `dedupe_cross_doc_rate`
+      db schema 琛ㄦ竻鍗曚腑涓嶅瓨鍦紙鍙兘涓哄瓧娈?鐘舵€佽瘝锛屽彲鍔犲叆榛戝悕鍗曪級
+  [db.md] `citations`
+      db schema 琛ㄦ竻鍗曚腑涓嶅瓨鍦紙鍙兘涓哄瓧娈?鐘舵€佽瘝锛屽彲鍔犲叆榛戝悕鍗曪級
+  [db.md] `migrate`
+      db schema 琛ㄦ竻鍗曚腑涓嶅瓨鍦紙鍙兘涓哄瓧娈?鐘舵€佽瘝锛屽彲鍔犲叆榛戝悕鍗曪級

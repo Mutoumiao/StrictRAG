@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（schema + client + 检索谓词底座；**无**业务服务层） |
 | 默认依赖模式 | 需要调用方提供 `DATABASE_URL`；时间列使用本地格式字符串（见 ORM PRD） |
 | 关联模块 | `api` 与 `worker` 共用 client / schema；检索闸门谓词被 api retrieve 复用 |
-| 最近更新 | 2026-09-17（`ingest_reports.contextualize_l1_ok` / `contextualize_l0_fallback`，migration `0019`，无默认）；2026-09-16（`ingest_reports.dedupe_cross_doc_rate`，migration `0018`；`ask_traces.citations`，migration `0017`；均无默认） |
+| 最近更新 | 2026-09-19（`documents.active_index_version`，migration `0020`；`chunks.duplicate_of` / `dedupe_status`，migration `0021`；均**无默认**）；2026-09-17（`ingest_reports.contextualize_l1_ok` / `contextualize_l0_fallback`，migration `0019`，无默认）；2026-09-16（`ingest_reports.dedupe_cross_doc_rate`，migration `0018`；`ask_traces.citations`，migration `0017`；均无默认） |
 | Spec | `.trellis/spec/db/backend/` |
 | PRD | `prds/03-data` · `prds/02-engineering/02-orm-drizzle.md` |
 

@@ -63,11 +63,11 @@
 | 项目级对外承诺 | 统一链接到 [交付控制台 §0](../../prds/12-delivery-guides/04-交付控制台.md)，本文件不写对外话术长段 |
 | 包文档尚未补齐时 | 矩阵仍可标注端到端状态；"详见"一栏指向已有的包文档，或标注"包状态待补" |
 
-### 能力矩阵（2026-08-12 · 08-11/08-12 全量核对）
+### 能力矩阵（最近一次全量核对 **2026-09-20**；前次 2026-08-12）
 
 | 能力域 | 端到端成熟度 | 主包 | 协作包 | 详见 |
 |--------|--------------|------|--------|------|
-| **入库闭环** | **可演示**（scan/embed/ES **默认 mock**；可显式 `http`+S3+Mongo 打 Docker 中间件；分片策略**仅** `structure_paragraph`；dual-ready 后 `lifecycle` 仍为 **draft**；staging/prod worker 当前没有合法扫描配置） | `worker` | `api` · `db` · `contracts` | [worker](./worker.md) · [api · 入库](./api.md) |
+| **入库闭环** | **可演示**（scan/embed/ES **默认 mock**；可显式 `http`+S3+Mongo 打 Docker 中间件；分片策略**仅** `structure_paragraph`；dual-ready 后 `lifecycle` 仍为 **draft**；staging/prod worker 当前没有合法扫描配置；跨 doc 近重复可入审（`pending_review`）· 孤儿清理已落（**周期调度未落**）） | `worker` | `api` · `db` · `contracts` | [worker](./worker.md) · [api · 入库](./api.md) |
 | **问答 ask / 流式输出** | **可演示**（单轮信任环；AI SDK UI Message Stream；检索默认 mock ES；`http` 模式为 sparse 切片，可签字归因，**≠** 生产 ES+IK） | `api` | `web` · `contracts` · `db` | [api · 问答](./api.md) · [web](./web.md) |
 | **会话外壳** | **可演示**（列表 / 历史回放；**rewrite 图边已落、默认关**；web 消费 `coref_unresolved` 拒答卡；**显式回溯加深部分**；**文档回溯检索加码部分**；**库外文档回溯抑制部分**；**四态派生部分**；**≠** 准出 / **≠** 对外连续追问） | `api` | `web` · `db` · `contracts` | [api](./api.md) · [web](./web.md) |
 | **鉴权 / 访问控制（ACL）** | **可联调**（临时双 JWT；KB 成员 + 权限码；**启动引导超管** env 创建（listen 前；≠ 页 / ≠ 密码登录）；**写路径锁超管全码**；B5 部门骨架；文档部门字段可改（含 complete / 列表列 / 下拉 / 本地筛 / 部门名 / 可见级文案）；grant 表可存可配（部门+用户下拉；行内部门名+可见级文案）；归属可选用户；`DEPT_ACL_ENFORCE` **默认关**，开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤；可关继承（env + KB 覆盖 + 设置页勾选，未改不写回）；KB `deptAclEnforce` 可覆盖 env（未写跟 env；GET 未写回读 false；设置页可勾选，未改不写回）；设置页可标 `dataClass`（complete 须 ACL 就绪：部门路径或显式名单）；`AUTH_ENFORCE` 默认关；**≠** 全文隔离 / ES 查询期部门 terms 已落（默认关）；文档级 `aclPrincipals` 用户 uuid 名单最小已落（PG 把关；ES 查询期非超管 should 收窄；**≠** 角色 principal / 默认开强制）） | `api` | `admin-catalog` · `admin` · `web` · `contracts` · `db` | [api · 鉴权](./api.md) · [admin-catalog](./admin-catalog.md) |
@@ -78,8 +78,8 @@
 | **契约 / Schema 基座** | **可联调**（P1/S2 + B1–B6 + **B12 策略码 / IngestJobData**；`eval_runs` 可落；`ingest_jobs` worker 最小 stage 写；`permission_definitions` 启动字典；`kb_settings_audits` 可落；同 doc Redis 锁最小） | `contracts` / `db` | 全部业务包 | [contracts](./contracts.md) · [db](./db.md) |
 | **工程工具链** | **生产向**（全仓 eslint/tsconfig 基线；无业务完成度故事） | `eslint-config` · `typescript-config` | 全仓 · `ui` | [eslint-config](./eslint-config.md) · [typescript-config](./typescript-config.md) · [ui](./ui.md) |
 
-**半产品可运行缺口（已登记、未实现）**：总 backlog **§1.2 P-HALF**（知识库下拉 / admin 上传 / 上架 active / 一键拉起 / PDF 文本层 / 烟测等）。**未做 ≠ 已具备**。  
-**矩阵未覆盖、且明确尚未交付的能力**（不要从「可演示」的行向外推断）：生产级 ES + IK、生产 RustFS at-rest/HA / 生产 Mongo、**rewrite 默认开 / 对外连续追问 / L2 准出**、CRAG / multi_hop、**部门级检索强制默认开 / 角色 principal**、权限三表终态、入库 `ingest_jobs` 完整运维查询面（stage 最小写 + 同 doc SET NX 锁最小已有；非 Redlock）、admin 设置全量 UI（docTypes/策略/KB 绑定写）、按历史 indexVersion 浏览分片等 → 详见 [08-06 backlog](../../.trellis/tasks/08-06-project-backlog/status.md) 与交付控制台 §0。  
+**半产品可运行（P-HALF · 已落地，2026-08-21）**：总 backlog **§1.2** 的 14 条 HALF-* 均已实现（`pnpm up:apps` / `smoke:half` / `seed:demo` · `.env.operable.example` · KB 下拉 · admin 上传/上架/入库阶段 · PDF 文本层 · http embed 可选 · AUTH 试点配方 · 设置页 docTypes+策略+KB 绑定写）；**默认仍 mock / `AUTH_ENFORCE` 关**（**≠** 生产 ES / **≠** 真杀毒 / **≠** 可签字）。  
+**矩阵未覆盖、且明确尚未交付的能力**（不要从「可演示」的行向外推断）：生产级 ES + IK、生产 RustFS at-rest/HA / 生产 Mongo、**rewrite 默认开 / 对外连续追问 / L2 准出**、CRAG / multi_hop、**部门级检索强制默认开 / 角色 principal**、权限三表终态、入库 `ingest_jobs` 完整运维查询面（stage 最小写 + 同 doc SET NX 锁最小已有；非 Redlock）、admin 设置**余量**（paramSchema 动态表单 / 平台策略 CRUD 页）、按历史 indexVersion 浏览分片等 → 详见 [08-06 backlog](../../.trellis/tasks/08-06-project-backlog/status.md) 与交付控制台 §0。  
 **安全债（不挡当前主线 · 生产前必清）**：**QUAL-2 真杀毒**（现阶段 mock；DEC-SCAN 已裁决）→ [worker · 技术债](./worker.md)。  
 （**已交付勿再列未做**：B2-W mode/docTypes 闸、B4-W hydrate、B12 策略闸、B13 feedback UI、08-12 SPEC-HOW 挂账 archive。）
 
@@ -145,6 +145,8 @@ task 完成
   → 延期 / 被裁掉的能力 → 记入 backlog；对外承诺边界变化 → 交付控制台 §0
   → 写法约定变化 → 改 .trellis/spec
 ```
+
+矩阵按行**增量回写**，不要求每次全量重核；**全量核对只在专门审计时做，并把日期写进表头**（现为 2026-09-20）。仓库自带核对脚本：`pnpm check:module-status`（报告制，恒 exit 0；其中「时效」一项会比对包文「最近更新」与最近提交，其余类别含较多概念名误报，需人工判读）。
 
 ## 交叉引用
 

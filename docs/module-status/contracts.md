@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（支撑 P0/P1 入库 + S2 问答/会话/反馈/成员 + B1–B6 运营契约 + **B12 策略码 / ingest job**；**非**全量 OpenAPI） |
 | 默认依赖模式 | 纯库；无运行时开关 |
 | 关联模块 | 被 `api` · `worker` · `web` · `admin` 消费；是全仓错误码、响应信封、队列名与 **可写分片策略集** 的唯一来源 |
-| 最近更新 | 2026-09-17（入库报告 DTO 增 `contextualizeL1Ok` / `contextualizeL0Fallback`；ACL 增 `aclTightens` 与 `PutDocumentAclResponseSchema.reindexRequired`）；2026-09-16（入库报告 DTO 增 `dedupeCrossDocRate`；`AskFinalResponseSchema` 断线重拉终态；`AskSseStatusSchema.requestId`） |
+| 最近更新 | 2026-09-19（新增 `ResolveDedupeConflictBody/Response`；`IngestReportConflictPair` 收 `action` 并加可选 `heldChunkId`；KB 设置 `crossDocDedupeAction`）；2026-09-17（入库报告 DTO 增 `contextualizeL1Ok` / `contextualizeL0Fallback`；ACL 增 `aclTightens` 与 `PutDocumentAclResponseSchema.reindexRequired`）；2026-09-16（入库报告 DTO 增 `dedupeCrossDocRate`；`AskFinalResponseSchema` 断线重拉终态；`AskSseStatusSchema.requestId`） |
 | Spec | `.trellis/spec/contracts/library/` |
 | PRD | `prds/05-api` · 各域契约与 PRD 短名对齐 |
 
@@ -43,7 +43,7 @@
   - `DEFAULT_CHUNK_STRATEGY` · `isImplementedChunkStrategy` · `CHUNK_STRATEGY_PLATFORM_SEED` · `docFamilyFromContentType` · **`CONTEXT_MODES` / `parseContextMode` / `l0ContextPrefix` / `resolveContextSource`**（本轮来源仅 `l0` / `l0_fallback`）
   - catalog HTTP：`ForUploadQuerySchema` / `PatchKbChunkStrategiesBodySchema` / `ChunkStrategyCatalogResponseSchema`
   - **禁止**把 KNOWN 未实现码当成可写入已交付
-- **入库报告**：`IngestReportItemSchema`（`.strict()`；对账可空；**含** `crossDocDropped` / **`dedupeCrossDocRate`（0–1 或 null）** / **`contextualizeL1Ok` / `contextualizeL0Fallback`（≥0 整数或 null）** / `conflictPairs` / `contextSource`（l0 / l0_fallback / l1_llm）；拒 Hit@k / pending_review）（`ingest/ingest-report.contract.ts` · `tests/ingest/ingest-report-contract.test.ts`）
+- **入库报告**：`IngestReportItemSchema`（`.strict()`；对账可空；**含** `crossDocDropped` / **`dedupeCrossDocRate`（0–1 或 null）** / **`contextualizeL1Ok` / `contextualizeL0Fallback`（≥0 整数或 null）** / `conflictPairs`（`action` ∈ `skip_index|pending_review`，入审带可选 `heldChunkId`）/ `contextSource`（l0 / l0_fallback / l1_llm）；拒 Hit@k）（`ingest/ingest-report.contract.ts` · `tests/ingest/ingest-report-contract.test.ts`）
 - **文档 ACL**：`DocumentAclSchema`（GET 形三态）/ `PutDocumentAclBodySchema`（`.strict()`，超 256 拒）/ **`PutDocumentAclResponseSchema`**（GET 形 + `reindexRequired`；收紧须 reindex，ADR-009 决策 4）/ **`aclTightens(prev, next)`**（新集合不再是旧集合的超集 = 有人失去可读性；`null`=全员可读、`[]`=无人）（`ingest/document.contract.ts` · `tests/ingest/document-contract.test.ts`）
 
 ### 问答（S2）

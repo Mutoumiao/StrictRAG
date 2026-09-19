@@ -7,7 +7,7 @@
 | 成熟度 | **可联调**（P1 入库状态机；**仅** development/test + mock 栈可起；**staging/production 当前无合法扫描配置**） |
 | 默认依赖模式 | `APP_ENV=development` · 启动探针 `WORKER_PROBE_ON_START=true` · 扫描 = `mock_clean` · 向量 = `mock`（dims=8，枚举 `mock\|fail`）· ES 索引 = `mock`（枚举 `mock\|fail\|http`，**默认 mock**；`http` 须 `ELASTICSEARCH_URL`）· 对象存储 = 默认本地目录；`STORAGE_MODE=s3` 走 RustFS（S3 兼容） · `S3_BUCKET=strict-rag` · Mongo URL 空则 `mongoDocId=local:` · `INGEST_MIN_EXTRACTED_CHARS=40` · `INGEST_OCR_ENABLED=false` · `INGEST_FAILURE_WEBHOOK_URL` **空=不发** · **可运行叠加** `.env.operable.example`（http/s3/mongo；**不**改 Zod 默认） |
 | 关联模块 | 由 `api` 入队触发；写库走 `@strict-rag/db`；队列名 / job payload / 可执行策略集来自 `@strict-rag/contracts`；运行需要 Redis + PostgreSQL |
-| 最近更新 | 2026-09-17（入库报告落 `contextualize_l1_ok` / `contextualize_l0_fallback`，migration `0019`）；2026-09-16（L1 contextualize 真调用、默认 off；入库报告补跨文档去重率） |
+| 最近更新 | 2026-09-19（剧本 L7 孤儿清理 `orphan-clean.ts`；剧本 E4 `pending_review` 入审；O4 bulk builder 租户闸）；2026-09-17（入库报告落 `contextualize_l1_ok` / `contextualize_l0_fallback`，migration `0019`）；2026-09-16（L1 contextualize 真调用、默认 off；入库报告补跨文档去重率） |
 | Spec | `.trellis/spec/worker/backend/` |
 | PRD | `prds/06-async` · `prds/04-pipelines/01-offline-ingest.md` |
 
@@ -60,7 +60,7 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 - 未知 errorCode **fail-closed 不重试**
 - **账本最小**：`job-ledger.ts` 每 stage 先 insert `running`、结束时写 `succeeded`/`failed`（写失败仅记 warn 日志，不阻断）；**未做** api 入队写 / 查询 API
 - **失败 Webhook 最小**：`INGEST_FAILURE_WEBHOOK_URL` 空则不发；仅 `recordStageEnd` 见 `errorCode` 时 POST JSON（`event=ingest.failed` + tenantId/kbId/docId/stage/errorCode/at，可选 jobId）；超时约 3s、只一次；非 2xx/网络错 warn **不抛**、**不阻断**账本。无 HMAC / 无重试队列 / 无 ask webhook / 无正文与对象路径
-- **入库报告**：`ingest-report.ts` 按 `docId+indexVersion` 落可查询行（双就绪成功；文档内去重清空失败；**同 KB 跨 doc skip_index 冲突对**；**跨文档去重率 `dedupeCrossDocRate`（与计数同源派生；分母 0 → null，不写 0）**；**情境来源 l0 / l0_fallback / l1_llm** + **`contextualizeL1Ok` / `contextualizeL0Fallback`（PRD 04 §5.2「指标必出」；与 `contextSource` 同口径：L1 被请求但本轮未实际调用时整轮计回退；后阶段不得复写已记录值）**；对账失败不标双就绪）；写失败 warn 不阻断；**不含** pending_review / Hit@k / 「高度重复」阈值提示（数据 PRD 无阈值）
+- **入库报告**：`ingest-report.ts` 按 `docId+indexVersion` 落可查询行（双就绪成功；文档内去重清空失败；**同 KB 跨 doc skip_index 冲突对**；**跨文档去重率 `dedupeCrossDocRate`（与计数同源派生；分母 0 → null，不写 0）**；**情境来源 l0 / l0_fallback / l1_llm** + **`contextualizeL1Ok` / `contextualizeL0Fallback`（PRD 04 §5.2「指标必出」；与 `contextSource` 同口径：L1 被请求但本轮未实际调用时整轮计回退；后阶段不得复写已记录值）**；对账失败不标双就绪）；写失败 warn 不阻断；**有** `pending_review` 冲突对（带 `heldChunkId`）但**无**处置 / 聚合指标 / 审阅面；**不含** Hit@k / 「高度重复」阈值提示（数据 PRD 无阈值）
 - **同 doc 锁最小**：`doc-lock.ts` 用 Redis `SET NX EX`（默认 TTL 180s）+ token 安全释放；`index.ts` 持锁再跑 stage；抢锁失败 `DOC_LOCK_BUSY` 可重试；**非** Redlock
 
 ### 基础设施
@@ -80,7 +80,7 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 | OCR / 复杂版式 | 开闸 opt-in + 注入抽取器；历史 needs_ocr 可由 reindex 入队 ocr；默认关；**无**真 Tesseract / Cloud / 启动自动全库 |
 | HTTP API | **禁止**业务 HTTP |
 | `ingest_jobs` 完整运维账本 | **最小 stage 写已有**；无查询面 / 无 api 入队 `queued` |
-| 入库报告完整语义 | 跨 doc skip_index（字 3-gram Jaccard≥0.9）+ 冲突对 + contextSource + **跨文档去重率** 已落；**无** pending_review / 生产 LSH / Hit@k / 「高度重复」阈值提示 |
+| 入库报告完整语义 | 跨 doc `skip_index`（字 3-gram Jaccard≥0.9）+ 冲突对（可含 `pending_review` + `heldChunkId`）+ contextSource + **跨文档去重率** 已落；**无**处置 / 聚合指标 / 审阅面 / 生产 LSH / Hit@k / 「高度重复」阈值提示 |
 | 真 L1 contextualize | **已落但默认关**：`INGEST_CONTEXTUALIZE_MODE=http` 时逐块真调 chat（temp=0，PRD §4.1 模板），成功写 `l1_llm`、任一块失败回退 L0（`l0_fallback`）；**默认 off**（无真 Gateway 时 on 只会全量假 `l0_fallback`）；**无** per-chunk checkpoint（重跑不跳过已有 prefix）；worker **无** metrics 出口（`contextualize_*` 只作日志字段） |
 | dual-ready 自动 `lifecycle=active` | 终态 draft；检索默认可检索性另闸 |
 | purge 生产三存 | mock ES drop + 对象删 + 可选 Mongo；**无** HTTP ES `_delete_by_query` / PG 硬删 / chunk 清扫 |
