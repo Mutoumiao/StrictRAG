@@ -29,10 +29,14 @@ Status: open
 - [QUAL-AA1](./issues/13-qual-aa1-kb-strategy-params.md) — 判为**部分已做**（「可保存 + 审计」已由前图 88 覆盖），只补数据级断言。新增 `apps/api/tests/kb/chunk-strategy-preserves-docs.test.ts`（3 条）：文档 + chunk 边界夹具为唯一「被改即变红」对象，含正向对照防假绿。**反证**：路由里插一句文档写仓 → 3/3 变红。**第一批三张（07 / 11 / 13）已收官**；下一步需再裁定。
 - [裁定文档「当前激活 version」表示](./issues/03-dec-active-version.md) — PRD 早已把「激活 version」当作独立于 `index_version` 的概念（§2.2「双就绪 → `ready` + **原子**激活」· ORM §「事务用于 `index_version` 激活」· L「dense+sparse 均成功才 ready 并激活」）。裁定：`documents` 加 `active_index_version`（**可空无默认**），**只在 `es_index` 成功那次与 `status='ready'` 同一条 UPDATE 写**；孤儿清理护栏 = 不删 `active_index_version`、不删在飞 `index_version`、`NULL` 时一律不动手；**检索闸不改**（PRD 逐字是「匹配当前 `index_version`」）；迁移 `0020`（手写 SQL + journal）。**更正前图前提**：reindex 失败时旧版数据虽在，但文档在 chunk 段即离开 `ready`，双闸门已挡住——风险是「删掉重试/回退仍需要的那一版」，不是「删掉正在服务的版本」。
 - [裁定 `pending_review` 落点 / 端点 / KB 策略位](./issues/04-dec-pending-review.md) — 落点 = `chunks` 两列 `duplicate_of` + `dedupe_status`（仅取值 `'pending_review'`，处理完回 `NULL`，列名取自数据 PRD §3.2）；KB 策略位 = `config_json.crossDocDedupeAction`（默认 `skip_index`，白名单只收 `skip_index | pending_review`，**`downrank` 一律 400 拒绝**）；端点 = 新增 `POST /documents/:docId/dedupe-conflicts/:chunkId/resolve`（body `{winner:'this'|'other'}`，权限 `doc.editor` + 成员闸，**不新增权限码**）；待审期**保守取「暂不 index」**且**不碰对方文档的既有索引**。
+- [裁定 K5 与超管旁路的关系](./issues/18-dec-k5-trace-acl.md) — **K5 与 #15 不冲突**：#15 允许的是 `super_admin`，K5 约束的是 `platform_admin`，二者在 09-security §5 显式区分；源码把超管的 `users.platform_role` 写成 `'platform_admin'` 造成表面冲突，而**授权路径从不读 `platform_role`**（只认角色码）。今天 K5 范围内的两个口都已 403 且有测例；Langfuse 只有 mock 且**无读取面**，其余出口均不含 evidence 明文 → **今天已具备**。连带关闭 [08](./issues/08-qual-k5-langfuse-acl.md)。真 Langfuse 读取面的成员过滤/哈希载体记入雾中。
+- [核定 embed TPM（R6）的口径](./issues/19-research-embed-tpm.md) — R6 拆两半：**R6-a（非 ready 直至清单全 embed / 无半套 ready / 不丢 chunk）已具备 + 证据**（`EMBED_NOT_READY` 硬闸 · 失败置 failed · 双就绪才 ready · 三处测例）；**R6-b（TPM 触顶反压 + 堆积告警）划出范围** —— PRD 全仓 `TPM` 22 行**全无计数口径**，mock embed 不产生 token/429，`ingest_embed_backlog` 全仓 0 命中且 worker metrics 出口已被前图裁定不开。准入条件记入雾中。
 
 ## Not yet specified
 
 - **`pending_review` 的 interim 可配置性**：PRD §5.1 说「双方可暂均 index 或均不 index（**KB 策略**）」，但未给键名 → 本图固定取「暂不 index」，键名待 PRD 补行
+- **embed TPM / 堆积告警（R6-b）**：准入条件两条同时满足才开票 —— ① PRD 给出 TPM 计数口径（或 ADR 声明 mock 模式不计数）；② worker 观测出口决策改变，或把堆积计数落进入库报告（与 105 两计数同型）。现状是口径未定义 + `ingest_embed_backlog` 无生产者
+- **真 Langfuse 读取面（K5 的将来时）**：今天 Langfuse 只有 mock 且无读取入口；**接入真 SDK 时**必须带成员过滤 / 哈希载体（`prds/08-quality/03-langfuse-observability.md:141/148/151/173`），只加严、不动 ask 既有语义
 - **`downrank` 跨 doc 去重动作**：PRD §5.1 的合法取值，但「仍索引但 metadata 降权（检索层读取）」在本仓无实现 → 策略白名单**明确 400 拒绝**，不留静默通道；待检索层降权设计成形再开
 - **`pending_review` 的 admin 审阅面**：功能表 §4.3 说「文档页抽屉或同页」，属 P1 的 UI 面；本图只落 API 与数据面
 - **admin 站规清扫**（20 处原生 `<select>` + 4 处旧 ui `Select`：documents 7 · departments 6 · models 3 · settings 2 · chunk-strategy-panel 1 · eval 1；login / chunks / members 用旧 `Select`）：是站规余量，**不是**映射表缺口；本机无浏览器验证手段，替换的视觉回归不可验 → 留在雾里，待具备浏览器验证条件。**注**：`chunk-strategy-panel.tsx:149-163` 那处已在核查中被点名（QUAL-AB8 的残留），仍归本条
@@ -46,6 +50,7 @@ Status: open
 - **QUAL-ACL-CAP（B1-A4 白名单超限拒答）**：全仓无 `allowedDocIds` 生产者（10 处全是文档或负向测试，DB 无列，`retrieve` 无该 reason 出口）→ 实现等于造无生产者半接线 · [已关闭](./issues/06-qual-acl-cap.md)
 - **QUAL-G3（`gold.yaml` 审核闸）**：`gold.yaml` 是静态手写 seed、全仓无生成器 → 没有可加闸的对象；要先有生成器（属新功能）· [已关闭](./issues/14-qual-g3-gold-review-gate.md)
 - **QUAL-PLANE R4（`maxEmbedCalls` → warning + 忽略）**：本仓无 runtime 图配置入口（`graphProfile` / `wallClockMs` 0 命中；KB 设置是 strict 白名单；`budgetOverride` 标注「生产勿传」）→ 护栏属**未来 profile loader**（P3a / B8 接入时实现）· [已关闭](./issues/07-qual-plane-quota.md)
+- **QUAL-PLANE R6-b（embed TPM 反压 + 堆积告警）**：PRD 无计数口径（`TPM` 22 行全是指代）· mock embed 不产生 token/429 · `ingest_embed_backlog` 全仓 0 命中且 worker metrics 出口已裁定不开 → **今天没有可挂对象** · [已关闭](./issues/19-research-embed-tpm.md)
 - **换生产默认**：B8 真 ES+IK 全文、B9 真 RustFS、QUAL-2 真杀毒（延期债；DEC-SCAN 已裁决现阶段允许 `mock_scan`）
 - **业务人签**：B10-followup `businessPass`、签字包人审——人不在环内不代签
 - **P3a Full 图**（CRAG / multi_hop）与 **P4 其余**（门禁包人签 / 再认证 / 数据面板增强 / 独立 `tau_sweep` / `verifier_calib` 入队）
