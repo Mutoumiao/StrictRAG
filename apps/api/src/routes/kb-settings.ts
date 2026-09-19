@@ -42,7 +42,7 @@ export type KbSettingsRouteDeps = {
   auditRepo?: KbSettingsAuditRepo;
   gatewayRepo?: ModelGatewayRepo;
   /** 质量 snapshot 注入；默认 env.TAU_CLAIM */
-  qualitySnapshot?: () => QualitySnapshot;
+  qualitySnapshot?: (kbId: string) => QualitySnapshot | Promise<QualitySnapshot>;
   resolveKbMember?: ResolveKbMember;
   hasQualifyingL2Archive?: (kbId: string) => Promise<boolean>;
 };
@@ -58,11 +58,17 @@ function wantsRewriteDefaultOn(raw: unknown): boolean {
   return false;
 }
 
-function defaultQuality(): QualitySnapshot {
+/**
+ * 签字包只读回填：`qualitySnapshot` 从 `eval_runs` **读时派生**（ADR-046 四要素之四「KB 配置快照绑定
+ * `eval_runs`」+ ADR-061 双轨）。**无合格 run → 保持 null**（不臆造 id、不回落 env、不代签）。
+ * `tauClaim` 仍取 `TAU_CLAIM`（ADR-007 唯一源；改由签字包加载须先 ADR）。
+ */
+async function defaultQuality(kbId: string): Promise<QualitySnapshot> {
+  const pkg = await evalRunRepo.latestSignoffPackage(kbId);
   return {
     tauClaim: env.TAU_CLAIM,
-    gatePackageId: null,
-    effectiveAt: null,
+    gatePackageId: pkg?.id ?? null,
+    effectiveAt: pkg?.effectiveAt ?? null,
   };
 }
 
@@ -91,7 +97,7 @@ export function createKbSettingsRoutes(
     if (!row) {
       return fail(c, BizCode.NOT_FOUND, 'knowledge base not found', 404);
     }
-    const data: KbSettings = buildKbSettingsView({ row, quality: qualityOf() });
+    const data: KbSettings = buildKbSettingsView({ row, quality: await qualityOf(kbId) });
     return ok(c, data);
   });
 
@@ -156,7 +162,7 @@ export function createKbSettingsRoutes(
       });
     }
 
-    const data: KbSettings = buildKbSettingsView({ row: updated, quality: qualityOf() });
+    const data: KbSettings = buildKbSettingsView({ row: updated, quality: await qualityOf(kbId) });
     return ok(c, data);
   });
 

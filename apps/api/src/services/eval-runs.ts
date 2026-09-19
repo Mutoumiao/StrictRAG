@@ -7,7 +7,7 @@ import {
   type L1MatrixDto,
 } from '@strict-rag/contracts';
 import { evalRuns, formatLocalDateTime } from '@strict-rag/db';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { uuidv7 } from 'uuidv7';
 
 import { getDb } from './db.js';
@@ -39,8 +39,29 @@ export type EvalRunRow = {
   cases?: EvalRunCaseRow[];
 };
 
-export type EvalRunRepo = {
-  createQueued(input: {
+/** ADR-046 签字包取数口径（纯函数，供测例与 SQL 两侧同义引用） */
+export const SIGNOFF_PACKAGE_RUN_TYPE: EvalRunType = 'golden_2x2';
+export const SIGNOFF_ELIGIBLE_TRUE = ['1', 'true'] as const;
+
+/**
+ * 该 run 行是否算「已签字包」的可查询子集。
+ * **不含 RACI 人签**（那是 `fixtures/l1/RACI.md` 文件产物，不在库里）——不代签。
+ */
+export function isSignoffPackageRow(row: {
+  runType: string;
+  status: string;
+  retrieveMode: string;
+  signoffEligible: string;
+}): boolean {
+  return (
+    row.runType === SIGNOFF_PACKAGE_RUN_TYPE &&
+    row.status === 'succeeded' &&
+    row.retrieveMode === 'live' &&
+    (SIGNOFF_ELIGIBLE_TRUE as readonly string[]).includes(row.signoffEligible)
+  );
+}
+
+export type EvalRunRepo = {  createQueued(input: {
     tenantId: string;
     kbId: string;
     retrieveMode: EvalRetrieveMode;
@@ -52,6 +73,13 @@ export type EvalRunRepo = {
   getByKbAndId(kbId: string, runId: string): Promise<EvalRunRow | null>;
   listByKb(input: { kbId: string; limit: number; offset: number }): Promise<EvalRunRow[]>;
   hasQualifyingL2Archive(kbId: string): Promise<boolean>;
+  /**
+   * ADR-046 签字包只读回填：该 KB **最近一条满足签字条件**的 L1 run。
+   * 条件（可查询子集）：`run_type=golden_2x2` ∧ `status=succeeded` ∧ `retrieve_mode=live` ∧ `signoff_eligible=1`。
+   * **RACI 人签是文件产物**（`fixtures/l1/RACI.md`），不在库里，故不构成过滤条件（不代签）。
+   * 无合格者返回 `null`。
+   */
+  latestSignoffPackage(kbId: string): Promise<{ id: string; effectiveAt: string | null } | null>;
 };
 
 function asStatus(raw: string | null | undefined): EvalRunStatus {
@@ -267,8 +295,7 @@ export const evalRunRepo: EvalRunRepo = {
     return rows.map((r) => mapRow(r, false));
   },
 
-  async hasQualifyingL2Archive(kbId) {
-    const rows = await getDb()
+  async hasQualifyingL2Archive(kbId) {    const rows = await getDb()
       .select({ id: evalRuns.id, signoffEligible: evalRuns.signoffEligible })
       .from(evalRuns)
       .where(
@@ -280,5 +307,26 @@ export const evalRunRepo: EvalRunRepo = {
       )
       .limit(20);
     return rows.some((r) => r.signoffEligible === '1' || r.signoffEligible === 'true');
+  },
+
+  async latestSignoffPackage(kbId) {
+    // 条件与 `isSignoffPackageRow` 同义（SQL 侧同样写死这四条，防两边漂移）
+    const rows = await getDb()
+      .select({ id: evalRuns.id, createdAt: evalRuns.createdAt })
+      .from(evalRuns)
+      .where(
+        and(
+          eq(evalRuns.kbId, kbId),
+          eq(evalRuns.runType, SIGNOFF_PACKAGE_RUN_TYPE),
+          eq(evalRuns.status, 'succeeded'),
+          eq(evalRuns.retrieveMode, 'live'),
+          inArray(evalRuns.signoffEligible, SIGNOFF_ELIGIBLE_TRUE),
+        ),
+      )
+      .orderBy(desc(evalRuns.createdAt))
+      .limit(1);
+    const row = rows[0];
+    if (!row) return null;
+    return { id: row.id, effectiveAt: row.createdAt ?? null };
   },
 };

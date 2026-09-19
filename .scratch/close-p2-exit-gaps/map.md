@@ -1,7 +1,7 @@
 # 按映射表收口 Phase 2 出口工程缺口
 
 Label: wayfinder:map
-Status: open
+Status: done（20/20 工单已收口，前沿为空）
 
 ## Destination
 
@@ -14,7 +14,9 @@ Status: open
 - 每轮先读：本图、`docs/agents/issue-tracker.md`、`docs/agents/domain.md`、`docs/testing/coverage.md` + 相关分册、`.trellis/tasks/08-06-project-backlog/research/coverage-gap-impl.md`、相关包 `docs/module-status/`。写代码前读 `.trellis/spec/` 对应包。
 - **本图携带执行**：工单可以动手写代码补缺口，不只锁决策。缺口**只**在本图工单上做；`.trellis/tasks/08-06-project-backlog/` 只留指针与勾选。同一缺口**禁止**再 `task.py create` 平行实现任务。
 - **门禁**：每收一张工单跑 `pnpm check-types` + `pnpm lint` + 相关包测试；收口批次跑全仓 `pnpm test`。测例只进 `<包>/tests/<能力>/<意图>.test.ts(x)`，文件头目标/简介用简体中文，并登记 index。
-- **本图收口门禁（2026-09-19）**：`pnpm check-types` **8/8** · `pnpm lint` **8/8 零 warning** · `pnpm test` **11/11**（api **139** 文件 / **887** 通过 + 3 skipped · worker 35 文件；**零超时**）。各工单 Answer 里的「见地图收口数字」指本行。
+- **本批收官（L7 / E4 / 签字包派生）**：`docs/module-status/` 的 `db` · `worker` · `api` 三处已按源码回写（新列、新端点、新行为与各自的「≠ 生产 / ≠ 人签 / 未验证」边界）。
+- **目的地达成（2026-09-19）**：§2.5.2 挂号的十一个 ID 全部有结论 —— 实现收口 5（PLANE-R10 · TENANT-Q · E5 · AA1 · **L7** · **E4**）· 登记滞后 2（AB8 · AC7）· 划出 3（R4 / R6-b · ACL-CAP · G3）· 已具备 2（K5 · R6-a + **签字包派生** 补上 #1 的工程侧）。三条前置（激活 version 表示 · `pending_review` 边界 · 签字包来源）**全部裁定并落地**。**前沿为空**：映射表上不再有挂在工程代码上的缺口行，剩下的是业务人签与延期债（B8 / B9 / QUAL-2），两者都在 Out of scope。
+- **本图收口门禁（2026-09-19）**：`pnpm check-types` **8/8** · `pnpm lint` **8/8 零 warning** · `pnpm test` **11/11**（api **142** 文件 / **902** 通过 + 3 skipped；worker / admin / web / contracts / db 全绿；**零超时**）。各工单 Answer 里的「见地图收口数字」指本行。
 - **站规（UI）**：web / admin 新下拉必须基于 `@strict-rag/ui` 关闭列表，禁止浏览器原生 `<select>` 外壳。`Button` / `Input` / `Textarea` 仍走 ui 包。
 - **质量红线不放宽**：检索→约束生成→验证→拒答；min 否决；合法 draft 必 verify；历史≠evidence；门禁只加严不放宽；双就绪∧active 检索闸。
 - 不改仓库默认开关以示「完成」：`AUTH_ENFORCE`、`DEPT_ACL_ENFORCE`、rewrite、OCR、`INGEST_CONTEXTUALIZE_MODE` 的默认值不在本图放宽或收紧。
@@ -35,6 +37,9 @@ Status: open
 - [裁定 TENANT-Q 的门禁口径与范围](./issues/17-dec-tenant-q-scope.md) — 门禁落**运行时构造即抛**（不靠 TS 类型），落点选两个纯 builder `buildAclFilter`（query，api）与 `sparseBulkSource`（bulk，api+worker），因 `bulkIndexSparse` 经它构 source 故 bulk 自动覆盖；缺 / 空 / 空白 `tenantId` → 抛（api `EsSparseError(...,'config')`，worker `Error`）。**mock 层不在范围**（PG 文本替身无租户概念）；**独立索引布局随 B8**。
 - [QUAL-TENANT-Q](./issues/05-qual-tenant-query.md) — 已落：两仓 builder 加运行时 `requireTenantId`；新增 api 5 条 + worker 3 条负/正例（含「抛之前不得发 HTTP」）；既有 O1 `kbId` 闸未改写（api 84/507 · worker 30/149 子集回归绿）。
 - [裁定签字包 gatePackageId / effectiveAt 的数据来源](./issues/16-dec-signoff-package-source.md) — PRD 逐字点名权威来源是 **`eval_runs`**（§6.0 四要素之四「KB 配置快照绑定 `eval_runs`」+ ADR-061 双轨），且 `qualitySnapshot` **只读、无写路径**（05-api §2.1）。裁定：**读时派生**（不加列、不加 migration、不加写路径）；有资格者 = `signoffEligible` ∧ live ∧ RACI 人签 ∧ 携带 ADR-046 快照的**最近一条**；`effectiveAt` 取该行已记录的创建时间（**不新增「签字时刻」字段**）；无合格者保持 `null`（不代签、不回落 env）。**不做**「运行时参数改从签字包加载」（与 ADR-007 `tauClaim` 唯一源冲突，须 ADR）。→ 派生实现另开 [20](./issues/20-qual-signoff-package-derive.md)。
+- [QUAL-L7 孤儿清理](./issues/09-qual-l7-orphan-clean.md) — 迁移 `0020` 加 `documents.active_index_version`（可空无默认，回填 `status=ready` 行）；`es_index` 成功时与 `status=ready` **同一条 UPDATE 原子激活**（全仓唯一写点）。新增 `ingest/orphan-clean.ts`：单边 ∧ 非 ready ∧ 非激活 ∧ 非在飞才清，PG 向量 + mock ES **双侧**；三条护栏（激活版 / 在飞版 / `NULL` 一律不动手）；触发落「文档 `failed`」那一半（best-effort，不改阶段结果）；**周期调度未落地**；`INGEST_ES_MODE != mock` 整体跳过（真 ES 侧属 B8）。11 条测例（含护栏反例）+ 反证（断开触发 → 2/2 变红）。
+- [QUAL-E4 `pending_review`](./issues/10-qual-e4-pending-review.md) — 迁移 `0021` 加 `chunks.duplicate_of` / `dedupe_status`；KB 策略位 `config_json.crossDocDedupeAction`（默认 `skip_index`；`downrank` **400 明确拒绝**）。worker：`pending_review` 时冲突块落库入审但不进 manifest（不 embed / 不 ES），报告带 `heldChunkId`；默认路径逐位不变。api：新增 `POST /documents/:docId/dedupe-conflicts/:chunkId/resolve`（`doc.editor` 同码、只动两列、**不代跑 reindex**、不碰对方文档）。12 条测例（contracts 3 · worker 4 · api 5）。
+- [QUAL-签字包派生](./issues/20-qual-signoff-package-derive.md) — `latestSignoffPackage(kbId)` + 纯函数 `isSignoffPackageRow`（口径只写一处）；`defaultQuality()` 从恒 `null` 改为读时派生（GET / PATCH 两处调用点改 `await`）；`tauClaim` 仍取 `TAU_CLAIM`（ADR-007）；**未加列 / 未加 migration / 未加写路径**；5 条测例。**未验证**：SQL 谓词未经真 PG；RACI 人签是文件产物，不构成过滤条件（≠ 业务人签）。→ `映射表 #1` 的**工程侧闭合**，余下仅业务人签。
 
 ## Not yet specified
 

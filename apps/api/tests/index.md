@@ -105,6 +105,7 @@
 | `eval/l2-cli.test.ts` | L2 CLI 注入可跑；signoffEligible 走工程公式，mock 必 false。 | P2.5-L2 | `runL2Golden / parseL2CliEnv` | 工程可签字 ≠ 准出 PASS。 | 现行 |
 | `eval/l2-fingerprint.test.ts` | rewrite 指纹纯函数稳定，且不因此打开 rewrite。 | ADR-046 相关 | `l2RewriteFingerprint` | 非开 rewrite。 | 现行 |
 | `eval/l2-gold.test.ts` | L2 题面加载拒绝非法文件，且不得当作准出。 | P2.5-L2 | `loadL2Gold / l2TypeCoverage / defaultL2GoldPath` | ≠ 准出。 | 现行 |
+| `eval/signoff-package-derive.test.ts` | 签字包 ID / 生效时刻须从 eval_runs 读时派生，无合格 run 时保持 null。 | ADR-046 四要素之四 · ADR-061 · 05-api §2.1 | `isSignoffPackageRow / latestSignoffPackage` | 合格=golden_2x2 ∧ succeeded ∧ live ∧ signoff_eligible；任一不满足即 null；不代签（RACI 是文件产物）。 | 现行 |
 | `eval/stricter-than-pilot-bind.test.ts` | 加严快照必须标 stricterThanPilot，并带相对默认 diff 与 evalRunId 关联。 | 剧本 T7 · prds/10-delivery/03-acceptance-scenarios.md · ADR-046 | `bindQualitySnapshotToEval` | coverageMin 上调后 stricterThanPilot 为 true，evalBindId 含该 evalRunId。不测人签/审计 HTTP。 | 现行 |
 | `feedback/http.test.ts` | 答案反馈 POST/PATCH 必须具备 kb 码。 | B13 | `createFeedbackRoutes` | 须 kb 码。 | 现行 |
 | `feedback/promote-gold.test.ts` | 运营纳入黄金集必须写入 gold_questions；用户提交与缺 eval.run 不得写题。 | ADR-019 · prds/05-api §2.6 · 功能表 §4.1 · 覆盖 G3 | `createFeedbackRoutes` PATCH `promoted_to_gold` | 审核闸 = 队列点纳入；不写 gold.yaml、不入队评测。 | 现行 |

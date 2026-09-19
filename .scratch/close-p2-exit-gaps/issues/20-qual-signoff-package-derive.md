@@ -1,7 +1,7 @@
 # 派生签字包 gatePackageId / effectiveAt（只读）
 
 Type: task
-Status: open
+Status: resolved
 Blocked by: 16
 
 ## Question
@@ -24,4 +24,27 @@ Blocked by: 16
 
 ## Answer
 
-<!-- 解析时写 -->
+按 [16 的裁定](./16-dec-signoff-package-source.md) 实现。
+
+### 改了什么
+
+- `apps/api/src/services/eval-runs.ts`：
+  - 新增纯函数 `isSignoffPackageRow(row)`（`run_type=golden_2x2` ∧ `status=succeeded` ∧ `retrieve_mode=live` ∧ `signoff_eligible ∈ {'1','true'}`）—— 口径只写一处，测例与 SQL 两侧同义引用，防漂移。
+  - `EvalRunRepo` 新增 `latestSignoffPackage(kbId)`：按 `createdAt` 倒序取**最近一条**合格 run，回 `{ id, effectiveAt: createdAt }`；无合格者回 `null`。
+- `apps/api/src/routes/kb-settings.ts`：`defaultQuality()` 从**恒 `null`** 改为按 KB 查 `eval_runs` 派生；`qualitySnapshot` 依赖签名改 `(kbId) => QualitySnapshot | Promise<QualitySnapshot>`，GET 与 PATCH 两处调用点都改为 `await`。
+- **`tauClaim` 未动**：仍取 `TAU_CLAIM`（ADR-007 唯一源）；「运行时参数改从签字包加载」与 ADR-007 冲突、须先 ADR，不在本图。
+- **未加列、未加 migration、未加写路径**：PRD 05 §2.1 明写 `qualitySnapshot` 只读、「无通用写路径」。
+
+### 测例（5 条）
+
+`apps/api/tests/eval/signoff-package-derive.test.ts`：口径正例（含 `signoffEligible='true'` 兼容值）；五类不合格（`mock` / `unknown` / 未合格 / 非 `succeeded` / 非 L1 账本）逐条为假；无合格 run → `null`（不臆造 id）；多条取最近一条；**创建时间缺失 → `effectiveAt` 为 `null`（不补造时刻）**。已登记 `apps/api/tests/index.md`。
+
+### 未验证 / 未做（如实）
+
+- **SQL 谓词本身未经真 PG 验证**：本仓无 PG 连接的单测环境，测例钉的是**纯函数口径**与映射；`latestSignoffPackage` 的 where 子句写死同一条件并注明「与 `isSignoffPackageRow` 同义」，但未对真库跑过。
+- **RACI 人签不构成过滤条件**：它是文件产物（`fixtures/l1/RACI.md`），库里没有痕迹 → 本派生只保证「指向一条工程合格包」，**不等于业务人签**（不代签）。
+- 签字动作落库、admin 展示增强、运行时参数改从包加载 —— 均不做（理由见 16）。
+
+### 对映射表的意义
+
+`映射表 #1`（L1 黄金集 + 试点门禁数字）的**工程侧到此闭合**：真跑数字、ADR-046 快照绑定、签字包 ID/生效时刻可见性都已有；该行仍为「部分」的原因只剩**业务人签**（`businessPass`），人不在环内。
