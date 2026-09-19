@@ -50,9 +50,11 @@ ask 图 / complete 落 pending …
 
 | 项 | ask | ingest |
 |----|-----|--------|
-| 默认 | `ASK_RATE_LIMIT_RPM=0` → **不限流** | `INGEST_RATE_LIMIT_RPM=0` → **不限流** |
+| 默认 | `ASK_RATE_LIMIT_RPM=0` → dev/test **不限流** | `INGEST_RATE_LIMIT_RPM=0` → dev/test **不限流** |
+| staging / production 缺配置 | `0` → **warning + 安全默认 `30`**（剧本 R10：**禁止**无配置裸奔；**非** fail closed，进程照常启动） | 同左（各自告警一次） |
 | 试点建议 | 部署 env **显式**设正数（如 `30`） | 同上；**禁止**把仓库默认 0 写成已开试点 |
 | 算法 | 固定窗口（`windowMs` 默认 60_000） | 同 |
+| 生效值来源 | `obs/plane-quota.ts` 的 `planeQuotas.ask.rpm`（由 env 决议一次，与启动告警共用） | `planeQuotas.ingest.rpm`（同文件） |
 | 键 | `askRateLimitKey(userId, kbId)` → `ask:${userId}:${kbId}` | `ingestRateLimitKey(tenantId, kbId)` → `ingest:${tenantId}:${kbId}` |
 | store | `askRateLimitStore` | `ingestRateLimitStore`（独立 Map） |
 | 超限响应 | 429 `RATE_LIMITED`；`details.plane='ask'` + `ask_quota_exhausted: true` | 429 `RATE_LIMITED`；`details.plane='ingest'` |
@@ -72,7 +74,7 @@ ASK_RATE_LIMIT_RPM=30 INGEST_RATE_LIMIT_RPM=30 pnpm --filter @strict-rag/api dev
 |--------|------|
 | 进程内**全局限流**中间件当生产方案 | 与 ARCH 挂账一致；应放 L0 网关 |
 | 把 L1 Map 当集群配额 | 多副本各自窗口，可被打穿 |
-| 默认打开 `ASK_RATE_LIMIT_RPM>0` / `INGEST_RATE_LIMIT_RPM>0` | 破坏 demo/test；试点用 env 显式开 |
+| 默认打开 `ASK_RATE_LIMIT_RPM>0` / `INGEST_RATE_LIMIT_RPM>0` | 破坏 demo/test；试点用 env 显式开。**例外**：staging/production 缺配置的**安全默认回落**（R10）不是「默认打开」——仓库 `.env` 契约与 dev/test 行为不变 |
 | 用限流「静默丢弃」或 200 空答 `answered` 代替 429 信封 | 须标准 `ApiFailure` + `RATE_LIMITED`（web 认此码） |
 | 改 `RATE_LIMITED` 为新业务码 | 会破 web 429 文案 |
 | Redis 集群配额 / embed TPM / aux 运行时 | 本窗不做 |
@@ -145,3 +147,4 @@ curl -sS http://127.0.0.1:4000/metrics
 | 2026-08-12 | 初版 · ARCH-P2-4：L0/L1 分层 + `/metrics` 保护选项 A–C；否决进程内全局限流生产方案 |
 | 2026-09-07 | 三平面配额最小闭环：ask/ingest 分 store 固定窗口；aux 只留常量；指标带 `plane` |
 | 2026-09-16 | 指标骨架补 `fallback` 与 `node_used`（功能表 §10.3）：`llm_call_total` 加 `fallback` 维（真值取 Gateway `meta.fallbackUsed`，失败记 `unknown`）；rerank 加 `rerank_node_used{provider,model}` / `rerank_fallback_used_total` / `rerank_fail_total{kind}` |
+| 2026-09-19 | 剧本 R10：staging/production 缺 plane 配额 → 启动 warning + 安全默认 `30`（`obs/plane-quota.ts`），**非** fail closed；dev/test 与仓库默认行为不变；路由改读 `planeQuotas.{ask,ingest}.rpm` |

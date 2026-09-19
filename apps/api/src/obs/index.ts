@@ -32,6 +32,17 @@ export {
   type RateLimitStore,
 } from './rate-limit.js';
 export {
+  SAFE_DEFAULT_PLANE_RPM,
+  resolvePlaneQuota,
+  planeQuotasFromEnv,
+  planeQuotas,
+  logPlaneQuotaGaps,
+  type PlaneQuota,
+  type PlaneQuotaPlane,
+  type PlaneQuotaEnvSlice,
+  type WarnSink,
+} from './plane-quota.js';
+export {
   createMemoryTracer,
   getTraceRecord,
   listTraceRecords,

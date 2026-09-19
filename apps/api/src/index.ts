@@ -10,6 +10,7 @@ import { serve } from '@hono/node-server';
 import { createApp } from './app.js';
 import { env } from './env.js';
 import { logger } from './logger.js';
+import { logPlaneQuotaGaps } from './obs/index.js';
 import { closeDb } from './services/db.js';
 import { closeQueue } from './services/queue.js';
 import { runSuperAdminBootstrap } from './services/superadmin-bootstrap.js';
@@ -21,6 +22,9 @@ async function start(): Promise<void> {
     logger.error({ err }, 'superadmin bootstrap failed');
     process.exit(1);
   }
+
+  // 剧本 R10：staging/production 缺 plane 配额 → warning + 安全默认（非 fail closed）
+  logPlaneQuotaGaps(logger);
 
   const app = createApp();
   serve(

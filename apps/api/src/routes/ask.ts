@@ -20,11 +20,11 @@ import {
 import { roleBypassesKbMembership } from '../auth/permissions/resolve.js';
 import { childLogger } from '../logger.js';
 import { fail, ok } from '../lib/response.js';
-import { env } from '../env.js';
 import {
   askRateLimitKey,
   askRateLimitStore,
   checkFixedWindowRateLimit,
+  planeQuotas,
   recordRateLimited,
   type RateLimitResult,
 } from '../obs/index.js';
@@ -74,7 +74,7 @@ export type AskRouteDeps = {
   executeDeps?: ExecuteAskDeps;
   /** 校验 session 归属（有 sessionId 时） */
   resolveOwnedSession?: ResolveOwnedSession;
-  /** 限流；默认按 env.ASK_RATE_LIMIT_RPM */
+  /** 限流；默认按 env.ASK_RATE_LIMIT_RPM（staging/production 缺配置回落安全默认，见 obs/plane-quota.ts） */
   checkRateLimit?: (userId: string, kbId: string) => RateLimitResult;
   /** B2-W：读 KB 设置（mode/docTypes）；测例可注入 memory */
   settingsRepo?: KbSettingsRepo;
@@ -140,7 +140,7 @@ export function createAskRoutes(deps: AskRouteDeps = {}) {
     deps.checkRateLimit ??
     ((userId: string, kbId: string) =>
       checkFixedWindowRateLimit(askRateLimitKey(userId, kbId), {
-        limit: env.ASK_RATE_LIMIT_RPM,
+        limit: planeQuotas.ask.rpm,
         store: askRateLimitStore,
       }));
 

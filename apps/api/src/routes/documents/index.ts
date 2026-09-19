@@ -63,11 +63,11 @@ import {
   filterDocsForAclPrincipals,
   isDocVisibleForAclPrincipals,
 } from '../../services/retrieve/doc-acl.js';
-import { env } from '../../env.js';
 import {
   checkFixedWindowRateLimit,
   ingestRateLimitKey,
   ingestRateLimitStore,
+  planeQuotas,
   recordIngestComplete,
   type RateLimitResult,
 } from '../../obs/index.js';
@@ -91,7 +91,7 @@ const checkIngestLimit =
   deps.checkIngestRateLimit ??
   ((tenantId: string, kbId: string) =>
     checkFixedWindowRateLimit(ingestRateLimitKey(tenantId, kbId), {
-      limit: env.INGEST_RATE_LIMIT_RPM,
+      limit: planeQuotas.ingest.rpm,
       store: ingestRateLimitStore,
     }));
 
