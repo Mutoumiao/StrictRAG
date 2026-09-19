@@ -139,6 +139,7 @@
 | `ingest/sensitive-complete.test.ts` | 敏感文档 complete 必须过 ACL 就绪闸。 | 审批/密级 · P3b-SENS 解禁 | `documents sensitive complete` | 部门路径或显式名单；null 仍挡。 | 现行 |
 | `kb/ask-mode-doc-types.test.ts` | KB 允许的 mode/docTypes 必须正确解析，非法请求拒绝。 | B2-W | `resolveAskMode / parseDocTypesFromConfig / assertScopeDocTypesAllowed` | B2-W resolveAskMode / docTypes。 | 现行 |
 | `kb/chunk-strategies-http.test.ts` | 分片策略 catalog / for-upload / 库启用 PATCH 必须落库语义，无码 403，未知码 400；contextMode 非法拒写。 | 功能表 §4.5 · ADR-053 · 入库 PRD §4 | `createChunkStrategyRoutes` | kb.config.write 写面；for-upload 给上传人选。 | 现行 |
+| `kb/chunk-strategy-preserves-docs.test.ts` | 保存分片策略必须不改既有文档的 index_version、chunk 边界与参数快照。 | 剧本 AA1 · ADR-053 | `createChunkStrategyRoutes` PATCH · `applyKbChunkStrategyPatch` | 文档+chunk 夹具深等；文档写仓若被调用即改夹具 → 变红；含「策略行确已变」的正向对照与无 diff 不落审计。 | 现行 |
 | `kb/chunk-strategy-audit.test.ts` | 分片策略 PATCH 有 diff 必须落服务端修改日志，无 diff 不得落，且不得改旧文档版本与快照。 | IA §2.2 · 功能表 §4.2 / §4.5 · 剧本 AA1 | `createChunkStrategyRoutes` PATCH · `applyKbChunkStrategyPatch` diff | 复用 KB 设置审计表（不新建表）；只动 kb_chunk_strategies。 | 现行 |
 | `kb/create-kb.test.ts` | 创建知识库必须指定首位库管，且租户只认令牌、不认 body。 | prds/05-api §2.1 | `POST /knowledge-bases` | 写入 kb_members(role=admin)；缺用户 404。≠ 成员 PUT。 | 现行 |
 | `kb/data-class-complete.test.ts` | sensitive 文档 complete 必须过 ACL 就绪闸。 | P3b-SENS | `parseDataClassFromConfig / isSensitiveCompleteBlocked` | 部门路径或显式名单；null 仍挡。 | 现行 |
