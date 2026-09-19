@@ -47,6 +47,7 @@ import {
   contextualizeChunk,
 } from './contextualize-http.js';
 import { persistIngestReport } from './ingest-report.js';
+import { cleanOrphans, defaultOrphanCleanDeps } from './orphan-clean.js';
 import { recordStageEnd, recordStageStart, type StageLedgerContext } from './job-ledger.js';
 import {
   deleteBodiesForDoc,
@@ -74,7 +75,24 @@ export type OcrExtractFn = (
 export type IngestStageDeps = {
   /** P5 开闸后注入；缺省无引擎 */
   ocrExtract?: OcrExtractFn;
+  /** 剧本 L7：阶段失败后的孤儿清理；测例可注入。缺省走真实清理（best-effort） */
+  cleanOrphans?: (docId: string) => Promise<unknown>;
 };
+
+/** L7 失败触发的孤儿清理：任何异常只 warn，绝不改变阶段结果。 */
+async function cleanOrphansOnFailure(
+  docId: string,
+  deps: IngestStageDeps,
+): Promise<void> {
+  const run =
+    deps.cleanOrphans ??
+    ((id: string) => cleanOrphans(id, defaultOrphanCleanDeps(getDb())));
+  try {
+    await run(docId);
+  } catch (err) {
+    logger.warn({ err, docId }, 'orphan cleanup on failure threw (non-blocking)');
+  }
+}
 
 function failStage(errorCode: string): IngestStageResult {
   return { done: true, errorCode };
@@ -203,6 +221,8 @@ export async function runIngestStage(
       result,
       resolveLedgerIndexVersion(data, doc, result),
     );
+    // 剧本 L7 触发之一：文档 failed → 清该文档自己的非激活单边残留（best-effort，吞错）
+    if (result.errorCode) await cleanOrphansOnFailure(data.docId, deps);
     return result;
   } catch (err) {
     await recordStageEnd(
@@ -932,9 +952,11 @@ async function runIngestStageCore(
         return failStage('ES_RECONCILE_FAILED');
       }
 
-      // 双就绪 → ready；lifecycle 仍 draft
+      // 双就绪 → ready + **原子激活 version**（ADR-038 §2.2：激活与 ready 同一条 UPDATE）
+      // 这是全仓唯一写 activeIndexVersion 的地方；失败路径不得改它。
       await setDoc(data.docId, {
         indexVersion,
+        activeIndexVersion: indexVersion,
         esReady: 1,
         status: 'ready',
         lifecycle: 'draft',

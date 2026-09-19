@@ -32,6 +32,23 @@ export const mockEsStore = {
     }
   },
 
+  /** 该文档在 mock ES 里存在（可能为空集以外）的 indexVersion 列表。 */
+  listVersions(docId: string): number[] {
+    const prefix = `${docId}:v`;
+    const out: number[] = [];
+    for (const k of index.keys()) {
+      if (!k.startsWith(prefix)) continue;
+      const v = Number(k.slice(prefix.length));
+      if (Number.isInteger(v)) out.push(v);
+    }
+    return out.sort((a, b) => a - b);
+  },
+
+  /** 按 (docId, indexVersion) 单侧删除；返回是否确有该项。 */
+  dropVersion(docId: string, indexVersion: number): boolean {
+    return index.delete(key(docId, indexVersion));
+  },
+
   listChunkIds(docId: string, indexVersion: number): string[] {
     return [...(index.get(key(docId, indexVersion)) ?? new Set())].sort();
   },

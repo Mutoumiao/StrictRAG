@@ -32,6 +32,11 @@ export const documents = pgTable('documents', {
   extractMethod: text('extract_method'),
 
   indexVersion: integer('index_version').notNull().default(0),
+  /**
+   * 当前**激活** version（ADR-038「原子激活」）：只在双就绪那次与 `status=ready` 同一条 UPDATE 写。
+   * NULL = 从未成功激活 / 旧行未回填。孤儿清理的护栏读它（「激活版永不删」）。
+   */
+  activeIndexVersion: integer('active_index_version'),
   errorCode: text('error_code'),
   errorMessage: text('error_message'),
 
