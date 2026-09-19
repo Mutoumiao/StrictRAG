@@ -27,9 +27,14 @@ Status: open
 - [QUAL-PLANE R4 + R10](./issues/07-qual-plane-quota.md) — **R10 已落**：新增 `obs/plane-quota.ts`，staging/production 缺 plane 配额（`0`）→ 启动 warning + 安全默认 `30`（数值取运维文档试点值），**非 fail closed**；dev/test 与仓库默认逐位不变；路由改读 `planeQuotas.{ask,ingest}.rpm`；6 条新测 + 门禁 8/8 · 8/8 · 11/11（api 138/884）。**R4 划出范围**：本仓无 runtime 图配置入口（`graphProfile` 0 命中 · KB 设置 strict 白名单 · `budgetOverride` 标注「生产勿传」），护栏属未来 profile loader。
 - [QUAL-E5](./issues/11-qual-e5-contextualize-evidence.md) — 判为**缺测**（源码已满足 Then）。新增 `apps/worker/tests/ingest/contextualize-fallback-ready.test.ts`（7 条）：500 / 503 / 畸形 / 空输出 / AbortError 各注入一次，走完 chunk→embed→es_index，断言 `status=ready` 且 `contextSource=l0_fallback`、计数 `(0,1)` 不被后阶段复写、正文不被改写；成功路径作对照。**反证**：破坏回退后 6/7 变红。未验证真 Gateway；真超时无注入点（未加 timeout 参数）。
 - [QUAL-AA1](./issues/13-qual-aa1-kb-strategy-params.md) — 判为**部分已做**（「可保存 + 审计」已由前图 88 覆盖），只补数据级断言。新增 `apps/api/tests/kb/chunk-strategy-preserves-docs.test.ts`（3 条）：文档 + chunk 边界夹具为唯一「被改即变红」对象，含正向对照防假绿。**反证**：路由里插一句文档写仓 → 3/3 变红。**第一批三张（07 / 11 / 13）已收官**；下一步需再裁定。
+- [裁定文档「当前激活 version」表示](./issues/03-dec-active-version.md) — PRD 早已把「激活 version」当作独立于 `index_version` 的概念（§2.2「双就绪 → `ready` + **原子**激活」· ORM §「事务用于 `index_version` 激活」· L「dense+sparse 均成功才 ready 并激活」）。裁定：`documents` 加 `active_index_version`（**可空无默认**），**只在 `es_index` 成功那次与 `status='ready'` 同一条 UPDATE 写**；孤儿清理护栏 = 不删 `active_index_version`、不删在飞 `index_version`、`NULL` 时一律不动手；**检索闸不改**（PRD 逐字是「匹配当前 `index_version`」）；迁移 `0020`（手写 SQL + journal）。**更正前图前提**：reindex 失败时旧版数据虽在，但文档在 chunk 段即离开 `ready`，双闸门已挡住——风险是「删掉重试/回退仍需要的那一版」，不是「删掉正在服务的版本」。
+- [裁定 `pending_review` 落点 / 端点 / KB 策略位](./issues/04-dec-pending-review.md) — 落点 = `chunks` 两列 `duplicate_of` + `dedupe_status`（仅取值 `'pending_review'`，处理完回 `NULL`，列名取自数据 PRD §3.2）；KB 策略位 = `config_json.crossDocDedupeAction`（默认 `skip_index`，白名单只收 `skip_index | pending_review`，**`downrank` 一律 400 拒绝**）；端点 = 新增 `POST /documents/:docId/dedupe-conflicts/:chunkId/resolve`（body `{winner:'this'|'other'}`，权限 `doc.editor` + 成员闸，**不新增权限码**）；待审期**保守取「暂不 index」**且**不碰对方文档的既有索引**。
 
 ## Not yet specified
 
+- **`pending_review` 的 interim 可配置性**：PRD §5.1 说「双方可暂均 index 或均不 index（**KB 策略**）」，但未给键名 → 本图固定取「暂不 index」，键名待 PRD 补行
+- **`downrank` 跨 doc 去重动作**：PRD §5.1 的合法取值，但「仍索引但 metadata 降权（检索层读取）」在本仓无实现 → 策略白名单**明确 400 拒绝**，不留静默通道；待检索层降权设计成形再开
+- **`pending_review` 的 admin 审阅面**：功能表 §4.3 说「文档页抽屉或同页」，属 P1 的 UI 面；本图只落 API 与数据面
 - **admin 站规清扫**（20 处原生 `<select>` + 4 处旧 ui `Select`：documents 7 · departments 6 · models 3 · settings 2 · chunk-strategy-panel 1 · eval 1；login / chunks / members 用旧 `Select`）：是站规余量，**不是**映射表缺口；本机无浏览器验证手段，替换的视觉回归不可验 → 留在雾里，待具备浏览器验证条件。**注**：`chunk-strategy-panel.tsx:149-163` 那处已在核查中被点名（QUAL-AB8 的残留），仍归本条
 - **`drizzle/meta` 基线缺失**（`db:generate` 仍不可用，缺 `0001`–`0019` 共 19 份快照）：工程债；推荐路径 A1 见 [`research-drizzle-meta-baseline.md`](../fill-must-haves/research-drizzle-meta-baseline.md)；采纳前须先做类型/默认值级人工走查
 - **`allowedDocIds` 收紧路径 / 成员写面**：准入条件是**先指名真实生产者**（前图裁定 103）；无生产者前不实现
