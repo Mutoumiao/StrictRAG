@@ -38,7 +38,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 - `ingest_jobs`：schema 已有；**worker** `job-ledger` 按阶段边界最小写（**非**本包服务层；无查询 API；同 doc 锁在 worker Redis 侧）
 - `ingest_reports`：doc+indexVersion 唯一；事实列 chunkCount / internalDropped / **crossDocDropped / dedupeCrossDocRate** / conflictPairs / **contextSource** / **contextualizeL1Ok / contextualizeL0Fallback** / 双就绪 / 对账计数（migration `0011_ingest_reports` + `0015_ingest_report_cross_doc` + `0016_ingest_report_context_source` + `0018_ingest_report_dedupe_rate` + `0019_ingest_report_contextualize_counts`）；`dedupe_cross_doc_rate` 与两个 contextualize 计数**均无默认**（NULL = 迁移前旧行未记录，不得读成 0；L1 未开启的本轮写 0）；**`cross_doc_dropped` / `conflict_pairs` 的库侧默认已于 migration `0022` 撤销**（`0015` 为回填留下的 `DEFAULT 0` / `DEFAULT '[]'::jsonb` 与 schema 不一致，留着会让漏传该列的写入被静默填 0，故撤掉；漏传即 `NOT NULL` 违例）；`conflictPairs` 形状 = `{otherDocId, otherChunkId, action: skip_index|pending_review, heldChunkId?}`；**无** Hit@k 列
 - `kb_settings_audits`：tenantId / kbId / actorUserId / diffJson（migration `0013_kb_settings_audits`）；**无**密钥列；**不是** admin_write 全路径落表
-- `kb_members`（migration `0002_phase2_ask_foundation`）：`role` text，默认 `'read'`，取值 `read` | `write` | `admin`；**库内锚点 / 模板锚点**——列注释与 2026-09-20 的裁定均记明「**运行时授权以权限码为准**」，`role` **不参与**运行时授权闸（全仓唯一读取该列的 SQL 是 `apps/api/src/services/members.ts:98` 的成员列表）；DB 层**无** CHECK 约束
+- `kb_members`（migration `0002_phase2_ask_foundation`）：role 列 text，默认 `'read'`，取值 read / write / admin；**库内锚点 / 模板锚点**——列注释与 2026-09-20 的裁定均记明「**运行时授权以权限码为准**」，该列**不参与**运行时授权闸（全仓唯一读取它的 SQL 只服务成员列表）；DB 层**无** CHECK 约束
 - **ADR-053**：`chunk_strategy_definitions` · `kb_chunk_strategies`（migration `0009_chunk_strategy_layers`）
 
 ### Schema · ask（S2）

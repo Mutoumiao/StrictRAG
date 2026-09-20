@@ -34,6 +34,7 @@ Status: resolved（前沿：空。裁定 = **KB 内授权判据为「权限码 +
 - **本机限制**：无浏览器验证手段 → web / admin 视觉改动不在本图。外部依赖（真 ES / 人签 / 真模型网关）不在本图。
 - **门禁**：每收一张工单跑 `pnpm check-types` + `pnpm lint`（零 warning）+ 相关包测试；收口跑全仓 `pnpm test`。测例只进 `<包>/tests/<能力>/<意图>.test.ts`，头注释简体中文，登记该包 `tests/index.md`。
 - **质量红线不放宽**：门禁**只加严不放宽**（ADR-046）；min 否决；历史≠evidence；双就绪∧active 检索闸。本图若落地，方向只能是**加严**。
+- **回写惯例（本轮实测发现）**：`docs/module-status/*.md` 里**不要**写「`路径:行号`」形式的引用——`check:module-status` 的 `1-路径` 检查只认纯路径，带 `:行号` 会被判「不存在」并产生**误导性告警**（看起来像引用了不存在的文件）。行号引用请放 `.trellis/spec/` 或 `.scratch/`；module-status 侧只写纯路径或不写路径。同理，反引号括起的**枚举字面量**（如 read / write / admin）会被 `5-表` 当作「可能是表名」而报警，与既有 21 条同类噪声叠加——无必要就少加反引号。
 - **收口复核纪律（前图教训）**：声明收口必须在**最后一次提交之后**复跑 `pnpm check:module-status`。
 
 ## Decisions so far
