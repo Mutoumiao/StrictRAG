@@ -31,14 +31,21 @@ Status: open
 
 ## Decisions so far
 
-<!-- 每关闭一张工单追加一行：名称（链接）+ 一行要点 -->
+- [可见性组装有几份、每份差在哪](./issues/01-research-visibility-seams.md) — 五处（列表 · 详情/ACL · 分片 · ask 语料 · `hasRetrievableDocs`）**行为等价**，无放宽拷贝；唯一"近似拷贝" `hasRetrievableDocs` 是**死代码**（全仓 3 命中，无调用方）。真差异只有三条且都不是放宽：tenantId 取值三选（fail-closed 方向）、超管 bypass 通道（路由直判 vs 检索读 `membership` 槽，**跑批刻意压低，必须保留**）、成员断言位置（都在调用方）。给出收敛接缝签名与逐处回归测例清单。
+- [dense∥ES 对称与 ES 部门字段的差额性质](./issues/02-research-es-dept-parity.md) — `buildAclFilter` 未被 dense 调用属**纯形态差额**（dense 输入即 PG 闸后语料，既不泄漏也不额外少召回）；ES 无 `visibilityLevel` 是**层内泄漏侧**，被 `retrieve.ts:195` 语料求交兜住，残余是"不可读命中白占 `size` 槽"的召回副作用；缺 `ownerDeptId` 不写字段是**召回侧**（库级文档丢稀疏召回），且"ids 为空"时 ES 对部门文档 **fail-open**。给出级别组/库级分支的候选 filter 形态与"只加严"证明。角色 principal 今天 ES 与 PG **逐位一致**，缺它是**能力缺口**而非泄漏。
+- [B2/AE 剧本的测例级缺口](./issues/03-research-p3b-test-map.md) — 12 行逐行映射到测例；B2-4 已断言，其余 11 行为**部分测**；最大缺口是**整片**：`apps/api/tests/ask/*.test.ts` 里**无一处**出现 `deptAcl`/`ownerDeptId`（0 命中）→ ask 侧部门强制从未端到端断言。给出每条的最小夹具/断言层/不改默认开关的开强制手法/反证方式，并单列必须真 ES（或真 PG）才能断言的 4 项。
+- [裁定「同一可见性函数」的形态与落点](./issues/04-dec-visibility-function.md) — 抽 `apps/api/src/services/retrieve/visibility.ts`（`loadVisibilityContext` + `isDocVisible` + `filterVisibleDocs`），四个活入口改为调用它；**删除死代码 `hasRetrievableDocs`**；**本步不引入请求级缓存**（避免请求内失效语义）；固定"部门 → principals"顺序与 `reason` 供调用方映射 403 文案；成员闸仍在函数外；bypass 通道与 tenantId 来源的既有差异**必须保留**；`filterDocsForRetrieve` 不并入。
+- [裁定 dense∥ES 对称走等价形态](./issues/05-dec-dense-es-symmetry.md) — 取 **B**：PG 语料 = ACL 真值源、ES 查询期 filter = PG 谓词**严格超集**且只在排序上生效、ES 命中一律经语料求交收口；**不实现 pgvector 查询期 filter**（前置不存在、收益为零、属架构变更）。三条成立条件 + 失效条件写清，并记 **3 条 ADR 债**（ADR-009 `:152`、ES PRD `:163`、在线 PRD `:188`）—— 销账须 ADR → 改 PRD → 升版。
+- [裁定 ES 侧补字段与缺字段语义](./issues/06-dec-es-dept-field.md) — 补 `visibilityLevel`(integer) 到 mapping/bulk/查询期（api + worker **两处近似拷贝同改**，PG 侧 `notNull default 20` 故**始终写**）；部门组从裸 `terms` 改为 `bool.should[terms, must_not exists]`；**部门组与级别组必须是 filter 数组的两个独立元素**（并进一个 `should` 即放松）；以 `maxVisibleLevel` 是否传入作"收窄生效"的**显式三态**信号，顺手关掉"ids 为空时 ES 对部门文档 fail-open"这一处；`maxVisibleLevel = max(任一处负责人?30:20, 未过期 grant 的级别最大值)` 为上界（保"只加严"）。**角色 principal 明确不在本图落**，并写明 B2-2 只能作"移出 uuid 名单"的等价替换。
+- [裁定 ACL 收紧保持人工 reindex](./issues/07-dec-acl-tighten-reindex.md) — **不自动入队**：ADR-009 `:156` 字面是"确认义务"非"自动触发"；泄漏侧今天已由 PG 闸 + 语料求交闭合（索引滞后不构成泄漏）；自动入队会引入无幂等、无预算记账的新压力面。B2-2 的成立口径写清（"不可检索"由 PG 闸即时成立，reindex 只让索引跟上）。连带核实：镜像把「缺激活 version 表示」记为前置系**陈旧**，`active_index_version` 已由前图 L7 落地。
 
 ## Not yet specified
 
-- **角色 principal 是否属 P3b 必达**：ADR-057 `:1861-1864` 给的主体形态是 `user:{id}` / `dept:{deptId}:lv:{effectiveLevel}`，而 `aclPrincipals` 今天是不带前缀的裸 uuid 数组（`packages/db/src/schema/kb/documents.ts:60`），admin 也是 uuid 粘贴。B2-2 的 Then 写「principal 变更（**移出 role**）」—— 在角色 principal 落地前该句无法真绿。要裁的是口径（属 P3b 还是留雾），不是实现难度。
-- **grant 写审计是否落表**：现在只有 Pino（`apps/api/src/routes/dept-grants.ts:110-115`、`:141-144`），AE7 的 Then 写「审计有记录」，ADR-057 `:1832` 也写「审计」。落表要先裁口径。
-- **镜像陈旧项**：`docs/module-status/api.md:93` 与 `docs/testing/coverage/02-acl.md:49` 把「缺『激活 version』表示」记作 B2-2 的前置，但 `packages/db/src/schema/kb/documents.ts:39` 的 `active_index_version` 已由前图 L7 落地并在 `apps/worker/src/ingest/pipeline.ts:983-986` 原子写。需核实后回写。
-- **`DEPT_INHERIT_DOWN` 关继承时 ES 侧的对称**：`collectVisibleOwnerDeptIds`（`apps/api/src/services/retrieve/dept-acl.ts:135-164`）在关继承时只精确匹配；ES 侧靠同一来源的 `ownerDeptIds`，但**缺 `ownerDeptId` 字段的库级文档**在关继承时的语义未定义（PG 说是「库内成员可见」）。
+- **角色 principal（`user:` / `dept:{id}:lv:{n}`）是否属 P3b 必达**：ADR-057 `:1861-1864` 要求该主体形态，而 `aclPrincipals` 今天是不带前缀的裸 uuid 数组（`packages/db/src/schema/kb/documents.ts:60`），要落它需迁移 + 放宽契约校验（现测已锁"非 uuid → 400"）+ 新增身份展开器 + 改 PG 谓词 + 改 ES 入参与查询。**已知后果**：B2-2 的「移出 role」在落地前无法真绿，只能等价替换。
+- **grant 写审计是否落表**：现在只有 Pino（`apps/api/src/routes/dept-grants.ts:110-115`、`:141-144`），AE7 的 Then 写「审计有记录」，ADR-057 `:1832` 也写「审计」。落表要先裁口径（是否要求表级证据）。
+- **请求级缓存**：`loadVisibilityContext` 是否挂请求级缓存（key = `tenantId|userId|enforce|inheritDown|bypass`）以省掉"详情 + ACL 名单"同请求内的重复加载。本图不落（避免请求内失效语义），待有性能证据再议。
+- **`DEPT_INHERIT_DOWN` 关继承时"库级文档"的语义**：`collectVisibleOwnerDeptIds` 在关继承时只精确匹配；PG 对无 `ownerDeptId` 的文档独立给了级别规则（`dept-acl.ts:50-51`：任一处负责人 30，否则 20），但"关继承"是否影响库级文档未在 PRD 明说。本图按"不影响"实现（PG 源码如此），口径待 PRD 补行。
+- **pin 住 `CorpusLoader` 的 tenantId 接口缺口**：`RetrieveInput.tenantId` 已有（`retrieve/types.ts:40`）但 `CorpusLoader` 签名未传（`:76-82`、`retrieve.ts:126-130`），④⑤只能从文档行反推 tenantId（fail-closed 方向）。修它是纯工程，但会让 `loadCorpus` 的所有夹具改签名，属回归面较大的独立小图。
 
 ## Out of scope
 
