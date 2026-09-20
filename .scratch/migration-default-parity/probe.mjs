@@ -18,4 +18,7 @@ fs.writeFileSync(
   JSON.stringify(summary, null, 2),
   'utf8',
 );
-console.log('total =', findings.length, 'checks =', Object.keys(byCheck).join(','));
+console.log('total =', findings.length);
+console.log('checks =', Object.keys(byCheck).length);
+console.log('linked6 =', byCheck['6-联动'] ?? 0);
+console.log('env2 =', byCheck['2-env'] ?? 0, 'sym3 =', byCheck['3-符号'] ?? 0, 'tbl5 =', byCheck['5-表'] ?? 0);

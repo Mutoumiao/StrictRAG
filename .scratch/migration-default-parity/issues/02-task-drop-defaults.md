@@ -1,7 +1,7 @@
 # 02 · task：撤掉 0015 遗留的库侧 DEFAULT + 加对账护栏 + 回写镜像
 
 Type: task
-Status: open
+Status: resolved
 Blocked by: 01
 
 ## 做什么

@@ -1,7 +1,7 @@
 # 迁移 SQL 与 schema/快照的默认值对账（撤掉 0015 遗留的库侧 DEFAULT）
 
 Label: wayfinder:map
-Status: open
+Status: resolved（前沿：空。三张工单全落地：撤默认 + 护栏测例 + 镜像；旁路发现并修好 `check.mjs` 的解析缺陷。**未验证**：本机无 Docker 守护进程，迁移未在真 PG 上 apply 过）
 
 ## Destination
 
