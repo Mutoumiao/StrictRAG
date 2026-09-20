@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（权限码 + 角色模板 + 菜单树 + **外壳裁剪 SSOT**） |
 | 默认依赖模式 | 纯库；无运行时开关 |
 | 关联模块 | 被 `api` 的权限求值和 `admin` 的菜单裁剪消费；**不能**替代服务端权限校验 |
-| 最近更新 | 2026-08-29（`ADMIN_IMPLEMENTED_HREFS` 含 `/eval` · 12 条；`eval.run` 为 page+action） |
+| 最近更新 | 2026-09-20（补测批 3：`tests/acl/catalog-clip.test.ts` 断言 `doc_operator` 有壳码；src 无改动）；2026-08-29（`ADMIN_IMPLEMENTED_HREFS` 含 `/eval` · 12 条；`eval.run` 为 page+action） |
 | Spec / ADR | ADR-051 · ADR-056 · `.trellis/spec/admin-catalog/library/catalog-ssot.md` |
 | PRD | `prds/09-security` 权限相关 |
 

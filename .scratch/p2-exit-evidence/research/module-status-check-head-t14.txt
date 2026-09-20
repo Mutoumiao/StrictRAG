@@ -1,0 +1,93 @@
+module-status 漂移报告 · 43 条
+
+── 2-env（2）
+  [api.md] STORAGE_MODE=s3
+      代码默认 local（api/src/env.ts）
+  [worker.md] STORAGE_MODE=s3
+      代码默认 local（worker/src/env.ts）
+── 3-符号（13）
+  [api.md] `UNSUPPORTED_MEDIA_TYPE`
+      关联包（api/contracts/db/admin-catalog）导出中不存在（可能为概念名，可加入黑名单）
+  [api.md] `FORBIDDEN`
+      关联包（api/contracts/db/admin-catalog）导出中不存在（可能为概念名，可加入黑名单）
+  [api.md] `DEV_DEFAULT_TENANT`
+      关联包（api/contracts/db/admin-catalog）导出中不存在（可能为概念名，可加入黑名单）
+  [api.md] `RULE_VIOLATION`
+      关联包（api/contracts/db/admin-catalog）导出中不存在（可能为概念名，可加入黑名单）
+  [api.md] `RULE_VIOLATION`
+      关联包（api/contracts/db/admin-catalog）导出中不存在（可能为概念名，可加入黑名单）
+  [api.md] `NULL`
+      关联包（api/contracts/db/admin-catalog）导出中不存在（可能为概念名，可加入黑名单）
+  [api.md] `GENERATE_MIN_NODES`
+      关联包（api/contracts/db/admin-catalog）导出中不存在（可能为概念名，可加入黑名单）
+  [api.md] `RATE_LIMITED`
+      关联包（api/contracts/db/admin-catalog）导出中不存在（可能为概念名，可加入黑名单）
+  [api.md] `CONFLICT`
+      关联包（api/contracts/db/admin-catalog）导出中不存在（可能为概念名，可加入黑名单）
+  [db.md] `NULL`
+      关联包（db）导出中不存在（可能为概念名，可加入黑名单）
+  [worker.md] `OCR_UNAVAILABLE`
+      关联包（worker/contracts/db）导出中不存在（可能为概念名，可加入黑名单）
+  [worker.md] `OCR_LOW_CONFIDENCE`
+      关联包（worker/contracts/db）导出中不存在（可能为概念名，可加入黑名单）
+  [README.md] `GENERATE_MIN_NODES`
+      关联包（api/worker/web/admin/contracts/db/admin-catalog/ui/eslint-config/typescript-config）导出中不存在（可能为概念名，可加入黑名单）
+── 5-表（21）
+  [api.md] `node_used`
+      db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）
+  [api.md] `null`
+      db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）
+  [api.md] `null`
+      db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）
+  [api.md] `null`
+      db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）
+  [api.md] `admin_write`
+      db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）
+  [api.md] `node_used`
+      db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）
+  [api.md] `llm_call_total`
+      db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）
+  [api.md] `null`
+      db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）
+  [db.md] `dedupe_status`
+      db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）
+  [db.md] `contextualize_l0_fallback`
+      db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）
+  [db.md] `active_index_version`
+      db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）
+  [db.md] `visibility_level`
+      db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）
+  [db.md] `acl_principals`
+      db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）
+  [db.md] `duplicate_of`
+      db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）
+  [db.md] `dedupe_status`
+      db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）
+  [db.md] `dedupe_status`
+      db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）
+  [db.md] `pending_review`
+      db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）
+  [db.md] `dedupe_cross_doc_rate`
+      db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）
+  [db.md] `citations`
+      db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）
+  [db.md] `generate`
+      db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）
+  [db.md] `migrate`
+      db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）
+── 6-联动（1）
+  [(工作区)] 改 apps/api/* 未改 docs/module-status/api.md
+      可能漂移，需人工确认
+── 7-时效（6）
+  [admin-catalog.md] `packages/admin-catalog` 在 2026-08-29 后有 1 个提交
+      文档「最近更新」未同步；最新提交 f570cf7
+  [api.md] `apps/api` 在 2026-09-19 后有 2 个提交
+      文档「最近更新」未同步；最新提交 f570cf7
+  [contracts.md] `packages/contracts` 在 2026-09-19 后有 2 个提交
+      文档「最近更新」未同步；最新提交 f34678f
+  [db.md] `packages/db` 在 2026-09-19 后有 1 个提交
+      文档「最近更新」未同步；最新提交 8af62c0
+  [web.md] `apps/web` 在 2026-09-16 后有 1 个提交
+      文档「最近更新」未同步；最新提交 f570cf7
+  [worker.md] `apps/worker` 在 2026-09-19 后有 2 个提交
+      文档「最近更新」未同步；最新提交 f34678f

@@ -1,7 +1,7 @@
 # 让 Phase 2 出口可核对（账本归零 + 必签测证补齐）
 
 Label: wayfinder:map
-Status: open（前沿：14）
+Status: resolved（前沿：空；工单 14 已裁「是缺口」并落地 10 个入口）
 
 ## Destination
 
@@ -28,9 +28,10 @@ Status: open（前沿：14）
 - **目的地达成（2026-09-20）**：
   - **账本零漂移**：审计报的 25 处低估全部按源码改写；`pnpm check:module-status` 的**「时效」整类清零**（39 → 36 条，余 36 条经逐条判读全是该脚本的误报）。**并且做了一次对抗性反向复核**（工单 12）：逐行核 67 处改动，判出 **1 处新高估 + 13 处需收紧**，**14 条全部修正** —— 这条是本图最有价值的产出，因为**正向审计查不出「把验证发生在哪写错」这类错误**。
   - **必签测证无空转**：`缺测` **清零**；判为**可离线补的 71 行全部落地**（批 1 信任环 11 · 批 2 入库闸 19 · 批 3 鉴权与运营壳 38 · 批 4 边界护栏 3）。覆盖表终态：**279 行 · 已测 145 · 部分测 76 · 缺测 0 · 缺实现 6 · 延后 38 · UAT 14**（开工时为 已测 77 / 部分测 125 / 缺测 3）。余下 76 行 `部分测` **每行的缺口都有出处**：属真 ES / 真双节点 / 真进程 / 人签的 23 行、属「源码与 Then 不一致」的 16 行（标 `源码侧待定`）、以及补测时如实发现的「Then 里确实还剩一截没做」的行（L7 的周期调度 · V4 的 M/L 串联 · M2 的审计面 · AA6 的后检索 · S3 / S5 / G1 / G2 / O2 / T1–T3 等）。
+  - **更正（2026-09-20，工单 14 收尾）**：上一条「时效整类清零」在本图**收口之后**又不成立——最后三笔提交（`8af62c0` / `f34678f` / `f570cf7`）落在那次检查之后，使 **6 份**文档（api / worker / db / contracts / web / admin-catalog）的「最近更新」再次落后于各自包的提交。收尾时先取基线实证（把 `api.md` 临时回退到 HEAD 再跑脚本）确认：HEAD 上实为 **43 条含 6 条时效**，即「清零」结论**当时为真、随后被自己的提交推翻**。已按各包**真实**改动补写 2026-09-20 条目（均为补测批或工单 13 的 ES 租户闸；无 DTO / schema 变更），现「时效」类**真正清零**、总数 **37 条**（2 env + 13 符号 + 21 表 + 1 联动），经逐条判读全属该脚本的已知误报。**教训与工单 12 同源：收口声明必须在最后一次提交之后复跑**。
   - **门禁（2026-09-20 收口）**：`pnpm check-types` **8/8** · `pnpm lint` **8/8 零 warning** · `pnpm test` **11/11**（api **160** 文件 / **971** 通过 + 3 skipped；worker 47 / 215；admin 38 / 185；web 19 / 56；admin-catalog 1 / 13；contracts 27 / 225）。
 - **本图另收口三件顺手事**：`drizzle/meta` 基线快照（`0021_snapshot.json`，`db:generate` 恢复可用）· ES 第三条查询路径补租户闸（worker 全部 ES HTTP 路径至此在闸内）· 两处「缺 21 份快照」口径统一。
-- **前沿只剩一件**：工单 [14](./14-dec-doc-write-kb-membership.md)（无 `:kbId` 的文档写入口不查 KB 成员资格）—— 它是本图**工作中新冒出**的决定，不是原目的地的一步；「是设计还是缺口」需人裁，故留作下一张图的起点。
+- **前沿已空**：工单 [14](./14-dec-doc-write-kb-membership.md)（无 `:kbId` 的文档写入口不查 KB 成员资格）已裁定为**缺口**并落地。它是本图**工作中新冒出**的决定，不是原目的地的一步。裁定依据是 ADR-035 §决策 4（点名「删文档」这类内容路径须有成员行）与 ADR-045 焊死 #1（handler 纵深），不是人签；洞口比票面大，**10 个入口**（非 2 个）。读路径同形缺口未动，已转雾。
 
 ## Decisions so far
 
@@ -48,8 +49,12 @@ Status: open（前沿：14）
 - [第三条 ES 查询路径补租户闸](./issues/13-es-query-third-path-tenant-gate.md) — 由反向复核挖出：`listIndexedChunkIds`（孤儿清理的 ES 对账入口）原只按 `docId` 查、无租户闸也不失败，故「全仓 query builder 必带租户」仍不成立。已补 `requireTenantId(tenantId, where)` + 查询体加 `term: tenantId`，调用点（`pipeline.ts:939`，**唯一调用者**，1 行越界已评审接受）跟着传 `doc.tenantId`。**取舍：加 filter 而非只加校验** —— 与 `buildAclFilter` 口径统一；不加也不泄漏（docId 是 uuid v7 全局唯一），属加严。新增 3 条 `it`（缺/空/纯空白拒绝且断言 **fetch 零调用** + 正常路径对照）。至此 **worker 全部 ES HTTP 查询与写入都在闸内**。
 - [补测批 3 · 鉴权矩阵与运营壳](./issues/09-tests-batch-3-authz-ops.md) — 38 行处理完、新增 **约 49 条 `it`**（8 新文件 + 19 文件补 `it`）。**夹具先行**：`enforce-permission-matrix`（测试内 `vi.stubEnv` 开 enforce、`isMember` 恒 true → 403 只能源于缺码）一次吃掉 B1-2 / B1-8 / S2 / S8 / Y3。**七处如实记「无法断言 / 口径冲突」**：G1 负向无闸可断言（`feedback.ts` 不读轮次状态）· G2 无上传联动代码 · S3 读面 `doc.view` 与 `web_consumer` 空模板码冲突 · S5 `kb_members.role` 不参与写闸 · T1–T3 `l1RerunBound` 用 `kbId && ranAt` 也算真 · O2 写侧超范围 · AB7 既有测例已够。**验证**：api 160/971+3skip · admin 38/185 · web 19/56 · admin-catalog 1/13；全仓 **11/11**。**额外发现 → 立工单 [14](./14-dec-doc-write-kb-membership.md)**。
 
+- [路径只有 `:docId` 的文档写入口补 KB 成员闸](./issues/14-dec-doc-write-kb-membership.md) — 裁定为**缺口**（非设计）。票面写「两处」，实测 **10 个**写入口都只验码、不查 `kb_members`。判据：ADR-035 §决策 4 明确点名「**删文档**」属须成员行的内容路径，而 `DELETE /documents/:docId` 与 `PATCH /documents/:docId` 同为「路径只有 `:docId`」形态；ADR-045 焊死 #1 要求 handler 纵深「中间件漏了也不放行写」；`canAccessKbScoped` 模型中这些码的 scope 全为 `kb`；角色模板里只有 `super_admin` 是 `bypassKbMembership: true`，故「平台运营天然跨库」在本仓**既无角色定义也无文本依据**（全仓零命中）。**顺带纠错**：票面前的 `doc.acl` 不是权限码（全表 21 码无此项，ACL 写入口用 `doc.editor`）。定闸形态：handler 级 `docWriteMemberDenied(c, kbId, posture)`，**姿态随该入口权限码**（`requirePermission` → 始终查；`WhenEnforced` → 随 `AUTH_ENFORCE`，**不翻转仓库默认**）；成员解析经新增的 `createDocumentRoutes({ resolveKbMember })` 注入；super_admin 旁路。**验证**：新测例 5 例（非成员 403 且不落仓 / 成员 200 / 超管旁路 / `whenEnforced` 关不查开查），登记 `apps/api/tests/index.md`；**反证**——临时直放 → 5/5 红，还原 → 5/5 绿。既有测例先**实跑拿到 6 文件 / 14 例红**（断言期望 200/400，实收 **500**：成员查询打真 PG 抛错），仅改装载方式注入宽松桩、**断言一字未改**；api **161 文件 / 976 通过 + 3 skipped**、`check-types` 8/8。**未做**：读路径同形缺口（`GET /documents/:docId*`，加闸须单独设计以免与 `WhenEnforced` 系「关时无 auth」默认冲突）· `kb_members.role` 不参与写闸（独立口径，S5 行）· 404/403 存在性探测面 · 未动 `prds/00-11`。
+
 ## Not yet specified
 
+- **读路径的同形缺口**（工单 14 的邻居，2026-09-20 新出）：`GET /documents/:docId`、`GET …/acl`、`GET …/chunks`、`GET …/ingest-jobs` 同样是「路径只有 `:docId`」且不查 `kb_members`，而 ADR-035 §决策 4 明确把「读文档内容/列表」列入须成员行的内容路径。写面已补（见上），读面**没动**：读入口多用 `requirePermissionWhenEnforced`，`AUTH_ENFORCE` 关时**根本没有 auth**，直接挂 `evaluateKbMember` 会把 dev/demo 读路径打成 401（等于翻转仓库默认）。要动就得先定「读面成员闸在 enforce 关时的姿态」——与写面同姿态（随码）是显然解，但读路径的 `auth` 可能为 null，闸要写成「有 auth 才查」，这会削弱 enforce 开时的强制性，须裁清后再开票
+- **持码非成员可探测文档存在性**（工单 14 的残余）：成员闸必须先取到 `doc` 才能知道 `kbId`，故非成员对不存在的 docId 收 404、对存在的收 403，形成存在性探测面。彻底消掉要让两者同码回复，会改现有 404 语义（对成员也一样）——要不要为「宁拒勿妄」付这个代价，须裁
 - **两处镜像不在版本库里**（工单 05 发现的硬事实）：`.gitignore:58-59` 把 **`/prds` 与 `.trellis/tasks/`** 整个排除在 git 之外。也就是说三处状态镜像里，**交付控制台与总 backlog 没有版本历史**，任何回写都不留痕、无法用 `git diff` 复核，只能靠读磁盘。是否让它们进版本库属仓库所有者决策（**不是**本图能改的），但「可核对」的定义应该把这条写进去
 - **把反向复核固化成流程**（工单 12 的结论）：本图的教训是「只做正向回写不够」——**正向审计查不出「验证发生在哪」写错**（新高估那条就是把仓外副本验收写成仓内）。下一张图若再做镜像回写，应把「对抗性复核」列为**回写工单的后继依赖**，而不是可选动作。这条要不要提升为仓库纪律（写进 `.trellis/spec/guides/` 或 `docs/agents/`），须先定
 - **两处镜像怎么复核**（前一条的落地难处）：`/prds` 与 `.trellis/tasks/` 不在 git，`git diff` 取不到改动前状态，复核只能「以磁盘现状 + 源码对账」——本轮就是这么做的，但这意味着**无法知道镜像「原来」写了什么**，也回滚不了

@@ -10,6 +10,7 @@
 - `DEPT_ACL_ENFORCE` **默认关**。AE3 为兼容行为；AE4 起强制开属 P3 / 开强制后。
 - 文档级 `aclPrincipals` 用户 uuid 名单最小已落（PG 把关；ES 查询期非超管 should 收窄；不跟 `DEPT_ACL_ENFORCE`；**≠** 角色 principal / 默认开强制）。B2-2 / B2-3 已转**部分测**（收紧外显 `reindexRequired` + 「索引滞后不构成泄漏」夹具）；仍欠：角色码 principal、自动 reindex、dense 反向构造。
 - 成员闸 / 分片 / 面板 / 设置 / 部门走 `requirePermission`（与 enforce 开关无关）；上传 / 审批 / lifecycle 多走 `requirePermissionWhenEnforced`。
+- 路径只有 `:docId`（无 `:kbId`）的**文档写入口**另加 handler 级 KB 成员闸（`docWriteMemberDenied`，10 个入口，闸姿态随该入口权限码；2026-09-20 补）。
 
 ## 剧本 B · 权限（Phase 2 底线 / Phase 3 细粒度）
 

@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（S2 用户端薄壳） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT（经 api）· `NEXT_PUBLIC_API_BASE_URL` 默认 `http://127.0.0.1:4000` · 问答 = AI SDK UI Message Stream · rewrite = **服务端强制关**（本包无开关控件）· 知识库 = ui `ClosedSelect` 消费 `GET /knowledge-bases` 可见行（**无**自由粘贴） |
 | 关联模块 | ask 流 / 会话 / 反馈提交：`api`；类型：`contracts`；样式 / 组件：`ui` |
-| 最近更新 | 2026-09-16（断线按 requestId 单次重拉终态；客户端自铸 `x-request-id`） |
+| 最近更新 | 2026-09-20（补测批 3：`tests/ask/no-upload-surface.test.tsx` 断言 web 无上传面且写 API 403；src **无**改动）；2026-09-16（断线按 requestId 单次重拉终态；客户端自铸 `x-request-id`） |
 | Spec | `.trellis/spec/web/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · ask 流相关 API |
 

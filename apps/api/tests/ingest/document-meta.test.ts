@@ -65,7 +65,7 @@ vi.mock('../../src/services/documents.js', () => ({
   },
 }));
 
-const { documentRoutes } = await import('../../src/routes/documents/index.js');
+const { createDocumentRoutes } = await import('../../src/routes/documents/index.js');
 
 async function token(roles: string[] = ['kb_admin']) {
   const pair = await issueTokenPair({
@@ -77,11 +77,14 @@ async function token(roles: string[] = ['kb_admin']) {
   return pair.accessToken;
 }
 
+// 成员闸桩：本文件主题不是成员资格，统一放行；闸本身由 doc-write-kb-member-gate.test.ts 覆盖
+const resolveKbMember = async () => true;
+
 function buildApp() {
   const app = new Hono<{ Variables: AuthVariables }>();
   app.use('*', requestIdMiddleware);
   app.use('*', attachAuthMiddleware);
-  app.route('/api/v1', documentRoutes);
+  app.route('/api/v1', createDocumentRoutes({ resolveKbMember }));
   return app;
 }
 

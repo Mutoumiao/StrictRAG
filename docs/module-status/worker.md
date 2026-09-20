@@ -7,7 +7,7 @@
 | 成熟度 | **可联调**（P1 入库状态机；**仅** development/test + mock 栈可起；**staging/production 当前无合法扫描配置**） |
 | 默认依赖模式 | `APP_ENV=development` · 启动探针 `WORKER_PROBE_ON_START=true` · 扫描 = `mock_clean` · 向量 = `mock`（dims=8，枚举 `mock\|fail`）· ES 索引 = `mock`（枚举 `mock\|fail\|http`，**默认 mock**；`http` 须 `ELASTICSEARCH_URL`）· 对象存储 = 默认本地目录；`STORAGE_MODE=s3` 走 RustFS（S3 兼容） · `S3_BUCKET=strict-rag` · Mongo URL 空则 `mongoDocId=local:` · `INGEST_MIN_EXTRACTED_CHARS=40` · `INGEST_OCR_ENABLED=false` · `INGEST_FAILURE_WEBHOOK_URL` **空=不发** · **可运行叠加** `.env.operable.example`（http/s3/mongo；**不**改 Zod 默认） |
 | 关联模块 | 由 `api` 入队触发；写库走 `@strict-rag/db`；队列名 / job payload / 可执行策略集来自 `@strict-rag/contracts`；运行需要 Redis + PostgreSQL |
-| 最近更新 | 2026-09-19（剧本 L7 孤儿清理 `orphan-clean.ts`；剧本 E4 `pending_review` 入审；O4 bulk builder 租户闸）；2026-09-17（入库报告落 `contextualize_l1_ok` / `contextualize_l0_fallback`，migration `0019`）；2026-09-16（L1 contextualize 真调用、默认 off；入库报告补跨文档去重率） |
+| 最近更新 | 2026-09-20（工单 13：ES 第三条查询路径补租户闸——`ingest/es-http.ts` 的 `requireTenantId` + 查询体 `term: tenantId`，调用点 `ingest/pipeline.ts`；补测批 2 入库闸与双就绪 9 个测例文件 + 共享夹具；补测批 4 Mongo 正文护栏）；2026-09-19（剧本 L7 孤儿清理 `orphan-clean.ts`；剧本 E4 `pending_review` 入审；O4 bulk builder 租户闸）；2026-09-17（入库报告落 `contextualize_l1_ok` / `contextualize_l0_fallback`，migration `0019`）；2026-09-16（L1 contextualize 真调用、默认 off；入库报告补跨文档去重率） |
 | Spec | `.trellis/spec/worker/backend/` |
 | PRD | `prds/06-async` · `prds/04-pipelines/01-offline-ingest.md` |
 

@@ -63,9 +63,13 @@ app.post('/api/v1/kb/:kbId/documents', requireKbScope({ permission: 'doc.upload'
 // ask / sessions：始终成员闸（与 AUTH_ENFORCE 无关；super_admin 旁路）
 app.post('/api/v1/kb/:kbId/ask', requireKbMember(), handler)
 
-// handler 无 path :kbId 时（如 feedback 从 trace 取 kb）
+// handler 无 path :kbId 时（如 feedback 从 trace 取 kb；documents 写入口反查 doc.kbId）
 const r = await evaluateKbMember(c, kbIdFromTrace)
 const p = await checkPermission(c, 'feedback.queue', { kbId: row.kbId })
+
+// 路径只有 :docId 的写入口：取到 doc 后必须补成员闸（见下「强制补闸」）
+const denied = await docWriteMemberDenied(c, doc.kbId, 'always')
+if (denied) return denied
 ```
 
 **ARCH-P1b-1 · KB 作用域组合**
@@ -74,10 +78,20 @@ const p = await checkPermission(c, 'feedback.queue', { kbId: row.kbId })
 |------|------|
 | `lookupKbMembership` | 纯函数；`Map` 缓存同 `(userId, kbId)` 只 resolve 一次（`auth/kb-scope.ts`） |
 | `requireKbScope({ permission?, whenEnforced? })` | 组合入口：无码→成员；有码→`requirePermission`；`whenEnforced`→`WhenEnforced` |
-| `evaluateKbMember` / `checkPermission(..., { kbId })` | handler 级；路径无 `:kbId` 时覆盖 |
+| `evaluateKbMember` / `checkPermission(..., { kbId })` | handler 级；路径无 `:kbId` 时覆盖（**写入口为强制**，见下） |
 | `ApiVariables.kbMemberCache` | 请求内缓存；跨请求不复用 |
 
 既有 `requirePermission` / `requireKbMember` / `requirePermissionWhenEnforced` **保留**且走同一缓存。
+
+**路径只有 `:docId` 的写入口必须补成员闸（强制）**
+
+中间件只能从 path 取 `:kbId`（`checkPermission`）。`PATCH/PUT /documents/:docId*` 这类入口若只验权限码，**持码非成员即可跨库写他库文档**。依据：ADR-035 §决策 4「无 `kb_members` 行 → 该 KB 一切内容路径 403（…删文档…）」、ADR-045 焊死 #1「各 API handler 仍校验，中间件漏了也不放行写」。
+
+- 落点：`apps/api/src/routes/documents/index.ts` 的 `docWriteMemberDenied(c, kbId, posture)`，挂在**全部 10 个写入口**（reindex / approve / reject / scan / lifecycle / supersede / dedupe-resolve / delete / PATCH meta / PUT acl）取到 `doc`（或 `chunk`）之后、落仓或入队之前。
+- 姿态随该入口权限码：`requirePermission` → `'always'`；`requirePermissionWhenEnforced` → `'whenEnforced'`（AUTH_ENFORCE 关则不查，不翻转仓库默认）。
+- 成员解析经 `createDocumentRoutes({ resolveKbMember })` 注入，默认 `kb_members`；super_admin 旁路（`roleBypassesKbMembership`）。
+- 拒绝文案复用 `evaluateKbMember` 的 `not a knowledge base member` + 403 / `FORBIDDEN`；`doc.acl` 不是权限码，ACL 写入口用的是 `doc.editor`。
+- 残余：闸须先取到 `doc` 才能知道 `kbId`，故持码非成员仍可经 404/403 差异探测文档是否存在。
 
 **AUTH_ENFORCE vs 成员闸**：
 
