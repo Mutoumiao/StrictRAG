@@ -46,8 +46,9 @@ pnpm --filter @strict-rag/contracts test -- -t 'R[0-9]+:'
 | `scripts/up-stack.test.mjs` | 启动编排脚本契约 |
 | `scripts/smoke-ask.test.mjs` | ask 冒烟脚本契约 |
 | `scripts/seed-demo.test.mjs` | demo 种子脚本契约 |
+| `scripts/module-status/git-status.test.mjs` | module-status 检查的 `git status --porcelain` 解析契约（改了源码未改文档必须能被看见） |
 
-这些文件护的是仓库根 `scripts/*.mjs` 本身，不进入某个 app 的 `tests/<能力>/`。  
+这些文件护的是仓库根 `scripts/*.mjs` 本身（含 `scripts/module-status/` 子目录），不进入某个 app 的 `tests/<能力>/`。  
 包内脚本测（如 L1 CLI）是能力测，现行落在对应包的 `tests/eval/` 等目录。
 
 ## 现状

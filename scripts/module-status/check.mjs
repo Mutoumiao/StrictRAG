@@ -19,6 +19,7 @@ import {
   extractRoutes,
   extractTables,
 } from './extract.mjs';
+import { parseGitStatusPaths } from './git-status.mjs';
 
 const DOC_DIR = join(ROOT, 'docs', 'module-status');
 
@@ -417,11 +418,7 @@ function checkDrift() {
   } catch {
     return; // 非 git 环境跳过
   }
-  const changed = new Set();
-  for (const line of status.split('\n')) {
-    const m = line.match(/^(?:.{1,2} |\?\?) (.*)$/);
-    if (m) changed.add(m[1].replace(/^"|"$/g, ''));
-  }
+  const changed = parseGitStatusPaths(status);
   for (const [pkg, dir] of Object.entries(PKG_DIR)) {
     const docFile = `${pkg}.md`;
     const touched = [...changed].some((p) => p.startsWith(dir + '/') && !p.startsWith(dir + '/src/__fixtures__'));
