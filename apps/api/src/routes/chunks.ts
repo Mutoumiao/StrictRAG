@@ -7,7 +7,12 @@ import {
 } from '@strict-rag/contracts';
 import { Hono } from 'hono';
 
-import { requirePermission, type AuthVariables } from '../auth/middleware.js';
+import { createDocMemberGate } from '../auth/doc-scope.js';
+import {
+  requirePermission,
+  type AuthVariables,
+  type ResolveKbMember,
+} from '../auth/middleware.js';
 import { roleBypassesKbMembership } from '../auth/permissions/resolve.js';
 import { fail, ok } from '../lib/response.js';
 import { logger } from '../logger.js';
@@ -36,6 +41,8 @@ import { isDocVisibleForAclPrincipals } from '../services/retrieve/doc-acl.js';
 
 export type ChunkRouteDeps = {
   chunks?: ChunksRepo;
+  /** 文档级成员闸的成员解析；默认查 kb_members，测例注入内存实现 */
+  resolveKbMember?: ResolveKbMember;
 };
 
 function toListItem(row: ChunkRow): ChunkListItem {
@@ -105,6 +112,8 @@ export function createChunkRoutes(deps: ChunkRouteDeps = {}): Hono<{ Variables: 
   const repo = deps.chunks ?? chunksRepo;
   const routes = new Hono<{ Variables: AuthVariables }>();
   const view = requirePermission('chunk.view');
+  /** 文档级 KB 成员闸（`chunk.view` 是硬姿态 → 始终查）；先于部门 / 名单第二层闸 */
+  const docMemberDenied = createDocMemberGate(deps);
 
   /** GET /api/v1/documents/:docId/chunks */
   routes.get('/documents/:docId/chunks', view, async (c) => {
@@ -121,6 +130,9 @@ export function createChunkRoutes(deps: ChunkRouteDeps = {}): Hono<{ Variables: 
     if (!doc) {
       return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
     }
+    const memberDenied = await docMemberDenied(c, doc.kbId ?? '', 'always');
+    if (memberDenied) return memberDenied;
+
     const kb = doc.kbId ? await documentRepo.getKb(doc.kbId) : null;
     const denied = await deniedDocReadMessage(doc, kb, c.get('auth'));
     if (denied) {
@@ -158,6 +170,9 @@ export function createChunkRoutes(deps: ChunkRouteDeps = {}): Hono<{ Variables: 
     if (!doc) {
       return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
     }
+    const memberDenied = await docMemberDenied(c, doc.kbId ?? '', 'always');
+    if (memberDenied) return memberDenied;
+
     const kb = doc.kbId ? await documentRepo.getKb(doc.kbId) : null;
     const denied = await deniedDocReadMessage(doc, kb, c.get('auth'));
     if (denied) {

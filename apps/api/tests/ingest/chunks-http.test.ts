@@ -66,6 +66,9 @@ function seedChunks(): ChunkRow[] {
   ];
 }
 
+// 成员闸桩：本文件主题是分片只读契约，成员资格统一放行；闸本身由 doc-read-kb-member-gate.test.ts 覆盖
+const resolveKbMember = async () => true;
+
 function buildApp() {
   const repo = createMemoryChunksRepo({
     docs: [{ id: DOC, indexVersion: 2, status: 'ready', lifecycle: 'active' }],
@@ -74,7 +77,7 @@ function buildApp() {
   const app = new Hono<{ Variables: AuthVariables }>();
   app.use('*', requestIdMiddleware);
   app.use('*', attachAuthMiddleware);
-  app.route('/api/v1', createChunkRoutes({ chunks: repo }));
+  app.route('/api/v1', createChunkRoutes({ chunks: repo, resolveKbMember }));
   return app;
 }
 
@@ -189,7 +192,7 @@ describe('chunk routes (ADR-052)', () => {
     const app = new Hono<{ Variables: AuthVariables }>();
     app.use('*', requestIdMiddleware);
     app.use('*', attachAuthMiddleware);
-    app.route('/api/v1', createChunkRoutes({ chunks: repo }));
+    app.route('/api/v1', createChunkRoutes({ chunks: repo, resolveKbMember }));
     const { accessToken } = await token(['kb_admin']);
     const res = await app.request(
       `/api/v1/documents/${DOC}/chunks/01900000-0000-7000-8000-0000000000c3`,

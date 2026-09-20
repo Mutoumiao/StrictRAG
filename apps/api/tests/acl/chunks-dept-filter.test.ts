@@ -62,6 +62,9 @@ async function token(roles: string[] = ['kb_admin']) {
   return pair.accessToken;
 }
 
+// 成员闸桩：本文件主题是部门过滤，成员资格统一放行；闸本身由 doc-read-kb-member-gate.test.ts 覆盖
+const resolveKbMember = async () => true;
+
 function buildApp() {
   const repo = createMemoryChunksRepo({
     docs: [
@@ -91,7 +94,7 @@ function buildApp() {
   const app = new Hono<{ Variables: AuthVariables }>();
   app.use('*', requestIdMiddleware);
   app.use('*', attachAuthMiddleware);
-  app.route('/api/v1', createChunkRoutes({ chunks: repo }));
+  app.route('/api/v1', createChunkRoutes({ chunks: repo, resolveKbMember }));
   return app;
 }
 

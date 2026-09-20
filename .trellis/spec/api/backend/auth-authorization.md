@@ -78,19 +78,22 @@ if (denied) return denied
 |------|------|
 | `lookupKbMembership` | 纯函数；`Map` 缓存同 `(userId, kbId)` 只 resolve 一次（`auth/kb-scope.ts`） |
 | `requireKbScope({ permission?, whenEnforced? })` | 组合入口：无码→成员；有码→`requirePermission`；`whenEnforced`→`WhenEnforced` |
-| `evaluateKbMember` / `checkPermission(..., { kbId })` | handler 级；路径无 `:kbId` 时覆盖（**写入口为强制**，见下） |
+| `evaluateKbMember` / `checkPermission(..., { kbId })` | handler 级；路径无 `:kbId` 时覆盖（**文档读写入口为强制**，见下） |
 | `ApiVariables.kbMemberCache` | 请求内缓存；跨请求不复用 |
 
 既有 `requirePermission` / `requireKbMember` / `requirePermissionWhenEnforced` **保留**且走同一缓存。
 
-**路径只有 `:docId` 的写入口必须补成员闸（强制）**
+**路径只有 `:docId` 的文档入口必须补成员闸（强制，读写同口径）**
 
-中间件只能从 path 取 `:kbId`（`checkPermission`）。`PATCH/PUT /documents/:docId*` 这类入口若只验权限码，**持码非成员即可跨库写他库文档**。依据：ADR-035 §决策 4「无 `kb_members` 行 → 该 KB 一切内容路径 403（…删文档…）」、ADR-045 焊死 #1「各 API handler 仍校验，中间件漏了也不放行写」。
+中间件只能从 path 取 `:kbId`（`checkPermission`）。`/documents/:docId*` 这类入口若只验权限码，**持码非成员即可跨库写 / 读他库文档**。依据：ADR-035 §决策 4「无 `kb_members` 行 → 该 KB 一切内容路径 403（ask、**读文档内容/列表**、上传、**删文档**…）」、ADR-045 焊死 #1「各 API handler 仍校验，中间件漏了也不放行写」、ADR-057 决策 2「可见文档 = KB 成员（或超管全权）∧ …」。
 
-- 落点：`apps/api/src/routes/documents/index.ts` 的 `docWriteMemberDenied(c, kbId, posture)`，挂在**全部 10 个写入口**（reindex / approve / reject / scan / lifecycle / supersede / dedupe-resolve / delete / PATCH meta / PUT acl）取到 `doc`（或 `chunk`）之后、落仓或入队之前。
+- **落点（共享模块，禁止 route 私写）**：`apps/api/src/auth/doc-scope.ts` 的 `createDocMemberGate({ resolveKbMember })`，返回 `docMemberDenied(c, kbId, posture)`；与 `auth/kb-scope.ts` 同域。`routes/documents/index.ts` 与 `routes/chunks.ts` 各自在工厂里取一份。
+- **挂点**：写入口 **10 个**（reindex / approve / reject / scan / lifecycle / supersede / dedupe-resolve / delete / PATCH 元数据 / PUT 文档 ACL）+ 读入口 **5 个**（`GET /documents/:docId` · `…/acl` · `…/ingest-jobs` · `…/chunks` · `…/chunks/:chunkId`），均在取到 `doc`（`chunks` 用 `doc.kbId`，去重用 `chunk.kbId`）之后、读写数据之前。
+- **顺序**：成员闸是**外层**，先于部门 ACL / `aclPrincipals` 第二层闸（`docReadDenied` / `deniedDocReadMessage`）——避免把「部门不匹配」这类库内结构泄漏给非成员。
 - 姿态随该入口权限码：`requirePermission` → `'always'`；`requirePermissionWhenEnforced` → `'whenEnforced'`（AUTH_ENFORCE 关则不查，不翻转仓库默认）。
-- 成员解析经 `createDocumentRoutes({ resolveKbMember })` 注入，默认 `kb_members`；super_admin 旁路（`roleBypassesKbMembership`）。
-- 拒绝文案复用 `evaluateKbMember` 的 `not a knowledge base member` + 403 / `FORBIDDEN`；`doc.acl` 不是权限码，ACL 写入口用的是 `doc.editor`。
+- 成员解析经 `DocumentRouteDeps.resolveKbMember` / `ChunkRouteDeps.resolveKbMember` 注入，默认 `kb_members`；super_admin 旁路（`roleBypassesKbMembership`）。
+- 拒绝文案复用 `evaluateKbMember` 的 `not a knowledge base member` + 403 / `FORBIDDEN`；`doc.acl` 不是权限码，ACL 入口用的是 `doc.editor`。
+- 测例：`tests/acl/doc-write-kb-member-gate.test.ts`（写面 10 入口）· `tests/acl/doc-read-kb-member-gate.test.ts`（读面 5 入口，含「数据仓零调用」断言）。
 - 残余：闸须先取到 `doc` 才能知道 `kbId`，故持码非成员仍可经 404/403 差异探测文档是否存在。
 
 **AUTH_ENFORCE vs 成员闸**：

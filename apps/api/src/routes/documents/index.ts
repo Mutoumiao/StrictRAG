@@ -28,18 +28,16 @@ import {
   resolveIngestContentType,
 } from '@strict-rag/contracts';
 import { isEffectiveWindowOrdered } from '@strict-rag/db';
-import { Hono, type Context } from 'hono';
+import { Hono } from 'hono';
 import { uuidv7 } from 'uuidv7';
 
-import { roleBypassesKbMembership } from '../../auth/permissions/resolve.js';
+import { createDocMemberGate } from '../../auth/doc-scope.js';
 import {
-  evaluateKbMember,
-  isAuthEnforceEnabled,
   requirePermission,
   requirePermissionWhenEnforced,
-  type AuthVariables,
   type ResolveKbMember,
 } from '../../auth/middleware.js';
+import { roleBypassesKbMembership } from '../../auth/permissions/resolve.js';
 import { canBecomeActive, canEnqueueScan, evaluateSelfDecide, scanDeniedCode } from '../../gates/approval-scan.js';
 import { checkUploadMedia } from '../../gates/upload-media.js';
 import { fail, ok } from '../../lib/response.js';
@@ -100,35 +98,11 @@ export type DocumentRouteDeps = {
   resolveKbMember?: ResolveKbMember;
 };
 
-type DocWritePosture = 'always' | 'whenEnforced';
-
 export function createDocumentRoutes(deps: DocumentRouteDeps = {}) {
 const documentRoutes = new Hono<{ Variables: ApiVariables }>();
 
-/**
- * 路径只有 `:docId` 的文档写入口成员闸。中间件只能从 path 取 `:kbId`（auth/middleware.ts
- * checkPermission），此类入口须由 handler 用 `doc.kbId` 补上成员校验。
- * 依据：ADR-035 §决策 4「无 kb_members 行 → 该 KB 一切内容路径 403（…删文档…）」；
- * ADR-045 焊死 #1「各 API handler 仍校验，中间件漏了也不放行写」。
- * 姿态随该入口的权限码：`requirePermission`（始终验码）→ 始终查；
- * `requirePermissionWhenEnforced` → 随 AUTH_ENFORCE 开关。super_admin 旁路；通过返回 null。
- */
-async function docWriteMemberDenied(
-  c: Context<{ Variables: AuthVariables }>,
-  kbId: string,
-  posture: DocWritePosture,
-) {
-  if (posture === 'whenEnforced' && !isAuthEnforceEnabled()) return null;
-  const r = await evaluateKbMember(c, kbId, { resolveKbMember: deps.resolveKbMember });
-  if (r.ok) return null;
-  return fail(
-    c,
-    r.status === 401 ? BizCode.UNAUTHORIZED : BizCode.FORBIDDEN,
-    r.message,
-    r.status,
-    'details' in r ? r.details : undefined,
-  );
-}
+/** 文档级 KB 成员闸（读写共用，见 `auth/doc-scope.ts`）；姿态随各入口权限码 */
+const docMemberDenied = createDocMemberGate(deps);
 
 const checkIngestLimit =
   deps.checkIngestRateLimit ??
@@ -430,7 +404,7 @@ documentRoutes.post(
       return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
     }
 
-    const memberDenied = await docWriteMemberDenied(c, doc.kbId, 'whenEnforced');
+    const memberDenied = await docMemberDenied(c, doc.kbId, 'whenEnforced');
     if (memberDenied) return memberDenied;
 
     const forUpload = await getForUpload(doc.kbId, doc.contentType ?? 'text/plain');
@@ -497,7 +471,7 @@ documentRoutes.post(
       return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
     }
 
-    const memberDenied = await docWriteMemberDenied(c, doc.kbId, 'whenEnforced');
+    const memberDenied = await docMemberDenied(c, doc.kbId, 'whenEnforced');
     if (memberDenied) return memberDenied;
 
     if (doc.approvalStatus === 'approved') {
@@ -538,7 +512,7 @@ documentRoutes.post(
       return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
     }
 
-    const memberDenied = await docWriteMemberDenied(c, doc.kbId, 'whenEnforced');
+    const memberDenied = await docMemberDenied(c, doc.kbId, 'whenEnforced');
     if (memberDenied) return memberDenied;
 
     if (doc.approvalStatus === 'rejected') {
@@ -579,7 +553,7 @@ documentRoutes.post(
       return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
     }
 
-    const memberDenied = await docWriteMemberDenied(c, doc.kbId, 'whenEnforced');
+    const memberDenied = await docMemberDenied(c, doc.kbId, 'whenEnforced');
     if (memberDenied) return memberDenied;
 
     if (!canEnqueueScan(doc.approvalStatus)) {
@@ -621,7 +595,7 @@ documentRoutes.patch(
       return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
     }
 
-    const memberDenied = await docWriteMemberDenied(c, doc.kbId, 'whenEnforced');
+    const memberDenied = await docMemberDenied(c, doc.kbId, 'whenEnforced');
     if (memberDenied) return memberDenied;
 
     if (parsed.data.lifecycle === 'active' && !canBecomeActive(doc.status)) {
@@ -664,7 +638,7 @@ documentRoutes.post(
 
     // 成员闸以旧文所属库为准；旧文缺失由 verdict 先给 404
     if (old) {
-      const memberDenied = await docWriteMemberDenied(c, old.kbId, 'whenEnforced');
+      const memberDenied = await docMemberDenied(c, old.kbId, 'whenEnforced');
       if (memberDenied) return memberDenied;
     }
 
@@ -700,7 +674,7 @@ documentRoutes.post(
     const chunk = await dedupeConflictRepo.getChunk(docId, chunkId);
     // 成员闸用该块所属库；块不存在时不给 403（留给 verdict 的 404）
     if (chunk) {
-      const memberDenied = await docWriteMemberDenied(c, chunk.kbId, 'always');
+      const memberDenied = await docMemberDenied(c, chunk.kbId, 'always');
       if (memberDenied) return memberDenied;
     }
     const verdict = evaluateResolveRequest(chunk);
@@ -736,7 +710,7 @@ documentRoutes.delete(
       return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
     }
 
-    const memberDenied = await docWriteMemberDenied(c, doc.kbId, 'whenEnforced');
+    const memberDenied = await docMemberDenied(c, doc.kbId, 'whenEnforced');
     if (memberDenied) return memberDenied;
 
     await documentRepo.archiveForPurge(docId);
@@ -772,7 +746,7 @@ documentRoutes.patch('/documents/:docId', requirePermission('doc.editor'), async
     return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
   }
 
-  const memberDenied = await docWriteMemberDenied(c, doc.kbId, 'always');
+  const memberDenied = await docMemberDenied(c, doc.kbId, 'always');
   if (memberDenied) return memberDenied;
 
   if (parsed.data.docType !== undefined) {
@@ -818,6 +792,9 @@ documentRoutes.get('/documents/:docId', requirePermissionWhenEnforced('doc.view'
   if (!doc) {
     return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
   }
+  const memberDenied = await docMemberDenied(c, doc.kbId, 'whenEnforced');
+  if (memberDenied) return memberDenied;
+
   const kb = await documentRepo.getKb(doc.kbId);
   const auth = c.get('auth');
   const denied = await docReadDenied({
@@ -894,6 +871,9 @@ documentRoutes.get(
     if (!doc) {
       return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
     }
+    const memberDenied = await docMemberDenied(c, doc.kbId, 'whenEnforced');
+    if (memberDenied) return memberDenied;
+
     const kb = await documentRepo.getKb(doc.kbId);
     const auth = c.get('auth');
     const denied = await docReadDenied({
@@ -924,7 +904,7 @@ documentRoutes.put('/documents/:docId/acl', requirePermission('doc.editor'), asy
   if (!doc) {
     return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
   }
-  const memberDenied = await docWriteMemberDenied(c, doc.kbId, 'always');
+  const memberDenied = await docMemberDenied(c, doc.kbId, 'always');
   if (memberDenied) return memberDenied;
 
   // 收紧（有人失去可读性）→ ES 索引字段滞后，须 reindex 才对稀疏路生效（ADR-009 决策 4）
@@ -966,6 +946,9 @@ documentRoutes.get(
     if (!doc) {
       return fail(c, BizCode.NOT_FOUND, 'document not found', 404);
     }
+    const memberDenied = await docMemberDenied(c, doc.kbId, 'whenEnforced');
+    if (memberDenied) return memberDenied;
+
     const data: IngestJobListItem[] = await ingestJobsRepo.listByDocId(docId);
     return ok(c, data);
   },
