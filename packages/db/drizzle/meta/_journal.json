@@ -155,6 +155,13 @@
       "when": 1790006400000,
       "tag": "0021_chunks_dedupe_review",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1790092800000,
+      "tag": "0022_ingest_report_default_parity",
+      "breakpoints": true
     }
   ]
 }

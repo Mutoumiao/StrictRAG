@@ -14,6 +14,7 @@
 | `acl/` | 跨部门 grant 表 | DEPT_ACL |
 | `retrieve/` | ready∧active 与生效窗口纯函数 | 质量红线；R7 附录；功能表 §5.4 |
 | `env/` | 写库时间格式 | ORM PRD |
+| `migrations/` | 迁移 SQL 与 schema 快照的默认值对账 | `prds/03-data` |
 
 ## 测例
 
@@ -29,6 +30,7 @@
 | `ingest/chunk-strategy-schema.test.ts` | 分片策略三层表必须暴露平台定义与库启用列。 | 功能表 §4.5 · ADR-053 | `chunkStrategyDefinitions · kbChunkStrategies` | 核对 code / docFamilies / recommendedFamilies。 | 现行 |
 | `retrieve/ready-active-gate.test.ts` | 默认检索闸只放行 ready∧active，其它状态或生命周期不得进入默认检索集。 | 双就绪闸（P0 R7 附录；主锚在 api corpus） | `isDefaultRetrievable · filterDefaultRetrievable` | 纯函数过滤；R7 生产路径在 api。 | 现行 |
 | `retrieve/effective-window.test.ts` | 生效窗口缺界不限；未到 from 或已到 to 不得进默认检索集。 | 功能表 §5.4 | `isWithinEffectiveWindow · isEffectiveWindowOrdered` | 纯函数；装载路径在 api。 | 现行 |
+| `migrations/sql-snapshot-default-parity.test.ts` | 迁移 SQL 的列级默认值必须与 schema 快照一致，库侧不得比声明更宽松。 | `prds/03-data` · ADR-046（只加严） | `drizzle/*.sql` · `drizzle/meta/*_snapshot.json` | 净 DEFAULT（含 `DROP DEFAULT` 撤销）与最高号快照双向比对存在性与取值。 | 现行 |
 
 ## 待处理
 

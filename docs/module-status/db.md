@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（schema + client + 检索谓词底座；**无**业务服务层） |
 | 默认依赖模式 | 需要调用方提供 `DATABASE_URL`；时间列使用本地格式字符串（见 ORM PRD） |
 | 关联模块 | `api` 与 `worker` 共用 client / schema；检索闸门谓词被 api retrieve 复用 |
-| 最近更新 | 2026-09-20（`drizzle/meta/0021_snapshot.json` 基线快照落盘（26 表），`db:generate` 恢复可用；**验收在仓外副本达成**，仓库侧只多该未跟踪文件）；2026-09-19（`documents.active_index_version`，migration `0020`；`chunks.duplicate_of` / `dedupe_status`，migration `0021`；均**无默认**）；2026-09-17（`ingest_reports.contextualize_l1_ok` / `contextualize_l0_fallback`，migration `0019`，无默认）；2026-09-16（`ingest_reports.dedupe_cross_doc_rate`，migration `0018`；`ask_traces.citations`，migration `0017`；均无默认） |
+| 最近更新 | 2026-09-20（**撤库侧默认**：migration `0022_ingest_report_default_parity` 对 `ingest_reports.cross_doc_dropped` / `conflict_pairs` 执行 `DROP DEFAULT`，把 `0015` 为回填留下的 `DEFAULT 0` / `DEFAULT '[]'::jsonb` 撤掉，使库侧与 schema / 快照一致；**未在真 PG 上跑过**（本机无 Docker 守护进程）；新增护栏单测 `tests/migrations/sql-snapshot-default-parity.test.ts`）；2026-09-20（`drizzle/meta/0021_snapshot.json` 基线快照落盘（26 表），`db:generate` 恢复可用；**验收在仓外副本达成**，仓库侧只多该未跟踪文件）；2026-09-19（`documents.active_index_version`，migration `0020`；`chunks.duplicate_of` / `dedupe_status`，migration `0021`；均**无默认**）；2026-09-17（`ingest_reports.contextualize_l1_ok` / `contextualize_l0_fallback`，migration `0019`，无默认）；2026-09-16（`ingest_reports.dedupe_cross_doc_rate`，migration `0018`；`ask_traces.citations`，migration `0017`；均无默认） |
 | Spec | `.trellis/spec/db/backend/` |
 | PRD | `prds/03-data` · `prds/02-engineering/02-orm-drizzle.md` |
 
@@ -36,7 +36,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 - `knowledge_bases` · `documents`（含 **`chunkStrategy` / `chunkStrategyParams`** · **`active_index_version`**（migration `0020`；**可空无默认**，NULL = 从未成功激活 / 旧行未回填；只在 `es_index` 成功那次与 `status=ready` **同一条 UPDATE** 写）· **P3b-META** `owner_dept_id` / `visibility_level` 默认 20；**强制未接** · **P3b** `acl_principals` 可空 `uuid[]`，NULL=未设）· `chunks`（含 **`duplicate_of` / `dedupe_status`**，migration `0021`；`dedupe_status` 仅取值 `pending_review`，处理完回 NULL）· `chunk_manifests`
 - `chunk_embeddings`：**`embedding` 列为 jsonb `number[]`**（演示 mock 向量；**不是** native pgvector/`vector` 列）
 - `ingest_jobs`：schema 已有；**worker** `job-ledger` 按阶段边界最小写（**非**本包服务层；无查询 API；同 doc 锁在 worker Redis 侧）
-- `ingest_reports`：doc+indexVersion 唯一；事实列 chunkCount / internalDropped / **crossDocDropped / dedupeCrossDocRate** / conflictPairs / **contextSource** / **contextualizeL1Ok / contextualizeL0Fallback** / 双就绪 / 对账计数（migration `0011_ingest_reports` + `0015_ingest_report_cross_doc` + `0016_ingest_report_context_source` + `0018_ingest_report_dedupe_rate` + `0019_ingest_report_contextualize_counts`）；`dedupe_cross_doc_rate` 与两个 contextualize 计数**均无默认**（NULL = 迁移前旧行未记录，不得读成 0；L1 未开启的本轮写 0）；`conflictPairs` 形状 = `{otherDocId, otherChunkId, action: skip_index|pending_review, heldChunkId?}`；**无** Hit@k 列
+- `ingest_reports`：doc+indexVersion 唯一；事实列 chunkCount / internalDropped / **crossDocDropped / dedupeCrossDocRate** / conflictPairs / **contextSource** / **contextualizeL1Ok / contextualizeL0Fallback** / 双就绪 / 对账计数（migration `0011_ingest_reports` + `0015_ingest_report_cross_doc` + `0016_ingest_report_context_source` + `0018_ingest_report_dedupe_rate` + `0019_ingest_report_contextualize_counts`）；`dedupe_cross_doc_rate` 与两个 contextualize 计数**均无默认**（NULL = 迁移前旧行未记录，不得读成 0；L1 未开启的本轮写 0）；**`cross_doc_dropped` / `conflict_pairs` 的库侧默认已于 migration `0022` 撤销**（`0015` 为回填留下的 `DEFAULT 0` / `DEFAULT '[]'::jsonb` 与 schema 不一致，留着会让漏传该列的写入被静默填 0，故撤掉；漏传即 `NOT NULL` 违例）；`conflictPairs` 形状 = `{otherDocId, otherChunkId, action: skip_index|pending_review, heldChunkId?}`；**无** Hit@k 列
 - `kb_settings_audits`：tenantId / kbId / actorUserId / diffJson（migration `0013_kb_settings_audits`）；**无**密钥列；**不是** admin_write 全路径落表
 - `kb_members`
 - **ADR-053**：`chunk_strategy_definitions` · `kb_chunk_strategies`（migration `0009_chunk_strategy_layers`）
@@ -48,8 +48,8 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 - **gold_questions**：运营题面（caseKey 每库唯一；migration `0010_eval_floor`）
 - schema 单测：`tests/ask/ask-schema.test.ts`
 
-### Migrations（journal 22 条，idx 0–21）
-- `0000_phase0_schema_meta` → `0021_chunks_dedupe_review`（`drizzle/meta/_journal.json`）
+### Migrations（journal 23 条，idx 0–22）
+- `0000_phase0_schema_meta` → `0022_ingest_report_default_parity`（`drizzle/meta/_journal.json`）
 - 脚本：`db:generate` / `db:migrate` / `db:studio`（运维产品化流水线 **不**在本包宣称）
 - **基线快照（2026-09-20 已补）**：`drizzle/meta/` 现有 `0000_snapshot.json` 与 **`0021_snapshot.json`**（`0001`–`0020` 仍缺，属历史缺口；`generate` 只读排序**末位**快照，故不影响可用性）→ `drizzle-kit generate` **恢复可用**，硬验收 = 跑出 `No schema changes, nothing to migrate 😴`；**该验收在仓外副本达成、未在仓库工作区跑过**（以免把 `0022_*.sql` 写进仓库），复跑：`node <副本>/node_modules/drizzle-kit/bin.cjs generate`（需跑命令坐实，非单测）。`drizzle-kit check` 仍**假绿**、**不得**单独用作验收；已装 `drizzle-kit@0.31.10` **不输出 `IF NOT EXISTS`**，故**禁止**提交 generate 的全量 `CREATE TABLE` 产物（会让 `migrate` 在已建表的库上报 `relation already exists`）。当前有效实践仍是**手写 migration SQL + 手写 journal 条目**
 
