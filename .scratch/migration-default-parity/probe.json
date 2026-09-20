@@ -1,0 +1,13 @@
+{
+  "statusRaw": "\" M docs/module-status/db.md\\n M packages/db/drizzle/meta/_journal.json\\n M packages/db/tests/index.md\\n?? .scratch/kb-role-vs-code/\\n?? .scratch/migration-default-parity/\\n?? packages/db/drizzle/0022_ingest_report_default_parity.sql\\n?? packages/db/tests/migrations/\\n\"",
+  "lines": [
+    "\" M docs/module-status/db.md\"",
+    "\" M packages/db/drizzle/meta/_journal.json\"",
+    "\" M packages/db/tests/index.md\"",
+    "\"?? .scratch/kb-role-vs-code/\"",
+    "\"?? .scratch/migration-default-parity/\"",
+    "\"?? packages/db/drizzle/0022_ingest_report_default_parity.sql\"",
+    "\"?? packages/db/tests/migrations/\"",
+    "\"\""
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "总数": 37,
+  "分类": {
+    "2-env": 2,
+    "3-符号": 13,
+    "5-表": 21,
+    "6-联动": 1
+  },
+  "联动": [
+    {
+      "doc": "(工作区)",
+      "check": "6-联动",
+      "claim": "改 packages/db/* 未改 docs/module-status/db.md",
+      "detail": "可能漂移，需人工确认"
+    }
+  ],
+  "db表claim": [
+    "`dedupe_status`",
+    "`contextualize_l0_fallback`",
+    "`active_index_version`",
+    "`visibility_level`",
+    "`acl_principals`",
+    "`duplicate_of`",
+    "`dedupe_status`",
+    "`dedupe_status`",
+    "`pending_review`",
+    "`dedupe_cross_doc_rate`",
+    "`citations`",
+    "`generate`",
+    "`migrate`"
+  ]
+}

@@ -1,0 +1,242 @@
+[
+  {
+    "doc": "api.md",
+    "check": "2-env",
+    "claim": "STORAGE_MODE=s3",
+    "detail": "代码默认 local（api/src/env.ts）"
+  },
+  {
+    "doc": "worker.md",
+    "check": "2-env",
+    "claim": "STORAGE_MODE=s3",
+    "detail": "代码默认 local（worker/src/env.ts）"
+  },
+  {
+    "doc": "api.md",
+    "check": "3-符号",
+    "claim": "`UNSUPPORTED_MEDIA_TYPE`",
+    "detail": "关联包（api/contracts/db/admin-catalog）导出中不存在（可能为概念名，可加入黑名单）"
+  },
+  {
+    "doc": "api.md",
+    "check": "3-符号",
+    "claim": "`FORBIDDEN`",
+    "detail": "关联包（api/contracts/db/admin-catalog）导出中不存在（可能为概念名，可加入黑名单）"
+  },
+  {
+    "doc": "api.md",
+    "check": "3-符号",
+    "claim": "`DEV_DEFAULT_TENANT`",
+    "detail": "关联包（api/contracts/db/admin-catalog）导出中不存在（可能为概念名，可加入黑名单）"
+  },
+  {
+    "doc": "api.md",
+    "check": "3-符号",
+    "claim": "`RULE_VIOLATION`",
+    "detail": "关联包（api/contracts/db/admin-catalog）导出中不存在（可能为概念名，可加入黑名单）"
+  },
+  {
+    "doc": "api.md",
+    "check": "3-符号",
+    "claim": "`RULE_VIOLATION`",
+    "detail": "关联包（api/contracts/db/admin-catalog）导出中不存在（可能为概念名，可加入黑名单）"
+  },
+  {
+    "doc": "api.md",
+    "check": "3-符号",
+    "claim": "`NULL`",
+    "detail": "关联包（api/contracts/db/admin-catalog）导出中不存在（可能为概念名，可加入黑名单）"
+  },
+  {
+    "doc": "api.md",
+    "check": "3-符号",
+    "claim": "`GENERATE_MIN_NODES`",
+    "detail": "关联包（api/contracts/db/admin-catalog）导出中不存在（可能为概念名，可加入黑名单）"
+  },
+  {
+    "doc": "api.md",
+    "check": "3-符号",
+    "claim": "`RATE_LIMITED`",
+    "detail": "关联包（api/contracts/db/admin-catalog）导出中不存在（可能为概念名，可加入黑名单）"
+  },
+  {
+    "doc": "api.md",
+    "check": "3-符号",
+    "claim": "`CONFLICT`",
+    "detail": "关联包（api/contracts/db/admin-catalog）导出中不存在（可能为概念名，可加入黑名单）"
+  },
+  {
+    "doc": "db.md",
+    "check": "3-符号",
+    "claim": "`NULL`",
+    "detail": "关联包（db）导出中不存在（可能为概念名，可加入黑名单）"
+  },
+  {
+    "doc": "worker.md",
+    "check": "3-符号",
+    "claim": "`OCR_UNAVAILABLE`",
+    "detail": "关联包（worker/contracts/db）导出中不存在（可能为概念名，可加入黑名单）"
+  },
+  {
+    "doc": "worker.md",
+    "check": "3-符号",
+    "claim": "`OCR_LOW_CONFIDENCE`",
+    "detail": "关联包（worker/contracts/db）导出中不存在（可能为概念名，可加入黑名单）"
+  },
+  {
+    "doc": "README.md",
+    "check": "3-符号",
+    "claim": "`GENERATE_MIN_NODES`",
+    "detail": "关联包（api/worker/web/admin/contracts/db/admin-catalog/ui/eslint-config/typescript-config）导出中不存在（可能为概念名，可加入黑名单）"
+  },
+  {
+    "doc": "api.md",
+    "check": "5-表",
+    "claim": "`node_used`",
+    "detail": "db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）"
+  },
+  {
+    "doc": "api.md",
+    "check": "5-表",
+    "claim": "`null`",
+    "detail": "db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）"
+  },
+  {
+    "doc": "api.md",
+    "check": "5-表",
+    "claim": "`null`",
+    "detail": "db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）"
+  },
+  {
+    "doc": "api.md",
+    "check": "5-表",
+    "claim": "`null`",
+    "detail": "db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）"
+  },
+  {
+    "doc": "api.md",
+    "check": "5-表",
+    "claim": "`admin_write`",
+    "detail": "db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）"
+  },
+  {
+    "doc": "api.md",
+    "check": "5-表",
+    "claim": "`node_used`",
+    "detail": "db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）"
+  },
+  {
+    "doc": "api.md",
+    "check": "5-表",
+    "claim": "`llm_call_total`",
+    "detail": "db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）"
+  },
+  {
+    "doc": "api.md",
+    "check": "5-表",
+    "claim": "`null`",
+    "detail": "db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）"
+  },
+  {
+    "doc": "db.md",
+    "check": "5-表",
+    "claim": "`conflict_pairs`",
+    "detail": "db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）"
+  },
+  {
+    "doc": "db.md",
+    "check": "5-表",
+    "claim": "`dedupe_status`",
+    "detail": "db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）"
+  },
+  {
+    "doc": "db.md",
+    "check": "5-表",
+    "claim": "`contextualize_l0_fallback`",
+    "detail": "db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）"
+  },
+  {
+    "doc": "db.md",
+    "check": "5-表",
+    "claim": "`active_index_version`",
+    "detail": "db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）"
+  },
+  {
+    "doc": "db.md",
+    "check": "5-表",
+    "claim": "`visibility_level`",
+    "detail": "db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）"
+  },
+  {
+    "doc": "db.md",
+    "check": "5-表",
+    "claim": "`acl_principals`",
+    "detail": "db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）"
+  },
+  {
+    "doc": "db.md",
+    "check": "5-表",
+    "claim": "`duplicate_of`",
+    "detail": "db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）"
+  },
+  {
+    "doc": "db.md",
+    "check": "5-表",
+    "claim": "`dedupe_status`",
+    "detail": "db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）"
+  },
+  {
+    "doc": "db.md",
+    "check": "5-表",
+    "claim": "`dedupe_status`",
+    "detail": "db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）"
+  },
+  {
+    "doc": "db.md",
+    "check": "5-表",
+    "claim": "`pending_review`",
+    "detail": "db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）"
+  },
+  {
+    "doc": "db.md",
+    "check": "5-表",
+    "claim": "`dedupe_cross_doc_rate`",
+    "detail": "db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）"
+  },
+  {
+    "doc": "db.md",
+    "check": "5-表",
+    "claim": "`cross_doc_dropped`",
+    "detail": "db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）"
+  },
+  {
+    "doc": "db.md",
+    "check": "5-表",
+    "claim": "`conflict_pairs`",
+    "detail": "db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）"
+  },
+  {
+    "doc": "db.md",
+    "check": "5-表",
+    "claim": "`citations`",
+    "detail": "db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）"
+  },
+  {
+    "doc": "db.md",
+    "check": "5-表",
+    "claim": "`generate`",
+    "detail": "db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）"
+  },
+  {
+    "doc": "db.md",
+    "check": "5-表",
+    "claim": "`migrate`",
+    "detail": "db schema 表清单中不存在（可能为字段/状态词，可加入黑名单）"
+  },
+  {
+    "doc": "(工作区)",
+    "check": "6-联动",
+    "claim": "改 packages/db/* 未改 docs/module-status/db.md",
+    "detail": "可能漂移，需人工确认"
+  }
+]

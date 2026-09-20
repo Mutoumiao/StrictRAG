@@ -1,0 +1,27 @@
+{
+  "总数": 39,
+  "分类": {
+    "2-env": 2,
+    "3-符号": 13,
+    "5-表": 24
+  },
+  "联动": [],
+  "db表claim": [
+    "`conflict_pairs`",
+    "`dedupe_status`",
+    "`contextualize_l0_fallback`",
+    "`active_index_version`",
+    "`visibility_level`",
+    "`acl_principals`",
+    "`duplicate_of`",
+    "`dedupe_status`",
+    "`dedupe_status`",
+    "`pending_review`",
+    "`dedupe_cross_doc_rate`",
+    "`cross_doc_dropped`",
+    "`conflict_pairs`",
+    "`citations`",
+    "`generate`",
+    "`migrate`"
+  ]
+}
