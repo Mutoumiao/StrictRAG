@@ -30,6 +30,7 @@ Status: open
 - **已知前置（未验证项）**：本机 Docker daemon 未运行 → 迁移无法对真 PG 验证；此类未验证须显式写在工单 Answer 与回写里。
 - **票面调整（2026-09-20）**：`09` 原含"部门组重塑"，执行时拆成两张 —— `09` 只落级别组与字段（**纯增量、不破坏既有断言**），部门组重塑另立 [13](./issues/13-task-es-dept-reshape.md)（会改写既有 `terms` 精确断言，单独承担断言改写与反证）。**执行顺序**：本图先做 `09` 而非编号更小的 `08` —— 09 是行为修复（ES 侧可见级收窄 + 索引字段对称）且改动面自洽可单独回滚；`08` 是横跨四个入口的结构性重构，需单独一轮以保证"逐位等价"。
 - **本图第一张代码票的收口门禁（2026-09-20 · 09）**：`pnpm check-types` **8/8** · `pnpm lint` **8/8 零 warning** · `pnpm test` **11/11**（api **162** 文件 / **988** 通过 + 3 skipped；改前为 980，新增 8 条为本票所加）· `pnpm check:module-status` **39 条**（仍为 2 env + 13 符号 + 24 表），`1-路径` / `6-联动` / `7-时效` 全空 —— 其中 `6-联动` 曾报「改 apps/api|worker 未改对应镜像」2 条，已按源码把 `docs/module-status/api.md` 与 `worker.md` 回写清零（回写里含一条**修正**：原记「缺激活 version 表示」为 reindex 前置系陈旧，`active_index_version` 已落地）。**覆盖表（`docs/testing/coverage/02-acl.md`）的 B2/AE 行改写仍归工单 12**，本票未动。
+- **HOW 回写（2026-09-20 · 09 收尾）**：`.trellis/spec/api/backend/departments.md` 增「检索期部门 / 名单收窄与 ES 索引一致性」一节 —— 记形态约束（filter 数组元素间 AND、新条件一律加独立元素）、级别组的上界语义与 `maxVisibleLevel` 三态信号、ACL 收紧 = 人工 reindex 的口径，并修正旧文里「缺激活 version 表示」的陈旧说法；节尾列明未覆盖项（真 ES 集群行为只断言到请求体形状）。**这同时落掉了工单 10 的「口径写进 spec」一半**；10 余下的是 B2-2 的测例口径断言。
 
 ## Decisions so far
 
