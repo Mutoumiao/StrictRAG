@@ -28,6 +28,8 @@ Status: open
 - **不改 `prds/00–11`**：任何「与 PRD 字面不一致」只能以「源码收紧 + 记 ADR 债」收口；销账须 ADR → 改 PRD → 升版本。
 - **写回纪律（前图教训）**：`docs/module-status/*.md` 正文**不写 `路径:行号`**（会触发 `pnpm check:module-status` 的 `1-路径` 误报），也不给裸枚举字面量加反引号（会把 `5-表` 告警刷高）。行号只写在 `.scratch/` 工单与 `.trellis/spec/` 里。
 - **已知前置（未验证项）**：本机 Docker daemon 未运行 → 迁移无法对真 PG 验证；此类未验证须显式写在工单 Answer 与回写里。
+- **票面调整（2026-09-20）**：`09` 原含"部门组重塑"，执行时拆成两张 —— `09` 只落级别组与字段（**纯增量、不破坏既有断言**），部门组重塑另立 [13](./issues/13-task-es-dept-reshape.md)（会改写既有 `terms` 精确断言，单独承担断言改写与反证）。**执行顺序**：本图先做 `09` 而非编号更小的 `08` —— 09 是行为修复（ES 侧可见级收窄 + 索引字段对称）且改动面自洽可单独回滚；`08` 是横跨四个入口的结构性重构，需单独一轮以保证"逐位等价"。
+- **本图第一张代码票的收口门禁（2026-09-20 · 09）**：`pnpm check-types` **8/8** · `pnpm lint` **8/8 零 warning** · `pnpm test` **11/11**（api **162** 文件 / **988** 通过 + 3 skipped；改前为 980，新增 8 条为本票所加）· `pnpm check:module-status` **39 条**（仍为 2 env + 13 符号 + 24 表），`1-路径` / `6-联动` / `7-时效` 全空 —— 其中 `6-联动` 曾报「改 apps/api|worker 未改对应镜像」2 条，已按源码把 `docs/module-status/api.md` 与 `worker.md` 回写清零（回写里含一条**修正**：原记「缺激活 version 表示」为 reindex 前置系陈旧，`active_index_version` 已落地）。**覆盖表（`docs/testing/coverage/02-acl.md`）的 B2/AE 行改写仍归工单 12**，本票未动。
 
 ## Decisions so far
 
@@ -38,6 +40,7 @@ Status: open
 - [裁定 dense∥ES 对称走等价形态](./issues/05-dec-dense-es-symmetry.md) — 取 **B**：PG 语料 = ACL 真值源、ES 查询期 filter = PG 谓词**严格超集**且只在排序上生效、ES 命中一律经语料求交收口；**不实现 pgvector 查询期 filter**（前置不存在、收益为零、属架构变更）。三条成立条件 + 失效条件写清，并记 **3 条 ADR 债**（ADR-009 `:152`、ES PRD `:163`、在线 PRD `:188`）—— 销账须 ADR → 改 PRD → 升版。
 - [裁定 ES 侧补字段与缺字段语义](./issues/06-dec-es-dept-field.md) — 补 `visibilityLevel`(integer) 到 mapping/bulk/查询期（api + worker **两处近似拷贝同改**，PG 侧 `notNull default 20` 故**始终写**）；部门组从裸 `terms` 改为 `bool.should[terms, must_not exists]`；**部门组与级别组必须是 filter 数组的两个独立元素**（并进一个 `should` 即放松）；以 `maxVisibleLevel` 是否传入作"收窄生效"的**显式三态**信号，顺手关掉"ids 为空时 ES 对部门文档 fail-open"这一处；`maxVisibleLevel = max(任一处负责人?30:20, 未过期 grant 的级别最大值)` 为上界（保"只加严"）。**角色 principal 明确不在本图落**，并写明 B2-2 只能作"移出 uuid 名单"的等价替换。
 - [裁定 ACL 收紧保持人工 reindex](./issues/07-dec-acl-tighten-reindex.md) — **不自动入队**：ADR-009 `:156` 字面是"确认义务"非"自动触发"；泄漏侧今天已由 PG 闸 + 语料求交闭合（索引滞后不构成泄漏）；自动入队会引入无幂等、无预算记账的新压力面。B2-2 的成立口径写清（"不可检索"由 PG 闸即时成立，reindex 只让索引跟上）。连带核实：镜像把「缺激活 version 表示」记为前置系**陈旧**，`active_index_version` 已由前图 L7 落地。
+- [落 ES 查询期的级别收窄（字段 + 级别组）](./issues/09-task-es-dept-parity.md) — `maxVisibleLevelUpperBound`（上界而非逐文档规则，故只加严）+ `visibilityLevel` 字段入 api/worker 两处 mapping 与 bulk + `buildAclFilter` 在传 `maxVisibleLevel` 时追加**独立的**级别组；`retrieve.ts` 的 `sparseNarrowingForSearch` 用同一份 IO 同时产出部门 id 与级别上界，并把 `maxVisibleLevel` 立为"收窄生效"的三态信号。**纯增量**：不传信号时 filter 与旧版逐位一致。证据：api 4 文件 **83/83** · worker 2 文件 **20/20** · 反证两处破坏各红 2 条、恢复 60/60 绿。**划出**：真 ES 集群行为（`range`/`exists`/mapping 冲突）未验证；部门组重塑拆到 [13](./issues/13-task-es-dept-reshape.md)。
 
 ## Not yet specified
 

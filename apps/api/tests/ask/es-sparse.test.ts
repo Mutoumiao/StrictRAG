@@ -12,6 +12,7 @@ import {
   EsSparseError,
   esConfigFromEnv,
   searchSparseEs,
+  sparseBulkSource,
 } from '../../src/services/retrieve/es-sparse.js';
 
 afterEach(() => {
@@ -54,6 +55,65 @@ describe('buildAclFilter', () => {
       { term: { kbId: 'kb-1' } },
       { terms: { ownerDeptId: ['dept-a'] } },
     ]);
+  });
+
+  it('不传 maxVisibleLevel 不加级别组（旧行为逐位不变）', () => {
+    expect(
+      buildAclFilter({ tenantId: 't-1', kbId: 'kb-1', ownerDeptIds: ['dept-a'] }),
+    ).toHaveLength(3);
+  });
+
+  it('传 maxVisibleLevel 时追加级别组（range + 缺字段放行）', () => {
+    expect(
+      buildAclFilter({
+        tenantId: 't-1',
+        kbId: 'kb-1',
+        ownerDeptIds: ['dept-a'],
+        maxVisibleLevel: 30,
+      }),
+    ).toEqual([
+      { term: { tenantId: 't-1' } },
+      { term: { kbId: 'kb-1' } },
+      { terms: { ownerDeptId: ['dept-a'] } },
+      {
+        bool: {
+          should: [
+            { range: { visibilityLevel: { lte: 30 } } },
+            { bool: { must_not: { exists: { field: 'visibilityLevel' } } } },
+          ],
+          minimum_should_match: 1,
+        },
+      },
+    ]);
+  });
+
+  it('级别组与部门组是 filter 数组的两个独立元素（并进同一 should 即放松）', () => {
+    const filter = buildAclFilter({
+      tenantId: 't-1',
+      kbId: 'kb-1',
+      ownerDeptIds: ['dept-a'],
+      maxVisibleLevel: 20,
+      applyAclPrincipals: true,
+      aclPrincipalUserId: 'u-1',
+    });
+    expect(filter).toHaveLength(5);
+    const dept = filter[2] as { terms?: unknown; bool?: { should?: unknown[] } };
+    expect(dept.terms).toEqual({ ownerDeptId: ['dept-a'] });
+    const level = filter[3] as { bool: { should: unknown[] } };
+    expect(level.bool.should).toHaveLength(2);
+    expect(JSON.stringify(level)).not.toContain('ownerDeptId');
+  });
+});
+
+describe('sparseBulkSource visibilityLevel', () => {
+  const base = { chunkId: 'c1', tenantId: 't-1', kbId: 'kb-1', docId: 'd1', sparseText: 'x' };
+
+  it('有值即写；缺省 / null 不写', () => {
+    expect(sparseBulkSource({ ...base, visibilityLevel: 20 }).visibilityLevel).toBe(20);
+    expect(sparseBulkSource(base)).not.toHaveProperty('visibilityLevel');
+    expect(sparseBulkSource({ ...base, visibilityLevel: null })).not.toHaveProperty(
+      'visibilityLevel',
+    );
   });
 });
 

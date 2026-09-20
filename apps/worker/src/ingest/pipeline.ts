@@ -934,6 +934,7 @@ async function runIngestStageCore(
               sparseText: sparseTextForChunk(row.contextPrefix, row.bodyText),
               ownerDeptId: doc.ownerDeptId,
               aclPrincipals: doc.aclPrincipals,
+              visibilityLevel: doc.visibilityLevel,
             })),
           );
           const indexed = await listIndexedChunkIds(cfg, doc.id, doc.tenantId);

@@ -1,8 +1,8 @@
 /**
- * 目标：检索期按部门 ACL 过滤可见文档。
+ * 目标：检索期按部门 ACL 过滤可见文档；ES 收窄用的级别上界只加严。
  * 需求：DEPT_ACL
- * 被测：filterDocsForDeptAcl
- * 简介：默认 enforce 关。
+ * 被测：filterDocsForDeptAcl · maxVisibleLevelUpperBound
+ * 简介：默认 enforce 关；级别上界取可达最大值（含未过期 grant），过期 grant 不计。
  */
 
 import { describe, expect, it } from 'vitest';
@@ -14,6 +14,7 @@ import {
   loadDeptAssignments,
   loadDeptGrants,
   loadDeptNodes,
+  maxVisibleLevelUpperBound,
 } from '../../src/services/retrieve/dept-acl.js';
 
 const DEPT_A = '01900000-0000-7000-8000-0000000000a1';
@@ -33,6 +34,47 @@ const docs = [
   { id: 'a30', ownerDeptId: DEPT_A, visibilityLevel: 30 },
   { id: 'b20', ownerDeptId: DEPT_B, visibilityLevel: 20 },
 ];
+
+describe('maxVisibleLevelUpperBound', () => {
+  const now = '2026-09-20 12:00:00';
+
+  it('无归属无 grant → 20（非负责人基线）', () => {
+    expect(maxVisibleLevelUpperBound({ assignments: [], now })).toBe(20);
+    expect(maxVisibleLevelUpperBound({ assignments: [], grants: [], now })).toBe(20);
+  });
+
+  it('非负责人归属 → 20；负责人归属 → 30', () => {
+    expect(maxVisibleLevelUpperBound({ assignments: [{ deptId: DEPT_A, isLeader: false }], now })).toBe(20);
+    expect(maxVisibleLevelUpperBound({ assignments: [{ deptId: DEPT_A, isLeader: true }], now })).toBe(30);
+  });
+
+  it('未过期 grant 抬到其上界；过期 grant 不计', () => {
+    expect(
+      maxVisibleLevelUpperBound({
+        assignments: [],
+        grants: [{ deptId: DEPT_A, maxVisibilityLevel: 40, expiresAt: null }],
+        now,
+      }),
+    ).toBe(40);
+    expect(
+      maxVisibleLevelUpperBound({
+        assignments: [],
+        grants: [{ deptId: DEPT_A, maxVisibilityLevel: 40, expiresAt: '2000-01-01 00:00:00' }],
+        now,
+      }),
+    ).toBe(20);
+  });
+
+  it('取各来源最大值（负责人 30 + grant 40 → 40）', () => {
+    expect(
+      maxVisibleLevelUpperBound({
+        assignments: [{ deptId: DEPT_A, isLeader: true }],
+        grants: [{ deptId: DEPT_B, maxVisibilityLevel: 40, expiresAt: null }],
+        now,
+      }),
+    ).toBe(40);
+  });
+});
 
 describe('filterDocsForDeptAcl', () => {
   it('enforce off → 原样', () => {

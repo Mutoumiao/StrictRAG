@@ -91,6 +91,27 @@ function grantEffectiveLevel(
   return max;
 }
 
+/**
+ * ES 查询期「级别收窄」用的**上界**（不是逐文档精确规则）。
+ * PG 精确规则是 `eff(doc.ownerDeptId) >= vis`（见 isDocVisibleForDeptAcl）；ES 无法逐文档算，
+ * 故取用户可达级别上界：`max(任一处负责人 ? 30 : 20, 未过期 grant 的 maxVisibilityLevel 最大值)`。
+ * 取上界 ⇒ PG 可见 ⇒ `vis <= 上界` ⇒ 该条件只缩小 ES 命中集，不丢 PG 可见文档（只加严）。
+ * 空部门文档的 eff 取 `assignments.some(isLeader) ? 30 : 20`（见 effectiveLevel），已被上式覆盖。
+ */
+export function maxVisibleLevelUpperBound(opts: {
+  assignments: readonly DeptAssignment[];
+  grants?: readonly DeptAclGrant[];
+  now?: string;
+}): number {
+  const now = opts.now ?? formatLocalDateTime();
+  let max = opts.assignments.some((a) => a.isLeader) ? 30 : 20;
+  for (const g of opts.grants ?? []) {
+    if (!isGrantActive(g.expiresAt, now)) continue;
+    max = Math.max(max, g.maxVisibilityLevel);
+  }
+  return max;
+}
+
 /** 精确 ∪ 祖先（inheritDown=false 不算归属祖先）；grant 精确 ∪ 祖先部门子树（不读 inheritDown）。enforce=false 一律可见。bypass=超管绕过。 */
 export function isDocVisibleForDeptAcl(
   doc: DeptAclDoc,

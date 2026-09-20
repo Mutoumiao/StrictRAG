@@ -1,8 +1,8 @@
 /**
- * 目标：稀疏索引 HTTP 配置与对账不得静默错配；mapping/bulk 须带 ownerDeptId 与 aclPrincipals。
+ * 目标：稀疏索引 HTTP 配置与对账不得静默错配；mapping/bulk 须带 ownerDeptId、aclPrincipals 与 visibilityLevel。
  * 需求：OPS-1 · DEPT_ACL
- * 被测：esHttpConfigFromEnv · sparseTextForChunk · reconcileIndexed · ensureSparseIndex · bulkIndexSparse
- * 简介：空 URL 为 null；chunk 文本拼接；missing/orphan；无部门不写该字段；名单 null 不写、[] 写哨兵。
+ * 被测：esHttpConfigFromEnv · sparseTextForChunk · reconcileIndexed · ensureSparseIndex · bulkIndexSparse · sparseBulkSource
+ * 简介：空 URL 为 null；chunk 文本拼接；missing/orphan；无部门不写该字段；名单 null 不写、[] 写哨兵；可见级有值即写。
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -79,6 +79,7 @@ describe('ownerDeptId mapping / bulk', () => {
           docId: { type: 'keyword' },
           ownerDeptId: { type: 'keyword' },
           aclPrincipals: { type: 'keyword' },
+          visibilityLevel: { type: 'integer' },
           sparseText: { type: 'text' },
         },
       },
@@ -129,6 +130,16 @@ describe('ownerDeptId mapping / bulk', () => {
         sparseText: 'x',
       }),
     ).not.toHaveProperty('ownerDeptId');
+  });
+
+  it('visibilityLevel 有值即写；缺省不写（旧索引兼容）', () => {
+    const base = { chunkId: 'c1', tenantId: 't', kbId: 'k', docId: 'd', sparseText: 'x' };
+    expect(sparseBulkSource({ ...base, visibilityLevel: 20 }).visibilityLevel).toBe(20);
+    expect(sparseBulkSource({ ...base, visibilityLevel: 40 }).visibilityLevel).toBe(40);
+    expect(sparseBulkSource(base)).not.toHaveProperty('visibilityLevel');
+    expect(sparseBulkSource({ ...base, visibilityLevel: null })).not.toHaveProperty(
+      'visibilityLevel',
+    );
   });
 });
 
@@ -222,6 +233,7 @@ describe('aclPrincipals mapping / bulk', () => {
       properties: {
         ownerDeptId: { type: 'keyword' },
         aclPrincipals: { type: 'keyword' },
+        visibilityLevel: { type: 'integer' },
       },
     });
   });

@@ -88,6 +88,11 @@ export type SparseSearcher = (input: {
   question: string;
   size: number;
   ownerDeptIds?: string[];
+  /**
+   * 部门收窄生效（enforce 开 ∧ 非超管）时传入的用户可达级别上界；
+   * ES 查询期据此追加 `visibilityLevel <= 上界` 收窄。缺省 = 不收窄（与旧行为逐位一致）。
+   */
+  maxVisibleLevel?: number;
   applyAclPrincipals?: boolean;
   aclPrincipalUserId?: string;
 }) => Promise<string[]>;

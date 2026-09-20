@@ -21,6 +21,7 @@ import {
   loadDeptAssignments,
   loadDeptGrants,
   loadDeptNodes,
+  maxVisibleLevelUpperBound,
 } from './dept-acl.js';
 import { EsSparseError, esConfigFromEnv, searchSparseEs } from './es-sparse.js';
 import { batchLoadChunkBodies } from './mongo-body.js';
@@ -72,19 +73,21 @@ function fail(reason: AskReason, message?: string): RetrieveResult {
 }
 
 /**
- * ES 收窄用部门 id。enforce 关或超管 bypass：不传。
+ * ES 收窄参数。enforce 关或超管 bypass：两者都不传（filter 与旧行为逐位一致）。
+ * enforce 开且非超管：给部门 id（用于 terms）与级别上界（用于级别组）。
+ * `maxVisibleLevel` 是"收窄生效"的三态信号：即便 ids 为空也传，避免 ES 侧对部门文档 fail-open。
  * 精确可见级仍走 PG filterDocsForDeptAcl。
  * 名单闸不走此函数：非超管始终 applyAclPrincipals，不跟 DEPT_ACL_ENFORCE。
  */
-async function ownerDeptIdsForSparseSearch(
+async function sparseNarrowingForSearch(
   input: RetrieveInput,
   bypassDeptAcl: boolean,
-): Promise<string[] | undefined> {
-  if (bypassDeptAcl) return undefined;
+): Promise<{ ownerDeptIds?: string[]; maxVisibleLevel?: number }> {
+  if (bypassDeptAcl) return {};
   const kb = await kbSettingsRepo.get(input.kbId);
   const config = kb?.configJson ?? null;
   const enforce = resolveDeptAclEnforce(parseDeptAclEnforceFromConfig(config));
-  if (!enforce) return undefined;
+  if (!enforce) return {};
   const inheritDown = resolveDeptInheritDown(parseDeptInheritDownFromConfig(config));
   const [assignments, depts, grants] = await Promise.all([
     loadDeptAssignments(input.tenantId, input.userId),
@@ -92,7 +95,10 @@ async function ownerDeptIdsForSparseSearch(
     loadDeptGrants(input.tenantId, input.userId),
   ]);
   const ids = collectVisibleOwnerDeptIds({ assignments, depts, grants, inheritDown });
-  return ids.length > 0 ? ids : undefined;
+  return {
+    ...(ids.length > 0 ? { ownerDeptIds: ids } : {}),
+    maxVisibleLevel: maxVisibleLevelUpperBound({ assignments, grants }),
+  };
 }
 
 /**
@@ -180,13 +186,16 @@ export async function runRetrieve(
   let sparseRanked: string[];
   if (deps.esMode === 'http') {
     try {
-      const ownerDeptIds = await ownerDeptIdsForSparseSearch(input, bypassDeptAcl);
+      const narrowing = await sparseNarrowingForSearch(input, bypassDeptAcl);
       sparseRanked = await deps.sparseSearch!({
         tenantId: input.tenantId,
         kbId: input.kbId,
         question: input.question,
         size: retrieveK,
-        ...(ownerDeptIds ? { ownerDeptIds } : {}),
+        ...(narrowing.ownerDeptIds ? { ownerDeptIds: narrowing.ownerDeptIds } : {}),
+        ...(narrowing.maxVisibleLevel != null
+          ? { maxVisibleLevel: narrowing.maxVisibleLevel }
+          : {}),
         ...(!bypassDeptAcl
           ? {
               applyAclPrincipals: true,

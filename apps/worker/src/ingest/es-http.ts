@@ -37,6 +37,8 @@ export type SparseBulkDoc = {
   ownerDeptId?: string | null;
   /** null/缺省不写字段；[] 写哨兵（ES exists 不认空数组）；非空写 uuid 列表 */
   aclPrincipals?: string[] | null;
+  /** 有值即写（PG 侧 notNull default 20，故正常总是有值；缺失只表示未 reindex 的旧文档） */
+  visibilityLevel?: number | null;
 };
 
 /** ES exists 不认空数组。显式空写入此哨兵，使字段存在且对真实 userId 无 term 命中。 */
@@ -61,12 +63,14 @@ const SPARSE_INDEX_PROPERTIES = {
   docId: { type: 'keyword' as const },
   ownerDeptId: { type: 'keyword' as const },
   aclPrincipals: { type: 'keyword' as const },
+  /** P3b 部门可见级：查询期比较用（documents.visibility_level 始终有值，故 bulk 始终写） */
+  visibilityLevel: { type: 'integer' as const },
   sparseText: { type: 'text' as const },
 };
 
 /** 有值才写入 ownerDeptId。aclPrincipals：null 不写；[] 写哨兵；非空写 uuid 列表。 */
-export function sparseBulkSource(d: SparseBulkDoc): Record<string, string | string[]> {
-  const source: Record<string, string | string[]> = {
+export function sparseBulkSource(d: SparseBulkDoc): Record<string, string | string[] | number> {
+  const source: Record<string, string | string[] | number> = {
     chunkId: d.chunkId,
     tenantId: requireTenantId(d.tenantId, 'sparseBulkSource'),
     kbId: d.kbId,
@@ -75,6 +79,9 @@ export function sparseBulkSource(d: SparseBulkDoc): Record<string, string | stri
   };
   const owner = typeof d.ownerDeptId === 'string' ? d.ownerDeptId.trim() : '';
   if (owner) source.ownerDeptId = owner;
+  if (typeof d.visibilityLevel === 'number' && Number.isFinite(d.visibilityLevel)) {
+    source.visibilityLevel = d.visibilityLevel;
+  }
   if (Array.isArray(d.aclPrincipals)) {
     const ids = d.aclPrincipals.filter((id) => typeof id === 'string' && id.length > 0);
     source.aclPrincipals = ids.length > 0 ? ids : [ACL_PRINCIPALS_NONE_SENTINEL];
@@ -110,6 +117,7 @@ async function putSparseAclMapping(
       properties: {
         ownerDeptId: { type: 'keyword' },
         aclPrincipals: { type: 'keyword' },
+        visibilityLevel: { type: 'integer' },
       },
     }),
   });

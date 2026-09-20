@@ -195,6 +195,7 @@ describe('sparse mapping / bulk', () => {
           docId: { type: 'keyword' },
           ownerDeptId: { type: 'keyword' },
           aclPrincipals: { type: 'keyword' },
+          visibilityLevel: { type: 'integer' },
           sparseText: { type: 'text' },
         },
       },

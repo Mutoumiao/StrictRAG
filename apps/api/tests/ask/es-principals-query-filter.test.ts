@@ -283,6 +283,7 @@ describe('sparse mapping / bulk aclPrincipals', () => {
       properties: {
         ownerDeptId: { type: 'keyword' },
         aclPrincipals: { type: 'keyword' },
+        visibilityLevel: { type: 'integer' },
       },
     });
   });

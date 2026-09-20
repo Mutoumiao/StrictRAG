@@ -17,6 +17,11 @@ export type EsSparseSearchInput = {
   size: number;
   /** enforce 开且非超管时传入；空/缺省不加部门 terms */
   ownerDeptIds?: string[];
+  /**
+   * 部门收窄生效时的用户可达级别上界（唯一"是否收窄"的三态信号）。
+   * 缺省 = 不收窄：filter 与旧版逐位一致。传入 = 追加级别组（见 buildAclFilter）。
+   */
+  maxVisibleLevel?: number;
   /** 非超管名单闸；缺省不加 principals clause。不跟 DEPT_ACL_ENFORCE。 */
   applyAclPrincipals?: boolean;
   /** apply 时写入 term；空则只 must_not exists */
@@ -32,6 +37,8 @@ export type SparseBulkDoc = {
   ownerDeptId?: string | null;
   /** null/缺省不写字段；[] 写哨兵（ES exists 不认空数组）；非空写 uuid 列表 */
   aclPrincipals?: string[] | null;
+  /** 有值即写（PG 侧 notNull default 20，故正常总是有值；缺失只表示未 reindex 的旧文档） */
+  visibilityLevel?: number | null;
 };
 
 /** ES exists 不认空数组。显式空写入此哨兵，使字段存在且对真实 userId 无 term 命中。 */
@@ -57,6 +64,8 @@ const SPARSE_INDEX_PROPERTIES = {
   docId: { type: 'keyword' as const },
   ownerDeptId: { type: 'keyword' as const },
   aclPrincipals: { type: 'keyword' as const },
+  /** P3b 部门可见级：查询期比较用（documents.visibility_level 始终有值，故 bulk 始终写） */
+  visibilityLevel: { type: 'integer' as const },
   sparseText: { type: 'text' as const },
 };
 
@@ -71,15 +80,31 @@ export type EsAclPrincipalsClause = {
   };
 };
 
+export type EsVisibilityLevelShould =
+  | { range: { visibilityLevel: { lte: number } } }
+  | { bool: { must_not: { exists: { field: 'visibilityLevel' } } } };
+
+/**
+ * 级别组：必须是 filter 数组里的**独立元素**（与部门组 AND）。
+ * 禁止与部门组并进同一个 should —— 那会变成「部门 OR 库级 OR 级别达标 OR 缺失」= 放松。
+ */
+export type EsVisibilityLevelClause = {
+  bool: {
+    should: EsVisibilityLevelShould[];
+    minimum_should_match: 1;
+  };
+};
+
 export type EsAclFilterClause =
   | { term: { tenantId: string } }
   | { term: { kbId: string } }
   | { terms: { ownerDeptId: string[] } }
+  | EsVisibilityLevelClause
   | EsAclPrincipalsClause;
 
 /** 有值才写入 ownerDeptId。aclPrincipals：null 不写；[] 写哨兵；非空写 uuid 列表。 */
-export function sparseBulkSource(d: SparseBulkDoc): Record<string, string | string[]> {
-  const source: Record<string, string | string[]> = {
+export function sparseBulkSource(d: SparseBulkDoc): Record<string, string | string[] | number> {
+  const source: Record<string, string | string[] | number> = {
     chunkId: d.chunkId,
     tenantId: requireTenantId(d.tenantId, 'sparseBulkSource'),
     kbId: d.kbId,
@@ -88,6 +113,9 @@ export function sparseBulkSource(d: SparseBulkDoc): Record<string, string | stri
   };
   const owner = typeof d.ownerDeptId === 'string' ? d.ownerDeptId.trim() : '';
   if (owner) source.ownerDeptId = owner;
+  if (typeof d.visibilityLevel === 'number' && Number.isFinite(d.visibilityLevel)) {
+    source.visibilityLevel = d.visibilityLevel;
+  }
   if (Array.isArray(d.aclPrincipals)) {
     const ids = d.aclPrincipals.filter((id) => typeof id === 'string' && id.length > 0);
     source.aclPrincipals = ids.length > 0 ? ids : [ACL_PRINCIPALS_NONE_SENTINEL];
@@ -108,10 +136,28 @@ export function aclPrincipalsFilterClause(userId?: string): EsAclPrincipalsClaus
 }
 
 /**
+ * 级别收窄组：PG 可见级比较（ADR-057）在 ES 侧的粗收窄。
+ * `visibilityLevel` 缺失（未 reindex 的旧文档）放行 —— 只表示"不放松 vs 今天"；
+ * 精确可见级仍由 PG 语料把关，且本条件取的是**上界**（见 maxVisibleLevelUpperBound）。
+ */
+export function visibilityLevelFilterClause(maxVisibleLevel: number): EsVisibilityLevelClause {
+  return {
+    bool: {
+      should: [
+        { range: { visibilityLevel: { lte: maxVisibleLevel } } },
+        { bool: { must_not: { exists: { field: 'visibilityLevel' } } } },
+      ],
+      minimum_should_match: 1,
+    },
+  };
+}
+
+/**
  * 检索期 ACL 对称 filter（ES 查询共用，禁止两路各写）。
  * P2 在 ES 查询期强制 tenantId + kbId（共享索引安全隔离，不得事后交 PG）。
  * 非空 ownerDeptIds 时追加 terms 收窄；空/缺省不加部门 terms。
  * applyAclPrincipals 时追加名单 should（缺字段可读；[] 不可命中）。
+ * 传入 maxVisibleLevel（= 部门收窄生效）时追加**独立**的级别组，见 visibilityLevelFilterClause。
  * 缺 ownerDeptId / 缺 aclPrincipals 字段不得把「显式空」当成全员可见。
  * 精确可见级仍由 PG filterDocsForDeptAcl / filterDocsForAclPrincipals 把关。
  * status/lifecycle/indexVersion 闸门由 PG corpus（loadCorpusFromDb）对称承载；
@@ -121,6 +167,7 @@ export function buildAclFilter(input: {
   tenantId: string;
   kbId: string;
   ownerDeptIds?: string[];
+  maxVisibleLevel?: number;
   applyAclPrincipals?: boolean;
   aclPrincipalUserId?: string;
 }): EsAclFilterClause[] {
@@ -131,6 +178,9 @@ export function buildAclFilter(input: {
   const ownerDeptIds = (input.ownerDeptIds ?? []).filter((id) => id.trim().length > 0);
   if (ownerDeptIds.length > 0) {
     filter.push({ terms: { ownerDeptId: ownerDeptIds } });
+  }
+  if (input.maxVisibleLevel != null) {
+    filter.push(visibilityLevelFilterClause(input.maxVisibleLevel));
   }
   if (input.applyAclPrincipals) {
     filter.push(aclPrincipalsFilterClause(input.aclPrincipalUserId));
@@ -198,6 +248,7 @@ async function putSparseAclMapping(
       properties: {
         ownerDeptId: { type: 'keyword' },
         aclPrincipals: { type: 'keyword' },
+        visibilityLevel: { type: 'integer' },
       },
     }),
   });

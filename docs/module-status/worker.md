@@ -7,7 +7,7 @@
 | 成熟度 | **可联调**（P1 入库状态机；**仅** development/test + mock 栈可起；**staging/production 当前无合法扫描配置**） |
 | 默认依赖模式 | `APP_ENV=development` · 启动探针 `WORKER_PROBE_ON_START=true` · 扫描 = `mock_clean` · 向量 = `mock`（dims=8，枚举 `mock\|fail`）· ES 索引 = `mock`（枚举 `mock\|fail\|http`，**默认 mock**；`http` 须 `ELASTICSEARCH_URL`）· 对象存储 = 默认本地目录；`STORAGE_MODE=s3` 走 RustFS（S3 兼容） · `S3_BUCKET=strict-rag` · Mongo URL 空则 `mongoDocId=local:` · `INGEST_MIN_EXTRACTED_CHARS=40` · `INGEST_OCR_ENABLED=false` · `INGEST_FAILURE_WEBHOOK_URL` **空=不发** · **可运行叠加** `.env.operable.example`（http/s3/mongo；**不**改 Zod 默认） |
 | 关联模块 | 由 `api` 入队触发；写库走 `@strict-rag/db`；队列名 / job payload / 可执行策略集来自 `@strict-rag/contracts`；运行需要 Redis + PostgreSQL |
-| 最近更新 | 2026-09-20（工单 13：ES 第三条查询路径补租户闸——`ingest/es-http.ts` 的 `requireTenantId` + 查询体 `term: tenantId`，调用点 `ingest/pipeline.ts`；补测批 2 入库闸与双就绪 9 个测例文件 + 共享夹具；补测批 4 Mongo 正文护栏）；2026-09-19（剧本 L7 孤儿清理 `orphan-clean.ts`；剧本 E4 `pending_review` 入审；O4 bulk builder 租户闸）；2026-09-17（入库报告落 `contextualize_l1_ok` / `contextualize_l0_fallback`，migration `0019`）；2026-09-16（L1 contextualize 真调用、默认 off；入库报告补跨文档去重率） |
+| 最近更新 | 2026-09-20（**ES sparse bulk 补可见级字段**：mapping 与 bulk source 增 `visibilityLevel`（有值即写；api 侧同形改动在 `es-sparse`），调用点 `ingest/pipeline.ts` 传文档可见级；补测 1 条并同步 2 处 mapping 精确断言。**未验证**：真 ES 集群行为）；2026-09-20（工单 13：ES 第三条查询路径补租户闸——`ingest/es-http.ts` 的 `requireTenantId` + 查询体 `term: tenantId`，调用点 `ingest/pipeline.ts`；补测批 2 入库闸与双就绪 9 个测例文件 + 共享夹具；补测批 4 Mongo 正文护栏）；2026-09-19（剧本 L7 孤儿清理 `orphan-clean.ts`；剧本 E4 `pending_review` 入审；O4 bulk builder 租户闸）；2026-09-17（入库报告落 `contextualize_l1_ok` / `contextualize_l0_fallback`，migration `0019`）；2026-09-16（L1 contextualize 真调用、默认 off；入库报告补跨文档去重率） |
 | Spec | `.trellis/spec/worker/backend/` |
 | PRD | `prds/06-async` · `prds/04-pipelines/01-offline-ingest.md` |
 
@@ -42,7 +42,7 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 - **ocr**（P5 开闸）：`INGEST_OCR_ENABLED` 默认 false。可注入 `ocrExtract`；无注入 → `OCR_UNAVAILABLE` 留 `needs_ocr`；低置信 → `needs_review` + `OCR_LOW_CONFIDENCE`；成功且字数达标 → `extractMethod=ocr` 交 chunk。utf8 文本层入队 ocr 拒抽（短页眉不得洗 ready）。运营 reindex 可入队 ocr。staging/prod 开闸无 `INGEST_OCR_ADR_REF` 告警可启动。**≠** 真引擎 / Cloud OCR / 启动自动全库
 - **chunk**：**仅** `structure_paragraph`（contracts `IMPLEMENTED_*`）；未实现 → `UNSUPPORTED_CHUNK_STRATEGY`（**不**静默回落）；读 `chunkStrategyParams.contextMode`：L0 prefix 无路径只用标题（禁止字面量 `section`）；`l0_template` 报告 `contextSource=l0`；`l1_llm` / 缺省：**默认（`INGEST_CONTEXTUALIZE_MODE=off`）不调 Gateway，同一 L0 prefix，报告 `l0_fallback`**；置 `http` 时逐块真调 chat（`contextualize-http.ts`，temp=0，PRD §4.1 冻结模板，输出单行且 ≤200 字符），**成功才写 `l1_llm`、任一块失败即回退 L0 并记 `l0_fallback`**（块仍可索引、不阻断），并打 `event=contextualize_summary` 的 `contextualize_l1_ok` / `contextualize_l0_fallback` 计数（**注**：worker 无 metrics 出口，这两个名字只作日志字段，≠ `/metrics` 计数器）。写 chunks（含 `mongoBodyId`）+ `chunk_manifests`；`MONGODB_URL` 非空时另写 Mongo `chunk_bodies`（`upsertChunkBodies`，`_id=chunkId`）；`indexVersion = doc.indexVersion+1` 并重置 `embedReady=0` / `esReady=0`
 - **embed**：mock 伪向量 dims=8 · `model=mock-embed`；缺 embedding 行才补写（幂等 skip）
-- **es_index**：默认 `mockEsStore`；`INGEST_ES_MODE=http` 时 `ensureSparseIndex` + bulk（写 `tenantId`/`kbId`/`docId`/`chunkId`/`sparseText`，有值才写 `ownerDeptId`；`aclPrincipals` 为数组才写，空数组写哨兵 `__acl_none__`）+ 按 doc 对账（映射对齐 api `es-sparse`）；要求 `embedReady`；双就绪 → `status=ready` **且 `lifecycle='draft'`**（**不是** `active`；默认检索闸 `ready∧active` 仍拦，须运营升 lifecycle），并**在同一条 UPDATE 原子激活 `active_index_version`**（ADR-038 §2.2；全仓唯一写点，失败路径不碰）
+- **es_index**：默认 `mockEsStore`；`INGEST_ES_MODE=http` 时 `ensureSparseIndex` + bulk（写 `tenantId`/`kbId`/`docId`/`chunkId`/`sparseText`，有值才写 `ownerDeptId`；`aclPrincipals` 为数组才写，空数组写哨兵 `__acl_none__`；`visibilityLevel` 有值即写（供 api 查询期做可见级收窄））+ 按 doc 对账（映射对齐 api `es-sparse`）；要求 `embedReady`；双就绪 → `status=ready` **且 `lifecycle='draft'`**（**不是** `active`；默认检索闸 `ready∧active` 仍拦，须运营升 lifecycle），并**在同一条 UPDATE 原子激活 `active_index_version`**（ADR-038 §2.2；全仓唯一写点，失败路径不碰）
 - **孤儿清理（L7 · `ingest/orphan-clean.ts`）**：对象 = **单边**（一侧有、另一侧为空）∧ `status != ready` ∧ 非激活 ∧ 非在飞（`documents.index_version`）；护栏「激活版永不删」+ `active_index_version IS NULL` 时**一律不动手**；动作 = PG 向量 + mock ES **双侧**。触发落「文档 `failed`」那一半（`runIngestStage` 失败后 best-effort，吞错不改阶段结果）；**周期调度未落地**（本仓无调度基建）。`INGEST_ES_MODE != mock` 时**整体跳过**（真 ES 侧清理属 B8）。**≠** 生产 ES 双侧清理
 - **跨 doc 去重（`cross-doc-dedupe.ts`）**：字 3-gram Jaccard ≥ 0.9（非生产 LSH）；动作由 KB `config_json.crossDocDedupeAction` 决定 —— 默认 `skip_index`（块丢弃、不进 manifest）；`pending_review` 时冲突块**落库入审**（`dupe_status=pending_review` + `duplicate_of`）但**不进 manifest** → 不 embed / 不 ES，报告冲突对带 `heldChunkId` 供运营二选一。兜底：全文都待审 → `EMPTY_CHUNKS`（**不得 ready**）。**≠** `downrank`（PRD 合法值但本仓无实现，写入端 400 拒绝）
 - **purge**：清对象（有 key）；`mockEsStore.dropDoc`；Mongo URL 空跳过，有值删该 doc 的 document_bodies / chunk_bodies；回写 `objectKey=null`、`embedReady=0`、`esReady=0`；lifecycle 保持 archived。**≠** HTTP ES `_delete_by_query` / PG 行硬删 / chunk 表清扫
@@ -75,7 +75,7 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 |----|------|
 | 真实杀毒 / 生产扫描 | mock only；`on` 拒启动；QUAL-2 安全债 |
 | 真实 embedding | 默认 `INGEST_EMBED_MODE=mock`；dims=8 与生产模型无关 |
-| 真实 ES + IK 索引 | 默认可 `INGEST_ES_MODE=http` bulk（标准分词，写 `tenantId`/`kbId`/`ownerDeptId`/`aclPrincipals` 供查询期隔离）；**无** IK 插件 / 多租户 Router |
+| 真实 ES + IK 索引 | 默认可 `INGEST_ES_MODE=http` bulk（标准分词，写 `tenantId`/`kbId`/`ownerDeptId`/`aclPrincipals`/`visibilityLevel` 供查询期隔离与可见级收窄）；**无** IK 插件 / 多租户 Router |
 | 真 RustFS / Mongo 正文 | `STORAGE_MODE=s3` + `MONGODB_URL` 可写；默认仍本地 + `local:` |
 | OCR / 复杂版式 | 开闸 opt-in + 注入抽取器；历史 needs_ocr 可由 reindex 入队 ocr；默认关；**无**真 Tesseract / Cloud / 启动自动全库 |
 | HTTP API | **禁止**业务 HTTP |
@@ -113,7 +113,7 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 | 扫描闸 | `apps/worker/src/scan-mode-policy.ts` · `tests/ingest/scan-startup-policy.test.ts` · `env.ts` superRefine |
 | 幂等 / 重试 / 锁 | `ingest/idempotency.ts` · `doc-lock.ts` · `job-ledger.ts` · `tests/ingest/{idempotency,doc-lock,job-ledger,bull-outcome}.test.ts` |
 | 失败 Webhook | `ingest/failure-webhook.ts` · `job-ledger.ts` `recordStageEnd` · `tests/ingest/failure-webhook.test.ts` |
-| ES sparse bulk | `ingest/es-http.ts` mapping/bulk 含可选 `ownerDeptId` / `aclPrincipals` · `tests/ingest/es-http.test.ts` |
+| ES sparse bulk | `ingest/es-http.ts` mapping/bulk 含可选 `ownerDeptId` / `aclPrincipals` / `visibilityLevel` · `tests/ingest/es-http.test.ts` |
 | 策略 SSOT | `packages/contracts/src/ingest/chunk-strategy.ts`（`IMPLEMENTED_*`） |
 | job 契约 | `packages/contracts/src/async/ingest-job.ts` |
 | 环境变量默认值 | `apps/worker/src/env.ts` |
