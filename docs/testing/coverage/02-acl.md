@@ -55,7 +55,7 @@
 | S2 | 同上 U 直调上传 / 成员 / config / lifecycle / 评测 → 403 | P2必签 | 单测 | 已测 | api | apps/api/tests/auth/enforce-permission-matrix.test.ts（`B1-2 · S2`：AUTH_ENFORCE=true 下 read 令牌打六类写入口（上传 / complete / 成员 / config / lifecycle / 评测）逐条 403 `FORBIDDEN` 且 message 指名缺失码）；apps/api/tests/acl/members-http.test.ts；apps/api/tests/kb/settings-http.test.ts | —（补测：六条写入口已逐条断言；默认 `AUTH_ENFORCE` 关时仍走 WhenEnforced 放行） |
 | S3 | 同上 U：web ask + 文档元数据列表 + 提交 feedback 可达 | P2必签 | 单测 | 部分测 | api | apps/api/tests/auth/enforce-permission-matrix.test.ts（`S3`：默认关时 ask 200、文档列表 200；enforce 开时文档列表 403）；apps/api/tests/feedback/http.test.ts（`S3`：read（`web_consumer`）提交反馈 201 且运营队列可读）；apps/api/tests/acl/kb-member-gate.test.ts（成员 ask 200）；apps/api/tests/ask/http-validation.test.ts | 补测后仍缺一截（读面冲突，待裁口径）：文档元数据列表走 `doc.view`（`apps/api/src/routes/documents/index.ts:141`），而 `web_consumer` 模板码为空（`packages/admin-catalog/src/role-templates.ts:60`）→ enforce 开时 GET 文档列表 403，与 Then「read 列文档可达」冲突；`enforce-permission-matrix.test.ts` 已按现状记录（默认关 200 / 开 enforce 403），先裁清哪一侧错再定。 |
 | S4 | KB-A `read` + KB-B `write` → 可进 admin | P2必签 | 单测 | 部分测 | admin | apps/admin/tests/shell/auth-guard.test.tsx（有 `admin.shell` 渲染子树）；packages/admin-catalog/tests/acl/catalog-clip.test.ts（`doc_operator` 有壳码） | 源码侧待定：先裁清哪一侧错，再决定改源码还是回 PRD 裁口径。`apps/admin/src/components/auth-guard.tsx` 进壳只认平台码（`admin.shell`），「KB-A read + KB-B write → 可进壳」在现码模型下不成立（`packages/admin-catalog/tests/acl/catalog-clip.test.ts`）。禁止写成「待补测」 |
-| S5 | 同上 V：对 KB-A 写 403；对 KB-B 写可达 | P2必签 | 单测 | 部分测 | api | apps/api/tests/acl/kb-scope-write-isolation.test.ts（同一 kb_admin 令牌：KB-B（成员）PATCH 设置 200 / POST 成员 201；KB-A（非成员）两条 403 `FORBIDDEN` + message 含 `not a knowledge base member`；对照：对 KB-A 是成员时同写入 200；无 `kb.config.write` 的 web_consumer 打成员库亦 403 且点名 `kb.config.write`）；apps/api/tests/acl/kb-member-gate.test.ts；apps/api/tests/kb/settings-http.test.ts | 补测后仍缺一截：成员角色粒度——`apps/api/src/auth/permissions/resolve.ts:41-54` 只看成员资格，`kb_members.role` 不参与写闸，故只能按「库成员资格 + 码」断言（同测例）。 |
+| S5 | 同上 V：对 KB-A 写 403；对 KB-B 写可达 | P2必签 | 单测 | 已测 | api | apps/api/tests/acl/kb-scope-write-isolation.test.ts（同一 kb_admin 令牌：KB-B（成员）PATCH 设置 200 / POST 成员 201；KB-A（非成员）两条 403 `FORBIDDEN` + message 含 `not a knowledge base member`；对照：对 KB-A 是成员时同写入 200；无 `kb.config.write` 的 web_consumer 打成员库亦 403 且点名 `kb.config.write`）；apps/api/tests/acl/kb-member-gate.test.ts；apps/api/tests/kb/settings-http.test.ts | —（2026-09-20 裁清：原「成员角色粒度」残留**不是契约义务**，故本行按 Then 判 `已测`。裁定见 `.scratch/kb-role-vs-code/issues/04-dec-role-gate-ruling.md`：ADR-051 §决策 2（`prds/11-decisions/00-adr-index.md:1352`）「运行时**以有效码为准**；`platform_role` / `kb_members.role` 为**模板锚点**」；ADR-035 自己的状态行（同文件 `:480`）「**角色列降级为模板锚点**」；安全 PRD §3.2 焊死（`prds/09-security/01-auth-acl-compliance.md:102`/`:104`）「**以码为准**」「非超管须该 KB 上下文有效码」；文本内唯一明文裁决序（同文件 `:76`）「**冲突**：catalog/码表 > 旧文案」→ 判据 = **权限码 + KB 成员资格**，`kb_members.role` 不参与运行时授权。证据列三个文件 2026-09-20 实跑 34 例全绿。**另记文本债**（不属本行欠测）：ADR-045 `:959` / `:965` 与 `prds/05-api/01-http-api-hono.md:168-169` 的 role 判据**未被任何后续 ADR 点名销账**，销账须 ADR → 改 PRD → 升版本；本图不得改 `prds/00–11`。） |
 | S6 | admin 从 KB-B 切到 KB-A → 写菜单隐藏或写路由 403 | 建议 | 单测 | 缺实现 | admin | apps/admin/src/lib/kb-context.ts（手填 uuid）；菜单按全局码裁剪，不按当前 KB 角色 | **源码未做**：菜单 = `clipMenuForShell(me.permissions)`（`apps/admin/src/components/admin-shell.tsx:76-83`），`/auth/me` 无 `byKb`（`packages/contracts/src/auth/session.contract.ts:53-66` 注释「本批不返回 byKb」），切库只写 localStorage（`lib/kb-context.ts`）→ admin 层**不存在**按当前 KB 角色裁菜单。403 真值在 api（见 S5）。要让它有落点：先给 `/auth/me` 加 `byKb`，或把断言移回 api。**禁止**写假测 |
 | S7 | admin 根 loader/中间件无「仅 read 放行」分支 | P2必签 | 单测 | 已测 | admin | apps/admin/tests/shell/auth-guard.test.tsx（无 `admin.shell` 不渲染子树；有码才放行） | — |
 | S8 | mock 绕过壳中间件 → handler 仍按矩阵 403 | P2必签 | 单测 | 已测 | api | apps/api/tests/auth/enforce-permission-matrix.test.ts（`S8`：夹具不挂 admin 壳中间件（等价绕过壳），read 令牌直打上传路由 → 403 且 message 含 `doc.upload`，同一令牌 ask 仍 200 → 403 来自 handler 侧验码而非身份整体失效）；apps/api/tests/acl/members-http.test.ts；apps/api/tests/kb/settings-http.test.ts；apps/api/tests/ops/dashboard-http.test.ts | —（补测：绕过壳的写入口 403 已直断言；默认 `AUTH_ENFORCE` 关时的放行属 WhenEnforced 语义） |
@@ -136,12 +136,12 @@
 
 ## 本分册计数
 
-行数须与上表一致（每 ID 一行，共 69）。2026-09-20 按行级「阶段 + 覆盖」机械重数三轮：第一轮修分册计数表原写的「已测 22 / 部分测 39 / 延后 2」（其中「延后 2」在行级无对应行）；第二轮随 S6 / Z3 复核结果再改 —— **Z3 已补测**（`apps/admin/tests/ops/chunks-workspace.test.tsx`，缺测 → 已测），**S6 改判 `缺实现`**（缺测 → 缺实现，源码侧确无按当前 KB 角色裁菜单，见该行「缺口」列）；**第三轮（补测批 3）：B1-2 B1-3 B1-5 B1-8 B1-A3 · S2 S8 S9 · Y2 Y3 Y5 · W6 W8 · Z4 Z5 Z6 Z8 · AE1 · X2 X7 共 20 行由 `部分测` → `已测`；S3 / S5 因仍有一截未断言保持 `部分测`**（见各行「缺口」列）。
+行数须与上表一致（每 ID 一行，共 69）。2026-09-20 按行级「阶段 + 覆盖」机械重数三轮：第一轮修分册计数表原写的「已测 22 / 部分测 39 / 延后 2」（其中「延后 2」在行级无对应行）；第二轮随 S6 / Z3 复核结果再改 —— **Z3 已补测**（`apps/admin/tests/ops/chunks-workspace.test.tsx`，缺测 → 已测），**S6 改判 `缺实现`**（缺测 → 缺实现，源码侧确无按当前 KB 角色裁菜单，见该行「缺口」列）；**第三轮（补测批 3）：B1-2 B1-3 B1-5 B1-8 B1-A3 · S2 S8 S9 · Y2 Y3 Y5 · W6 W8 · Z4 Z5 Z6 Z8 · AE1 · X2 X7 共 20 行由 `部分测` → `已测`；S3 / S5 因仍有一截未断言保持 `部分测`**（见各行「缺口」列）；**第四轮（2026-09-20 · 改判 S5，并重数核对）**：**S5 由 `部分测` → `已测`** —— 原残留「成员角色粒度」经裁定**不是契约义务**（判据 = 权限码 + 成员资格，依据见该行「缺口」列与 `.scratch/kb-role-vs-code/issues/04-dec-role-gate-ruling.md`），故不再挂补测清单；本轮按行级机械重数核对：**69 行 / 已测 46 / 部分测 18 / 缺测 0 / 缺实现 2 / 延后 0 / UAT 3**，与下表一致。
 
 | 覆盖 | 行数 |
 |------|------|
-| 已测 | 45 |
-| 部分测 | 19 |
+| 已测 | 46 |
+| 部分测 | 18 |
 | 缺测 | 0 |
 | 缺实现 | 2 |
 | 延后 | 0 |
@@ -153,8 +153,8 @@
 P2 必签且 `缺测` / `部分测` 才进补测清单。本册该子集：
 
 - **缺测**：无（原 S6 / Z3 已按 2026-09-20 复核处理：Z3 已补测，S6 实为 `缺实现` 已改判）
-- **部分测**（P2必签/契约/授码）：S1 S3 S4 S5 · Y6 · X4 X5
+- **部分测**（P2必签/契约/授码）：S1 S3 S4 · Y6 · X4 X5
   - S1 / S4 / Y6 / X4 / X5 为**源码侧待定**（先裁清哪一侧错），禁止写成「待补测」
-  - S3 / S5 为本批补测后仍缺一截（读面 `doc.view` 口径冲突 / 成员角色粒度），见各行「缺口」列
+  - S3 为本批补测后仍缺一截（读面 `doc.view` 口径冲突），见该行「缺口」列；**S5 已于第四轮改判 `已测`**（成员角色粒度非契约义务，见该行「缺口」列）
 
 非本阶段：AE4–AE8、AE10–AE12（P3 / 开强制后）· B2-1 / B2-2 / B2-3（P3 文档 ACL，剩余：角色码 principal、自动 reindex、dense 反向构造）· X6（P2.x UI）；B1-A4 缺实现。均**不是**本阶段欠测债。

@@ -96,6 +96,19 @@ if (denied) return denied
 - 测例：`tests/acl/doc-write-kb-member-gate.test.ts`（写面 10 入口）· `tests/acl/doc-read-kb-member-gate.test.ts`（读面 5 入口，含「数据仓零调用」断言）。
 - 残余：闸须先取到 `doc` 才能知道 `kbId`，故持码非成员仍可经 404/403 差异探测文档是否存在。
 
+**KB 内授权的判据来源：权限码 + 成员资格，`kb_members.role` 不参与（2026-09-20 裁定）**
+
+`kb_members.role`（read / write / admin）是**模板锚点**，**不是**运行时授权判据。KB 内放行判据 = 该 KB 上下文的**有效权限码** ∧（`scope ≠ 'kb'` ∨ `super_admin` ∨ **存在成员行**）。依据：
+
+- ADR-051 §决策 2（`prds/11-decisions/00-adr-index.md:1352`）：「授权 SSOT = permission code……运行时**以有效码为准**；`platform_role` / `kb_members.role` 为**模板锚点**」；§决策 9 否决列（`:1366`）：「无码只靠 role 字符串」。
+- ADR-035 **自己的状态行**（`:480`）：「**部分被 ADR-051 修订**（超管全权、运行时以权限码为准；**角色列降级为模板锚点**）」。
+- 安全 PRD §3.2 焊死（`prds/09-security/01-auth-acl-compliance.md:102` / `:104`）：「**以码为准**」「非超管：KB 操作须该 KB 上下文有效码；无码 → 403」；文本内唯一明文裁决序（同文件 `:76`）：「**冲突**：catalog/码表 > 旧文案」。
+- 结构与源码一致：`ResolveKbMember` 回 `boolean`、`lookupKbMembership` 缓存 `Map<string, boolean>`、`canAccessKbScoped` 入参无 role、`membersRepo.isMember` 只 `select({ id })`；全仓唯一读取该列的 SQL 只服务成员列表（`services/members.ts:98`）。
+
+**因此**：不要给入口加「按 role 判能不能写」的闸——那属**改冻结语义**（须 ADR → 改 PRD → 升版本）。要收紧就**授 / 收权限码**；码表与角色树见 ADR-051 / ADR-056。
+
+**已知文本债（不属本包待办；销账须 ADR）**：ADR-045 焊死 #1 纵深句（`:959`）与焊死 #3 的 KB 级半句（`:965`）、`prds/05-api/01-http-api-hono.md:168-169`（删除用 `write+` / `kb_admin`）、`prds/02-engineering/01-clhoria-template-alignment.md:110`（「权限码 + KB 行 role」）——这些 role 判据**未被任何后续 ADR 点名销账**，与上述判据冲突。裁定与完整证据链：`.scratch/kb-role-vs-code/issues/04-dec-role-gate-ruling.md`。
+
 **AUTH_ENFORCE vs 成员闸**：
 
 | 路由类 | 默认 | 说明 |

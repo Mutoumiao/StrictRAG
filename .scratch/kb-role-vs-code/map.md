@@ -1,7 +1,7 @@
 # KB 内 role 与权限码的竞合：冻结条款对账与去向
 
 Label: wayfinder:map
-Status: open
+Status: resolved（前沿：空。裁定 = **KB 内授权判据为「权限码 + KB 成员资格」，`kb_members.role` 不参与运行时闸**；role 条件条款记为**须 ADR 销账的文本债**；未改源码、未改 `prds/00–11`）
 
 ## Destination
 
@@ -38,13 +38,18 @@ Status: open
 
 ## Decisions so far
 
-（待前沿工单产出）
+- [冻结条款对账](./issues/01-research-frozen-clauses.md) — 把 role / read 当授权判据的条款共 **66 条**，其中 **57 条未被任何后续 ADR 点名销账**、9 条被点名（销账链只有四条：ADR-051 `:1342`/`:1343`/`:1344` 与 ADR-045 `:985`）。**最关键发现**：ADR-035 **自己的状态行**（`:480`）已写「部分被 ADR-051 修订（……运行时以权限码为准；**角色列降级为模板锚点**）」；文本内**唯一**明文裁决序在安全 PRD `:76`「**冲突**：catalog/码表 > 旧文案」。另纠两处起点错：观测成员边界在 §5（行 324）非 §4.3；ADR-045 焊死 #3 是行 964（壳准入，已点名改码）与行 965（KB 级按 role，**未销账**）两半。
+- [源码实况](./issues/02-research-source-truth.md) — **全仓唯一**读取 `kb_members.role` 的 SQL 只服务成员列表（`services/members.ts:98`），其值只流向 HTTP 响应与 admin UI；**role 在类型上就进不了鉴权链路**（`ResolveKbMember` 回 boolean 等 6 处签名）；ADR-035 §5/§7、ADR-045 焊死 #1 后半 / #3 在源码中**无落点**；ADR-035 §6 的首任库 admin 写入**已实现**（`services/documents.ts:53` 硬编码）。
+- [影响面与接口代价](./issues/03-research-impact-surface.md) — 15 个调用点**可以不动**（闸的输入只有 `(c, kbId, posture)`），但 **`posture` 无法表达读写强度**（`'always'` 集合里读写混装）；布尔桩**语义不足**于表达 role：严格意义的「role ≠ write 却断言放行」**0 例**（测试世界里 role 根本不存在），真正要盯的是「role 缺省 + 断言 2xx」这一大类，**须实跑与设计裁决才能定论**。
+- [裁定](./issues/04-dec-role-gate-ruling.md) — **去向 C/B**：判据来源 = 权限码 + 成员资格，**不改源码判据**；ADR-045 `:959`/`:965`、`prds/05-api:168-169`、`prds/02-engineering:110` 的 role 判据**留债**（未点名销账，销账须 ADR）。**去向 A（补 role 闸）被明确否决**并写明 4 条理由（与 ADR-051 §2 / 安全 PRD §3.2 焊死对立；争点是判据来源不是宽严；代价收益不对称；与仓内规范自相矛盾）。**反证说明**：行为实验在构造上不可行（注入面签名无法表达 role），故以「类型路 + 穷举路」两路完成，并把「不可行」本身作为最强证据。
+- [不落源码改动](./issues/05-task-no-source-change.md) — 本图**不动**任何鉴权源码；理由与替代动作（要收紧就授/收权限码）写进 spec。
+- [回写](./issues/06-task-writeback.md) — spec + `module-status/api.md` + `module-status/db.md` + 覆盖表 `S5`（`部分测` → `已测`，按行级重数核对计数）四处落地；实测：`S5` 证据列三文件 **34 例全绿**。
 
 ## Not yet specified
 
-- **`read` 成员持 `doc.view` 读该库全部分片正文**（前图遗留）：`chunk.view` 属 kb_admin 模板码，但用户可被追加授码；是否该读面也按 role 收紧，与本图同一裁定面。
+- **`read` 成员持 `doc.view` 读该库全部分片正文**（前图遗留）：本图已裁清 —— **不按 role 收紧**（判据 = 码 + 成员资格）；若产品要收紧，正确动作是**收 `chunk.view` / `doc.view` 码**，或给分片正文单列更严的码。**是否收紧仍未定，属产品取向**。
 - **`GET …/ingest-jobs` 的暴露面**（前图遗留）：任何 `doc.view` 持有者只要是该 KB 成员就能读全量入库账本（含对账计数与错误码）——粒度是否合适未定。
-- **若裁定为「ADR-051 已取代 role 条件」**：ADR-045 焊死 #1/#3 的文本销账需 ADR + 升版本，**不在本图**（本图不得改 `prds/00–11`）；本图只负责把「条款仍在、判据已变」这件事记成可检索的债。
+- **`kb_members.role` 的完整性债**（本图新出）：DB 层**无 CHECK**、读取侧 `MemberListRow.role: string`（`services/members.ts:15`）+ `as KbMember['role']` cast（`routes/members.ts:51`）、`KbMemberSchema` 全仓**无 `.parse()`**。后果：绕过 HTTP 边界写入非法 role 会被原样吐出且无处报错（当前不产生越权，因无授权路径读该列）。补 CHECK 或在读取边界 parse 与否，另图裁定。
 - **404 与 403 的存在性探测面**：与写面同源，本图不改 404 语义。
 
 ## Out of scope
