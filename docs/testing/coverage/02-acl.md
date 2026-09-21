@@ -8,7 +8,8 @@
 
 - `AUTH_ENFORCE` **默认关**。`apps/api/tests/auth/enforce-401.test.ts` 只证明开 enforce 且无 Bearer → 401，以及默认关时 WhenEnforced 放行。B1 默认路径**不**当作生产 enforce 已测。
 - `DEPT_ACL_ENFORCE` **默认关**。AE3 为兼容行为；AE4 起强制开属 P3 / 开强制后。
-- 文档级 `aclPrincipals` 用户 uuid 名单最小已落（PG 把关；ES 查询期非超管 should 收窄；不跟 `DEPT_ACL_ENFORCE`；**≠** 角色 principal / 默认开强制）。B2-2 / B2-3 已转**部分测**（收紧外显 `reindexRequired` + 「索引滞后不构成泄漏」夹具）；仍欠：角色码 principal、自动 reindex、dense 反向构造。
+- 文档级 `aclPrincipals` 用户 uuid 名单最小已落（PG 把关；ES 查询期非超管 should 收窄；不跟 `DEPT_ACL_ENFORCE`；**≠** 角色 principal / 默认开强制）。**2026-09-21 本轮重判**：B2-1 / B2-3 补上末端到端与反向构造后转 **`已测`**；B2-2 保持 **`部分测`**（缺口只剩「角色码 principal」与须真 ES 的那半截）。可见性装配已收敛为一处（见下条）。
+- **同一可见性函数已落**：文档列表 / 详情与 ACL 清单 / 分片预览 / ask 语料四个入口共用同一份「部门 + 名单」判定（ADR-057 要求），四入口不再各写一份；两个镜像面的可见集合一致性有专测。成员闸仍是该函数**外**的一层。
 - 成员闸 / 分片 / 面板 / 设置 / 部门走 `requirePermission`（与 enforce 开关无关）；上传 / 审批 / lifecycle 多走 `requirePermissionWhenEnforced`。
 - 路径只有 `:docId`（无 `:kbId`）的**文档读写入口**另加 handler 级 KB 成员闸（`auth/doc-scope.ts` 的 `createDocMemberGate`，写 10 + 读 5 = 15 个入口，闸姿态随该入口权限码；2026-09-20 补）。**注意**：该闸不改变码表，故 `S3` 行的「`web_consumer` 模板码为空 vs 读文档列表」口径冲突**仍未解**，那一行必须保持 `部分测`。
 
@@ -40,9 +41,9 @@
 
 | ID | 期望摘要 | 阶段 | 形态 | 覆盖 | 主包 | 证据 | 缺口 |
 |----|----------|------|------|------|------|------|------|
-| B2-1 | 成员无文档 D 权限，问仅 D 能答的题：不得 verified 泄漏 D；evidence 无 D | P3 文档ACL | 注入 | 部分测 | api | apps/api/tests/acl/doc-acl-principals.test.ts；apps/api/tests/acl/documents-acl-principals.test.ts（`filterDocsForAclPrincipals` 未授权文档不进结果）；`loadCorpusFromDb` 部门滤后再 principals | 无 E2E 问句泄漏 / 无 ask HTTP evidence 断言 |
-| B2-2 | principal 变更（移出 role）+ reindex 后该文档对该用户不可检索 | P3 文档ACL | 单测 | 部分测 | api | apps/api/tests/acl/documents-acl-endpoint.test.ts（PUT 收紧回 `reindexRequired`）；apps/api/tests/acl/acl-tighten-index-lag.test.ts（PG 闸即时：ES 旧命中不进 evidence） | 角色码 principal 未做；**无自动 reindex**（收紧只外显 `reindexRequired` + 日志，须人工 Reindex；前置：缺「激活 version」表示） |
-| B2-3 | dense 单路亦过文档 ACL（构造「dense 不过滤会召回」） | P3 文档ACL | 单测 | 部分测 | api | apps/api/tests/acl/acl-tighten-index-lag.test.ts（dense 输入即闸后语料，稀疏旧命中被丢弃、语料空则 `kb_not_ready`）；apps/api/tests/acl/doc-acl-principals.test.ts（`filterDocsForAclPrincipals`） | 无「绕过 loader 让 dense 召回不可读块」的显式反向构造（现构造里 loader 就是闸） |
+| B2-1 | 成员无文档 D 权限，问仅 D 能答的题：不得 verified 泄漏 D；evidence 无 D | P3 文档ACL | 注入 | 已测 | api | apps/api/tests/acl/dept-acl-ask-e2e.test.ts（`B2-1 ask 端到端`：真实语料装载 → 模型硬引用被挡文档 → `abstained`，答文 / citations / evidence 快照都不含它；同夹具下可见文档仍 `answered`+`verified`，证明不是全拦）；apps/api/tests/acl/doc-acl-principals.test.ts；apps/api/tests/acl/documents-acl-principals.test.ts；apps/api/tests/acl/dept-acl-ask-e2e.test.ts（`B2-3 反向构造`：绕过闸喂全量语料时被挡文档确实会被召回）；apps/api/tests/acl/visibility-single-function.test.ts（四入口可见集合一致） | —（补测：ask 问句泄漏的端到端已断言；**≠** 角色 principal） |
+| B2-2 | principal 变更（移出 role）+ reindex 后该文档对该用户不可检索 | P3 文档ACL | 单测 | 部分测 | api | apps/api/tests/acl/documents-acl-endpoint.test.ts（PUT 收紧回 `reindexRequired`）；apps/api/tests/acl/acl-tighten-no-auto-reindex.test.ts（收紧 / 放宽 / 反复收紧均**不入队**，且只写名单一列）；apps/api/tests/acl/acl-tighten-index-lag.test.ts（PG 闸即时：ES 旧命中不进 evidence） | 角色码 principal 未做（ADR-057 要求的主体形态未落，只能以「移出 uuid 名单」作更弱的等价替换）；**「reindex 后 ES 侧旧 principals 被覆盖」须真 ES 集群**；自动 reindex **已裁定为「人工触发」**（不再是欠债）；旧文里的前置「缺『激活 version』表示」**已消除** |
+| B2-3 | dense 单路亦过文档 ACL（构造「dense 不过滤会召回」） | P3 文档ACL | 单测 | 已测 | api | apps/api/tests/acl/dept-acl-ask-e2e.test.ts（`B2-3 反向构造`：绕过可见性闸直接喂全量语料 → 被挡文档确实被 dense/sparse 召回；对照同文件「开强制」例里它缺席）；apps/api/tests/acl/acl-tighten-index-lag.test.ts；apps/api/tests/acl/doc-acl-principals.test.ts | 本仓 dense 是进程内余弦、输入即 PG 闸后语料，故**真 PG 的 `loadCorpusFromDb` 单路泄漏**不可离线断言（划到真 PG 环境） |
 | B2-4 | 缺省无 `aclPrincipals` → KB 内成员可读；显式 `[]` → 不可读 | P3 文档ACL | 单测 | 已测 | api | apps/api/tests/acl/doc-acl-principals.test.ts（null 可见 / `[]` 不可见）；apps/api/tests/acl/documents-acl-principals.test.ts（PATCH 三态；列表 `[]` 不含、null 含）；packages/contracts/tests/ingest/document-contract.test.ts | — |
 
 **安全签字（原文）**：B1 + B1-A3 试点必签；大库加签 B1-A1；B2 上敏感库前必签。
@@ -110,15 +111,15 @@
 | AE1 | 超管建部门树、指定 M 为负责人、E 主部门=人事 → 200 | P2必签 | 单测 | 已测 | api | apps/api/tests/acl/departments-http.test.ts（`剧本 AE1`：超管 POST「公司」→ POST「人事」挂父 id（`path` 含父 id）→ PUT M 归属 `{isLeader:true,isPrimary:true}` 200 → PUT E 归属 `{isPrimary:true,isLeader:false}` 200 → GET 回读三字段）；apps/admin/tests/ops/departments-workspace.test.tsx（薄页按码显隐） | —（补测：同一剧本已串成一条测例） |
 | AE2 | 文档设置 owner=人事 + level；元数据可查 | P2必签 | 单测 | 已测 | api | apps/api/tests/ingest/document-meta.test.ts（PATCH ownerDeptId+visibilityLevel 200 可回读）；apps/api/tests/acl/documents-dept-filter.test.ts（列表项带两字段）；packages/contracts/tests/ingest/document-contract.test.ts | — |
 | AE3 | `DEPT_ACL_ENFORCE=false` 时 E ask 命中 D_mgr → 可（兼容 P2 成员全库） | 兼容说明 | 单测 | 已测 | api | apps/api/tests/acl/retrieve-dept-acl.test.ts（`enforce off → 原样`）；apps/api/tests/acl/documents-dept-filter.test.ts（关强制跨部门仍 200 / 列表含他部门）；apps/api/tests/env/defaults.test.ts（默认 false） | — |
-| AE4 | enforce=true 时 E ask/列表：不可见 D_mgr，可见 D_staff | P3 / 开强制后 | 单测 | 部分测 | api | apps/api/tests/acl/retrieve-dept-acl.test.ts（同部门成员可见 20 不可见 30）；apps/api/tests/acl/documents-dept-filter.test.ts（开强制列表/预览同滤）；apps/api/tests/kb/dept-acl-enforce-resolve.test.ts | 默认关；无 E ask 端到端命中/拒命中 |
-| AE5 | 同上 M：可见 D_staff 与 D_mgr | P3 / 开强制后 | 单测 | 部分测 | api | apps/api/tests/acl/retrieve-dept-acl.test.ts（同部门负责人可见 30） | 默认关；无 M ask HTTP |
-| AE6 | 用户 X 无人事归属、无 grant → 不可见人事部门密级文档 | P3 / 开强制后 | 单测 | 部分测 | api | apps/api/tests/acl/retrieve-dept-acl.test.ts（无归属只见空部门；开+无归属列表省略他部门） | 默认关 |
-| AE7 | 给 X 跨部门 grant level≥30 → X 可见 D_mgr；审计有记录 | P3 / 开强制后 | 单测 | 部分测 | api | apps/api/tests/acl/retrieve-dept-acl.test.ts（未过期 grant≥级别可见）；apps/api/tests/acl/dept-grants-http.test.ts（POST/GET/DELETE 可回读，无 `dept.manage` 403） | 默认关；grant 写审计未专断言 |
-| AE8 | dense 与 ES filter 均含部门条件；禁止单路泄漏 | P3 / 开强制后 | 单测 | 部分测 | api | apps/api/src/services/retrieve/corpus.ts（PG 语料先 `filterDocsForDeptAcl` 再 principals）；`es-sparse.ts` `buildAclFilter` 可追加 `ownerDeptId` terms；非超管可追加 aclPrincipals should；apps/api/tests/ask/es-dept-query-filter.test.ts；apps/api/tests/ask/es-principals-query-filter.test.ts；apps/api/tests/acl/retrieve-dept-acl.test.ts | 默认关；可见级/过期 grant 仍以 PG 为准；无 E ask 端到端泄漏；改名单不自动 reindex |
+| AE4 | enforce=true 时 E ask/列表：不可见 D_mgr，可见 D_staff | P3 / 开强制后 | 单测 | 已测 | api | apps/api/tests/acl/dept-acl-ask-e2e.test.ts（`AE4`：真实语料装载 + `runRetrieve` 两面都只出「空部门 + 本部门 20 + 子部门 20」，本部门 30 缺席）；apps/api/tests/acl/retrieve-dept-acl.test.ts；apps/api/tests/acl/documents-dept-filter.test.ts；apps/api/tests/kb/dept-acl-enforce-resolve.test.ts | —（补测：ask 端到端已串；强制由 KB 覆盖打开，不改仓库默认开关） |
+| AE5 | 同上 M：可见 D_staff 与 D_mgr | P3 / 开强制后 | 单测 | 已测 | api | apps/api/tests/acl/dept-acl-ask-e2e.test.ts（`AE5/AE11`：负责人语料含 30 级文档）；apps/api/tests/acl/retrieve-dept-acl.test.ts | —（补测：负责人分支已端到端断言） |
+| AE6 | 用户 X 无人事归属、无 grant → 不可见人事部门密级文档 | P3 / 开强制后 | 单测 | 已测 | api | apps/api/tests/acl/dept-acl-ask-e2e.test.ts（`AE6`：无归属 → 语料只剩空部门文档）；apps/api/tests/acl/retrieve-dept-acl.test.ts；apps/api/tests/acl/documents-dept-filter.test.ts | — |
+| AE7 | 给 X 跨部门 grant level≥30 → X 可见 D_mgr；审计有记录 | P3 / 开强制后 | 单测 | 已测 | api | apps/api/tests/acl/dept-acl-ask-e2e.test.ts（`AE7 grant 串联`：未过期 grant 使被授部门及其子孙进语料、过期则只余空部门；换 grant 部门即换可见集）；apps/api/tests/acl/dept-grants-http.test.ts（`AE7 审计`：POST / DELETE 各留一条 `dept_cross_grant_create` / `_delete` 含 grantId；`/api/v1/admin/` 前缀另留 `admin_write`；另含 CRUD 回读、无 `dept.manage` 403） | —（补测：grant 可见（谓词）与 grant 写入（HTTP）已串联，审计已专断言；审计仍是 Pino 不落表） |
+| AE8 | dense 与 ES filter 均含部门条件；禁止单路泄漏 | P3 / 开强制后 | 单测 | 已测 | api | apps/api/tests/acl/dept-acl-ask-e2e.test.ts（`AE8 对称`：同一例同时断言 sparse 收窄参数与「ES 陈旧命中经语料求交只剩 PG 可见块」）；apps/api/tests/ask/es-dept-query-filter.test.ts；apps/api/tests/ask/es-principals-query-filter.test.ts；apps/api/tests/ask/es-sparse.test.ts；apps/api/src/services/retrieve/corpus.ts | **≠** 真 ES 集群：只断言到请求体形状；「缺字段不得当全员可见」在真索引上的判定未验 |
 | AE9 | 无 `dept.manage` 改树 → 403 | P2必签 | 单测 | 已测 | api | apps/api/tests/acl/departments-http.test.ts（kb_admin 无 `dept.manage` → 403）；apps/api/tests/acl/dept-grants-http.test.ts（无码 403） | — |
-| AE10 | 上级「公司」成员 U（非人事）；子部门人事 D_staff=20；enforce=true → U 可见（上级看下级） | P3 / 开强制后 | 单测 | 部分测 | api | apps/api/tests/acl/retrieve-dept-acl.test.ts（祖先成员可见子孙 20）；apps/api/tests/kb/dept-inherit-down.test.ts | 默认关；inheritDown=false 时此 Then 不成立（另有关继承测） |
-| AE11 | 同上 U 非负责人；人事 D_mgr=30 → U 不可见（级别仍约束） | P3 / 开强制后 | 单测 | 部分测 | api | apps/api/tests/acl/retrieve-dept-acl.test.ts（祖先成员不可见子孙 30；祖先负责人可见 30） | 默认关 |
-| AE12 | 仅人事员工 E；文档挂上级「公司」且 level=20 → E 不可见（下级不看上级），除非 grant/兼任 | P3 / 开强制后 | 单测 | 部分测 | api | apps/api/tests/acl/retrieve-dept-acl.test.ts（`下级不可见仅挂在上级的文档`；grant 在子孙、文档在祖先 → 不可见） | 默认关 |
+| AE10 | 上级「公司」成员 U（非人事）；子部门人事 D_staff=20；enforce=true → U 可见（上级看下级） | P3 / 开强制后 | 单测 | 已测 | api | apps/api/tests/acl/dept-acl-ask-e2e.test.ts（`AE10`：KB 覆盖关继承 → 祖先不再下探子孙，语料只剩本部门与空部门；开继承时子孙在内）；apps/api/tests/acl/retrieve-dept-acl.test.ts；apps/api/tests/kb/dept-inherit-down.test.ts | — |
+| AE11 | 同上 U 非负责人；人事 D_mgr=30 → U 不可见（级别仍约束） | P3 / 开强制后 | 单测 | 已测 | api | apps/api/tests/acl/dept-acl-ask-e2e.test.ts（`AE5/AE11`：非负责人只见 20 级；负责人可见 30 级）；apps/api/tests/acl/retrieve-dept-acl.test.ts | — |
+| AE12 | 仅人事员工 E；文档挂上级「公司」且 level=20 → E 不可见（下级不看上级），除非 grant/兼任 | P3 / 开强制后 | 单测 | 已测 | api | apps/api/tests/acl/dept-acl-ask-e2e.test.ts（`AE12`：下级负责人只见本子树与空部门，不见上级与兄弟；「兼任」由 grant 例覆盖）；apps/api/tests/acl/retrieve-dept-acl.test.ts | — |
 
 ## 剧本 X · 咨询文档类型 scope
 
@@ -136,12 +137,12 @@
 
 ## 本分册计数
 
-行数须与上表一致（每 ID 一行，共 69）。2026-09-20 按行级「阶段 + 覆盖」机械重数三轮：第一轮修分册计数表原写的「已测 22 / 部分测 39 / 延后 2」（其中「延后 2」在行级无对应行）；第二轮随 S6 / Z3 复核结果再改 —— **Z3 已补测**（`apps/admin/tests/ops/chunks-workspace.test.tsx`，缺测 → 已测），**S6 改判 `缺实现`**（缺测 → 缺实现，源码侧确无按当前 KB 角色裁菜单，见该行「缺口」列）；**第三轮（补测批 3）：B1-2 B1-3 B1-5 B1-8 B1-A3 · S2 S8 S9 · Y2 Y3 Y5 · W6 W8 · Z4 Z5 Z6 Z8 · AE1 · X2 X7 共 20 行由 `部分测` → `已测`；S3 / S5 因仍有一截未断言保持 `部分测`**（见各行「缺口」列）；**第四轮（2026-09-20 · 改判 S5，并重数核对）**：**S5 由 `部分测` → `已测`** —— 原残留「成员角色粒度」经裁定**不是契约义务**（判据 = 权限码 + 成员资格，依据见该行「缺口」列与 `.scratch/kb-role-vs-code/issues/04-dec-role-gate-ruling.md`），故不再挂补测清单；本轮按行级机械重数核对：**69 行 / 已测 46 / 部分测 18 / 缺测 0 / 缺实现 2 / 延后 0 / UAT 3**，与下表一致。
+行数须与上表一致（每 ID 一行，共 69）。2026-09-20 按行级「阶段 + 覆盖」机械重数三轮：第一轮修分册计数表原写的「已测 22 / 部分测 39 / 延后 2」（其中「延后 2」在行级无对应行）；第二轮随 S6 / Z3 复核结果再改 —— **Z3 已补测**（`apps/admin/tests/ops/chunks-workspace.test.tsx`，缺测 → 已测），**S6 改判 `缺实现`**（缺测 → 缺实现，源码侧确无按当前 KB 角色裁菜单，见该行「缺口」列）；**第三轮（补测批 3）：B1-2 B1-3 B1-5 B1-8 B1-A3 · S2 S8 S9 · Y2 Y3 Y5 · W6 W8 · Z4 Z5 Z6 Z8 · AE1 · X2 X7 共 20 行由 `部分测` → `已测`；S3 / S5 因仍有一截未断言保持 `部分测`**（见各行「缺口」列）；**第四轮（2026-09-20 · 改判 S5，并重数核对）**：**S5 由 `部分测` → `已测`** —— 原残留「成员角色粒度」经裁定**不是契约义务**（判据 = 权限码 + 成员资格，依据见该行「缺口」列与 `.scratch/kb-role-vs-code/issues/04-dec-role-gate-ruling.md`），故不再挂补测清单；本轮按行级机械重数核对：**69 行 / 已测 46 / 部分测 18 / 缺测 0 / 缺实现 2 / 延后 0 / UAT 3**，与下表一致；**第五轮（2026-09-21 · wayfinder 图 p3b-doc-acl 收口）：B2-1 · B2-3 · AE4 AE5 AE6 AE7 AE8 AE10 AE11 AE12 共 10 行由 `部分测` → `已测`** —— 前两行补上 ask 端到端与「绕过闸喂全量语料」的反向构造，AE 八行补上 ask 端到端（含 KB 覆盖开强制、grant 串联、关继承）与 AE7 的审计专断言；**B2-2 保持 `部分测`**（缺口只剩角色码 principal 与须真 ES 的半截，自动 reindex 已裁定为人工触发、不再是欠债）。本轮按行级机械重数核对：**69 行 / 已测 56 / 部分测 8 / 缺测 0 / 缺实现 2 / 延后 0 / UAT 3**，与下表一致。
 
 | 覆盖 | 行数 |
 |------|------|
-| 已测 | 46 |
-| 部分测 | 18 |
+| 已测 | 56 |
+| 部分测 | 8 |
 | 缺测 | 0 |
 | 缺实现 | 2 |
 | 延后 | 0 |
@@ -157,4 +158,10 @@ P2 必签且 `缺测` / `部分测` 才进补测清单。本册该子集：
   - S1 / S4 / Y6 / X4 / X5 为**源码侧待定**（先裁清哪一侧错），禁止写成「待补测」
   - S3 为本批补测后仍缺一截（读面 `doc.view` 口径冲突），见该行「缺口」列；**S5 已于第四轮改判 `已测`**（成员角色粒度非契约义务，见该行「缺口」列）
 
-非本阶段：AE4–AE8、AE10–AE12（P3 / 开强制后）· B2-1 / B2-2 / B2-3（P3 文档 ACL，剩余：角色码 principal、自动 reindex、dense 反向构造）· X6（P2.x UI）；B1-A4 缺实现。均**不是**本阶段欠测债。
+非本阶段（工程侧已无余项，仅剩下述三类）：
+
+- **须真 ES 集群**：`terms` / `must_not exists` / `range` 在真索引上的命中语义与 mapping 冲突（AE8 · B2-3 的集群侧）；**reindex 覆盖 ES 旧 principals** 这半截（B2-2）。
+- **须真 PG 环境**：`loadCorpusFromDb` 单路泄漏的反向构造（B2-3）。
+- **须人签**：B1-7 敏感语料未入池检查表（UAT）· B1-A1 大库压测（UAT）· S10 文案抽检（UAT）。
+- **明确的 ADR 债（本图不改 `prds/00–11`）**：`aclPrincipals` 的角色 principal 主体形态未落（ADR-057 要求，B2-2 因此只能作「移出 uuid 名单」的等价替换）；ES 查询期与 dense 对称的三条债（ADR-009 · ES PRD · 在线 PRD）。
+- 另：X6（P2.x UI 的 RTL「不选类型仍可提交」）· B1-A4 `缺实现`（仓内无 `allowedDocIds` 生产者）· S1 / S4 / Y6 / X4 / X5 为**源码侧待定**（先裁清哪一侧错，禁止写成「待补测」）· S3 的读面 `doc.view` 口径冲突。

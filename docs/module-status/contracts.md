@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（支撑 P0/P1 入库 + S2 问答/会话/反馈/成员 + B1–B6 运营契约 + **B12 策略码 / ingest job**；**非**全量 OpenAPI） |
 | 默认依赖模式 | 纯库；无运行时开关 |
 | 关联模块 | 被 `api` · `worker` · `web` · `admin` 消费；是全仓错误码、响应信封、队列名与 **可写分片策略集** 的唯一来源 |
-| 最近更新 | 2026-09-20（补测批 2 / 批 4：`tests/async/ingest-job.test.ts` · `tests/eval/l1-hit-at-k.test.ts` 补断言；DTO **无**改动）；2026-09-19（新增 `ResolveDedupeConflictBody/Response`；`IngestReportConflictPair` 收 `action` 并加可选 `heldChunkId`；KB 设置 `crossDocDedupeAction`）；2026-09-17（入库报告 DTO 增 `contextualizeL1Ok` / `contextualizeL0Fallback`；ACL 增 `aclTightens` 与 `PutDocumentAclResponseSchema.reindexRequired`）；2026-09-16（入库报告 DTO 增 `dedupeCrossDocRate`；`AskFinalResponseSchema` 断线重拉终态；`AskSseStatusSchema.requestId`） |
+| 最近更新 | 2026-09-21（**ACL 收紧判定修正**：`aclTightens` 在 next 侧遇 `null` 原按空集处理，使 `[a] → null` 被判成收紧，与本函数「新集合不再是旧集合的超集」的定义、与既有真值表 `[] → null` 判放宽自相矛盾；改为 next 为 `null`（= 全体成员可读）恒不收紧，真值表补两行。`reindexRequired` 是给运营的建议信号而非门禁，收紧侧判定一格未放宽）；2026-09-20（补测批 2 / 批 4：`tests/async/ingest-job.test.ts` · `tests/eval/l1-hit-at-k.test.ts` 补断言；DTO **无**改动）；2026-09-19（新增 `ResolveDedupeConflictBody/Response`；`IngestReportConflictPair` 收 `action` 并加可选 `heldChunkId`；KB 设置 `crossDocDedupeAction`）；2026-09-17（入库报告 DTO 增 `contextualizeL1Ok` / `contextualizeL0Fallback`；ACL 增 `aclTightens` 与 `PutDocumentAclResponseSchema.reindexRequired`）；2026-09-16（入库报告 DTO 增 `dedupeCrossDocRate`；`AskFinalResponseSchema` 断线重拉终态；`AskSseStatusSchema.requestId`） |
 | Spec | `.trellis/spec/contracts/library/` |
 | PRD | `prds/05-api` · 各域契约与 PRD 短名对齐 |
 
@@ -44,7 +44,7 @@
   - catalog HTTP：`ForUploadQuerySchema` / `PatchKbChunkStrategiesBodySchema` / `ChunkStrategyCatalogResponseSchema`
   - **禁止**把 KNOWN 未实现码当成可写入已交付
 - **入库报告**：`IngestReportItemSchema`（`.strict()`；对账可空；**含** `crossDocDropped` / **`dedupeCrossDocRate`（0–1 或 null）** / **`contextualizeL1Ok` / `contextualizeL0Fallback`（≥0 整数或 null）** / `conflictPairs`（`action` ∈ `skip_index|pending_review`，入审带可选 `heldChunkId`）/ `contextSource`（l0 / l0_fallback / l1_llm）；拒 Hit@k）（`ingest/ingest-report.contract.ts` · `tests/ingest/ingest-report-contract.test.ts`）
-- **文档 ACL**：`DocumentAclSchema`（GET 形三态）/ `PutDocumentAclBodySchema`（`.strict()`，超 256 拒）/ **`PutDocumentAclResponseSchema`**（GET 形 + `reindexRequired`；收紧须 reindex，ADR-009 决策 4）/ **`aclTightens(prev, next)`**（新集合不再是旧集合的超集 = 有人失去可读性；`null`=全员可读、`[]`=无人）（`ingest/document.contract.ts` · `tests/ingest/document-contract.test.ts`）
+- **文档 ACL**：`DocumentAclSchema`（GET 形三态）/ `PutDocumentAclBodySchema`（`.strict()`，超 256 拒）/ **`PutDocumentAclResponseSchema`**（GET 形 + `reindexRequired`；收紧须 reindex，ADR-009 决策 4）/ **`aclTightens(prev, next)`**（新集合不再是旧集合的超集 = 有人失去可读性；`null`=全员可读、`[]`=无人；两侧都按此归一，故 `[a] → null` 是放宽）（`ingest/document.contract.ts` · `tests/ingest/document-contract.test.ts`）
 
 ### 问答（S2）
 - ask 请求 / 响应、拒答 reason、流式 `data-status` 形状（`ask/ask.contract` · `ask/reason`；`AskResponse` = 同步 JSON ≡ 流式 `data-ask-final`）

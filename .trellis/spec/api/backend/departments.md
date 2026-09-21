@@ -102,7 +102,8 @@ routes.get('/admin/departments', requirePermission('dept.manage'), ...)
 
 ### 2. 形态（当前实现）
 
-- **PG 是 ACL 真值源**：`loadCorpusFromDb` 装载期已过 `filterDocsForDeptAcl` + `filterDocsForAclPrincipals`；dense 打分输入即该语料，故 dense 侧不另设 filter。
+- **同一可见性函数（ADR-057）**：装配收敛到 `services/retrieve/visibility.ts` —— `loadVisibilityContext` 是全仓唯一「归属 + 部门树 + grant」三连加载处（`!enforce || bypass` 短路为空 ctx，不查库），`isDocVisible` 固定「部门 → 名单」顺序并回 `reason`（调用方据此映射 403 文案），`filterVisibleDocs` 是同一裁决的集合出口。**四个活入口（文档列表 · 详情与 ACL 清单 · 分片预览 · ask 语料）与 ES 收窄参数计算都必须调用它**，不得再各写一份；成员闸仍在函数**外**（`auth/doc-scope.ts`）。三处**必须保留**的差异：超管 bypass 通道（路由直判角色 vs 检索层读 membership 槽）· tenantId 来源（路由侧取文档行 / 首行，检索侧取语料首行；`CorpusLoader` 尚未接 `RetrieveInput.tenantId`，属已知接口缺口，fail-closed 方向）· 输出形态。回归护栏：`tests/acl/visibility-single-function.test.ts`（四面 × 四态集合一致）。
+- **PG 是 ACL 真值源**：`loadCorpusFromDb` 装载期已过部门闸与名单闸；dense 打分输入即该语料，故 dense 侧不另设 filter。
 - **ES 只做粗收窄**：`buildAclFilter` 返回 **filter 数组**，元素之间 AND。已用元素 = `term tenantId` · `term kbId` · 可选**部门组** · 可选**级别组** · 可选名单 `should`。
 - **部门组的形状随「收窄是否生效」**：收窄生效时是 `bool.should[terms(可见部门 id 非空时), must_not exists ownerDeptId]` + `minimum_should_match: 1`（后一支即 PG 的「库级文档」；**可见部门为空时只剩这一支**，不再对部门文档 fail-open）；收窄不生效时保持历史的裸 `terms`（非空才加）。库级文档的级别正确性由级别组的 `lte` 承载 —— PG 对无 `ownerDeptId` 文档走独立级别规则（`effectiveLevel`：任一处负责人 30，否则 20），该上界覆盖它。
 - **禁跨元素拉平**：把部门支与级别支塞进同一个 `should` 会变成「部门 OR 库级 OR 级别达标 OR 缺失」= 放松。新条件一律加**独立元素**；部门组与级别组必须是 filter 数组的两个独立元素。
@@ -122,8 +123,10 @@ routes.get('/admin/departments', requirePermission('dept.manage'), ...)
 
 | 层次 | 文件 |
 |------|------|
-| 纯函数（谓词 + 级别上界） | `apps/api/tests/acl/retrieve-dept-acl.test.ts` |
+| 纯函数（谓词 + 级别上界 + 同一可见性函数） | `apps/api/tests/acl/retrieve-dept-acl.test.ts` · `apps/api/tests/acl/visibility-single-function.test.ts` |
 | builder 形状 | `apps/api/tests/ask/es-sparse.test.ts` · `es-dept-query-filter.test.ts` · `es-principals-query-filter.test.ts` |
+| 部门强制端到端（ask / 语料） | `apps/api/tests/acl/dept-acl-ask-e2e.test.ts` |
+| 收窄路径与 grant 审计 | `apps/api/tests/acl/acl-tighten-index-lag.test.ts` · `acl-tighten-no-auto-reindex.test.ts` · `dept-grants-http.test.ts` |
 | worker 同名拷贝 | `apps/worker/tests/ingest/es-http.test.ts` |
 
 **未覆盖（不得写成已测）**：真 ES 集群行为 —— `range` / `exists` 对缺字段与哨兵的实际判定、`integer` 与既有 dynamic mapping 是否冲突、`minimum_should_match` 在 `filter` 上下文的语义。现测只断言到请求体形状。
