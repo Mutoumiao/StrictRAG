@@ -294,6 +294,8 @@ export type PutDocumentAclResponse = z.infer<typeof PutDocumentAclResponseSchema
  * 收紧判定：**新集合不再是旧集合的超集**（有人失去可读性）。
  * `null` = 字段缺失 = 该 KB 全体成员可读；`[]` = 无人可读；非空 = 仅命中者可读。
  * 同一个 `userId` 在旧集合可读、在新集合不可读 → 收紧（`[a] → [b]` 亦算）。
+ * 两侧都按 `null` = 「全体成员」这一读法归一：故 `[a] → null` 是**放宽**（成员闸在外层，
+ * `null` 的可读集合 ⊇ 任何名单），不提示 reindex。
  */
 export function aclTightens(
   prev: readonly string[] | null | undefined,
@@ -302,7 +304,8 @@ export function aclTightens(
   const previous = prev ?? null;
   const upcoming = next ?? null;
   if (previous === null) return upcoming !== null;
-  const nextSet = new Set(upcoming ?? []);
+  if (upcoming === null) return false;
+  const nextSet = new Set(upcoming);
   return previous.some((principal) => !nextSet.has(principal));
 }
 

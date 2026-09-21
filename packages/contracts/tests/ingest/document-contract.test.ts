@@ -335,6 +335,8 @@ describe('DocumentAclSchema / PutDocumentAclBodySchema（PRD 05-api §2.4）', (
     expect(aclTightens(undefined, [])).toBe(true);
     // 放宽 / 不变
     expect(aclTightens([], null)).toBe(false);
+    expect(aclTightens([A], null)).toBe(false);
+    expect(aclTightens([A, B], null)).toBe(false);
     expect(aclTightens([A], [A, B])).toBe(false);
     expect(aclTightens([A], [A])).toBe(false);
     expect(aclTightens(null, null)).toBe(false);
