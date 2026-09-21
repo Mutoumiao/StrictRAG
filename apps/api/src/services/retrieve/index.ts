@@ -1,6 +1,6 @@
 export { rrfFuse } from './rrf.js';
 export { cosine, sparseOverlapScore, rankByScore } from './scoring.js';
-export { loadCorpusFromDb, hasRetrievableDocs, filterDocsForRetrieve } from './corpus.js';
+export { loadCorpusFromDb, filterDocsForRetrieve } from './corpus.js';
 export {
   collectVisibleOwnerDeptIds,
   filterDocsForDeptAcl,
@@ -9,6 +9,13 @@ export {
 } from './dept-acl.js';
 export { filterDocsForAclPrincipals, isDocVisibleForAclPrincipals } from './doc-acl.js';
 export type { AclPrincipalDoc } from './doc-acl.js';
+export { filterVisibleDocs, isDocVisible, loadVisibilityContext } from './visibility.js';
+export type {
+  VisibilityContext,
+  VisibilityDecision,
+  VisibilityDoc,
+  VisibilitySubject,
+} from './visibility.js';
 export {
   searchSparseEs,
   ensureSparseIndex,

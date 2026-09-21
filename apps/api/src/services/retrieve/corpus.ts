@@ -16,16 +16,10 @@ import {
   resolveDeptInheritDown,
   kbSettingsRepo,
 } from '../kb-settings.js';
-import {
-  filterDocsForDeptAcl,
-  loadDeptAssignments,
-  loadDeptGrants,
-  loadDeptNodes,
-} from './dept-acl.js';
-import { filterDocsForAclPrincipals } from './doc-acl.js';
 import type { CorpusChunk, CorpusLoader, RetrieveScope } from './types.js';
+import { filterVisibleDocs, loadVisibilityContext } from './visibility.js';
 
-/** 文档侧双闸门 + 生效窗口 + 可选 docTypes（loadCorpusFromDb / hasRetrievableDocs 共用） */
+/** 文档侧双闸门 + 生效窗口 + 可选 docTypes（loadCorpusFromDb 用） */
 export type DocForRetrieve = {
   status: string;
   lifecycle: string;
@@ -70,32 +64,19 @@ export const loadCorpusFromDb: CorpusLoader = async ({
   const docs = await db.select().from(documents).where(eq(documents.kbId, kbId));
 
   const dual = filterDocsForRetrieve(docs, scope);
-  const tenantId = dual[0]?.tenantId;
   const kb = await kbSettingsRepo.get(kbId);
   const enforce = resolveDeptAclEnforce(
     parseDeptAclEnforceFromConfig(kb?.configJson ?? null),
   );
-  const skipDeptIo = !enforce || bypassDeptAcl === true;
-  const [assignments, depts, grants] = skipDeptIo
-    ? [[], [], []]
-    : await Promise.all([
-        loadDeptAssignments(tenantId, userId),
-        loadDeptNodes(tenantId),
-        loadDeptGrants(tenantId, userId),
-      ]);
-  const allowed = filterDocsForAclPrincipals(
-    filterDocsForDeptAcl(dual, {
-      assignments,
-      enforce,
-      depts,
-      grants,
-      bypass: bypassDeptAcl,
-      inheritDown: skipDeptIo
-        ? undefined
-        : resolveDeptInheritDown(parseDeptInheritDownFromConfig(kb?.configJson ?? null)),
-    }),
-    { userId, bypass: bypassDeptAcl },
-  );
+  const subject = { tenantId: dual[0]?.tenantId, userId, bypass: bypassDeptAcl === true };
+  const ctx = await loadVisibilityContext({
+    subject,
+    enforce,
+    inheritDown: resolveDeptInheritDown(
+      parseDeptInheritDownFromConfig(kb?.configJson ?? null),
+    ),
+  });
+  const allowed = filterVisibleDocs(dual, subject, ctx);
 
   if (allowed.length === 0) return [];
 
@@ -141,43 +122,3 @@ export const loadCorpusFromDb: CorpusLoader = async ({
     } satisfies CorpusChunk;
   });
 };
-
-/** 空库/无可检索文档判定用：是否存在 ready∧active（含 scope + 同一部门滤） */
-export async function hasRetrievableDocs(
-  kbId: string,
-  scope?: RetrieveScope,
-  userId?: string,
-  bypassDeptAcl?: boolean,
-): Promise<boolean> {
-  const db = getDb();
-  const docs = await db.select().from(documents).where(eq(documents.kbId, kbId));
-  const dual = filterDocsForRetrieve(docs, scope);
-  const tenantId = dual[0]?.tenantId;
-  const kb = await kbSettingsRepo.get(kbId);
-  const enforce = resolveDeptAclEnforce(
-    parseDeptAclEnforceFromConfig(kb?.configJson ?? null),
-  );
-  const skipDeptIo = !enforce || bypassDeptAcl === true;
-  const [assignments, depts, grants] = skipDeptIo
-    ? [[], [], []]
-    : await Promise.all([
-        loadDeptAssignments(tenantId, userId),
-        loadDeptNodes(tenantId),
-        loadDeptGrants(tenantId, userId),
-      ]);
-  return (
-    filterDocsForAclPrincipals(
-      filterDocsForDeptAcl(dual, {
-        assignments,
-        enforce,
-        depts,
-        grants,
-        bypass: bypassDeptAcl,
-        inheritDown: skipDeptIo
-          ? undefined
-          : resolveDeptInheritDown(parseDeptInheritDownFromConfig(kb?.configJson ?? null)),
-      }),
-      { userId, bypass: bypassDeptAcl },
-    ).length > 0
-  );
-}

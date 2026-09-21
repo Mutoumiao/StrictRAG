@@ -18,15 +18,13 @@ import {
 import { loadCorpusFromDb } from './corpus.js';
 import {
   collectVisibleOwnerDeptIds,
-  loadDeptAssignments,
-  loadDeptGrants,
-  loadDeptNodes,
   maxVisibleLevelUpperBound,
 } from './dept-acl.js';
 import { EsSparseError, esConfigFromEnv, searchSparseEs } from './es-sparse.js';
 import { batchLoadChunkBodies } from './mongo-body.js';
 import { rrfFuse } from './rrf.js';
 import { cosine, rankByScore, sparseOverlapScore } from './scoring.js';
+import { loadVisibilityContext } from './visibility.js';
 import type {
   CorpusChunk,
   EvidenceCandidate,
@@ -88,16 +86,25 @@ async function sparseNarrowingForSearch(
   const config = kb?.configJson ?? null;
   const enforce = resolveDeptAclEnforce(parseDeptAclEnforceFromConfig(config));
   if (!enforce) return {};
-  const inheritDown = resolveDeptInheritDown(parseDeptInheritDownFromConfig(config));
-  const [assignments, depts, grants] = await Promise.all([
-    loadDeptAssignments(input.tenantId, input.userId),
-    loadDeptNodes(input.tenantId),
-    loadDeptGrants(input.tenantId, input.userId),
-  ]);
-  const ids = collectVisibleOwnerDeptIds({ assignments, depts, grants, inheritDown });
+  const ctx = await loadVisibilityContext({
+    subject: { tenantId: input.tenantId, userId: input.userId, bypass: bypassDeptAcl },
+    enforce,
+    inheritDown: resolveDeptInheritDown(parseDeptInheritDownFromConfig(config)),
+  });
+  const ids = collectVisibleOwnerDeptIds({
+    assignments: ctx.assignments,
+    depts: ctx.depts,
+    grants: ctx.grants,
+    inheritDown: ctx.inheritDown,
+    now: ctx.now,
+  });
   return {
     ...(ids.length > 0 ? { ownerDeptIds: ids } : {}),
-    maxVisibleLevel: maxVisibleLevelUpperBound({ assignments, grants }),
+    maxVisibleLevel: maxVisibleLevelUpperBound({
+      assignments: ctx.assignments,
+      grants: ctx.grants,
+      now: ctx.now,
+    }),
   };
 }
 

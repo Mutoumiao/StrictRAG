@@ -64,16 +64,10 @@ import {
   resolveDeptInheritDown,
 } from '../../services/kb-settings.js';
 import {
-  filterDocsForDeptAcl,
-  isDocVisibleForDeptAcl,
-  loadDeptAssignments,
-  loadDeptGrants,
-  loadDeptNodes,
-} from '../../services/retrieve/dept-acl.js';
-import {
-  filterDocsForAclPrincipals,
-  isDocVisibleForAclPrincipals,
-} from '../../services/retrieve/doc-acl.js';
+  filterVisibleDocs,
+  isDocVisible,
+  loadVisibilityContext,
+} from '../../services/retrieve/visibility.js';
 import {
   checkFixedWindowRateLimit,
   ingestRateLimitKey,
@@ -159,35 +153,21 @@ documentRoutes.get(
     );
     const auth = c.get('auth');
     const bypass = roleBypassesKbMembership(auth?.roles ?? []);
-    let visible = rows;
-    if (enforce) {
-      if (bypass) {
-        logger.info(
-          { event: 'dept_acl_bypass', userId: auth?.userId, kbId },
-          'dept acl bypass',
-        );
-      } else {
-        const tenantId = rows[0]?.tenantId;
-        const [assignments, depts, grants] = await Promise.all([
-          loadDeptAssignments(tenantId, auth?.userId),
-          loadDeptNodes(tenantId),
-          loadDeptGrants(tenantId, auth?.userId),
-        ]);
-        visible = filterDocsForDeptAcl(rows, {
-          assignments,
-          enforce: true,
-          depts,
-          grants,
-          inheritDown: resolveDeptInheritDown(
-            parseDeptInheritDownFromConfig(kb?.configJson ?? null),
-          ),
-        });
-      }
+    if (enforce && bypass) {
+      logger.info(
+        { event: 'dept_acl_bypass', userId: auth?.userId, kbId },
+        'dept acl bypass',
+      );
     }
-    visible = filterDocsForAclPrincipals(visible, {
-      userId: auth?.userId,
-      bypass,
+    const subject = { tenantId: rows[0]?.tenantId, userId: auth?.userId, bypass };
+    const ctx = await loadVisibilityContext({
+      subject,
+      enforce,
+      inheritDown: resolveDeptInheritDown(
+        parseDeptInheritDownFromConfig(kb?.configJson ?? null),
+      ),
     });
+    const visible = filterVisibleDocs(rows, subject, ctx);
     return ok(c, visible.map(toListItem));
   },
 );
@@ -824,41 +804,23 @@ async function docReadDenied(input: {
   const { doc } = input;
   const bypass = roleBypassesKbMembership(input.roles ?? []);
   const enforce = resolveDeptAclEnforce(parseDeptAclEnforceFromConfig(input.kbConfigJson ?? null));
-  if (enforce) {
-    if (bypass) {
-      logger.info(
-        { event: 'dept_acl_bypass', userId: input.userId, kbId: doc.kbId, docId: doc.id },
-        'dept acl bypass',
-      );
-    } else {
-      const [assignments, depts, grants] = await Promise.all([
-        loadDeptAssignments(doc.tenantId, input.userId),
-        loadDeptNodes(doc.tenantId),
-        loadDeptGrants(doc.tenantId, input.userId),
-      ]);
-      const inheritDown = resolveDeptInheritDown(
-        parseDeptInheritDownFromConfig(input.kbConfigJson ?? null),
-      );
-      if (
-        !isDocVisibleForDeptAcl(
-          doc,
-          assignments,
-          true,
-          depts,
-          grants,
-          undefined,
-          undefined,
-          inheritDown,
-        )
-      ) {
-        return 'department acl denied';
-      }
-    }
+  if (enforce && bypass) {
+    logger.info(
+      { event: 'dept_acl_bypass', userId: input.userId, kbId: doc.kbId, docId: doc.id },
+      'dept acl bypass',
+    );
   }
-  if (!isDocVisibleForAclPrincipals(doc, { userId: input.userId, bypass })) {
-    return 'document acl denied';
-  }
-  return null;
+  const subject = { tenantId: doc.tenantId, userId: input.userId, bypass };
+  const ctx = await loadVisibilityContext({
+    subject,
+    enforce,
+    inheritDown: resolveDeptInheritDown(
+      parseDeptInheritDownFromConfig(input.kbConfigJson ?? null),
+    ),
+  });
+  const verdict = isDocVisible(doc, subject, ctx);
+  if (verdict.ok) return null;
+  return verdict.reason === 'dept' ? 'department acl denied' : 'document acl denied';
 }
 
 /** GET /api/v1/documents/:docId/acl — 文档 ACL 专用入口（PRD 05-api §2.4）；可见性闸同详情 */

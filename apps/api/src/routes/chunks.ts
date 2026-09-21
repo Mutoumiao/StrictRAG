@@ -31,13 +31,7 @@ import {
   resolveDeptAclEnforce,
   resolveDeptInheritDown,
 } from '../services/kb-settings.js';
-import {
-  isDocVisibleForDeptAcl,
-  loadDeptAssignments,
-  loadDeptGrants,
-  loadDeptNodes,
-} from '../services/retrieve/dept-acl.js';
-import { isDocVisibleForAclPrincipals } from '../services/retrieve/doc-acl.js';
+import { isDocVisible, loadVisibilityContext } from '../services/retrieve/visibility.js';
 
 export type ChunkRouteDeps = {
   chunks?: ChunksRepo;
@@ -67,41 +61,21 @@ async function deniedDocReadMessage(
     parseDeptAclEnforceFromConfig(kb?.configJson ?? null),
   );
   const bypass = roleBypassesKbMembership(auth?.roles ?? []);
-  if (enforce) {
-    if (bypass) {
-      logger.info(
-        { event: 'dept_acl_bypass', userId: auth?.userId, docId: doc.id },
-        'dept acl bypass',
-      );
-    } else {
-      const [assignments, depts, grants] = await Promise.all([
-        loadDeptAssignments(doc.tenantId, auth?.userId),
-        loadDeptNodes(doc.tenantId),
-        loadDeptGrants(doc.tenantId, auth?.userId),
-      ]);
-      const inheritDown = resolveDeptInheritDown(
-        parseDeptInheritDownFromConfig(kb?.configJson ?? null),
-      );
-      if (
-        !isDocVisibleForDeptAcl(
-          doc,
-          assignments,
-          true,
-          depts,
-          grants,
-          undefined,
-          undefined,
-          inheritDown,
-        )
-      ) {
-        return 'department acl denied';
-      }
-    }
+  if (enforce && bypass) {
+    logger.info(
+      { event: 'dept_acl_bypass', userId: auth?.userId, docId: doc.id },
+      'dept acl bypass',
+    );
   }
-  if (!isDocVisibleForAclPrincipals(doc, { userId: auth?.userId, bypass })) {
-    return 'document acl denied';
-  }
-  return null;
+  const subject = { tenantId: doc.tenantId, userId: auth?.userId, bypass };
+  const ctx = await loadVisibilityContext({
+    subject,
+    enforce,
+    inheritDown: resolveDeptInheritDown(parseDeptInheritDownFromConfig(kb?.configJson ?? null)),
+  });
+  const verdict = isDocVisible(doc, subject, ctx);
+  if (verdict.ok) return null;
+  return verdict.reason === 'dept' ? 'department acl denied' : 'document acl denied';
 }
 
 /**

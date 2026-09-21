@@ -48,6 +48,7 @@
 | `acl/retrieve-dept-acl.test.ts` | 检索期按部门 ACL 过滤可见文档。 | DEPT_ACL | `filterDocsForDeptAcl` | 默认 enforce 关。 | 现行 |
 | `acl/system-roles-skip-reseed.test.ts` | 已有 isSystem 角色则不再 insert 系统角色。 | 剧本 AD3（部分） | `ensureSystemRoles` | 只锁跳过重种子，≠ 补码、≠ 不重置密码。补码见 `superadmin-bootstrap`。 | 现行 |
 | `acl/superadmin-bootstrap.test.ts` | 空库须能按 env 引导出 active 超管与 catalog 全码；缺 env 须失败；已有超管不得改哈希。 | 剧本 AD1–AD3 · ADR-056 | `bootstrapSuperAdmin` · `createApp` | 直接调引导函数；AD2 抛错；createApp 不自动跑；upsert 不静默删；kb_admin 自定义码不覆盖。 | 现行 |
+| `acl/visibility-single-function.test.ts` | 文档列表 / 详情 / 分片预览 / ask 语料四个入口必须由「同一可见性函数」裁决，同一夹具下产出一致的可见集合。 | P3b 出口第 1 条 · ADR-057「同一可见性函数」 | `loadVisibilityContext / isDocVisible / filterVisibleDocs`（经四个真实入口） | 开强制 / 关强制 / 超管三态下四个面集合两两一致且等于预期；名单闸不随部门闸关闭而失效。 | 现行 |
 | `ask/abstain-suggested-actions.test.ts` | 拒答轮必须给出非空且随 reason 变的 suggestedActions，同步与 SSE 同形。 | 剧本 A4 · P2必签 · prds/08-quality/01-verification-and-abstention.md | `POST /knowledge-bases/:kbId/ask（sync / SSE）` | 三种拒答 reason 各有主按钮且互不相同。 | 现行 |
 | `ask/answer-kind.test.ts` | 库内 verified 轮必须回 answerKind=knowledge，寒暄轮 chitchat，拒答轮不谎报。 | 剧本 A3 · P2必签 · prds/05-api | `POST /knowledge-bases/:kbId/ask（sync / SSE）` | 同步与 data-ask-final 同判 answerKind。 | 现行 |
 | `ask/body-lt-passthrough.test.ts` | 制度正文中的 `<` 必须原样进入 generate，不得被 HTML escape 成 `&lt;`。 | 剧本 K6 · prds/10-delivery/03-acceptance-scenarios.md · ADR-037 | `runAskGraph（generate / claim_split user 消息）` | evidence.text 含尖括号时 prompt 保留原字符。feedback 脚本消毒不在本包。 | 现行 |
