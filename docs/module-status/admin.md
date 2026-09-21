@@ -52,7 +52,7 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 ### 知识库设置（B2）
 - `/kb/settings`：基本信息、**文档类型分区**（code / 显示名 / 上移下移 / 启用；PATCH `docTypeItems`）、**语料分级 `dataClass`**、**部门强制勾选**、**部门继承勾选**、问答档位、**分片策略弹窗（启用 + 各 MIME 族 recommended + `contextMode` ClosedSelect；`l0_template` 标「召回增强关闭」）**、**KB 消费绑定**（generate / embed / rerank `ClosedSelect`；跟随平台不写行；**禁止改 judge**）、**质量只读展示**、**rewrite 锁定开关**（无开启控件）、**修改日志**（时间 / 操作者 / 字段旧→新；无行「暂无修改日志」；**无**独立路由 / **无**新菜单）
 - 需要 `kb.config.write` 权限；无权限时显示 403 状态；数据路径仅 `kb/settings/api.ts` 一处（上传 `for-upload` 在 documents `api.ts`）
-- `dataClass=sensitive` complete 须 ACL 就绪（部门强制+归属，或显式名单）；`deptInheritDown` 可勾选，**未改不得写回** GET 缺省 true；`deptAclEnforce` 可勾选，**未改不得写回** GET 缺省 false（避免钉成显式关）；勾选本库强制 **≠** 仓库默认开 / **≠** ES 已对称 / **≠** 角色 principal
+- `dataClass=sensitive` complete 须 ACL 就绪（部门强制+归属，或显式名单）；`deptInheritDown` 可勾选，**未改不得写回** GET 缺省 true；`deptAclEnforce` 可勾选，**未改不得写回** GET 缺省 false（避免钉成显式关）；勾选本库强制 **≠** 仓库默认开 / **≠** ES 已对称 / **≠** role 主体
 - **没有** τ 滑块、**没有**供应商 Key 配置、**没有** paramSchema 通用动态表单引擎 / 平台策略 CRUD 页 / fallbacks 多行；改策略启用不自动 reindex
 
 ### 模型网关（B3 最小集）

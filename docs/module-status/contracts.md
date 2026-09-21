@@ -73,7 +73,7 @@
 - **`KbSettingsAuditItemSchema`**：`id` / `kbId` / `actorUserId` / `createdAt` / `diff`；`.strict()` 拒密钥键（`kb/settings-audit.contract.ts` · `tests/kb/settings-audit-contract.test.ts`）
 - `DocumentListItem` 含 `ownerDeptId` / `visibilityLevel` / `aclPrincipals`（缺省 null / 20 / null；详情 inherit 列表项）
 - `DeptCrossGrant` / `CreateDeptCrossGrantBodySchema`（`system/dept-grants.contract`）
-- `CompleteUploadBody` 可选 `ownerDeptId` / `visibilityLevel` / `aclPrincipals`（omit 不改；`null` 清回未设；`[]` 显式空；元素 uuid，最长 256；旧 `{}` 仍合法）
+- `CompleteUploadBody` 可选 `ownerDeptId` / `visibilityLevel` / `aclPrincipals`（omit 不改；`null` 清回未设；`[]` 显式空；元素 uuid，最长 256；旧 `{}` 仍合法）——**元素形态是契约层决定**（PRD 05 §2.4 未规定名单语法）；与 ADR-057 §5 字面 `user:{id}` 的记号偏离见 [api.md 技术债「主体形态」](./api.md)
 - `qualitySnapshot` · `sessionRewrite` 锁定形状；禁止 τ / rewrite 写键
 
 ### 模型网关（B3）
