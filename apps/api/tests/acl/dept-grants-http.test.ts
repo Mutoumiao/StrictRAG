@@ -1,16 +1,20 @@
 /**
- * 目标：跨部门 grant HTTP 按 DEPT_ACL 约束。
- * 需求：DEPT_ACL
- * 被测：createDeptGrantsRoutes
- * 简介：跨部门 grant。
+ * 目标：跨部门 grant HTTP 按 DEPT_ACL 约束；授权写入须留可追溯的操作日志。
+ * 需求：DEPT_ACL · 剧本 AE7（Then 写「审计有记录」）
+ * 被测：createDeptGrantsRoutes · adminWriteAuditMiddleware
+ * 简介：跨部门 grant 的 CRUD、越权与校验；POST/DELETE 各留一条 dept_cross_grant_*（含 grantId），
+ *      `/api/v1/admin/` 前缀在中间件层另留 admin_write。
  */
 
 import { Hono } from 'hono';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 
 import { attachAuthMiddleware, type AuthVariables } from '../../src/auth/middleware.js';
 import { issueTokenPair } from '../../src/auth/identity/token-service.js';
+import * as loggerMod from '../../src/logger.js';
+import { adminWriteAuditMiddleware } from '../../src/middleware/admin-write-audit.js';
+import type { ApiVariables } from '../../src/middleware/request-id.js';
 import { requestIdMiddleware } from '../../src/middleware/request-id.js';
 import { createMemoryDepartmentsRepoWithUsers } from '../../src/services/departments.js';
 import { createMemoryDeptGrantsRepo } from '../../src/services/dept-grants.js';
@@ -19,6 +23,10 @@ import { createMemoryPlatformUsersRolesRepo } from '../../src/services/platform-
 import { createDeptGrantsRoutes } from '../../src/routes/dept-grants.js';
 
 const TENANT = DEV_DEFAULT_TENANT;
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 async function token(roles: string[], userId = uuidv7()) {
   const pair = await issueTokenPair({
@@ -294,5 +302,95 @@ describe('dept-cross-grants routes (P3b-GRANT)', () => {
       headers: { authorization: `Bearer ${otherPair.accessToken}` },
     });
     expect(delOther.status).toBe(404);
+  });
+
+  it('AE7 审计 · 路由级：POST / DELETE 各留一条 dept_cross_grant_*，CREATE 带 grantId 与 actor', async () => {
+    const info = vi.fn();
+    vi.spyOn(loggerMod, 'childLogger').mockReturnValue({
+      info,
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      child: vi.fn(),
+    } as unknown as ReturnType<typeof loggerMod.childLogger>);
+
+    const { accessToken, userId } = await token(['super_admin']);
+    const { app, users, departments } = buildApp();
+    const seeded = await seedUserAndDept(users, departments);
+
+    const created = await app.request('/api/v1/admin/dept-cross-grants', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        userId: seeded.userId,
+        deptId: seeded.deptId,
+        maxVisibilityLevel: 30,
+      }),
+    });
+    expect(created.status).toBe(201);
+    const grantId = ((await created.json()) as { data: { id: string } }).data.id;
+
+    const del = await app.request(`/api/v1/admin/dept-cross-grants/${grantId}`, {
+      method: 'DELETE',
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    expect(del.status).toBe(200);
+
+    const payloads = info.mock.calls.map((call) => call[0] as Record<string, unknown>);
+    const create = payloads.find((p) => p.event === 'dept_cross_grant_create');
+    const remove = payloads.find((p) => p.event === 'dept_cross_grant_delete');
+    expect(create?.grantId).toBe(grantId);
+    expect(create?.userId).toBe(seeded.userId);
+    expect(create?.deptId).toBe(seeded.deptId);
+    expect(remove?.grantId).toBe(grantId);
+    // 日志上下文带 actor，可追溯到人
+    expect(loggerMod.childLogger).toHaveBeenCalledWith(
+      expect.objectContaining({ userId }),
+    );
+  });
+
+  it('AE7 审计 · 中间件级：/api/v1/admin/ 前缀的 grant 写落一条 admin_write', async () => {
+    const info = vi.fn();
+    vi.spyOn(loggerMod, 'childLogger').mockReturnValue({
+      info,
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      child: vi.fn(),
+    } as unknown as ReturnType<typeof loggerMod.childLogger>);
+
+    const { accessToken } = await token(['super_admin']);
+    const grants = createMemoryDeptGrantsRepo();
+    const departments = createMemoryDepartmentsRepoWithUsers();
+    const users = createMemoryPlatformUsersRolesRepo();
+    const app = new Hono<{ Variables: ApiVariables }>();
+    app.use('*', requestIdMiddleware);
+    app.use('*', attachAuthMiddleware);
+    app.use('*', adminWriteAuditMiddleware);
+    app.route('/api/v1', createDeptGrantsRoutes({ grants, departments, users }));
+    const seeded = await seedUserAndDept(users, departments);
+
+    const res = await app.request('/api/v1/admin/dept-cross-grants', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+        'x-request-id': 'req-dept-grant-audit',
+      },
+      body: JSON.stringify({
+        userId: seeded.userId,
+        deptId: seeded.deptId,
+        maxVisibilityLevel: 20,
+      }),
+    });
+    expect(res.status).toBe(201);
+
+    const audit = info.mock.calls
+      .map((call) => call[0] as Record<string, unknown>)
+      .find((p) => p.event === 'admin_write');
+    expect(audit).toBeDefined();
+    expect(audit?.path).toBe('/api/v1/admin/dept-cross-grants');
+    expect(audit?.method).toBe('POST');
+    expect(audit?.status).toBe(201);
   });
 });
