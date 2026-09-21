@@ -103,8 +103,9 @@ routes.get('/admin/departments', requirePermission('dept.manage'), ...)
 ### 2. 形态（当前实现）
 
 - **PG 是 ACL 真值源**：`loadCorpusFromDb` 装载期已过 `filterDocsForDeptAcl` + `filterDocsForAclPrincipals`；dense 打分输入即该语料，故 dense 侧不另设 filter。
-- **ES 只做粗收窄**：`buildAclFilter` 返回 **filter 数组**，元素之间 AND。已用元素 = `term tenantId` · `term kbId` · 可选 `terms ownerDeptId` · 可选**级别组** · 可选名单 `should`。
-- **禁跨元素拉平**：把部门支与级别支塞进同一个 `should` 会变成「部门 OR 库级 OR 级别达标 OR 缺失」= 放松。新条件一律加**独立元素**。
+- **ES 只做粗收窄**：`buildAclFilter` 返回 **filter 数组**，元素之间 AND。已用元素 = `term tenantId` · `term kbId` · 可选**部门组** · 可选**级别组** · 可选名单 `should`。
+- **部门组的形状随「收窄是否生效」**：收窄生效时是 `bool.should[terms(可见部门 id 非空时), must_not exists ownerDeptId]` + `minimum_should_match: 1`（后一支即 PG 的「库级文档」；**可见部门为空时只剩这一支**，不再对部门文档 fail-open）；收窄不生效时保持历史的裸 `terms`（非空才加）。库级文档的级别正确性由级别组的 `lte` 承载 —— PG 对无 `ownerDeptId` 文档走独立级别规则（`effectiveLevel`：任一处负责人 30，否则 20），该上界覆盖它。
+- **禁跨元素拉平**：把部门支与级别支塞进同一个 `should` 会变成「部门 OR 库级 OR 级别达标 OR 缺失」= 放松。新条件一律加**独立元素**；部门组与级别组必须是 filter 数组的两个独立元素。
 - **级别组是上界不是逐文档规则**：`maxVisibleLevelUpperBound` = `max(任一处负责人 ? 30 : 20, 未过期 grant 的 maxVisibilityLevel)`；由 `PG 可见 ⇒ vis <= 上界` 保证只缩小 ES 命中集。
 - **「是否收窄」的三态信号 = `maxVisibleLevel` 是否传入**：enforce 关或超管 bypass → 两者都不传（filter 与历史逐位一致）；enforce 开且非超管 → 传上界（**即便部门 id 为空也传**）。
 - **兜底仍在**：ES 命中必须落在 PG 语料内（`sparseRanked.filter((id) => byId.has(id))`），ES 命中只影响排序。**一旦把 ES 命中用于计数 / 渲染 / 直接取正文，该兜底失效，必须回来加真 filter。**
@@ -141,7 +142,12 @@ filter.push({ bool: { should: [
 
 #### Correct
 ```typescript
-if (ownerDeptIds.length > 0) filter.push({ terms: { ownerDeptId: ownerDeptIds } });
-if (maxVisibleLevel != null) filter.push(visibilityLevelFilterClause(maxVisibleLevel));
+// 收窄生效（maxVisibleLevel 传入）：部门组 = 部门 ∪ 库级；级别组独立
+if (maxVisibleLevel != null) {
+  filter.push(ownerDeptFilterClause(ownerDeptIds));
+  filter.push(visibilityLevelFilterClause(maxVisibleLevel));
+} else if (ownerDeptIds.length > 0) {
+  filter.push({ terms: { ownerDeptId: ownerDeptIds } });   // 历史的裸 terms，逐位不变
+}
 if (applyAclPrincipals) filter.push(aclPrincipalsFilterClause(userId));
 ```

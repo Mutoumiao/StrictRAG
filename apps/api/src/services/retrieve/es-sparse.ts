@@ -95,10 +95,37 @@ export type EsVisibilityLevelClause = {
   };
 };
 
+/**
+ * 部门组：必须是 filter 数组里的**独立元素**（与级别组 AND）。
+ * 禁止与级别组并进同一个 should —— 那会变成「部门 OR 库级 OR 级别达标 OR 缺失」= 放松。
+ * `must_not exists ownerDeptId` 一支是 PG 的「库级文档」：PG 对无 ownerDeptId 的文档走独立级别规则
+ * （`dept-acl.ts` 的 `effectiveLevel`：任一处负责人 30，否则 20），该规则的级别正确性由级别组的 `lte` 承载。
+ */
+export type EsOwnerDeptShould =
+  | { terms: { ownerDeptId: string[] } }
+  | { bool: { must_not: { exists: { field: 'ownerDeptId' } } } };
+
+export type EsOwnerDeptClause = {
+  bool: {
+    should: EsOwnerDeptShould[];
+    minimum_should_match: 1;
+  };
+};
+
+/** ids 为空时只剩「库级文档」一支 —— 即 PG 的「只见库级文档」，不再对部门文档 fail-open。 */
+export function ownerDeptFilterClause(ownerDeptIds: readonly string[]): EsOwnerDeptClause {
+  const ids = ownerDeptIds.filter((id) => id.trim().length > 0);
+  const should: EsOwnerDeptShould[] = [];
+  if (ids.length > 0) should.push({ terms: { ownerDeptId: [...ids] } });
+  should.push({ bool: { must_not: { exists: { field: 'ownerDeptId' } } } });
+  return { bool: { should, minimum_should_match: 1 } };
+}
+
 export type EsAclFilterClause =
   | { term: { tenantId: string } }
   | { term: { kbId: string } }
   | { terms: { ownerDeptId: string[] } }
+  | EsOwnerDeptClause
   | EsVisibilityLevelClause
   | EsAclPrincipalsClause;
 
@@ -155,9 +182,10 @@ export function visibilityLevelFilterClause(maxVisibleLevel: number): EsVisibili
 /**
  * 检索期 ACL 对称 filter（ES 查询共用，禁止两路各写）。
  * P2 在 ES 查询期强制 tenantId + kbId（共享索引安全隔离，不得事后交 PG）。
- * 非空 ownerDeptIds 时追加 terms 收窄；空/缺省不加部门 terms。
+ * **收窄生效**（传入 `maxVisibleLevel`）时追加部门组 `ownerDeptFilterClause` 与**独立**的级别组
+ * `visibilityLevelFilterClause`；未传该信号（enforce 关 / 超管 bypass，或直接调用方）时 filter
+ * 与旧版逐位一致 —— 非空 `ownerDeptIds` 仍走裸 `terms`。
  * applyAclPrincipals 时追加名单 should（缺字段可读；[] 不可命中）。
- * 传入 maxVisibleLevel（= 部门收窄生效）时追加**独立**的级别组，见 visibilityLevelFilterClause。
  * 缺 ownerDeptId / 缺 aclPrincipals 字段不得把「显式空」当成全员可见。
  * 精确可见级仍由 PG filterDocsForDeptAcl / filterDocsForAclPrincipals 把关。
  * status/lifecycle/indexVersion 闸门由 PG corpus（loadCorpusFromDb）对称承载；
@@ -176,11 +204,11 @@ export function buildAclFilter(input: {
     { term: { kbId: input.kbId } },
   ];
   const ownerDeptIds = (input.ownerDeptIds ?? []).filter((id) => id.trim().length > 0);
-  if (ownerDeptIds.length > 0) {
-    filter.push({ terms: { ownerDeptId: ownerDeptIds } });
-  }
   if (input.maxVisibleLevel != null) {
+    filter.push(ownerDeptFilterClause(ownerDeptIds));
     filter.push(visibilityLevelFilterClause(input.maxVisibleLevel));
+  } else if (ownerDeptIds.length > 0) {
+    filter.push({ terms: { ownerDeptId: ownerDeptIds } });
   }
   if (input.applyAclPrincipals) {
     filter.push(aclPrincipalsFilterClause(input.aclPrincipalUserId));

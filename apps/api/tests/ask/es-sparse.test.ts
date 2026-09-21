@@ -2,7 +2,7 @@
  * 目标：稀疏检索 HTTP 切片按 env 解析，失败不得静默回 mock。
  * 需求：OPS-1
  * 被测：esConfigFromEnv / searchSparseEs / buildAclFilter
- * 简介：稀疏检索 HTTP 切片；ACL filter 默认可选部门 terms；名单 clause 另见 es-principals-query-filter。
+ * 简介：稀疏检索 HTTP 切片；ACL filter 在未传收窄信号时保持裸部门 terms，收窄生效时部门组重塑为「部门 ∪ 库级」。
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -63,7 +63,7 @@ describe('buildAclFilter', () => {
     ).toHaveLength(3);
   });
 
-  it('传 maxVisibleLevel 时追加级别组（range + 缺字段放行）', () => {
+  it('传 maxVisibleLevel 时部门组重塑为部门∪库级，并追加级别组（range + 缺字段放行）', () => {
     expect(
       buildAclFilter({
         tenantId: 't-1',
@@ -74,7 +74,15 @@ describe('buildAclFilter', () => {
     ).toEqual([
       { term: { tenantId: 't-1' } },
       { term: { kbId: 'kb-1' } },
-      { terms: { ownerDeptId: ['dept-a'] } },
+      {
+        bool: {
+          should: [
+            { terms: { ownerDeptId: ['dept-a'] } },
+            { bool: { must_not: { exists: { field: 'ownerDeptId' } } } },
+          ],
+          minimum_should_match: 1,
+        },
+      },
       {
         bool: {
           should: [
@@ -85,6 +93,38 @@ describe('buildAclFilter', () => {
         },
       },
     ]);
+  });
+
+  it('收窄生效 + 可见部门为空：部门组只剩「库级文档」一支（不再对部门文档 fail-open）', () => {
+    expect(buildAclFilter({ tenantId: 't-1', kbId: 'kb-1', maxVisibleLevel: 20 })).toEqual([
+      { term: { tenantId: 't-1' } },
+      { term: { kbId: 'kb-1' } },
+      {
+        bool: {
+          should: [{ bool: { must_not: { exists: { field: 'ownerDeptId' } } } }],
+          minimum_should_match: 1,
+        },
+      },
+      {
+        bool: {
+          should: [
+            { range: { visibilityLevel: { lte: 20 } } },
+            { bool: { must_not: { exists: { field: 'visibilityLevel' } } } },
+          ],
+          minimum_should_match: 1,
+        },
+      },
+    ]);
+  });
+
+  it('收窄生效时：显式空列表与缺省同形；空白 id 被丢掉', () => {
+    const expected = buildAclFilter({ tenantId: 't-1', kbId: 'kb-1', maxVisibleLevel: 20 });
+    expect(
+      buildAclFilter({ tenantId: 't-1', kbId: 'kb-1', ownerDeptIds: [], maxVisibleLevel: 20 }),
+    ).toEqual(expected);
+    expect(
+      buildAclFilter({ tenantId: 't-1', kbId: 'kb-1', ownerDeptIds: ['  '], maxVisibleLevel: 20 }),
+    ).toEqual(expected);
   });
 
   it('级别组与部门组是 filter 数组的两个独立元素（并进同一 should 即放松）', () => {
@@ -98,7 +138,11 @@ describe('buildAclFilter', () => {
     });
     expect(filter).toHaveLength(5);
     const dept = filter[2] as { terms?: unknown; bool?: { should?: unknown[] } };
-    expect(dept.terms).toEqual({ ownerDeptId: ['dept-a'] });
+    expect(dept.terms).toBeUndefined();
+    expect(dept.bool?.should).toEqual([
+      { terms: { ownerDeptId: ['dept-a'] } },
+      { bool: { must_not: { exists: { field: 'ownerDeptId' } } } },
+    ]);
     const level = filter[3] as { bool: { should: unknown[] } };
     expect(level.bool.should).toHaveLength(2);
     expect(JSON.stringify(level)).not.toContain('ownerDeptId');
@@ -138,6 +182,52 @@ describe('searchSparseEs', () => {
       { tenantId: 'tenant-1', kbId: 'kb1', question: 'leave', size: 10 },
     );
     expect(ids).toEqual(['c1', 'c2']);
+  });
+
+  it('收窄生效时 _search 的 filter 是 部门组 + 级别组 两个独立元素', async () => {
+    let capturedBody: { query: { bool: { filter: unknown[] } } } | undefined;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init?: RequestInit) => {
+        capturedBody = JSON.parse(String(init?.body ?? '{}'));
+        return { ok: true, json: async () => ({ hits: { hits: [] } }) };
+      }),
+    );
+
+    await searchSparseEs(
+      { baseUrl: 'http://es:9200', index: 'ix' },
+      {
+        tenantId: 'tenant-1',
+        kbId: 'kb-1',
+        question: 'leave',
+        size: 5,
+        ownerDeptIds: ['dept-a'],
+        maxVisibleLevel: 20,
+      },
+    );
+
+    expect(capturedBody?.query.bool.filter).toEqual([
+      { term: { tenantId: 'tenant-1' } },
+      { term: { kbId: 'kb-1' } },
+      {
+        bool: {
+          should: [
+            { terms: { ownerDeptId: ['dept-a'] } },
+            { bool: { must_not: { exists: { field: 'ownerDeptId' } } } },
+          ],
+          minimum_should_match: 1,
+        },
+      },
+      {
+        bool: {
+          should: [
+            { range: { visibilityLevel: { lte: 20 } } },
+            { bool: { must_not: { exists: { field: 'visibilityLevel' } } } },
+          ],
+          minimum_should_match: 1,
+        },
+      },
+    ]);
   });
 
   it('HTTP error → EsSparseError', async () => {

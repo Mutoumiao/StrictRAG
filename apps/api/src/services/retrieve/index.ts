@@ -21,6 +21,7 @@ export {
   ensureSparseIndex,
   bulkIndexSparse,
   buildAclFilter,
+  ownerDeptFilterClause,
   aclPrincipalsFilterClause,
   ACL_PRINCIPALS_NONE_SENTINEL,
   esConfigFromEnv,
