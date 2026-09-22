@@ -122,6 +122,7 @@
 | `eval/l1-cli.test.ts` | L1 CLI 注入路径可跑且 skipTrace，不打 live。 | B10 · 覆盖 C4 · 覆盖 C2 · 覆盖 C3 | `runL1Golden / loadGold / writeL1Report` | 注入路径可跑且跳过落库 trace；有 expectedDocIds 时写 Hit@k；有 minSupport 时写 tauStar；注入校准打分器时写 judgeAuroc。 | 现行 |
 | `eval/l1-human-spot-cli.test.ts` | 人工抽检账本要有入口（`--human-spot <path>`）与报告字段，且合法账本真能让该硬门变绿（不是空转闸）。 | prds/08-quality/02-evaluation-and-gates.md §6（≥20 条 / 错 ≤1） · ADR-046 | `parseL1CliArgs · loadHumanSpotLedger · runL1Golden` | 四态参数解析；仓根样例账本可加载且恰好达标；坏账本抛错不静默变缺测；全绿跑次只差「有没有账本」即翻红。 | 现行 |
 | `eval/l1-matrix.test.ts` | L1 2×2 纯函数累计与覆盖计算正确，且不得当作签字。 | B10 | `cellFor / accumulate / coverage / computeSignoffEligible` | ≠ 签字；error 出格。 | 现行 |
+| `eval/l1-repro-fields.test.ts` | L1 报告必须落 PRD §8 可复现区块：能取到的取真值（模型 / 档位预算 / τ / 两条哈希），取不到的一律 null 而非伪值；既有 mode 语义不变。 | prds/08-quality/02-evaluation-and-gates.md §8 可复现字段 | `runL1Golden · formatReportMd · writeL1Report` | 图上档位 → 预算（fast 60/10、balanced 150/20、无回包 null）；注入校准题 → 校准集哈希 null；KB 绑定读取器抛错 → null；全 null 区块 md 渲染不炸。 | 现行 |
 | `eval/l2-cli.test.ts` | L2 CLI 注入可跑；signoffEligible 走工程公式，mock 必 false。 | P2.5-L2 | `runL2Golden / parseL2CliEnv` | 工程可签字 ≠ 准出 PASS。 | 现行 |
 | `eval/l2-fingerprint.test.ts` | rewrite 指纹纯函数稳定，且不因此打开 rewrite。 | ADR-046 相关 | `l2RewriteFingerprint` | 非开 rewrite。 | 现行 |
 | `eval/l2-gold.test.ts` | L2 题面加载拒绝非法文件，且不得当作准出。 | P2.5-L2 | `loadL2Gold / l2TypeCoverage / defaultL2GoldPath` | ≠ 准出。 | 现行 |

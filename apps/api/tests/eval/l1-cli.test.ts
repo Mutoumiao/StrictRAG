@@ -12,6 +12,8 @@ import { fileURLToPath } from 'node:url';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { emptyL1Repro } from '@strict-rag/contracts/eval-repro';
+
 import type { ExecuteAskParams, ExecuteAskResult } from '../../src/services/ask/index.js';
 import {
   GoldLoadError,
@@ -244,6 +246,7 @@ describe('buildEvalRunInsert / evalRunDbRanAt', () => {
       citationComplete: null,
       citationCompleteDen: 0,
       humanSpot: null,
+      repro: emptyL1Repro(),
       errorCount: 0,
       cases: [],
       kbId: '01900000-0000-7000-8000-0000000000aa',
@@ -290,6 +293,7 @@ describe('buildEvalRunInsert / evalRunDbRanAt', () => {
       citationComplete: null,
       citationCompleteDen: 0,
       humanSpot: null,
+      repro: emptyL1Repro(),
       errorCount: 0,
       cases: [],
       kbId: 'k',
@@ -634,6 +638,7 @@ describe('writeL1Report', () => {
       citationComplete: null,
       citationCompleteDen: 0,
       humanSpot: null,
+      repro: emptyL1Repro(),
       errorCount: 0,
       cases: [],
       kbId: 'k',

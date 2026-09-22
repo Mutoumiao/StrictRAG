@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./eval-repro": "./src/eval/l1-repro.ts",
     "./testing": "./src/testing.ts"
   },
   "scripts": {
@@ -19,6 +20,7 @@
   "devDependencies": {
     "@strict-rag/eslint-config": "workspace:*",
     "@strict-rag/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
     "eslint": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

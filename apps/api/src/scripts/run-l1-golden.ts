@@ -6,7 +6,14 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { toHumanSpotReport, type HumanSpotReport } from '@strict-rag/contracts';
+import { AskModeSchema, toHumanSpotReport, type HumanSpotReport } from '@strict-rag/contracts';
+import {
+  emptyL1Repro,
+  l1CalibSetHash,
+  l1QuestionIdsHash,
+  type L1Repro,
+  type L1ReproKbBinding,
+} from '@strict-rag/contracts/eval-repro';
 import { evalRuns, formatLocalDateTime } from '@strict-rag/db';
 import { uuidv7 } from 'uuidv7';
 
@@ -50,6 +57,7 @@ import {
   cellFor,
 } from '../eval/l1-matrix.js';
 import { env } from '../env.js';
+import { retrieveBudgetForMode } from '../graph/budget.js';
 import {
   executeAsk,
   type ExecuteAskDeps,
@@ -57,6 +65,7 @@ import {
   type ExecuteAskResult,
 } from '../services/ask/index.js';
 import { getDb } from '../services/db.js';
+import { modelGatewayRepo } from '../services/model-gateway.js';
 
 export type GoldCase = {
   id: string;
@@ -124,6 +133,11 @@ export type L1Report = {
   citationCompleteDen: number;
   /** 人工抽检（PRD §6 硬门）：账本登记的条数 / 错数 / 来源；缺测 → null（该门不放行） */
   humanSpot: HumanSpotReport | null;
+  /**
+   * PRD §8 可复现区块：能取到的取真值，取不到的一律 `null`（禁止占位串）。
+   * 形状 = `@strict-rag/contracts/eval-repro` 的 `L1Repro`，与 worker 批跑同构；不进任何判定。
+   */
+  repro: L1Repro;
   errorCount: number;
   cases: L1CaseRow[];
   kbId: string;
@@ -174,6 +188,11 @@ export type RunL1Options = {
   scoreJudge?: (cases: readonly JudgeCalibCase[]) => Promise<Array<number | null>>;
   /** 人工抽检账本路径（CLI `--human-spot <path>`）；**不传 = 缺测**（该门不放行） */
   humanSpotPath?: string;
+  /**
+   * §8 `models.kbBindings` 读取器（需读库；CLI `main()` 注入 `modelGatewayRepo.listKbBindings`）。
+   * 不注入 / 读库失败 = 取不到 → `null`（不得编造绑定）。
+   */
+  readKbBindings?: (kbId: string, tenantId: string) => Promise<readonly L1ReproKbBinding[]>;
 };
 
 /** CLI 参数解析结果：`ok:false` 时由 `main()` 打 stderr + exit 2 */
@@ -411,6 +430,108 @@ export function loadGold(goldPath: string): GoldCase[] {
   return out;
 }
 
+/** env 侧模型 id：未配 / 空白 → null（不得把空串当「已配」写进报告）。 */
+function envModelOrNull(value: string): string | null {
+  return value.trim().length > 0 ? value : null;
+}
+
+/**
+ * §8 `retrieveK` / `rerankTopN`：本次 run 档位（图上回包 `graph.mode`）→ `graph/budget.ts` 冻结表。
+ * 档位非法 / 整批无回包 → null（不得拿 `balanced` 默认值替图上实际档位）。
+ */
+function reproBudgetForAskMode(mode: unknown): { retrieveK: number; rerankTopN: number } | null {
+  const parsed = AskModeSchema.safeParse(mode);
+  if (!parsed.success) return null;
+  return retrieveBudgetForMode(parsed.data);
+}
+
+/**
+ * §8 校准集内容：只为算哈希读文件；读不到 → null（无打分器时该文件非必需，**不得**因此抛错）。
+ */
+function readJudgeCalibContentIfPresent(calibPath: string): string | null {
+  try {
+    return readFileSync(calibPath, 'utf8');
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * §8 可复现区块：能取到的取真值，取不到一律 `null`（禁止 `''` / `'unknown'` / `'-'` 占位串）。
+ * 恒 `null` 的记债项（seed / fallbackChains 版本 / crag* / promptVersions / lifecycle 规则
+ * / session 策略 / L2 剧本集哈希）由 `emptyL1Repro()` 铺底，不在此处编造。
+ */
+function buildL1Repro(input: {
+  goldIds: readonly string[];
+  calibContent: string | null;
+  askMode: unknown;
+  tauClaim: number | null;
+  kbBindings: readonly L1ReproKbBinding[] | null;
+}): L1Repro {
+  const budget = reproBudgetForAskMode(input.askMode);
+  return {
+    ...emptyL1Repro(),
+    models: {
+      env: {
+        chat: envModelOrNull(env.GATEWAY_CHAT_MODEL),
+        embed: envModelOrNull(env.GATEWAY_EMBED_MODEL),
+        rerank: envModelOrNull(env.GATEWAY_RERANK_MODEL),
+      },
+      kbBindings: input.kbBindings,
+    },
+    retrieveK: budget ? budget.retrieveK : null,
+    rerankTopN: budget ? budget.rerankTopN : null,
+    tauClaim: input.tauClaim,
+    questionIdsHash: l1QuestionIdsHash(input.goldIds),
+    calibrationHash: l1CalibSetHash(input.calibContent),
+  };
+}
+
+/** §8 区块的 md 行；取不到的渲染成「—」（不得渲染成 `null` / 空串）。 */
+function reproMdLines(repro: L1Repro): string[] {
+  const dash = (value: string | number | null): string => (value === null ? '—' : String(value));
+  const bindings = repro.models.kbBindings;
+  const rows: Array<[string, string]> = [
+    ['models.env.chat', dash(repro.models.env.chat)],
+    ['models.env.embed', dash(repro.models.env.embed)],
+    ['models.env.rerank', dash(repro.models.env.rerank)],
+    [
+      'models.kbBindings',
+      bindings === null
+        ? '—'
+        : bindings.length === 0
+          ? '（无绑定）'
+          : bindings
+              .map(
+                (b) =>
+                  `${b.purpose}=${b.primaryRef}${b.fallbackRefs.length > 0 ? ` (+${b.fallbackRefs.length} 备)` : ''}`,
+              )
+              .join('；'),
+    ],
+    ['retrieveK', dash(repro.retrieveK)],
+    ['rerankTopN', dash(repro.rerankTopN)],
+    ['tauClaim', dash(repro.tauClaim)],
+    ['contextMode', dash(repro.contextMode)],
+    ['questionIdsHash', dash(repro.questionIdsHash)],
+    ['calibrationHash', dash(repro.calibrationHash)],
+    ['seed', dash(repro.seed)],
+    ['fallbackChainsVersion', dash(repro.fallbackChainsVersion)],
+    ['crag', dash(repro.crag)],
+    ['promptVersions', dash(repro.promptVersions)],
+    ['lifecycleFilterVersion', dash(repro.lifecycleFilterVersion)],
+    ['sessionStrategyVersion', dash(repro.sessionStrategyVersion)],
+    ['l2GoldSetHash', dash(repro.l2GoldSetHash)],
+  ];
+  return [
+    '',
+    '## 可复现（PRD §8）',
+    '',
+    '| 字段 | 值 |',
+    '|------|-----|',
+    ...rows.map(([key, value]) => `| ${key} | ${value} |`),
+  ];
+}
+
 export function writeL1Report(outDir: string, report: L1Report): { jsonPath: string; mdPath: string } {
   mkdirSync(outDir, { recursive: true });
   const jsonPath = path.join(outDir, 'l1-last-run.json');
@@ -467,6 +588,7 @@ export function formatReportMd(report: L1Report): string {
     `| gate_bundle | ${report.gateSnapshot?.gate_bundle ?? '—'} |`,
     `| signedPackage | ${report.gateVerdict?.signedPackage ?? false} |`,
     `| businessPass | ${report.gateVerdict?.businessPass ?? false} |`,
+    ...reproMdLines(report.repro),
     '',
     '## 2×2',
     '',
@@ -500,6 +622,8 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
   const matrix = emptyMatrix();
   const hitAcc = emptyHitAtK();
   let errorCount = 0;
+  /** 图上回包的实际 ask 档位（§8 retrieveK/rerankTopN 的来源）；整批无回包 → null */
+  let askMode: string | null = null;
   const rows: L1CaseRow[] = [];
   const tenantId = opts.tenantId ?? process.env.L1_TENANT_ID ?? '01900000-0000-7000-8000-000000000001';
   const userId = opts.userId ?? process.env.L1_USER_ID ?? '01900000-0000-7000-8000-0000000000e1';
@@ -529,6 +653,8 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
       outcome = result.graph.status;
       reason = result.graph.reason;
       answerKind = result.graph.answerKind;
+      // §8 retrieveK / rerankTopN 的来源：图上实际档位（批跑整批同档位，取第一个成功回包）
+      if (askMode === null && typeof result.graph.mode === 'string') askMode = result.graph.mode;
       const citations = result.graph.citations;
       citationCount = Array.isArray(citations) ? citations.length : 0;
       evidenceDocIds = (result.graph.evidence_snapshot ?? [])
@@ -560,6 +686,29 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
   const counts = goldTypeCounts(cases);
   const swept = sweepTau(rows);
   const calib = await scoreJudgeAuroc(opts);
+  const snapIn = opts.snapshot;
+  // τ 唯一源：快照覆盖 ?? ADR-007 的 env.TAU_CLAIM。报告与快照读同一个值，不出现两个 τ
+  const tauClaim = snapIn?.tauClaim ?? env.TAU_CLAIM;
+
+  // §8 models.kbBindings：需读库，读不到 = 取不到 → null（不得编造绑定）
+  let kbBindings: readonly L1ReproKbBinding[] | null = null;
+  if (opts.readKbBindings) {
+    try {
+      kbBindings = await opts.readKbBindings(opts.kbId, tenantId);
+    } catch (err) {
+      console.error(
+        'repro: read KB model bindings failed (models.kbBindings=null):',
+        err instanceof Error ? err.message : err,
+      );
+    }
+  }
+
+  // §8 校准集内容：注入校准题（单测）时无文件内容 → 哈希取不到；恒 null 字段由 emptyL1Repro 铺底
+  const calibContent =
+    opts.judgeCalibCases !== undefined
+      ? null
+      : readJudgeCalibContentIfPresent(opts.judgeCalibPath ?? defaultJudgeCalibPath());
+
   const report: L1Report = {
     mode,
     retrieve_mode: mode,
@@ -584,6 +733,13 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
       (r) => r.outcome === 'answered' && r.answerKind === 'knowledge',
     ).length,
     humanSpot,
+    repro: buildL1Repro({
+      goldIds: all.map((c) => c.id),
+      calibContent,
+      askMode,
+      tauClaim,
+      kbBindings,
+    }),
     errorCount,
     cases: rows,
     kbId: opts.kbId,
@@ -610,14 +766,13 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
 
   // ponytail: 快照绑本跑身份；默认不代签。实测硬门（覆盖 / C 率 / Hit@k / AUROC / 引用完整率）
   // 全量传进闸；缺测 null → 不放行（hit@k 无标注、引用完整率分母 0 除外）
-  const snapIn = opts.snapshot;
   const bound = bindQualitySnapshotToEval({
     snapshotId: snapIn?.snapshotId ?? uuidv7(),
     kbId: report.kbId,
     evalRunId: report.evalRunId ?? null,
     ranAt: report.ranAt,
     retrieve_mode: mode,
-    tauClaim: snapIn?.tauClaim ?? env.TAU_CLAIM,
+    tauClaim,
     gates: snapIn?.gates ?? { ...PILOT_HARD_GATES },
     proposal: snapIn?.proposal,
     businessR: snapIn?.businessR,
@@ -684,6 +839,13 @@ async function main(): Promise<void> {
       humanSpotPath: args.humanSpotPath,
       judgeScorerMode,
       scoreJudge,
+      // §8 models.kbBindings：读库失败走 runL1Golden 的 catch → null（不得编造绑定）
+      readKbBindings: async (kb, tenant) =>
+        (await modelGatewayRepo.listKbBindings(tenant, kb)).map((r) => ({
+          purpose: r.purpose,
+          primaryRef: r.primaryRef,
+          fallbackRefs: r.fallbackRefs,
+        })),
     });
     console.log(
       JSON.stringify(
@@ -710,6 +872,7 @@ async function main(): Promise<void> {
           judgeAurocScored: report.judgeAurocScored,
           judgeAurocSource: report.judgeAurocSource,
           humanSpot: report.humanSpot,
+          repro: report.repro,
           errorCount: report.errorCount,
           outDir,
         },

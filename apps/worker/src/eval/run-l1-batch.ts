@@ -27,6 +27,11 @@ import {
   type HumanSpotReport,
   toHumanSpotReport,
 } from '@strict-rag/contracts';
+import {
+  emptyL1Repro,
+  l1QuestionIdsHash,
+  type L1Repro,
+} from '@strict-rag/contracts/eval-repro';
 
 import { env } from '../env.js';
 
@@ -104,6 +109,12 @@ export type L1BatchReport = {
   citationCompleteDen: number;
   /** 人工抽检（PRD §6 硬门）：账本登记的条数 / 错数 / 来源；缺测 → null（= 没人登记） */
   humanSpot: HumanSpotReport | null;
+  /**
+   * PRD §8 可复现区块：与 api CLI **同形状**（`@strict-rag/contracts/eval-repro` 的 `L1Repro`）。
+   * worker 侧批跑经 api 内口执行、不持有本次 run 的模型/档位/τ 配置 → 那些分项为 `null`（记债），
+   * 取不到的一律 `null`（禁止占位串）。
+   */
+  repro: L1Repro;
   errorCount: number;
   cases: L1BatchCaseRow[];
   kbId: string;
@@ -228,6 +239,15 @@ export async function runL1Batch(opts: {
       (r) => r.outcome === 'answered' && r.answerKind === 'knowledge',
     ).length,
     humanSpot,
+    /**
+     * §8 区块：worker 只填题面 ID 哈希（源 = DB `gold_questions.case_key` 全量，升序见 `l1QuestionIdsHash`）。
+     * 其余分项留 `null`：模型 / 档位预算 / τ 都在 api 侧（批跑经内口执行，不回传档位）；校准集只有
+     * 解析后的入参、无文件内容；seed / 版本类字段无载体。销账路径见工单 05 的去向表。
+     */
+    repro: {
+      ...emptyL1Repro(),
+      questionIdsHash: l1QuestionIdsHash(opts.cases.map((c) => c.caseKey)),
+    },
     errorCount,
     cases: rows,
     kbId: opts.kbId,

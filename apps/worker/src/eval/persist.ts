@@ -136,6 +136,7 @@ export const evalPersist: EvalPersist = {
           citationComplete: report.citationComplete,
           citationCompleteDen: report.citationCompleteDen,
           humanSpot: report.humanSpot,
+          repro: report.repro,
           errorCount: report.errorCount,
           cases: report.cases,
           kbId: report.kbId,
