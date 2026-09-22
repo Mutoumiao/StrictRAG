@@ -25,6 +25,33 @@
 
 ---
 
+## 硬门判定落点（实测值 → 业务 PASS）
+
+> 2026-09-23 起：`prds/08-quality/02-evaluation-and-gates.md` §6 的试点硬门**不再只做门对门比较**（候选包 vs 试点包），实测值真进 `evaluateAdr046Bind` 的 `&&`。
+
+| 实测值 | 来源 | 进判定的判据 | 缺测（null）时 |
+|---|---|---|---|
+| 覆盖率 | 2×2 的 A/(A+B) | `>= 试点 coverageMin`（0.40） | 不放行 |
+| C 率 | C/(C+D) | `<= 试点 cRateMax`（0.05） | 不放行 |
+| Hit@k | evidence.docId 与 expectedDocIds 有交集 | `>= 试点 hitAt20Min`（0.70） | **该门不适用**（PRD 写「有标注时」） |
+| Judge AUROC | 独立校准集（Mann-Whitney） | `>= 试点 judgeAurocMin`（0.65） | 不放行 |
+| 引用完整率 | `knowledge ∧ answered` 里 citations>0 的比例 | `>= 试点 citationCompleteMin`（0.99） | **该门不适用**（分母 0） |
+
+**门限一律读 `PILOT_HARD_GATES`**，判定处禁止写裸数字。新增门限前先问一句「PRD 写死了吗」：写死 = 落地（实现 PRD）；没写 = 改冻结语义，须 ADR。
+
+**两条必读的诚实面**（写这类改动时不许省）：
+
+1. 生产入口（CLI `main()` 与 worker eval 消费者）**不接校准打分器** → `judgeAuroc` 恒 `null` → **`businessPass` 在生产路径上不可达**。这是**有意**的：把「未测」显形为红，而不是留一条覆盖率 0.001 也能变真的假绿。
+2. 引用完整率受图的不变式约束（`answered ∧ knowledge` 时必带合法引用）→ 结构上只能是 1 或 null。该门钉的是**不变式**，不是筛跑次。
+
+**双写常量**：`PILOT_HARD_GATES`（本包 `eval/adr046-snapshot.ts`）与 contracts 的 `TAU_STAR_COVERAGE_MIN` / `TAU_STAR_C_RATE_MAX` 是**两份独立常量、数值一致**（依赖方向只有 api → contracts）。**不合并**，只加一条同时读两处的断言防单边漂移。
+
+**禁止**：为了让某次跑次变绿而放宽任一门；把缺测当合格；在判定处复制门限数字；把「未接打分器」写成「已达 AUROC 门」。
+
+**未做（债）**：人工抽检 ≥20 条 / 错 ≤1 —— 全仓无入口、无登记表、无报告字段；校准规模 ≥100 —— 实际夹具 8 题。
+
+---
+
 ## Scenario: L1 批跑 CLI → executeAsk → 2×2 报告
 
 ### 1. Scope / Trigger

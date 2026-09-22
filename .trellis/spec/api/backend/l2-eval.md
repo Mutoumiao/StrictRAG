@@ -88,6 +88,19 @@ runner **只机械钉**「先前用户轮全文不得出现在末轮 `evidence_s
 
 ---
 
+### 近指代通过率（2026-09-23 起进工程公式）
+
+`computeL2SignoffEligible` = live ∧ 九类齐 ∧ 零容忍机械项=0 ∧ `caseCount` ≥ 15 ∧ **近指代通过率 ≥ 0.8**（`L2_NEAR_COREF_PASS_MIN`，出处 `prds/08-quality/02-evaluation-and-gates.md` §6.2）。
+
+- **口径**：`l2NearCorefPassRate(rows)` = `type='near_coref' ∧ verdict='pass'` 的行数 ÷ **全部** `near_coref` 行（**含 `error`**；error 不算 pass）；分母 0 → `null`。
+- **为什么 error 进分母**：排除它会让「全批 error」退化成缺测 → 该门不适用 → 放行（fail-open）。本仓纪律是「无有效数据不外推」（与 τ 扫描的 `scored=0 → tauStar=null` 同款）。
+- **缺测（`null`）→ 不放行**。
+- **残余（写口径时不许省）**：本率**不含**「主题是否正确」（今天无 judge，且 runner 未采集 `evidence_snapshot.docId` 命中）、**不含**「合法 citation」；夹具只有 3 条 `near_coref`，80% 只能取 0 / 33.3 / 66.7 / 100% → 该门今天约等于「3/3 全过」而非比例门。
+- **未动**：`L2_SIGNOFF_MIN_CASES` 仍是 15（PRD 的 30～50 是**建议**，不是硬门，改它反而严于 PRD）；其余三项零容忍（主题粘连胡答 / 冲突场景跟错数字 / 合法路径跳过 verify）与 `historyLeaked` 的比对宽度（只比对先前**用户**轮，比 PRD 窄）均**未**收紧，属债。
+- **禁止**：把 `null` 判成放行；把「3/3 全过」写成「已满足 80% 比例门」。
+
+---
+
 ## 4. Validation
 
 | 条件 | 行为 |

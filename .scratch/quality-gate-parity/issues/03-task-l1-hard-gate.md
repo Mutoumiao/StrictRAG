@@ -1,7 +1,7 @@
 # 落 L1 侧硬门进闸（只加严）
 
 Type: task
-Status: claimed
+Status: resolved
 Blocked by: 02
 
 ## 做什么（按 02 的裁定 1 / 2 / 7 逐条）
@@ -172,7 +172,7 @@ Blocked by: 02
 7. **未把 `hitAtK` 的 k 语义改成硬 k=20**（裁定 5 之外的口径差，属 PRD「检索 Top-k vs 进 verify 集合」的漂移风险，不在本工单授权内）。
 8. **未跑全仓 `pnpm test`**（任务明令禁止）；也**未**为此改动 L2 相关失败文件（本轮未观察到 L2 相关失败，`packages/contracts` 与 `apps/api` / `apps/worker` 全量 vitest 均绿）。
 
-### 8. 主控复核补记（2026-09-22）
+### 8. 主控复核补记（2026-09-23）
 
 - **测例登记已补**：4 个新文件已由主控登记进 `apps/api/tests/index.md`（3 行）与 `apps/worker/tests/index.md`（1 行），存货闸已过。
 - **两处 reason code 改名（精确化）**：`c_rate_above_max` → **`c_rate_missing_or_above_max`**；`judge_auroc_below_min` → **`judge_auroc_missing_or_below_min`**。理由：这两门在**缺测 `null`** 时也会 push，而旧名只描述了「越过上限 / 低于下限」，会把「没测」误报成「测出来不达标」——与 `coverage_zero_or_null` 这种**合并命名**的既有风格对齐。改动落在 `adr046-snapshot.ts`（2 处字面量）与本工单新增测例、`adr046-snapshot.test.ts`（共 6 处断言同步改名）。**语义零变化**（触发条件逐位不变），只改文案。

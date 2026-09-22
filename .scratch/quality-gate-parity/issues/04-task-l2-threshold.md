@@ -1,7 +1,7 @@
 # 落 L2 侧阈值判定（近指代 ≥80%）
 
 Type: task
-Status: claimed
+Status: resolved
 Blocked by: 02
 
 ## 做什么（按 02 的裁定 4）

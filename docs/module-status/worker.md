@@ -7,7 +7,7 @@
 | 成熟度 | **可联调**（P1 入库状态机；**仅** development/test + mock 栈可起；**staging/production 当前无合法扫描配置**） |
 | 默认依赖模式 | `APP_ENV=development` · 启动探针 `WORKER_PROBE_ON_START=true` · 扫描 = `mock_clean` · 向量 = `mock`（dims=8，枚举 `mock\|fail`）· ES 索引 = `mock`（枚举 `mock\|fail\|http`，**默认 mock**；`http` 须 `ELASTICSEARCH_URL`）· 对象存储 = 默认本地目录；`STORAGE_MODE=s3` 走 RustFS（S3 兼容） · `S3_BUCKET=strict-rag` · Mongo URL 空则 `mongoDocId=local:` · `INGEST_MIN_EXTRACTED_CHARS=40` · `INGEST_OCR_ENABLED=false` · `INGEST_FAILURE_WEBHOOK_URL` **空=不发** · **可运行叠加** `.env.operable.example`（http/s3/mongo；**不**改 Zod 默认） |
 | 关联模块 | 由 `api` 入队触发；写库走 `@strict-rag/db`；队列名 / job payload / 可执行策略集来自 `@strict-rag/contracts`；运行需要 Redis + PostgreSQL |
-| 最近更新 | 2026-09-20（**ES sparse bulk 补可见级字段**：mapping 与 bulk source 增 `visibilityLevel`（有值即写；api 侧同形改动在 `es-sparse`），调用点 `ingest/pipeline.ts` 传文档可见级；补测 1 条并同步 2 处 mapping 精确断言。**未验证**：真 ES 集群行为）；2026-09-20（工单 13：ES 第三条查询路径补租户闸——`ingest/es-http.ts` 的 `requireTenantId` + 查询体 `term: tenantId`，调用点 `ingest/pipeline.ts`；补测批 2 入库闸与双就绪 9 个测例文件 + 共享夹具；补测批 4 Mongo 正文护栏）；2026-09-19（剧本 L7 孤儿清理 `orphan-clean.ts`；剧本 E4 `pending_review` 入审；O4 bulk builder 租户闸）；2026-09-17（入库报告落 `contextualize_l1_ok` / `contextualize_l0_fallback`，migration `0019`）；2026-09-16（L1 contextualize 真调用、默认 off；入库报告补跨文档去重率） |
+| 最近更新 | 2026-09-23（**评测两包的实测门进判定**：L1 批跑逐题采集 `answerKind` 与 `citations.length`，报告新增引用完整率与其分母；L2 批跑新增近指代（near_coref）通过率与其分母（分母含 `error`，error 不算 pass）；两处均与 api 侧同口径、共用 contracts 的纯函数。worker 落库报告的 `reportJson` 白名单同步补字段。**未验证**：近指代率不含「主题是否正确」与「合法 citation」（无 judge、未采集 `expectedDocIds` 命中），且夹具只有 3 条 near_coref → 该门今天约等于「3/3 全过」）；2026-09-20（**ES sparse bulk 补可见级字段**：mapping 与 bulk source 增 `visibilityLevel`（有值即写；api 侧同形改动在 `es-sparse`），调用点 `ingest/pipeline.ts` 传文档可见级；补测 1 条并同步 2 处 mapping 精确断言。**未验证**：真 ES 集群行为）；2026-09-20（工单 13：ES 第三条查询路径补租户闸——`ingest/es-http.ts` 的 `requireTenantId` + 查询体 `term: tenantId`，调用点 `ingest/pipeline.ts`；补测批 2 入库闸与双就绪 9 个测例文件 + 共享夹具；补测批 4 Mongo 正文护栏）；2026-09-19（剧本 L7 孤儿清理 `orphan-clean.ts`；剧本 E4 `pending_review` 入审；O4 bulk builder 租户闸）；2026-09-17（入库报告落 `contextualize_l1_ok` / `contextualize_l0_fallback`，migration `0019`）；2026-09-16（L1 contextualize 真调用、默认 off；入库报告补跨文档去重率） |
 | Spec | `.trellis/spec/worker/backend/` |
 | PRD | `prds/06-async` · `prds/04-pipelines/01-offline-ingest.md` |
 
@@ -49,9 +49,9 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 - 对象路径：`{STORAGE_LOCAL_DIR}/{S3_BUCKET}/{objectKey}`
 
 ### 评测消费者（P2 底线 + L2 归档底线）
-- sr-eval concurrency=1：L1 读 gold_questions（含 `expectedDocIds`）→ runL1Batch（2×2 + Hit@k + 离线 τ 扫描 + 可选 Judge AUROC）；L2 读 fixtures/l2 → runL2Batch 多轮窗；回写 eval_runs（eval/consumer.ts）
-- 默认 execute：HTTP POST /api/v1/internal/eval/execute-ask（EVAL_ASK_BASE_URL + EVAL_INTERNAL_TOKEN）；读 `evidenceDocIds` 计 Hit@k；读 `minSupport` 计 tau*；默认不跑校准打分器 → `judgeAuroc=null`；L2 可带 sessionId/sessionWindow；空 token 记 error
-- **禁止** import apps/api；**禁止** mock 覆盖率当签字 PASS；工程 signoffEligible ≠ 准出；Hit@k / tau* / AUROC **不**进签字公式；**不**写 `TAU_CLAIM`；无 在线抽样
+- sr-eval concurrency=1：L1 读 gold_questions（含 `expectedDocIds`）→ runL1Batch（2×2 + Hit@k + 离线 τ 扫描 + 可选 Judge AUROC + 引用完整率）；L2 读 fixtures/l2 → runL2Batch 多轮窗 + 近指代通过率；回写 eval_runs（eval/consumer.ts）
+- 默认 execute：HTTP POST /api/v1/internal/eval/execute-ask（EVAL_ASK_BASE_URL + EVAL_INTERNAL_TOKEN）；读 `evidenceDocIds` 计 Hit@k；读 `minSupport` 计 tau*；读 `answerKind` / `citationCount` 计引用完整率（内口未下发时保持缺省，**不**冒充 knowledge）；默认不跑校准打分器 → `judgeAuroc=null`；L2 可带 sessionId/sessionWindow；空 token 记 error
+- **禁止** import apps/api；**禁止** mock 覆盖率当签字 PASS；工程 signoffEligible ≠ 准出；**引用完整率与近指代通过率已进工程公式**（L1 引用完整率进 api 侧 ADR-046 放行判定；L2 近指代率进 signoffEligible），Hit@k / tau* / AUROC 只进 **api 侧 ADR-046 放行判定**、仍**不**进本包的工程公式；**不**写 `TAU_CLAIM`；无 在线抽样
 
 ### 幂等 / 重试（X-04 最小）
 - `idempotency.ts`：带 `indexVersion` + 有 manifest → **resume_embed，禁重分块**；有 version 无 manifest → `NO_MANIFEST`

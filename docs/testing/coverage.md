@@ -91,6 +91,8 @@ P2 必签**仍缺实现**的（不写假装测；仍挂 QUAL-* task）：M7→QU
 
 **第五轮（2026-09-21，wayfinder 图 `p3b-doc-acl`）**：`部分测` → `已测` **10 行**——acl **B2-1**（真实语料装载 → 模型硬引用被挡文档 → `abstained`，答文 / citations / evidence 均不含；同夹具下可见文档仍 `answered`）· **B2-3**（反向构造：绕过可见性闸喂全量语料时被挡文档确实被召回）· **AE4 AE5 AE6 AE7 AE8 AE10 AE11 AE12**（ask 端到端：KB 覆盖开强制下的祖先继承 / 负责人级别 / 无归属 / grant 串联 / ES 收窄与 PG 语料同源 / 关继承 / 下级不看上级；AE7 另补授权写入的两条审计专断言）。**保持 `部分测` 1 行**：acl **B2-2**（缺口只剩角色码 principal 与须真 ES 的「reindex 覆盖旧 principals」半截；自动 reindex 已裁定为人工触发，不再是欠债）。
 
+**第六轮（2026-09-23，wayfinder 图 `quality-gate-parity`）**：**无行级覆盖值变化**（ops 的 T 行仍 3 已测 / 5 部分测 / 2 延后），只改证据与缺口文字 —— ops **T4** 的证据从「覆盖 >0 即可业务 PASS」换成「五项实测全达标 → 业务 PASS」加「缺测即不得 PASS」的反例（旧断言钉的「未测 = 合格」已按 `prds/08-quality/02-evaluation-and-gates.md` §6 硬门表改写）；**T1** 补上试点常量与 τ* 门限的双写一致性断言。**判据来源一个字未改**：PRD 的门限数字没动，改的是「代码有没有真按它判」。同轮新增三条债并记在 `docs/module-status/api.md`：人工抽检无入口无登记面 · 校准规模实际 8 题对 PRD 的 ≥100 · L2 其余三项零容忍与 `historyLeaked` 的比对宽度。
+
 **当前保持 `部分测` 的行**（剩余半截逐条写进各行「缺口」列，不许抹掉）：acl **B2-2 · S1 · S3 · S4 · Y6 · X4 · X5 · X6**（S1 / S4 / Y6 / X4 / X5 为**源码侧待定**，须先裁清哪一侧错；S3 为读面 `doc.view` 口径冲突；X6 为 P2.x UI 的 RTL 缺口）· ops **G1**（`feedback.ts` 不读轮次状态，负向「仅 abstained 可开单」无闸可断言，只补正例）· **G2**（无上传联动代码，「上传后关闭」无从断言）· **O2**（写侧落点超出批 3 允许范围，只补 api 查侧）· **T1 / T2 / T3**（纯函数与落盘裁决已断言，运行时加载 / 发布口仍无落点；`l1RerunBound` 以 `kbId && ranAt` 回退为真，使「无 evalRunId 即不得 bindable」不成立）。
 
 **已划出（无实现对象 / 无口径，不作补测项）**：`B1-A4`（`allowedDocIds` 全仓无生产者；覆盖值仍记 `缺实现`）· `R4` / `R6-b`（无落点 / 无口径）。`G3` 已由批 3 的 `docs-guard/gold-review-guard.test.ts` 文件写路径护栏闭环（原「`gold.yaml` 是静态 seed、无生成器」不再是缺口）。
