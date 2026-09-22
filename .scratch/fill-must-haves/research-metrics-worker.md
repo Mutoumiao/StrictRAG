@@ -2,7 +2,7 @@
 
 Type: research
 Label: wayfinder:research
-Status: open
+Status: resolved（研究已交付；结论 4 点名的「contextualize 两计数无出口」已由工单 105 + 94 / 95 收口，结论 5 的端口口径仍属雾）
 Date: 2026-09-17
 只读取证，未改动任何源码 / 配置 / 测试。
 
