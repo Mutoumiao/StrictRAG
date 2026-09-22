@@ -6,6 +6,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { toHumanSpotReport, type HumanSpotReport } from '@strict-rag/contracts';
 import { evalRuns, formatLocalDateTime } from '@strict-rag/db';
 import { uuidv7 } from 'uuidv7';
 
@@ -17,6 +18,7 @@ import {
   type BindVerdict,
   type HardGates,
 } from '../eval/adr046-snapshot.js';
+import { HumanSpotLoadError, loadHumanSpotLedger } from '../eval/human-spot.js';
 import {
   accumulate,
   accumulateHitAtK,
@@ -110,6 +112,8 @@ export type L1Report = {
   citationComplete: number | null;
   /** 引用完整率分母（knowledge ∧ answered 题数） */
   citationCompleteDen: number;
+  /** 人工抽检（PRD §6 硬门）：账本登记的条数 / 错数 / 来源；缺测 → null（该门不放行） */
+  humanSpot: HumanSpotReport | null;
   errorCount: number;
   cases: L1CaseRow[];
   kbId: string;
@@ -152,7 +156,37 @@ export type RunL1Options = {
    * 返回与 cases 等长；缺/越界分数跳过。
    */
   scoreJudge?: (cases: readonly JudgeCalibCase[]) => Promise<Array<number | null>>;
+  /** 人工抽检账本路径（CLI `--human-spot <path>`）；**不传 = 缺测**（该门不放行） */
+  humanSpotPath?: string;
 };
+
+/** CLI 参数解析结果：`ok:false` 时由 `main()` 打 stderr + exit 2 */
+export type L1CliArgs = { ok: true; humanSpotPath?: string } | { ok: false; error: string };
+
+/**
+ * `--human-spot <path>` / `--human-spot=<path>`；不传 = 缺测。
+ * 其余键仍走 env（`L1_*`），未知参数忽略（保持既有 CLI 兼容）。
+ */
+export function parseL1CliArgs(argv: readonly string[]): L1CliArgs {
+  let humanSpotPath: string | undefined;
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i] ?? '';
+    let value: string | undefined;
+    if (arg === '--human-spot') {
+      value = argv[i + 1];
+      i += 1;
+    } else if (arg.startsWith('--human-spot=')) {
+      value = arg.slice('--human-spot='.length);
+    } else {
+      continue;
+    }
+    if (!value || value.startsWith('--')) {
+      return { ok: false, error: '--human-spot requires a ledger path' };
+    }
+    humanSpotPath = value;
+  }
+  return { ok: true, humanSpotPath };
+}
 
 /** 报告 ranAt(ISO) → 写库本地格式串；纯函数便于单测 */
 export function evalRunDbRanAt(ranAtIso: string): string {
@@ -386,6 +420,11 @@ export function formatReportMd(report: L1Report): string {
       report.hitAtK === null ? 'null' : String(Math.round(report.hitAtK * 1000) / 1000)
     } (${report.hitAtKHits}/${report.hitAtKScored}) |`,
     `| citationComplete | ${ccText} (den=${report.citationCompleteDen}) |`,
+    `| humanSpot | ${
+      report.humanSpot === null
+        ? '—（缺测：未登记账本）'
+        : `${report.humanSpot.checked} 条 / 错 ${report.humanSpot.errors}（来源：${report.humanSpot.source}）`
+    } |`,
     `| tauStar | ${report.tauStar === null ? 'null' : String(report.tauStar)} |`,
     `| judgeAuroc | ${
       report.judgeAuroc === null ? 'null' : String(Math.round(report.judgeAuroc * 1000) / 1000)
@@ -417,6 +456,10 @@ export function formatReportMd(report: L1Report): string {
 /** 串行批跑；outcome=error 不进矩阵格 */
 export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
   const all = loadGold(opts.goldPath);
+  // 账本先读：账本坏了立刻失败，别跑完一整批才发现登记面不可用
+  const humanSpot = opts.humanSpotPath
+    ? toHumanSpotReport(loadHumanSpotLedger(opts.humanSpotPath), opts.humanSpotPath)
+    : null;
   const cases = opts.maxCases && opts.maxCases > 0 ? all.slice(0, opts.maxCases) : all;
   const run = opts.execute ?? executeAsk;
   const matrix = emptyMatrix();
@@ -504,6 +547,7 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
     citationCompleteDen: rows.filter(
       (r) => r.outcome === 'answered' && r.answerKind === 'knowledge',
     ).length,
+    humanSpot,
     errorCount,
     cases: rows,
     kbId: opts.kbId,
@@ -548,6 +592,7 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
     hitAtK: report.hitAtK,
     judgeAuroc: report.judgeAuroc,
     citationComplete: report.citationComplete,
+    humanSpot: report.humanSpot,
     caseReasons: rows.map((r) => r.reason),
   });
   report.gateSnapshot = bound.snapshot;
@@ -559,6 +604,11 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
 }
 
 async function main(): Promise<void> {
+  const args = parseL1CliArgs(process.argv.slice(2));
+  if (!args.ok) {
+    console.error(args.error);
+    process.exit(2);
+  }
   const kbId = process.env.L1_KB_ID;
   if (!kbId) {
     console.error('L1_KB_ID is required');
@@ -580,6 +630,7 @@ async function main(): Promise<void> {
       outDir,
       kbId,
       maxCases,
+      humanSpotPath: args.humanSpotPath,
     });
     console.log(
       JSON.stringify(
@@ -604,6 +655,7 @@ async function main(): Promise<void> {
           tauStar: report.tauStar,
           judgeAuroc: report.judgeAuroc,
           judgeAurocScored: report.judgeAurocScored,
+          humanSpot: report.humanSpot,
           errorCount: report.errorCount,
           outDir,
         },
@@ -612,7 +664,7 @@ async function main(): Promise<void> {
       ),
     );
   } catch (err) {
-    if (err instanceof GoldLoadError) {
+    if (err instanceof GoldLoadError || err instanceof HumanSpotLoadError) {
       console.error(err.message);
       process.exit(2);
     }

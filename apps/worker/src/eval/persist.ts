@@ -134,6 +134,7 @@ export const evalPersist: EvalPersist = {
           judgeAurocScored: report.judgeAurocScored,
           citationComplete: report.citationComplete,
           citationCompleteDen: report.citationCompleteDen,
+          humanSpot: report.humanSpot,
           errorCount: report.errorCount,
           cases: report.cases,
           kbId: report.kbId,

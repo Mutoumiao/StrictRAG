@@ -1,5 +1,5 @@
 /**
- * 目标：L1 四项实测硬门 + 引用完整率必须真进 ADR-046 放行判定，且方向只加严。
+ * 目标：L1 四项实测硬门 + 引用完整率 + 人工抽检必须真进 ADR-046 放行判定，且方向只加严。
  * 需求：prds/08-quality/02-evaluation-and-gates.md §2 :79-81 · §3 :89 · §4 :97-99 · §6 :132-138
  * 被测：evaluateAdr046Bind
  * 简介：逐项边界（恰好达标 / 差一点 / 缺测）+ 「覆盖率 0.001 也能变真」的旧宽松口径回归钉。
@@ -14,6 +14,16 @@ import {
   fourElementsOf,
 } from '../../src/eval/adr046-snapshot.js';
 
+/**
+ * 合法抽检账本（恰好在门限上：条数 = humanSpotMin、错数 = humanSpotErrorMax）。
+ * 人工抽检门是 fail-closed 新增项，助手只喂五项指标会让下面所有「业务 PASS」断言全红；
+ * 喂满本值才谈得上「其他都合法时业务 PASS 为真」。边界与缺测另见 human-spot-gate.test.ts。
+ */
+const LEGAL_HUMAN_SPOT = {
+  checked: PILOT_HARD_GATES.humanSpotMin,
+  errors: PILOT_HARD_GATES.humanSpotErrorMax,
+};
+
 /** 四要素齐 + 试点默认包（不放宽）→ signedPackage 恒真，单独观察实测门 */
 function bind(over: {
   coverage: number | null;
@@ -21,6 +31,7 @@ function bind(over: {
   hitAtK?: number | null;
   judgeAuroc?: number | null;
   citationComplete?: number | null;
+  humanSpot?: { checked: number; errors: number } | null;
 }) {
   const gates = { ...PILOT_HARD_GATES };
   const four = fourElementsOf({
@@ -37,6 +48,7 @@ function bind(over: {
     four,
     diff: compareHardGates(gates),
     signoffEligible: true,
+    humanSpot: LEGAL_HUMAN_SPOT,
     caseReasons: ['verified'],
     ...over,
   });
@@ -122,5 +134,13 @@ describe('L1 实测硬门进 ADR-046 放行判定', () => {
     expect(verdict.signedPackage).toBe(true);
     expect(verdict.businessPass).toBe(false);
     expect(verdict.reasons).toContain('coverage_below_min');
+  });
+
+  it('人工抽检缺测 → 其他指标全过也不得业务 PASS（新 fail-closed 门）', () => {
+    // 助手默认喂 LEGAL_HUMAN_SPOT；本条显式抽掉，证明上面 8 处 true 不是靠「没人读该值」
+    const verdict = bind({ ...ALL_PASS, humanSpot: null });
+    expect(verdict.signedPackage).toBe(true);
+    expect(verdict.businessPass).toBe(false);
+    expect(verdict.reasons).toContain('human_spot_missing');
   });
 });

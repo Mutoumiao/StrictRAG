@@ -2,10 +2,11 @@
  * ADR-046：质量配置快照 + 硬门单向校验 + 四要素 / 业务 PASS 闸。
  * 绑定现有 L1 eval 身份；不另开 ask 图。≠ 人签、≠ 业务 PASS。
  *
- * 实测硬门进闸（L1 侧）：coverage / cRate / hitAtK / judgeAuroc / citationComplete 由 L1 runner
- * 实测后传进 `evaluateAdr046Bind` 的 `&&`。缺测 null 一律**不放行**（fail-closed），唯二例外是
- * PRD 写了条件语的两门：hitAt20「有标注时」（无标注 → 该门不适用）与 citationComplete
- * （无 knowledge answered 题 → 分母 0 → 不适用）。任何加法都只许加严，禁止放宽既有判定。
+ * 实测硬门进闸（L1 侧）：coverage / cRate / hitAtK / judgeAuroc / citationComplete / humanSpot 由
+ * L1 runner 实测（抽检为文件账本登记）后传进 `evaluateAdr046Bind` 的 `&&`。缺测 null 一律
+ * **不放行**（fail-closed），唯二例外是 PRD 写了条件语的两门：hitAt20「有标注时」（无标注 →
+ * 该门不适用）与 citationComplete（无 knowledge answered 题 → 分母 0 → 不适用）。任何加法都只许
+ * 加严，禁止放宽既有判定。
  *
  * `judgeAuroc` 在生产入口今天恒为 null（CLI `main()` 不传 `scoreJudge`、worker consumer 同），
  * 故 `businessPass` 在生产路径上**不可达**。这是有意的 —— 把「未测」显形为红，而不是留一条
@@ -67,6 +68,12 @@ export type BindVerdict = {
   reasons: string[];
 };
 
+/**
+ * 人工抽检登记值（来自文件账本；见 `eval/human-spot.ts`）。
+ * 「错」的口径由抽检人按 rubric 判，判定侧只比两个整数与 `PILOT_HARD_GATES`。
+ */
+export type HumanSpotCounts = { checked: number; errors: number };
+
 export type BindSnapshotInput = {
   snapshotId: string;
   kbId: string;
@@ -88,6 +95,8 @@ export type BindSnapshotInput = {
   judgeAuroc?: number | null;
   /** 引用完整率实测；分母 0 → null → 该门不适用 */
   citationComplete?: number | null;
+  /** 人工抽检账本条数/错数；未登记账本 → null → 不放行（缺测显形为红） */
+  humanSpot?: HumanSpotCounts | null;
   caseReasons?: Array<string | undefined>;
 };
 
@@ -168,6 +177,7 @@ export function evaluateAdr046Bind(input: {
   hitAtK?: number | null;
   judgeAuroc?: number | null;
   citationComplete?: number | null;
+  humanSpot?: HumanSpotCounts | null;
   caseReasons?: Array<string | undefined>;
 }): BindVerdict {
   const reasons: string[] = [];
@@ -200,6 +210,18 @@ export function evaluateAdr046Bind(input: {
   const citationCompleteOk =
     input.citationComplete == null || input.citationComplete >= gates.citationCompleteMin;
   if (!citationCompleteOk) reasons.push('citation_complete_below_min');
+  // 人工抽检（PRD §6 硬门「≥20 条，错 ≤1」）：没登记账本 = 缺测 → 不放行；
+  // 条数不足与错超限是两种红，各自可分辨（两者可同时成立 → 同时报）
+  const humanSpot = input.humanSpot ?? null;
+  const humanSpotOk =
+    humanSpot != null &&
+    humanSpot.checked >= gates.humanSpotMin &&
+    humanSpot.errors <= gates.humanSpotErrorMax;
+  if (humanSpot == null) reasons.push('human_spot_missing');
+  else if (!humanSpotOk) {
+    if (humanSpot.checked < gates.humanSpotMin) reasons.push('human_spot_below_min');
+    if (humanSpot.errors > gates.humanSpotErrorMax) reasons.push('human_spot_errors_above_max');
+  }
 
   if (!input.signoffEligible) reasons.push('not_signoff_eligible');
   if (allInternalGuard(input.caseReasons)) reasons.push('internal_guard');
@@ -212,6 +234,7 @@ export function evaluateAdr046Bind(input: {
     hitAtKOk &&
     judgeAurocOk &&
     citationCompleteOk &&
+    humanSpotOk &&
     !allInternalGuard(input.caseReasons);
 
   return { bindable, signedPackage, businessPass, reasons };
@@ -243,6 +266,7 @@ export function bindQualitySnapshotToEval(input: BindSnapshotInput): {
     hitAtK: input.hitAtK ?? null,
     judgeAuroc: input.judgeAuroc ?? null,
     citationComplete: input.citationComplete ?? null,
+    humanSpot: input.humanSpot ?? null,
     caseReasons: input.caseReasons,
   });
   const snapshot: Adr046Snapshot = {

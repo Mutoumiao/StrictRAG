@@ -8,6 +8,7 @@
 |------|------|
 | `gold.yaml` | ≥30 题 SSOT（内容为 JSON 形，零依赖解析；扩展名按 design 冻结） |
 | `judge-calibration.json` | Judge AUROC 校准集：`claim` + `evidence` + `supported\|unsupported`；**不是** gold 题型 |
+| `human-spot.example.json` | 人工抽检账本**样例**（形状契约在 `@strict-rag/contracts` `HumanSpotLedgerSchema`）：`evalRunId` + `sampledBy` + `sampledAt` + `checked` + `errors` + 可选 `items`；样例是**恰好达标**的 20 条 / 错 1，不是真实抽检数字 |
 | `RACI.md` | **B10-RACI**：业务/测试 owner + 题面审核记录；**挡业务签字页** |
 | `sample-report.md` | 可提交样例报告（非真实 live 签字数字） |
 | 仓根 `artifacts/l1-last-run.{json,md}` | 最近一次 CLI 输出（gitignore） |
@@ -33,6 +34,14 @@
 
 签字规模题面：`gold.yaml` 已扩至 **可答 30 + 不可答类 30**（含 `false_premise`）。  
 **真跑数字** 须 `retrieve_mode=live` 且 B3-W 后重跑 → 总 backlog **B10-followup**；`L1_PERSIST_EVAL=1` 写入 `eval_runs`。
+
+## 人工抽检账本（PRD §6 硬门「≥20 条，错 ≤1」）
+
+- 抽检人写一份 JSON 账本（形状契约 `packages/contracts/src/eval/human-spot.contract.ts`：`evalRunId` / `sampledBy` / `sampledAt` / `checked` / `errors` / 可选 `items`）。
+- 机器可校验的不变式只有三条：`errors ≤ checked`；**给了 `items` 时** `items.length === checked` 且 `items` 里 `wrong` 的条数 `=== errors`。
+- 「错」的口径 PRD 未定义 → 由抽检人按 rubric 判；登记面只承载整数 + 可选明细，不发明机械口径。
+- 进闸：`pnpm --filter @strict-rag/api exec tsx src/scripts/run-l1-golden.ts --human-spot fixtures/l1/human-spot.example.json`；**不传该参数 = 缺测 → 该硬门不放行**。
+- 账本**不进库**（无表 / 无 HTTP 端点）；报告落条数 / 错数 / 来源（`humanSpot`），`null` = 没人登记。
 
 ## 跑法
 

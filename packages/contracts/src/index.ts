@@ -21,6 +21,7 @@ export * from './eval/l2-gold.js';
 export * from './eval/l2-matrix.js';
 export * from './eval/gold.contract.js';
 export * from './eval/eval-run.contract.js';
+export * from './eval/human-spot.contract.js';
 export * from './auth/session.contract.js';
 export * from './ask/index.js';
 export * from './kb/kb-settings.contract.js';

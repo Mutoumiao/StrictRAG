@@ -1,0 +1,29 @@
+{
+  "evalRunId": "01900000-0000-7000-8000-0000000000e0",
+  "sampledBy": "业务抽检人（示例）",
+  "sampledAt": "2026-09-23T09:00:00.000Z",
+  "checked": 20,
+  "errors": 1,
+  "items": [
+    { "caseId": "q-01", "wrong": false },
+    { "caseId": "q-02", "wrong": false },
+    { "caseId": "q-03", "wrong": false },
+    { "caseId": "q-04", "wrong": false },
+    { "caseId": "q-05", "wrong": false },
+    { "caseId": "q-06", "wrong": false },
+    { "caseId": "q-07", "wrong": false },
+    { "caseId": "q-08", "wrong": false },
+    { "caseId": "q-09", "wrong": false },
+    { "caseId": "q-10", "wrong": false },
+    { "caseId": "q-11", "wrong": true, "note": "示例：引用文档不对题，按 rubric 记 1 错" },
+    { "caseId": "q-12", "wrong": false },
+    { "caseId": "q-13", "wrong": false },
+    { "caseId": "q-14", "wrong": false },
+    { "caseId": "q-15", "wrong": false },
+    { "caseId": "q-16", "wrong": false },
+    { "caseId": "q-17", "wrong": false },
+    { "caseId": "q-18", "wrong": false },
+    { "caseId": "q-19", "wrong": false },
+    { "caseId": "q-20", "wrong": false }
+  ]
+}

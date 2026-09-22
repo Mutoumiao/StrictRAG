@@ -20,7 +20,11 @@ import {
   type L1Matrix,
   type L1Outcome,
   type TauSweepPoint,
+  type HumanSpotReport,
+  toHumanSpotReport,
 } from '@strict-rag/contracts';
+
+import { loadHumanSpotLedger } from './human-spot.js';
 
 export type EvalGoldCase = {
   caseKey: string;
@@ -87,6 +91,8 @@ export type L1BatchReport = {
   citationComplete: number | null;
   /** 引用完整率分母（knowledge ∧ answered 题数） */
   citationCompleteDen: number;
+  /** 人工抽检（PRD §6 硬门）：账本登记的条数 / 错数 / 来源；缺测 → null（= 没人登记） */
+  humanSpot: HumanSpotReport | null;
   errorCount: number;
   cases: L1BatchCaseRow[];
   kbId: string;
@@ -101,7 +107,12 @@ export async function runL1Batch(opts: {
   now?: () => Date;
   judgeCalibCases?: readonly JudgeCalibCase[];
   scoreJudge?: (cases: readonly JudgeCalibCase[]) => Promise<Array<number | null>>;
+  /** 人工抽检账本路径（与 api CLI `--human-spot <path>` 同构）；**不传 = 缺测** */
+  humanSpotPath?: string;
 }): Promise<L1BatchReport> {
+  const humanSpot = opts.humanSpotPath
+    ? toHumanSpotReport(loadHumanSpotLedger(opts.humanSpotPath), opts.humanSpotPath)
+    : null;
   const sliced =
     opts.maxCases && opts.maxCases > 0 ? opts.cases.slice(0, opts.maxCases) : opts.cases;
   const matrix = emptyMatrix();
@@ -189,6 +200,7 @@ export async function runL1Batch(opts: {
     citationCompleteDen: rows.filter(
       (r) => r.outcome === 'answered' && r.answerKind === 'knowledge',
     ).length,
+    humanSpot,
     errorCount,
     cases: rows,
     kbId: opts.kbId,
