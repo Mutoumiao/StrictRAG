@@ -1,7 +1,7 @@
 # 按功能表补全必须具备
 
 Label: wayfinder:map
-Status: open
+Status: open（前沿：空 —— 工单 01–106 全部 resolved；未达成的部分全在 Not yet specified 的雾里，须先裁定下一批再开工单）
 
 ## Destination
 

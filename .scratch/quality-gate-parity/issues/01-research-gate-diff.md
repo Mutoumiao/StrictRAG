@@ -1,7 +1,7 @@
 # 研究：PRD 硬门与代码判定的逐条差额清单
 
 Type: research
-Status: open
+Status: claimed
 
 ## 问题
 

@@ -1,7 +1,7 @@
 # 05 · task：按工单 04 的裁定落地（若裁定为 A / C）
 
 Type: task
-Status: open
+Status: resolved
 Blocked by: 04
 
 ## 做什么
@@ -21,3 +21,9 @@ Blocked by: 04
 - `pnpm check-types` + `pnpm lint`（零 warning）+ 相关包测试全绿。
 - 反证实验有可复现命令与观察输出。
 - 未落地的部分写清「做了什么 / 未做什么」。
+
+## Answer
+
+**本票是工单 04 出裁定之前的草案，已被裁定取代**：工单 04 判定「判据来源 = 权限码 + KB 成员资格」，而现行源码已经是这个判据 → **无源码改动**。实际收口落在同号并行的 [`05-task-no-source-change.md`](./05-task-no-source-change.md)（`Status: resolved`，逐条核对「是否有该改而没改」并写明「不动任何鉴权源码」）。
+
+在本票体上留下的痕迹：目录里同时存在两个 `05-` 文件，而本票长期停留在 `open`，与 `map.md` 的「前沿：空」自相矛盾。**本次只补状态与出处，不改任何源码、不改本票正文**。
