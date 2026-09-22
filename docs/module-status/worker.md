@@ -5,9 +5,9 @@
 | 路径 | `apps/worker` |
 | 端口 | 无 HTTP 端口 |
 | 成熟度 | **可联调**（P1 入库状态机；**仅** development/test + mock 栈可起；**staging/production 当前无合法扫描配置**） |
-| 默认依赖模式 | `APP_ENV=development` · 启动探针 `WORKER_PROBE_ON_START=true` · 扫描 = `mock_clean` · 向量 = `mock`（dims=8，枚举 `mock\|fail`）· ES 索引 = `mock`（枚举 `mock\|fail\|http`，**默认 mock**；`http` 须 `ELASTICSEARCH_URL`）· 对象存储 = 默认本地目录；`STORAGE_MODE=s3` 走 RustFS（S3 兼容） · `S3_BUCKET=strict-rag` · Mongo URL 空则 `mongoDocId=local:` · `INGEST_MIN_EXTRACTED_CHARS=40` · `INGEST_OCR_ENABLED=false` · `INGEST_FAILURE_WEBHOOK_URL` **空=不发** · **可运行叠加** `.env.operable.example`（http/s3/mongo；**不**改 Zod 默认） |
+| 默认依赖模式 | `APP_ENV=development` · 启动探针 `WORKER_PROBE_ON_START=true` · 扫描 = `mock_clean` · 向量 = `mock`（dims=8，枚举 `mock\|fail`）· ES 索引 = `mock`（枚举 `mock\|fail\|http`，**默认 mock**；`http` 须 `ELASTICSEARCH_URL`）· 对象存储 = 默认本地目录；`STORAGE_MODE=s3` 走 RustFS（S3 兼容） · `S3_BUCKET=strict-rag` · Mongo URL 空则 `mongoDocId=local:` · `INGEST_MIN_EXTRACTED_CHARS=40` · `INGEST_OCR_ENABLED=false` · 评测打分器来源 `JUDGE_CALIB_SCORER=off`（= 缺测；worker **无 Gateway 打分客户端**，`http` 只声明不产值）· `INGEST_FAILURE_WEBHOOK_URL` **空=不发** · **可运行叠加** `.env.operable.example`（http/s3/mongo；**不**改 Zod 默认） |
 | 关联模块 | 由 `api` 入队触发；写库走 `@strict-rag/db`；队列名 / job payload / 可执行策略集来自 `@strict-rag/contracts`；运行需要 Redis + PostgreSQL |
-| 最近更新 | 2026-09-23（**评测两包的实测门进判定**：L1 批跑逐题采集 `answerKind` 与 `citations.length`，报告新增引用完整率与其分母；L2 批跑新增近指代（near_coref）通过率与其分母（分母含 `error`，error 不算 pass）；两处均与 api 侧同口径、共用 contracts 的纯函数。worker 落库报告的 `reportJson` 白名单同步补字段。**未验证**：近指代率不含「主题是否正确」与「合法 citation」（无 judge、未采集 `expectedDocIds` 命中），且夹具只有 3 条 near_coref → 该门今天约等于「3/3 全过」）；2026-09-20（**ES sparse bulk 补可见级字段**：mapping 与 bulk source 增 `visibilityLevel`（有值即写；api 侧同形改动在 `es-sparse`），调用点 `ingest/pipeline.ts` 传文档可见级；补测 1 条并同步 2 处 mapping 精确断言。**未验证**：真 ES 集群行为）；2026-09-20（工单 13：ES 第三条查询路径补租户闸——`ingest/es-http.ts` 的 `requireTenantId` + 查询体 `term: tenantId`，调用点 `ingest/pipeline.ts`；补测批 2 入库闸与双就绪 9 个测例文件 + 共享夹具；补测批 4 Mongo 正文护栏）；2026-09-19（剧本 L7 孤儿清理 `orphan-clean.ts`；剧本 E4 `pending_review` 入审；O4 bulk builder 租户闸）；2026-09-17（入库报告落 `contextualize_l1_ok` / `contextualize_l0_fallback`，migration `0019`）；2026-09-16（L1 contextualize 真调用、默认 off；入库报告补跨文档去重率） |
+| 最近更新 | 2026-09-23（**L1 批跑报告新增三样证据面（与 api CLI 同构）**：①人工抽检账本 `humanSpotPath` 入参（同一份 `HumanSpotLedgerSchema`；不传 = 缺测 `null`；账本坏了抛 `HumanSpotLoadError`，不静默降级成缺测）；②打分器来源 `judgeAurocSource`（读同名 env `JUDGE_CALIB_SCORER`，与 api 共用 `judgeAurocSourceFor`；**worker 无 Gateway 打分客户端**，`http` 只能得「来源 live + 无值」）；③PRD §8 可复现区块 `repro`（与 api 同形状，**worker 只填 `questionIdsHash`**，其余分项 `null`）。`persist.ts` 的 `reportJson` 逐键白名单同步加这三个键（不加 = 静默丢弃，已由同构测例钉住）。**未做**：worker 生产消费者不传 `humanSpotPath` → 生产跑批 `humanSpot` 恒 `null`（缺测，方向安全）；`repro` 的模型 / 档位预算 / τ / 校准集哈希在 worker 侧取不到）；2026-09-23（**评测两包的实测门进判定**：L1 批跑逐题采集 `answerKind` 与 `citations.length`，报告新增引用完整率与其分母；L2 批跑新增近指代（near_coref）通过率与其分母（分母含 `error`，error 不算 pass）；两处均与 api 侧同口径、共用 contracts 的纯函数。worker 落库报告的 `reportJson` 白名单同步补字段。**未验证**：近指代率不含「主题是否正确」与「合法 citation」（无 judge、未采集 `expectedDocIds` 命中），且夹具只有 3 条 near_coref → 该门今天约等于「3/3 全过」）；2026-09-20（**ES sparse bulk 补可见级字段**：mapping 与 bulk source 增 `visibilityLevel`（有值即写；api 侧同形改动在 `es-sparse`），调用点 `ingest/pipeline.ts` 传文档可见级；补测 1 条并同步 2 处 mapping 精确断言。**未验证**：真 ES 集群行为）；2026-09-20（工单 13：ES 第三条查询路径补租户闸——`ingest/es-http.ts` 的 `requireTenantId` + 查询体 `term: tenantId`，调用点 `ingest/pipeline.ts`；补测批 2 入库闸与双就绪 9 个测例文件 + 共享夹具；补测批 4 Mongo 正文护栏）；2026-09-19（剧本 L7 孤儿清理 `orphan-clean.ts`；剧本 E4 `pending_review` 入审；O4 bulk builder 租户闸）；2026-09-17（入库报告落 `contextualize_l1_ok` / `contextualize_l0_fallback`，migration `0019`）；2026-09-16（L1 contextualize 真调用、默认 off；入库报告补跨文档去重率） |
 | Spec | `.trellis/spec/worker/backend/` |
 | PRD | `prds/06-async` · `prds/04-pipelines/01-offline-ingest.md` |
 
@@ -49,8 +49,9 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 - 对象路径：`{STORAGE_LOCAL_DIR}/{S3_BUCKET}/{objectKey}`
 
 ### 评测消费者（P2 底线 + L2 归档底线）
-- sr-eval concurrency=1：L1 读 gold_questions（含 `expectedDocIds`）→ runL1Batch（2×2 + Hit@k + 离线 τ 扫描 + 可选 Judge AUROC + 引用完整率）；L2 读 fixtures/l2 → runL2Batch 多轮窗 + 近指代通过率；回写 eval_runs（eval/consumer.ts）
-- 默认 execute：HTTP POST /api/v1/internal/eval/execute-ask（EVAL_ASK_BASE_URL + EVAL_INTERNAL_TOKEN）；读 `evidenceDocIds` 计 Hit@k；读 `minSupport` 计 tau*；读 `answerKind` / `citationCount` 计引用完整率（内口未下发时保持缺省，**不**冒充 knowledge）；默认不跑校准打分器 → `judgeAuroc=null`；L2 可带 sessionId/sessionWindow；空 token 记 error
+- sr-eval concurrency=1：L1 读 gold_questions（含 `expectedDocIds`）→ runL1Batch（2×2 + Hit@k + 离线 τ 扫描 + 可选 Judge AUROC + 引用完整率 + **可选人工抽检账本** + **§8 `repro` 区块**）；L2 读 fixtures/l2 → runL2Batch 多轮窗 + 近指代通过率；回写 eval_runs（eval/consumer.ts）
+- 默认 execute：HTTP POST /api/v1/internal/eval/execute-ask（EVAL_ASK_BASE_URL + EVAL_INTERNAL_TOKEN）；读 `evidenceDocIds` 计 Hit@k；读 `minSupport` 计 tau*；读 `answerKind` / `citationCount` 计引用完整率（内口未下发时保持缺省，**不**冒充 knowledge）；L2 可带 sessionId/sessionWindow；空 token 记 error
+- **L1 证据面（与 api CLI 同构）**：打分器来源由同名 env `JUDGE_CALIB_SCORER` 声明（默认 off = 缺测）；worker **无 Gateway 打分客户端** → 默认 `judgeAuroc=null`，只有 mock 会真出值（值只打印、不进判定）；`humanSpotPath` 入参读同一份文件账本（不传 = 缺测），而**生产消费者不传** → 生产跑批 `humanSpot` 恒 `null`；`repro` 只填 `questionIdsHash`（源 = DB `gold_questions.case_key` 全量），模型 / 档位预算 / τ / 校准集哈希 = `null`（记债）
 - **禁止** import apps/api；**禁止** mock 覆盖率当签字 PASS；工程 signoffEligible ≠ 准出；**引用完整率与近指代通过率已进工程公式**（L1 引用完整率进 api 侧 ADR-046 放行判定；L2 近指代率进 signoffEligible），Hit@k / tau* / AUROC 只进 **api 侧 ADR-046 放行判定**、仍**不**进本包的工程公式；**不**写 `TAU_CLAIM`；无 在线抽样
 
 ### 幂等 / 重试（X-04 最小）
@@ -85,6 +86,7 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 | dual-ready 自动 `lifecycle=active` | 终态 draft；检索默认可检索性另闸 |
 | purge 生产三存 | mock ES drop + 对象删 + 可选 Mongo；**无** HTTP ES `_delete_by_query` / PG 硬删 / chunk 清扫 |
 | 失败 Webhook 加固 | **最小 POST 已有**；无 HMAC / 重试队列 / admin·KB URL / ask 拒答 webhook |
+| L1 抽检 / §8 可复现（worker 侧） | `humanSpotPath` 入参已有，但**生产消费者不传** → 生产跑批 `humanSpot` 恒 `null`（缺测，方向安全）；`repro` 只填 `questionIdsHash`，模型 / 档位 / τ / 校准集哈希取不到（记债） |
 
 ---
 
@@ -101,6 +103,8 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 | `GATEWAY_*` 死配置 | 易误读「已接网关 embed」 | pipeline 未用 |
 | 失败重试 / 死信 | 仅 BullMQ attempts + 日志；无业务 DLQ 面板 | 对照 PRD 异步章节。失败 Webhook 只一次 warn，≠ 重试队列 |
 | 失败 Webhook 加固 | 无 HMAC、无 admin/KB URL、无 ask 拒答 webhook | 最小闭环已接；空 URL 默认不发 |
+| worker 抽检来源未接生产路径 | 生产跑批 `humanSpot` 恒 `null`（缺测 → 该硬门不放行，方向安全） | 销账 = 消费者按 run 提供账本路径并透传 `humanSpotPath` |
+| worker `repro` 分项不足 | 模型 / 档位预算 / τ / 校准集哈希在 worker 取不到 | 销账 = 内口回传档位 + worker 侧校准集路径 |
 
 ---
 
@@ -113,6 +117,7 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 | 扫描闸 | `apps/worker/src/scan-mode-policy.ts` · `tests/ingest/scan-startup-policy.test.ts` · `env.ts` superRefine |
 | 幂等 / 重试 / 锁 | `ingest/idempotency.ts` · `doc-lock.ts` · `job-ledger.ts` · `tests/ingest/{idempotency,doc-lock,job-ledger,bull-outcome}.test.ts` |
 | 失败 Webhook | `ingest/failure-webhook.ts` · `job-ledger.ts` `recordStageEnd` · `tests/ingest/failure-webhook.test.ts` |
+| 评测证据面（抽检 / 来源 / §8） | `eval/human-spot.ts`（`HumanSpotLoadError`）· `eval/run-l1-batch.ts`（`humanSpotPath` / `judgeAurocSource` / `repro`）· `eval/persist.ts`（`reportJson` 白名单）· `eval/consumer.ts` · `tests/eval/run-l1-batch-human-spot.test.ts` · `tests/eval/run-l1-batch-judge-source.test.ts` · `tests/eval/run-l1-batch-repro.test.ts` |
 | ES sparse bulk | `ingest/es-http.ts` mapping/bulk 含可选 `ownerDeptId` / `aclPrincipals` / `visibilityLevel` · `tests/ingest/es-http.test.ts` |
 | 策略 SSOT | `packages/contracts/src/ingest/chunk-strategy.ts`（`IMPLEMENTED_*`） |
 | job 契约 | `packages/contracts/src/async/ingest-job.ts` |

@@ -1,7 +1,7 @@
 # L1 签字证据面的补齐（人工抽检 · 校准打分器 · 可复现字段）
 
 Label: wayfinder:map
-Status: open（前沿：工单 03 · 04 · 05 三张落地票）
+Status: resolved（前沿：空；工单 01 · 02 · 03 · 04 · 05 · 06 全收口）
 
 ## Destination
 
@@ -54,18 +54,56 @@ Status: open（前沿：工单 03 · 04 · 05 三张落地票）
 
 - [研究：L1 签字证据面今天到底缺什么、有哪些可复用形状](./issues/01-research-l1-evidence-sources.md) — 研究子代理产出（明细 42 KB 在 [research/01-evidence-sources.md](./research/01-evidence-sources.md)）。要点：① 三样都能补成「不可作假」，但**没有一样能离线产出可签字的真值**（缺人 / 缺真 judge 与 ≥100 标注 / 5 类字段连版本载体都没有）。② 人工抽检：`humanSpotMin`/`humanSpotErrorMax` **没有任何判定点拿它比过被测值**（只在 `compareHardGates` 存在性与方向比较里出现），`evaluateAdr046Bind` 从不读；PRD §5/§9/剧本 C/T/签字页必含行**全都没写**「谁/何时/写哪」→ 形状纯属实现选择。③ 打分器：注入只存在于单测，两条入口**都没有任何 env / 参数注入路径**；夹具 8 条（4 正 4 负）；`live vs mock` 的既有范式是 `*_MODE` 枚举 + 报告三态串。④ §8 逐条去向已列：可算/可取 6 类、取不到 5 类；**`L1Report.mode` 是 `retrieve_mode` 的历史别名，不是 ask 档位**。⑤ 会翻的既有断言点名 8 组；迁移最大号 **0022**，快照只有 `0000`/`0021`。⑥ **三条反直觉**：api 报告整对象直落 vs worker `persist.ts` 逐键白名单 → 加字段会被 **worker 静默丢弃**；加一个新 fail-closed 门会一次性打红 `adr046-hard-gates.test.ts` 的 **8 处 `businessPass === true`**；各包 `tests/index.md` 的「待处理」段今天全为「（无）」。
 - [裁定：三样证据面各落到什么形状](./issues/02-dec-l1-evidence-ruling.md) — 主控裁定。**人工抽检**：承载面 = **文件账本（Zod 进 contracts）+ 报告字段 + `--human-spot <path>` CLI 入参**，**不建表、不建 HTTP**（后者是无生产者的半接线，会重蹈 QUAL-ACL-CAP 被划出；前者撞迁移/快照风险，且本仓已有人证放文件不放库的先例 `fixtures/l1/RACI.md`）；**「错」不发明机械口径**（PRD 未定义）；进闸 = 条数 ≥`humanSpotMin` ∧ 错 ≤`humanSpotErrorMax`，缺测不放行，三个 reason code 各可分辨（`human_spot_missing` / `_below_min` / `_errors_above_max`）。**打分器**：新增 `JUDGE_CALIB_SCORER`（`off` 默认 / `mock` / `http`）+ 报告 `judgeAurocSource`，**判定只认 `live`**（mock 值可打印、不参与判定）；**落规模门**（PRD §4 写死 ≥100，reason `judge_auroc_calib_too_small`）；`http` 真打分器分两段评估，Gateway 侧 go/no-go 不齐就只留声明面并记债。**§8**：能取到的进报告（`models`/`retrieveK`/`rerankTopN`/`tauClaim`/`contextMode` + **三条哈希**对文件内容算 sha256），**既有 `mode` 不动**（改了就是改语义），`fallbackChains`/`promptVersions`/`lifecycle 规则`/`session 策略` 无版本载体 → **不拿源码文本哈希顶替**，一律 `null` + 记债；**L2 侧留给下一张图**。**统一纪律**：主动**不新增迁移**；唯一被改写期望值的既有断言是 `adr046-hard-gates.test.ts` 的助手及其 8 处断言；worker `reportJson` 白名单必须同步并加同构测例。
+- [落人工抽检的登记面与判据](./issues/03-task-human-spot-surface.md) — 新增 `HumanSpotLedgerSchema`（三条机械不变式）+ `HumanSpotReport` · api `eval/human-spot.ts` 加载器（坏账本抛错、**不**退化成缺测）· `evaluateAdr046Bind` 加 `humanSpotOk` 与三个 reason code · api CLI `--human-spot <path>`（坏账本 exit 2 且一题不跑）· worker 同形状（`humanSpotPath` + `persist.ts` 白名单加键，逐键白名单会**静默丢弃**、已用测例钉住）· 夹具 `fixtures/l1/human-spot.example.json`（恰好达标样例，**非**签字证据）。新增 **31** 条用例；反证 3 轮 **14** 条红（判定不看该值 9 · 去掉 `errors<=checked` 4 · 删 worker 白名单 1）。**可达性已证**：同一份「其他全绿」的跑次 + 合法账本 → `businessPass === true`；抽掉账本 → 立刻 false 且 reason = `human_spot_missing`。**未做**：worker 生产路径不传账本（恒 null，方向安全）· 无库内可查账 · 无 admin 登记控件 · 真人动作须人。门禁：contracts **29/240** · api **171/1048+3 skipped** · worker **50/225**。
+- [落校准打分器的接线与来源三态](./issues/04-task-judge-scorer-wiring.md) — 新增 env `JUDGE_CALIB_SCORER`（`off` 默认 / `mock` / `http`）+ 报告 `judgeAurocSource`；判定加严为「值非 null ∧ ≥0.65 ∧ **来源 live** ∧ 有效对数 ≥`JUDGE_CALIB_MIN_CASES`(=100)」，三个 reason code 可分辨（保留 `judge_auroc_missing_or_below_min`，新增 `judge_auroc_source_not_live` / `judge_auroc_calib_too_small`）；新增 `eval/judge-scorer.ts`（复用 ask 的 judge prompt 与解析造真 Gateway 打分器）+ **go/no-go**：声明 `http` 而 Gateway 非 `http` → 拒（否则 mock Gateway 的分数会被标成 live，正是 PRD §6.1 禁的「mock 数字进签字包」），入口 exit 2。两侧**来源判别同构**（`judgeAurocSourceFor` 一份），**不硬造** worker 判定点。新增 **30** 条用例、改写 6 条（**无一条改期望值**）；反证 3 轮 **7** 条红。**`http` 路段结论：能做、已做**；缺的是**真值**（本机无 Gateway/密钥 + 夹具仍 8 条）→ 真实入口今天过不了规模门，这是 PRD §4 的如实拒绝。门禁：contracts **30/245** · api **172/1069+3 skipped** · worker **51/229**。
+- [落 §8 可复现字段进 L1/L2 报告](./issues/05-task-repro-fields.md) — contracts 新增 `L1Repro`（14 键）+ 两条**稳定**哈希 `l1QuestionIdsHash`（题面 id 集合，内部升序）/ `l1CalibSetHash`（文件内容逐字节）；因 contracts 主入口会被 web/admin 客户端打包（`node:crypto` 进客户端图会让 Next 构建失败），哈希走**子路径导出** `@strict-rag/contracts/eval-repro`（与 `@strict-rag/ui/lib/utils` 同例），连带 contracts 加 `@types/node` devDependency。api `buildL1Repro`（`models` 取 env + KB 绑定 · `retrieveK` / `rerankTopN` / `tauClaim` / `contextMode`）+ 报告 `repro` 区块 + md 渲染（取不到写「—」）；worker 同形状但**只填 `questionIdsHash`**；`persist.ts` 白名单加键。**记债的 `null`**：`seed` · `fallbackChainsVersion` · `crag` · `contextMode` · `promptVersions` · `lifecycleFilterVersion` · `sessionStrategyVersion` · `l2GoldSetHash`（**不**拿源码文本哈希顶替）；`mode` **不进**区块（既有顶层 `mode` 是 `retrieve_mode` 别名，语义歧义记债）。新增 **20** 条用例；反证 4 轮 **7** 条红。门禁：contracts **31/254** · api **173/1076+3 skipped** · worker **52/233** · `pnpm install --frozen-lockfile` 通过 · web build 通过（证子路径导出未把 `node:crypto` 带进客户端图）。
+- [回写镜像 / 覆盖表 / spec + 收口门禁](./issues/06-task-writeback.md) — 见下方「目的地达成」。
+
+### 目的地达成（2026-09-23）
+
+「一次 L1 run 凭什么能被签成业务 PASS」的证据面三缺已补齐到**可核对**：
+
+1. **人工抽检拿到真实登记面与判据**：PRD §6 硬门「≥20 条，错 ≤1」从「两个没人读的常量」变成「文件账本 + CLI 入参 + 进 `businessPass`」，三个 reason code 可分辨缺测 / 条数不足 / 错超限；并已证「一份合法账本确能让该门变绿」——**不是空转闸**。
+2. **Judge AUROC 拿到可达但不作假的路径**：来源三态由 env 声明、报告落 `judgeAurocSource`、**判定只认 live**；`http` 走真 Gateway 且有 go/no-go 拦住「声明 http 而 Gateway 是 mock」；PRD §4 的 ≥100 规模门进判定。**mock 与缺测都变不了绿**。
+3. **§8 可复现字段落进报告**：14 键区块 + 两条稳定哈希；取不到的一律 `null`（**不许**编造、**不许**拿源码文本哈希顶替「版本」）。
+4. **本条最该被记住的两句话**：① **默认配置下 `businessPass` 在生产路径上仍不可达**（打分器默认 `off` + 校准夹具 8 条）——这是**有意**的：本图给的是**可达的路径**，不是伪造的绿灯；② **PRD 的门限数字一个字未改**，改的是「有没有数据源 + 有没有真按它判」。
+
+**证据**：`packages/contracts/tests/eval/human-spot-ledger.test.ts` · `l1-judge-calib-source.test.ts` · `l1-repro.test.ts` · `apps/api/tests/eval/human-spot-gate.test.ts` · `l1-human-spot-cli.test.ts` · `judge-auroc-source-gate.test.ts` · `l1-repro-fields.test.ts` · `apps/worker/tests/eval/run-l1-batch-human-spot.test.ts` · `run-l1-batch-judge-source.test.ts` · `run-l1-batch-repro.test.ts` · `fixtures/l1/human-spot.example.json`。反证共 **28** 条红（03 十四 · 04 七 · 05 七），还原后全绿。
+
+**收口门禁（在最后一次提交之后复跑）**：`pnpm check-types` 8/8 · `pnpm lint` 8/8 零 warning · `pnpm test` **11/11**（api **173 文件 / 1076 通过 + 3 skipped** · worker **52 / 233** · contracts **31 / 254** · admin 38 / 185 · web 19 / 56 · db 11 / 31 · admin-catalog 1 / 13；合计 1848 通过 + 3 skipped）· `pnpm check:module-status` **39 条 = 2 env + 13 符号 + 24 表**，`1-路径` / `6-联动` / `7-时效` **全空**。
+
+**一条口径教训（主控复核时抓到，已修 6 处文本）**：「N 项硬门」在本仓有**两个可能口径** —— PRD §6 表的**硬行数（6）**与 `PILOT_HARD_GATES` 的**键数（7，人工抽检占两键）**；表内第 7 行「ask P95」标的是「建议」。凡用到这个数就必须把口径写出来。
+
+**一条过程事实（供下次参考）**：`pnpm test` 全仓可在无并发下稳定 11/11；但**三包测试单独跑 api 一次 90s、contracts 5s、worker 20s**，与另一条测试命令并发会抢 CPU 造成假超时 —— 落地票一律串行。
 
 ## Not yet specified
 
-> 前沿之外、仍在本图方向上的雾。随前沿推进逐块变清，够锐利了才升成工单。
+> 本图已收口。下列是**收口后剩下的雾**，按「谁挡谁」分组，供下一张图挑一个当目的地。带（另图）的原样转给后续图，不是本图的欠账。
 
-- **「错」怎么算**：人工抽检的「错 ≤1」是「answerable 被拒」算错、「unanswerable 被答」算错、还是「引用不指向期望文档」也算错？须先定口径，否则登记面没法建。→ 预计在裁定票里定。
-- **抽检样本怎么选**：随机抽 / 按类型分层抽 / 从 `eval_runs` 的 2×2 格子里抽？PRD 没写，属实现选择。→ 裁定票。
-- **新表还是报告字段**：抽检结果进 `eval_runs.report_json`（复用既有白名单）还是新表（可多轮次累积）？两条路的可审计性不同。→ 裁定票。
-- **校准集扩到 ≥100 的数据从哪来**：`fixtures/l1/judge-calibration.json` 是 `claim` + `evidence` + `supported|unsupported` 的手写 seed，扩集需要真实语料与标注。没真语料前能做的只有「解析器与规模门如实拒绝小集」。→ 须先看清「没有真数据时有几件事是能做的」。
-- **打分器的来源判别怎么做**：live / mock / 缺测三态该由 env 声明、由 Gateway 回包声明，还是由调用方显式传入？与「不改仓库默认开关」的边界在哪。→ 裁定票。
-- **§8 字段里有哪些今天根本取不到**：`fallbackChains 版本` / `promptVersions` / `session 策略版本` 依赖配置侧有没有稳定的版本载体；取不到的必须**记债**而不是编一个假哈希。→ 研究票先看清。
-- **L2 侧要不要同一套**：§8 也覆盖「session 策略版本 / L2 剧本集哈希」，L2 报告今天同样没有。是否与本图同批落地、还是留给下一张图。→ 研究票后定。
+### A · 下一张图的首选：**L2 报告的可判定面**（本图三腿只做了 L1 侧，L2 侧整块空着）
+
+- **L2 采集面丢了 `evidence_snapshot.docId`**：`apps/worker/src/eval/run-l2-batch.ts` 只取 evidence 的**文本**、`apps/api/src/scripts/run-l2-golden.ts` 只 `.map(e => e.text)` —— 于是「主题命中期望文档」与「合法 citation」**连判据的原料都没有**。研究票 01 已核过三处落点（含 `packages/contracts/src/eval/l2-matrix.ts` 的 `historyLeaked`）。
+- **L2 四项零容忍只落了一项、且比 PRD 窄**：`near_coref` 之外的「主题粘连胡答 / 冲突场景跟错数字 / 合法路径跳过 verify」无机械判据；`historyLeaked` 只比对先前**用户**轮原文，上轮 **assistant** 文本进 evidence 不被抓，而 PRD 写的是「历史文本进 evidence」。
+- **L2 侧 §8**：`L2 剧本集哈希` 与 `session 策略版本 / rewrite prompt 版本` 在 L2 报告里同样没有（本图第三节裁定「留给下一张图」，`L1Repro.l2GoldSetHash` 恒 `null`）。可否复用本图的哈希写法与子路径导出。
+- **L2 报告要不要来源标记**：本图给 L1 落了 `judgeAurocSource` 三态；L2 侧今天没有任何来源/规模标记，`computeL2SignoffEligible` 的 `retrieveMode === 'live'` 是唯一一处。
+
+### B · 本图裁定但未落地的（须先补数据源 / 基础设施或补人）
+
+- **≥100 条真标注校准集**：`fixtures/l1/judge-calibration.json` 仍 8 条手写 seed；规模门已进判定，真语料与标注缺 → 真入口被如实拒绝。
+- **真 judge live 跑数**：`http` 打分器已实现且有 go/no-go，但本机无 Gateway / 密钥 → 「真值」仍缺。销账 = 一次真 live 校准跑 + 归档。
+- **人工抽检的库内可查账与 admin 登记控件**：本图按「无生产者不建 HTTP」裁掉了端点，且本机无浏览器 → 现在只有文件账本 + CLI；销账 = 有 admin 控件时再补端点与查询面。
+- **worker 生产路径不传抽检账本**：`handleEvalJob` 无账本路径 → worker 跑批 `humanSpot` 恒 `null`（方向安全但不可用）。销账 = 消费者按 run 提供路径并透传 `humanSpotPath`。
+- **worker 侧 `repro` 分项不足**：`models` / 档位预算 / `tauClaim` / 校准集哈希在 worker 取不到（已记债）；销账 = 内口回传档位 + worker 侧校准集路径。
+- **`repro` 未透出 DTO**：`…/eval/runs` 看不到该区块（本图刻意不扩契约面）。销账 = 同步 `EvalRunSchema` 与 `toEvalRunDto`（`.strict()`，漏一处就抛）。
+- **§8 的「版本载体」类字段**：`seed` / `fallbackChainsVersion` / `promptVersions` / `lifecycleFilterVersion` / `sessionStrategyVersion` 在 L1 报告里恒 `null`。销账二选一：引入版本常量载体，或 PRD 明确「版本」的载体是什么。**禁止**拿源码文本哈希顶替（会随任意重构噪声跳变，形似而非语义）。
+- **§8 的 `mode` / `contextMode` 语义歧义**：既有顶层 `mode` 是 `retrieve_mode` 的历史别名，不是 ask 档位；§8 同时列了 `mode` 与 `contextMode`，须 PRD 澄清指哪个。
+- **校准集哈希逐字节、不做行尾归一**：CRLF 检出会让同内容不同值（本轮已知、已记债）；销账 = 裁一个规范化口径。
+
+### C · 相邻未做（与本图同域但更远）
+
+- **`§6.0`「运行时质量参数仅来自已签字包；不一致 → 拒绝加载」**：与 ADR-007「`TAU_CLAIM` 唯一源」直接冲突 → 属**改冻结语义**，须 ADR → 改 PRD → 升版。本图列进 Out of scope，留给专门的图。
+- **`check:module-status` 的 `5-表` 误报**：`docs/module-status/*.md` 里给裸标识符加反引号可能被按「表」上下文误报成表名（本图工单 06 首跑踩到一次：`null` 加反引号 → 40 条）。销账 = 加黑名单或改判据，属工具债。
+- **`§6` 表内第 7 行「ask P95 strict ≤20s」**：标的是「建议→业务可升硬」，今天既无数据源也无判据；升硬须业务决定。
 
 ## Out of scope
 

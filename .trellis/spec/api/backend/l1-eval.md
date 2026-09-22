@@ -34,21 +34,63 @@
 | 覆盖率 | 2×2 的 A/(A+B) | `>= 试点 coverageMin`（0.40） | 不放行 |
 | C 率 | C/(C+D) | `<= 试点 cRateMax`（0.05） | 不放行 |
 | Hit@k | evidence.docId 与 expectedDocIds 有交集 | `>= 试点 hitAt20Min`（0.70） | **该门不适用**（PRD 写「有标注时」） |
-| Judge AUROC | 独立校准集（Mann-Whitney） | `>= 试点 judgeAurocMin`（0.65） | 不放行 |
+| Judge AUROC | 独立校准集（Mann-Whitney） | `>= 试点 judgeAurocMin`（0.65）**且 来源 = live 且校准集有效对数 ≥ 100** | 不放行 |
 | 引用完整率 | `knowledge ∧ answered` 里 citations>0 的比例 | `>= 试点 citationCompleteMin`（0.99） | **该门不适用**（分母 0） |
+| 人工抽检 | 文件账本登记的条数 / 错数 | `checked >= 试点 humanSpotMin`（20）**且** `errors <= 试点 humanSpotErrorMax`（1） | 不放行 |
 
 **门限一律读 `PILOT_HARD_GATES`**，判定处禁止写裸数字。新增门限前先问一句「PRD 写死了吗」：写死 = 落地（实现 PRD）；没写 = 改冻结语义，须 ADR。
 
 **两条必读的诚实面**（写这类改动时不许省）：
 
-1. 生产入口（CLI `main()` 与 worker eval 消费者）**不接校准打分器** → `judgeAuroc` 恒 `null` → **`businessPass` 在生产路径上不可达**。这是**有意**的：把「未测」显形为红，而不是留一条覆盖率 0.001 也能变真的假绿。
+1. 打分器来源由 env `JUDGE_CALIB_SCORER` 声明（默认 off = 缺测），判定只认 live 且校准集有效对数 ≥ 100；默认配置（off + 夹具 8 条）下 `judgeAuroc` 恒 `null` → **`businessPass` 在生产路径上不可达**。这是**有意**的：把「未测 / 只测了 mock」显形为红，而不是留一条覆盖率 0.001 也能变真的假绿。worker 侧无 Gateway 打分客户端（`http` 只声明不产值）。
 2. 引用完整率受图的不变式约束（`answered ∧ knowledge` 时必带合法引用）→ 结构上只能是 1 或 null。该门钉的是**不变式**，不是筛跑次。
 
 **双写常量**：`PILOT_HARD_GATES`（本包 `eval/adr046-snapshot.ts`）与 contracts 的 `TAU_STAR_COVERAGE_MIN` / `TAU_STAR_C_RATE_MAX` 是**两份独立常量、数值一致**（依赖方向只有 api → contracts）。**不合并**，只加一条同时读两处的断言防单边漂移。
 
 **禁止**：为了让某次跑次变绿而放宽任一门；把缺测当合格；在判定处复制门限数字；把「未接打分器」写成「已达 AUROC 门」。
 
-**未做（债）**：人工抽检 ≥20 条 / 错 ≤1 —— 全仓无入口、无登记表、无报告字段；校准规模 ≥100 —— 实际夹具 8 题。
+**未做（债）**：真人抽检动作本身（登记面已落，数字须人给；样例 `fixtures/l1/human-spot.example.json` 是恰好达标样例，**禁止**当真实数字）· ≥100 条真标注校准集（规模门已落，真实夹具仍 8 题）· 真 judge live 跑数与验收（本机无 Gateway / 密钥）· `repro` 未透出 DTO · 版本载体类字段仍 `null`（seed / fallbackChains 版本 / promptVersions / lifecycle 规则版本 / session 策略版本）。
+
+---
+
+## 人工抽检账本登记面（PRD §6 硬门「≥20 条，错 ≤1」）
+
+> 承载面 = **文件 JSON 账本**（Zod 契约在 `@strict-rag/contracts` 的 `eval/human-spot.contract.ts`），**不建 PG 表、不开 HTTP 端点、不新增迁移**。
+
+- **形状**：`{ evalRunId, sampledBy, sampledAt, checked, errors, items?[] }`；`checked` / `errors` 为非负整数。
+- **唯一机械不变式**（contracts 的 `superRefine` 只校验这三条）：`errors <= checked`；**给了 `items` 时** `items.length === checked` 且 `items` 里 `wrong=true` 的条数 `=== errors`。
+- **「错」的口径**：PRD 未定义机械口径 → 由抽检人按 rubric 判；登记面只承载整数 + 可选明细。**禁止**在代码里发明「什么算错」。
+- **失败语义**：账本缺文件 / 非 JSON / 违约一律抛 `HumanSpotLoadError`（api 与 worker 各一份同构加载器）→ CLI **exit 2**。**禁止**把坏账本静默降级成「没人登记」。
+- **报告落点**：`humanSpot`（条数 / 错数 / 来源）；**不落** `sampledBy` / `sampledAt` / `items` 明细（留在账本文件）。**缺测写 `null`，不写 0 条**。
+- **进闸**：`checked >= PILOT_HARD_GATES.humanSpotMin`（20）**且** `errors <= PILOT_HARD_GATES.humanSpotErrorMax`（1）；缺测不放行。三个 reason code 各自可分辨：`human_spot_missing` / `human_spot_below_min` / `human_spot_errors_above_max`（两条同时不过时可同时报）。
+- **禁则**：①**禁止**把人工抽检做成「恒 false 的空转闸」—— 顺序必须是**先有登记面、再进闸**，且必须有一条测例证明「一份合法账本确能让该门变绿」；②**禁止**在判定处写裸数字（`20` / `1` 只能来自 `PILOT_HARD_GATES`）；③**禁止**把样例 `fixtures/l1/human-spot.example.json` 当真实抽检数字。
+- **入口**：api CLI `--human-spot <path>`（`--human-spot=<path>` 亦可）；worker `runL1Batch({ humanSpotPath })`。**worker 生产消费者今天不传** → 生产跑批 `humanSpot` 恒 `null`（缺测，方向安全）。
+
+---
+
+## 校准打分器来源三态与规模门（PRD §4 / §6）
+
+> 打分器**来源**由入口侧声明（env `JUDGE_CALIB_SCORER`），**值**由「怎么打分」决定；两者不可混同。
+
+- **三态**：`JUDGE_CALIB_SCORER` = `off`（**默认** = 缺测）/ `mock` / `http`；报告 `judgeAurocSource` = `live` / `mock` / `none`。映射由 contracts 的 `judgeAurocSourceFor` 唯一提供，api 与 worker **共用**（禁止单边另写）。
+- **判定只认 `live`**：`judgeAurocOk = 值非 null ∧ 值 >= judgeAurocMin ∧ 来源 === 'live' ∧ 校准集有效对数 >= JUDGE_CALIB_MIN_CASES`。三条红各自可分辨：`judge_auroc_missing_or_below_min` / `judge_auroc_source_not_live` / `judge_auroc_calib_too_small`（else-if 互斥，报第一处不过的门）。
+- **规模门**：`JUDGE_CALIB_MIN_CASES = 100`（PRD §4 写死），常量单一来源在 contracts，api 只引用；判定处禁止写裸数字。
+- **`mock` 的定位**：确定性伪打分器（label 同源 → AUROC 恒 1），**值可打印、绝不进判定**（PRD §6.1 / ADR-061）。
+- **`http` 真打分器**：`eval/judge-scorer.ts` 走 `purpose: judge`，复用 ask 的 judge prompt 与解析；**go/no-go** —— 声明 `http` 而 Gateway 非 `http`（`GATEWAY_MODE` / `GATEWAY_BASE_URL`）→ 入口 **exit 2**，**禁止** mock 分数标成 live。
+- **禁则**：①**禁止**为了让门变绿而让 mock 冒充 live，或把「未接打分器」写成「已达 AUROC 门」；②**禁止**把 `off`（默认）下注入的打分器当生效来源（声明是来源的唯一决定者）；③**禁止**在判定处复制规模 / 门限数字；④worker 侧**无** Gateway 打分客户端，`http` 只声明不产值 —— 不许把它读成「worker 也能产 live 分」。
+
+---
+
+## §8 可复现区块（`repro`）
+
+> L1 报告新增 `repro`（形状 = contracts 子路径 `@strict-rag/contracts/eval-repro` 的 `L1Repro`，14 键）；api CLI 与 worker 批跑**同形状**。不含任何判定。
+
+- **取真值**（能取到就取）：`models`（env 三模型 + KB `model_bindings`）· `retrieveK` / `rerankTopN`（图上回包档位派生）· `tauClaim`（与快照同一个 τ）· `questionIdsHash`（题面 id 集合：trim → 去空 → **升序** → sha256）· `calibrationHash`（校准集文件内容逐字节 sha256）。
+- **恒 `null`**（无载体 / 未实现，销账见镜像与工单 05 去向表）：`seed` · `fallbackChainsVersion` · `crag` · `contextMode` · `promptVersions` · `lifecycleFilterVersion` · `sessionStrategyVersion` · `l2GoldSetHash`（L2 侧归下一张图）。
+- **既有 `mode` 不动**：顶层 `mode` / `retrieve_mode` 是 `retrieve_mode` 的历史别名（`resolveEvalMode`），**不是** ask 档位；区块里**没有**第二个 `mode`。§8 `mode` / `contextMode` 的语义歧义记债。
+- **md 渲染**：能取到的渲染真值，取不到的一律渲染「—」。
+- **禁则**：①**禁止**用占位串（空串 / `'unknown'` / `'-'` / `'n/a'`）冒充「取不到」—— 取不到只准写 `null`；②**禁止**拿源码文本或配置内容哈希冒充「版本」（会随任意重构噪声跳变，形似而非 PRD 语义），也**禁止**对 prompt / 链内容算哈希顶替版本；③**禁止**把「无版本载体」的字段类型写成 `string` —— 钉成 `null` 字面量，编假值须过不了 `tsc`；④**禁止**在区块里再造 `mode` 第二源；⑤哈希必须是**稳定纯函数**（同输入跨进程同值；输入变一字节即变值），且**逐字节不做行尾归一**（代价：CRLF 检出会变值，记债）。
+- **落库同构**：api CLI 走 `reportJson: report` 整对象直落，worker `persist.ts` 是**逐键白名单** → 加字段不同步白名单会被 worker **静默丢弃**（有同构测例钉住）。`L1Repro` 今天**未透出** DTO（`…/eval/runs` 看不到）。
 
 ---
 
@@ -58,7 +100,7 @@
 
 - Trigger：新增 CLI 入口、env 键、跨层（fixture → script → `executeAsk` → graph）、可执行错误矩阵。
 - 目标：串行批跑黄金题，产出 **mode 标注** 的 2×2 矩阵与覆盖率；CI 只钉 **纯函数 + mock 注入**，不跑 live LLM。
-- 非目标：B6 看板增强、L2/L3 准出、写 `TAU_CLAIM`、在线抽样；题面已扩≥30+30，**live 真跑数字**仍见 B10-followup 余量。L1 批跑可离线扫 τ 得 tau*（**不**改本跑 2×2 / **不**进签字公式 / **不**新开 `tau_sweep` 入队）。独立校准集可算 Judge AUROC（**不**用 gold type 当 label / **不**进签字公式 / **不**新开 `verifier_calib` 入队；无打分器 → null）。  
+- 非目标：B6 看板增强、L2/L3 准出、写 `TAU_CLAIM`、在线抽样；题面已扩≥30+30，**live 真跑数字**仍见 B10-followup 余量。L1 批跑可离线扫 τ 得 tau*（**不**改本跑 2×2 / **不**进签字公式 / **不**新开 `tau_sweep` 入队）。独立校准集可算 Judge AUROC（**不**用 gold type 当 label / **并已进签字公式**（判定只认 live + 校准规模 ≥100）/ **不**新开 `verifier_calib` 入队；无打分器 → null）。人工抽检走文件账本 + CLI `--human-spot`（**无**表 / **无** HTTP 登记面）。  
 - **P2 底线（本窗已接）**：`gold-questions` CRUD + `POST eval/runs` 入队 `sr-eval`；worker 串行跑 L1；`GET eval/runs/:runId` 回读。CLI 仍直调 `executeAsk`。
 
 ### 2. Signatures
@@ -117,7 +159,7 @@ Seed 规模：可答 30 + 不可答类 30（含 `false_premise`）；**mock 数�
 - `false_premise` **不**单独成格。
 - **Hit@k**（P4 最小）：只对非空 `expectedDocIds` 计分；hit = 该题 `evidence_snapshot.docId` 与 expected 有交集；k = 该列表长度；总率 = hits/scored，scored=0 → `null`。**不**进 `signoffEligible`，**不**改 2×2。逻辑 id→uuid 映射仍由跑批前人工处理。
 - **τ 扫描**（P4 最小）：挂现有 L1 批跑。有 `minSupport` 才按网格重阈（min 否决：`minSupport≥τ` → answered）；无分数保持原 outcome（未进 judge 不得因降 τ 变成 answered）；error 出格。网格 `0.30…0.90` 步长 `0.05`。`cRate=C/(C+D)`。**tau\*** = coverage≥0.4 ∧ cRate≤0.05 的最大 τ；没有 → `null`。本跑 2×2 仍按 env `TAU_CLAIM` 的真实 outcome。**不**写 env、**不**让公开 ask 传 τ、**不**进 `signoffEligible`。`unsupported_claims` 的图结果必须带回 `minSupport`。
-- **Judge AUROC**（P4 最小）：独立 `fixtures/l1/judge-calibration.json`（`claim` + `evidence` + `supported|unsupported`）。**禁止**用 gold `type` / ask outcome 当 label。Mann-Whitney；注入打分器才计分；无打分器 / 单类 / 无有效分 → `judgeAuroc=null`。**不**进 `signoffEligible`，**不**拿实测值比 `judgeAurocMin` 翻签字，**不**新开 `verifier_calib` 入队。
+- **Judge AUROC**（P4 最小）：独立 `fixtures/l1/judge-calibration.json`（`claim` + `evidence` + `supported|unsupported`）。**禁止**用 gold `type` / ask outcome 当 label。Mann-Whitney；注入打分器才计分；无打分器 / 单类 / 无有效分 → `judgeAuroc=null`。**不**进 `signoffEligible`，但**已**进 api 侧 `evaluateAdr046Bind` 的放行判定（值 ≥ 门限 ∧ 来源 = live ∧ 校准集有效对数 ≥ 100），**不**新开 `verifier_calib` 入队。
 
 #### `L1Report`（写出 `artifacts/l1-last-run.json` + `.md`）
 
@@ -335,7 +377,7 @@ for (const c of cases) {
 - IS：`docs/module-status/api.md` · backlog B10 挂账 `08-06-project-backlog`  
 - 已做（工程）：`eval_runs` 表 + `persistEvalRun` / `L1_PERSIST_EVAL` · gold≥60 · OPS-1 `retrieve_mode`/`signoffEligible` · B10-RACI `fixtures/l1/RACI.md`  
 - **P2 底线 HTTP**：`routes/eval.ts` · `eval.run` · 空题集 400 · 入队不跑完；内口 `POST /internal/eval/execute-ask`（`x-eval-internal-token`，`skipTrace`）；矩阵函数在 `@strict-rag/contracts`  
-- 未做：业务人签 · 在线抽样 · GET `/jobs/:id` 通用账本 · 反馈回流黄金集；L2 题面 + runner + 可选 persist（≠ 准出）→ [l2-eval](./l2-eval.md)。τ 扫描已挂 L1 批跑（不写 env、不新开 `tau_sweep` 入队、不进签字公式）。Judge AUROC 已挂独立校准集（注入打分器；不写签字公式、不新开 `verifier_calib` 入队；live judge 真跑仍缺口）  
+- 未做：业务人签 · 在线抽样 · GET `/jobs/:id` 通用账本 · 反馈回流黄金集；L2 题面 + runner + 可选 persist（≠ 准出）→ [l2-eval](./l2-eval.md)。τ 扫描已挂 L1 批跑（不写 env、不新开 `tau_sweep` 入队、不进签字公式）。Judge AUROC 已挂独立校准集（来源三态 + 规模门 ≥100 已进 api 侧放行判定；不新开 `verifier_calib` 入队；live judge 真跑仍缺口）  
 - ADR-046 快照：`runL1Golden` 写 `l1-gate-snapshot.json` 并挂 `gateSnapshot`/`gateVerdict`；默认不代签 → `signedPackage=false`；coverage=0 / 全 `internal_guard` → `businessPass=false`  
 - 签字禁令：`signoffEligible=true` = `retrieve_mode=live` **且** 两类各≥30；**≠** 自动业务 PASS；coverage=0 / 全 `internal_guard`（无真实 Gateway）**禁止**当成绩单；人审仍禁「仅 env Gateway 绿灯」（见 live profile §4.5）  
 
