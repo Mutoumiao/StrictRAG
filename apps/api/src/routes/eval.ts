@@ -334,6 +334,9 @@ export function createEvalRoutes(deps: EvalRouteDeps = {}) {
       evidenceDocIds: (result.graph.evidence_snapshot ?? [])
         .map((e) => e.docId)
         .filter((id): id is string => typeof id === 'string' && id.length > 0),
+      // 引用完整率的采集面：answerKind + citations.length（图在 answered ∧ knowledge 时必带引用）
+      answerKind: result.graph.answerKind,
+      citationCount: Array.isArray(result.graph.citations) ? result.graph.citations.length : 0,
       minSupport:
         typeof result.graph.minSupport === 'number' && Number.isFinite(result.graph.minSupport)
           ? result.graph.minSupport

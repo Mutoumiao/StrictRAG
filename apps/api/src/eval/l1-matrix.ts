@@ -6,6 +6,7 @@ export {
   accumulateHitAtK,
   auroc,
   cellFor,
+  citationCompleteRate,
   computeSignoffEligible,
   coverage,
   cRate,

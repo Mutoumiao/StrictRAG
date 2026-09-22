@@ -14,6 +14,7 @@ import {
   acceptHit,
   computeL2SignoffEligible,
   historyLeaked,
+  l2NearCorefPassRate,
   nextSessionId,
   type L2Type,
 } from '@strict-rag/contracts';
@@ -72,6 +73,14 @@ export type L2Report = {
   failCount: number;
   errorCount: number;
   zeroToleranceHits: number;
+  /**
+   * 近指代通过率：分子 = type='near_coref' ∧ verdict='pass'；分母 = 全部 near_coref 行（含 error）；
+   * 分母 0 → null（不放行）。残余（不含主题正确 / 不含合法 citation / 夹具仅 3 题）见
+   * `l2NearCorefPassRate` 注释。
+   */
+  nearCorefPassRate: number | null;
+  /** 近指代通过率分母（near_coref 题数） */
+  nearCorefPassDen: number;
   cases: L2CaseRow[];
 };
 
@@ -200,6 +209,11 @@ export function formatL2ReportMd(report: L2Report): string {
     `| failCount | ${report.failCount} |`,
     `| errorCount | ${report.errorCount} |`,
     `| zeroToleranceHits | ${report.zeroToleranceHits} |`,
+    `| nearCorefPassRate | ${
+      report.nearCorefPassRate === null
+        ? 'null'
+        : String(Math.round(report.nearCorefPassRate * 1000) / 1000)
+    } (den=${report.nearCorefPassDen}) |`,
     '',
     '## cases',
     '',
@@ -338,6 +352,7 @@ export async function runL2Golden(opts: RunL2Options): Promise<L2Report> {
       cases,
       caseCount: rows.length,
       zeroToleranceHits,
+      nearCorefPassRate: l2NearCorefPassRate(rows),
     }),
     retrieve_mode: mode,
     mode,
@@ -349,6 +364,8 @@ export async function runL2Golden(opts: RunL2Options): Promise<L2Report> {
     failCount,
     errorCount,
     zeroToleranceHits,
+    nearCorefPassRate: l2NearCorefPassRate(rows),
+    nearCorefPassDen: rows.filter((r) => r.type === 'near_coref').length,
     cases: rows,
   };
 

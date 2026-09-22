@@ -28,6 +28,8 @@
 | `eval/consumer.test.ts` | eval 消费者须写 running→succeeded，空题集 failed。 | prds/06-async eval.run · 功能表 §5.2 | `handleEvalJob` | 注入 persist/execute；不打 live。 | 现行 |
 | `eval/execute-ask-http.test.ts` | worker 调 api 内口必须带口令；失败不得假装 answered。 | prds/06-async eval.run | `createEvalHttpExecute` | mock fetch；空 token 记 error；可读 minSupport。 | 现行 |
 | `eval/run-l1-batch.test.ts` | worker L1 批跑必须串行入 2×2，error 出格。 | prds/08-quality §2 · 覆盖 C4 · 覆盖 C2 · 覆盖 C3 | `runL1Batch` | 注入 execute；有 expectedDocIds 计 Hit@k；有 minSupport 计 tauStar；注入校准打分器计 judgeAuroc；≠ 签字 PASS。 | 现行 |
+| `eval/run-l1-batch-citation-complete.test.ts` | worker L1 批跑必须与 api CLI 同口径采集「引用完整率」，否则两条入口分叉。 | prds/08-quality/02-evaluation-and-gates.md §2 :81 · §6 :134 | `runL1Batch` | 注入 execute；只有 answerKind='knowledge' ∧ outcome='answered' 进分母，citations>0 才进分子；分母 0 → null（该门不适用）。 | 现行 |
+| `eval/run-l2-batch-near-coref-rate.test.ts` | worker L2 批跑必须落近指代通过率并进工程 signoffEligible，口径与 api CLI 同源。 | prds/08-quality/02-evaluation-and-gates.md §6.2 :188 | `runL2Batch` | 注入 executeTurn；分母含 error；分母 0 → null → 不放行。 | 现行 |
 | `eval/run-l2-batch.test.ts` | worker L2 批跑必须串行多轮窗，泄漏计零容忍，mock 不得 signoffEligible。 | prds/08-quality §6.2 · 功能表 §10.2 | `runL2Batch` | 注入 executeTurn；≠ 准出 PASS。 | 现行 |
 | `ingest/embed-es-serial.test.ts` | embed 与稀疏索引串行就绪，禁并行假完成。 | X-03 · prds/04-pipelines | `pipeline 串行就绪` | embedReady 与 esReady 须同时为 1。 | 现行 |
 | `ingest/embed-es-order.test.ts` | 全仓顺序一致为 embed→es_index；未 embed 不得进 ES；不得文档间混序。 | 剧本 L9 · ADR-038 | `runIngestStage 阶段链 + src/ingest 源码守卫` | 多文档串行；es_index 早于 embed → EMBED_NOT_READY；`'es_index'` 字面量与入队点唯一。 | 现行 |

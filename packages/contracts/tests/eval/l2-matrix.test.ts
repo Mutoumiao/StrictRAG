@@ -27,6 +27,7 @@ describe('computeL2SignoffEligible', () => {
         cases: [...allTypes(), { type: 'near_coref' }, { type: 'near_coref' }, { type: 'near_coref' }, { type: 'near_coref' }, { type: 'budget' }, { type: 'adversarial' }],
         caseCount: 15,
         zeroToleranceHits: 0,
+        nearCorefPassRate: 1,
       }),
     ).toBe(true);
   });
@@ -37,6 +38,7 @@ describe('computeL2SignoffEligible', () => {
       cases: allTypes(),
       caseCount: 15,
       zeroToleranceHits: 0,
+      nearCorefPassRate: 1,
     };
     expect(computeL2SignoffEligible({ ...liveOk, retrieveMode: 'mock' })).toBe(false);
     expect(computeL2SignoffEligible({ ...liveOk, caseCount: 14 })).toBe(false);

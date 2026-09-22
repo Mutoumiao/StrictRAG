@@ -20,6 +20,10 @@ type ExecuteAskJson = {
     evidenceDocIds?: string[];
     minSupport?: number | null;
     answer?: string;
+    /** 图上 answerKind；api 侧未下发 → 缺省 */
+    answerKind?: string;
+    /** 图上 citations.length */
+    citationCount?: number;
   };
   error?: { message?: string };
 };
@@ -64,6 +68,8 @@ export function createEvalHttpExecute(opts: EvalHttpExecuteOpts): EvalCaseExecut
     if (status === 'answered' || status === 'abstained') {
       const ids = payload.data?.evidenceDocIds;
       const minRaw = payload.data?.minSupport;
+      const kind = payload.data?.answerKind;
+      const count = payload.data?.citationCount;
       return {
         outcome: status,
         reason: payload.data?.reason,
@@ -71,6 +77,9 @@ export function createEvalHttpExecute(opts: EvalHttpExecuteOpts): EvalCaseExecut
           ? ids.filter((id): id is string => typeof id === 'string' && id.length > 0)
           : [],
         minSupport: typeof minRaw === 'number' && Number.isFinite(minRaw) ? minRaw : null,
+        // 只在下发合法值时带上；未下发保持缺省（不冒充 knowledge）
+        ...(kind === 'knowledge' || kind === 'chitchat' ? { answerKind: kind } : {}),
+        ...(typeof count === 'number' && Number.isFinite(count) ? { citationCount: count } : {}),
       };
     }
     return { outcome: 'error', errorMessage: `unexpected ask status: ${String(status)}` };

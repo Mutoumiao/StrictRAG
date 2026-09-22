@@ -20,8 +20,10 @@ import {
 import {
   accumulate,
   accumulateHitAtK,
+  citationCompleteRate,
   computeSignoffEligible,
   coverage,
+  cRate,
   emptyHitAtK,
   emptyMatrix,
   goldTypeCounts,
@@ -69,6 +71,10 @@ export type L1CaseRow = {
   hitAtK?: boolean | null;
   /** 进 judge 后的 min 分；未进 judge → 缺省 */
   minSupport?: number | null;
+  /** 图上的答案域；拒答 / error 无该字段 */
+  answerKind?: 'knowledge' | 'chitchat';
+  /** 图上 citations.length；采不到（error）→ 缺省 */
+  citationCount?: number;
 };
 
 export type L1Report = {
@@ -95,6 +101,15 @@ export type L1Report = {
   /** 独立校准集 Mann-Whitney；无打分器或单类 → null。不进签字公式 */
   judgeAuroc: number | null;
   judgeAurocScored: number;
+  /**
+   * 引用完整率：分子 = answerKind='knowledge' ∧ outcome='answered' ∧ citations>0；
+   * 分母 = answerKind='knowledge' ∧ outcome='answered'；分母 0 → null（该门不适用）。
+   * 图在 answered ∧ knowledge 时结构上必带合法 citation（graph/run.ts validIds 闸），
+   * 故本率结构上只能是 1 或 null —— 此门钉的是该不变式，不是筛掉不合格跑次。
+   */
+  citationComplete: number | null;
+  /** 引用完整率分母（knowledge ∧ answered 题数） */
+  citationCompleteDen: number;
   errorCount: number;
   cases: L1CaseRow[];
   kbId: string;
@@ -343,6 +358,12 @@ export function formatReportMd(report: L1Report): string {
   const { matrix: m } = report;
   const cov =
     report.coverage === null ? 'null' : String(Math.round(report.coverage * 1000) / 1000);
+  const cr = cRate(m);
+  const crText = cr === null ? 'null' : String(Math.round(cr * 1000) / 1000);
+  const ccText =
+    report.citationComplete === null
+      ? 'null'
+      : String(Math.round(report.citationComplete * 1000) / 1000);
   const lines = [
     '# L1 last run',
     '',
@@ -360,9 +381,11 @@ export function formatReportMd(report: L1Report): string {
     `| signoffEligible | ${report.signoffEligible} |`,
     `| errorCount | ${report.errorCount} |`,
     `| coverage | ${cov} |`,
+    `| cRate | ${crText} |`,
     `| hitAtK | ${
       report.hitAtK === null ? 'null' : String(Math.round(report.hitAtK * 1000) / 1000)
     } (${report.hitAtKHits}/${report.hitAtKScored}) |`,
+    `| citationComplete | ${ccText} (den=${report.citationCompleteDen}) |`,
     `| tauStar | ${report.tauStar === null ? 'null' : String(report.tauStar)} |`,
     `| judgeAuroc | ${
       report.judgeAuroc === null ? 'null' : String(Math.round(report.judgeAuroc * 1000) / 1000)
@@ -418,6 +441,8 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
     let errorMessage: string | undefined;
     let evidenceDocIds: string[] = [];
     let minSupport: number | null = null;
+    let answerKind: 'knowledge' | 'chitchat' | undefined;
+    let citationCount: number | undefined;
     try {
       const result = await run(params, {
         skipTrace: true,
@@ -425,6 +450,9 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
       });
       outcome = result.graph.status;
       reason = result.graph.reason;
+      answerKind = result.graph.answerKind;
+      const citations = result.graph.citations;
+      citationCount = Array.isArray(citations) ? citations.length : 0;
       evidenceDocIds = (result.graph.evidence_snapshot ?? [])
         .map((e) => e.docId)
         .filter((id): id is string => typeof id === 'string' && id.length > 0);
@@ -445,6 +473,8 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
       errorMessage,
       hitAtK: hit,
       minSupport,
+      answerKind,
+      citationCount,
     });
   }
 
@@ -470,6 +500,10 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
     tauSweep: swept.grid,
     judgeAuroc: calib.judgeAuroc,
     judgeAurocScored: calib.judgeAurocScored,
+    citationComplete: citationCompleteRate(rows),
+    citationCompleteDen: rows.filter(
+      (r) => r.outcome === 'answered' && r.answerKind === 'knowledge',
+    ).length,
     errorCount,
     cases: rows,
     kbId: opts.kbId,
@@ -494,7 +528,8 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
     }
   }
 
-  // ponytail: 快照绑本跑身份；默认不代签。coverage=0 / internal_guard 不会翻 businessPass
+  // ponytail: 快照绑本跑身份；默认不代签。实测硬门（覆盖 / C 率 / Hit@k / AUROC / 引用完整率）
+  // 全量传进闸；缺测 null → 不放行（hit@k 无标注、引用完整率分母 0 除外）
   const snapIn = opts.snapshot;
   const bound = bindQualitySnapshotToEval({
     snapshotId: snapIn?.snapshotId ?? uuidv7(),
@@ -509,6 +544,10 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
     productA: snapIn?.productA,
     signoffEligible: report.signoffEligible,
     coverage: report.coverage,
+    cRate: cRate(matrix),
+    hitAtK: report.hitAtK,
+    judgeAuroc: report.judgeAuroc,
+    citationComplete: report.citationComplete,
     caseReasons: rows.map((r) => r.reason),
   });
   report.gateSnapshot = bound.snapshot;
@@ -560,6 +599,8 @@ async function main(): Promise<void> {
           hitAtK: report.hitAtK,
           hitAtKHits: report.hitAtKHits,
           hitAtKScored: report.hitAtKScored,
+          citationComplete: report.citationComplete,
+          citationCompleteDen: report.citationCompleteDen,
           tauStar: report.tauStar,
           judgeAuroc: report.judgeAuroc,
           judgeAurocScored: report.judgeAurocScored,

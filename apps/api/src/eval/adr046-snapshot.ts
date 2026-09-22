@@ -1,6 +1,15 @@
 /**
  * ADR-046：质量配置快照 + 硬门单向校验 + 四要素 / 业务 PASS 闸。
  * 绑定现有 L1 eval 身份；不另开 ask 图。≠ 人签、≠ 业务 PASS。
+ *
+ * 实测硬门进闸（L1 侧）：coverage / cRate / hitAtK / judgeAuroc / citationComplete 由 L1 runner
+ * 实测后传进 `evaluateAdr046Bind` 的 `&&`。缺测 null 一律**不放行**（fail-closed），唯二例外是
+ * PRD 写了条件语的两门：hitAt20「有标注时」（无标注 → 该门不适用）与 citationComplete
+ * （无 knowledge answered 题 → 分母 0 → 不适用）。任何加法都只许加严，禁止放宽既有判定。
+ *
+ * `judgeAuroc` 在生产入口今天恒为 null（CLI `main()` 不传 `scoreJudge`、worker consumer 同），
+ * 故 `businessPass` 在生产路径上**不可达**。这是有意的 —— 把「未测」显形为红，而不是留一条
+ * 覆盖率 0.001 也能变真的假绿。judgeAuroc 有生产者路径（可注入校准打分器），缺的是接线。
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -71,6 +80,14 @@ export type BindSnapshotInput = {
   productA?: boolean;
   signoffEligible: boolean;
   coverage: number | null;
+  /** C 率实测 C/(C+D)；缺测 null → 不放行 */
+  cRate?: number | null;
+  /** Hit@k 实测；无标注题 → null → 该门不适用（PRD「有标注时」） */
+  hitAtK?: number | null;
+  /** Judge AUROC 实测；缺接线 → null → 不放行（缺测显形为红） */
+  judgeAuroc?: number | null;
+  /** 引用完整率实测；分母 0 → null → 该门不适用 */
+  citationComplete?: number | null;
   caseReasons?: Array<string | undefined>;
 };
 
@@ -147,6 +164,10 @@ export function evaluateAdr046Bind(input: {
   diff: GateDiff;
   signoffEligible: boolean;
   coverage: number | null;
+  cRate?: number | null;
+  hitAtK?: number | null;
+  judgeAuroc?: number | null;
+  citationComplete?: number | null;
   caseReasons?: Array<string | undefined>;
 }): BindVerdict {
   const reasons: string[] = [];
@@ -160,13 +181,38 @@ export function evaluateAdr046Bind(input: {
   const signedPackage =
     fourElementsComplete(input.four) && input.diff.direction !== 'looser';
 
-  const coverageOk = input.coverage != null && input.coverage > 0;
+  // 门限一律读 PILOT_HARD_GATES，禁止在判定处写裸数字
+  const gates = PILOT_HARD_GATES;
+  // 覆盖率：> 0 的口径已废（0.001 也能变真）→ >= coverageMin；null / 0 沿用旧 code 语义
+  const coverageOk = input.coverage != null && input.coverage >= gates.coverageMin;
+  if (input.coverage == null || input.coverage <= 0) reasons.push('coverage_zero_or_null');
+  else if (!coverageOk) reasons.push('coverage_below_min');
+  // C 率：缺测 null 不放行
+  const cRateOk = input.cRate != null && input.cRate <= gates.cRateMax;
+  if (!cRateOk) reasons.push('c_rate_missing_or_above_max');
+  // Hit@k：null = 无标注 = 该门不适用（PRD「有标注时」）
+  const hitAtKOk = input.hitAtK == null || input.hitAtK >= gates.hitAt20Min;
+  if (!hitAtKOk) reasons.push('hit_at_k_below_min');
+  // Judge AUROC：null 不放行（把「未测」显形为红）
+  const judgeAurocOk = input.judgeAuroc != null && input.judgeAuroc >= gates.judgeAurocMin;
+  if (!judgeAurocOk) reasons.push('judge_auroc_missing_or_below_min');
+  // 引用完整率：分母 0 的题集 → null → 该门不适用
+  const citationCompleteOk =
+    input.citationComplete == null || input.citationComplete >= gates.citationCompleteMin;
+  if (!citationCompleteOk) reasons.push('citation_complete_below_min');
+
   if (!input.signoffEligible) reasons.push('not_signoff_eligible');
-  if (!coverageOk) reasons.push('coverage_zero_or_null');
   if (allInternalGuard(input.caseReasons)) reasons.push('internal_guard');
 
   const businessPass =
-    signedPackage && input.signoffEligible && coverageOk && !allInternalGuard(input.caseReasons);
+    signedPackage &&
+    input.signoffEligible &&
+    coverageOk &&
+    cRateOk &&
+    hitAtKOk &&
+    judgeAurocOk &&
+    citationCompleteOk &&
+    !allInternalGuard(input.caseReasons);
 
   return { bindable, signedPackage, businessPass, reasons };
 }
@@ -193,6 +239,10 @@ export function bindQualitySnapshotToEval(input: BindSnapshotInput): {
     diff,
     signoffEligible: input.signoffEligible,
     coverage: input.coverage,
+    cRate: input.cRate ?? null,
+    hitAtK: input.hitAtK ?? null,
+    judgeAuroc: input.judgeAuroc ?? null,
+    citationComplete: input.citationComplete ?? null,
     caseReasons: input.caseReasons,
   });
   const snapshot: Adr046Snapshot = {

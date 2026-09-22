@@ -2,6 +2,7 @@ import {
   accumulate,
   accumulateHitAtK,
   cellFor,
+  citationCompleteRate,
   computeSignoffEligible,
   coverage,
   emptyHitAtK,
@@ -34,6 +35,10 @@ export type EvalCaseExecuteResult =
       reason?: string;
       evidenceDocIds?: string[];
       minSupport?: number | null;
+      /** 图上 answerKind；未采集 → 缺省（该题不进引用完整率分母） */
+      answerKind?: 'knowledge' | 'chitchat';
+      /** 图上 citations.length；未采集 → 缺省 */
+      citationCount?: number;
     }
   | { outcome: 'error'; errorMessage?: string };
 
@@ -51,6 +56,10 @@ export type L1BatchCaseRow = {
   errorMessage?: string;
   hitAtK?: boolean | null;
   minSupport?: number | null;
+  /** 图上的答案域；拒答 / error / 未采集无该字段 */
+  answerKind?: 'knowledge' | 'chitchat';
+  /** 图上 citations.length；未采集 → 缺省 */
+  citationCount?: number;
 };
 
 export type L1BatchReport = {
@@ -69,6 +78,15 @@ export type L1BatchReport = {
   tauSweep: TauSweepPoint[];
   judgeAuroc: number | null;
   judgeAurocScored: number;
+  /**
+   * 引用完整率：分子 = answerKind='knowledge' ∧ outcome='answered' ∧ citations>0；
+   * 分母 = answerKind='knowledge' ∧ outcome='answered'；分母 0 → null（该门不适用）。
+   * 图在 answered ∧ knowledge 时结构上必带合法 citation（graph/run.ts validIds 闸），
+   * 故本率结构上只能是 1 或 null —— 此门钉的是该不变式，不是筛掉不合格跑次。
+   */
+  citationComplete: number | null;
+  /** 引用完整率分母（knowledge ∧ answered 题数） */
+  citationCompleteDen: number;
   errorCount: number;
   cases: L1BatchCaseRow[];
   kbId: string;
@@ -97,6 +115,8 @@ export async function runL1Batch(opts: {
     let errorMessage: string | undefined;
     let evidenceDocIds: string[] = [];
     let minSupport: number | null = null;
+    let answerKind: 'knowledge' | 'chitchat' | undefined;
+    let citationCount: number | undefined;
     try {
       const result = await opts.execute({ caseKey: c.caseKey, question: c.question });
       outcome = result.outcome;
@@ -106,6 +126,8 @@ export async function runL1Batch(opts: {
         reason = result.reason;
         evidenceDocIds = result.evidenceDocIds ?? [];
         minSupport = parseMinSupport(result.minSupport);
+        answerKind = result.answerKind;
+        citationCount = result.citationCount;
       }
     } catch (err) {
       outcome = 'error';
@@ -123,6 +145,8 @@ export async function runL1Batch(opts: {
       errorMessage,
       hitAtK: hit,
       minSupport,
+      answerKind,
+      citationCount,
     });
   }
 
@@ -161,6 +185,10 @@ export async function runL1Batch(opts: {
     tauSweep: swept.grid,
     judgeAuroc,
     judgeAurocScored,
+    citationComplete: citationCompleteRate(rows),
+    citationCompleteDen: rows.filter(
+      (r) => r.outcome === 'answered' && r.answerKind === 'knowledge',
+    ).length,
     errorCount,
     cases: rows,
     kbId: opts.kbId,

@@ -96,7 +96,9 @@ describe('fourElements', () => {
 });
 
 describe('evaluateAdr046Bind', () => {
-  it('四要素齐 + 未放宽 + live 覆盖 >0 → 可标已签字包且业务 PASS', () => {
+  it('四要素齐 + 未放宽 + 只给覆盖率 → 缺测硬门（C 率 / AUROC）不得业务 PASS', () => {
+    // 旧口径把未测的 C 率 / Judge AUROC 当合格（覆盖 >0 即可 PASS）；本工单改为 fail-closed：
+    // 覆盖率 0.5 只过覆盖门，C 率与 AUROC 缺测 → businessPass 必须为 false
     const verdict = evaluateAdr046Bind({
       four: completeFour(),
       diff: compareHardGates({ ...PILOT_HARD_GATES }),
@@ -105,7 +107,9 @@ describe('evaluateAdr046Bind', () => {
       caseReasons: ['verified'],
     });
     expect(verdict.signedPackage).toBe(true);
-    expect(verdict.businessPass).toBe(true);
+    expect(verdict.businessPass).toBe(false);
+    expect(verdict.reasons).toContain('c_rate_missing_or_above_max');
+    expect(verdict.reasons).toContain('judge_auroc_missing_or_below_min');
   });
 
   it('硬门放宽 → 不得标已签字', () => {

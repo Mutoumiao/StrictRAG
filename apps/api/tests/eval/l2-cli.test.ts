@@ -485,6 +485,8 @@ describe('buildL2EvalRunInsert / persist gate', () => {
       failCount: 1,
       errorCount: 0,
       zeroToleranceHits: 0,
+      nearCorefPassRate: null,
+      nearCorefPassDen: 0,
       cases: [],
       ...patch,
     };

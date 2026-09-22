@@ -138,6 +138,33 @@ export function hitAtKRate(acc: HitAtKAccum): number | null {
   return acc.hits / acc.scored;
 }
 
+/**
+ * 引用完整率（评测 PRD §2 / §6）：分子 = answerKind='knowledge' ∧ outcome='answered' ∧ citations>0；
+ * 分母 = answerKind='knowledge' ∧ outcome='answered'；分母 0 → null（无 knowledge answered 题 → 该门不适用）。
+ * chitchat / 拒答 / error / 未采到 answerKind 一律不进分母。
+ *
+ * 图在 answered ∧ knowledge 时结构上必带合法 citation（graph/run.ts 的 `validIds` 闸为空即改拒答），
+ * 故本率结构上只能是 1 或 null —— 此门钉的是该不变式（谁把 finalize 改成「answered 可无引用」就会红），
+ * 不是筛掉不合格跑次。api CLI 与 worker eval 消费者共用，禁止单边另写一份口径。
+ */
+export function citationCompleteRate(
+  rows: ReadonlyArray<{
+    outcome: L1Outcome;
+    answerKind?: 'knowledge' | 'chitchat' | null;
+    citationCount?: number | null;
+  }>,
+): number | null {
+  let num = 0;
+  let den = 0;
+  for (const r of rows) {
+    if (r.outcome !== 'answered' || r.answerKind !== 'knowledge') continue;
+    den += 1;
+    if (typeof r.citationCount === 'number' && r.citationCount > 0) num += 1;
+  }
+  if (den === 0) return null;
+  return num / den;
+}
+
 /** C 率 = C/(C+D)；分母 0 → null。不进 signoffEligible。 */
 export function cRate(matrix: L1Matrix): number | null {
   const den = matrix.C + matrix.D;

@@ -28,6 +28,12 @@ export type L2JScenario = (typeof L2_J_SCENARIOS)[number];
 
 export const L2_SIGNOFF_MIN_CASES = 15;
 
+/**
+ * 近指代通过率下限。出处：prds/08-quality/02-evaluation-and-gates.md §6.2 `:188`
+ * 「近指代主题正确且合法作答 ≥ 80%」。
+ */
+export const L2_NEAR_COREF_PASS_MIN = 0.8;
+
 export type L2Turn = {
   role: 'user';
   text: string;
