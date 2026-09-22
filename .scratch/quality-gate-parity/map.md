@@ -1,7 +1,7 @@
 # PRD 硬门与代码判定的对齐（只加严）
 
 Label: wayfinder:map
-Status: open（前沿：工单 01）
+Status: open（前沿：工单 03 · 04 已认领；05 待 03 ∧ 04 收口。工单 01 已研究、02 已裁定）
 
 ## Destination
 
@@ -45,7 +45,8 @@ Status: open（前沿：工单 01）
 
 ## Decisions so far
 
-（尚无）
+- [硬门差额清单：PRD 写死的门 vs 代码里真正参与判定的条件](./issues/01-research-gate-diff.md) — 研究子代理产出（约 119 行，逐条指到源码行）。要点：① **行号基线纠偏**——硬门表在 **§6 `130-138`**（数据行 `132-138`，7 行），不是 §5；§7 触发表 `197-217`；该表**没有**零容忍行。② 分类 A 13 · B 8 · C 7 · 部分 3；**放行级真判据只有一条**：`evaluateAdr046Bind` 的 `coverage != null && > 0`，其余六项门限只被 `compareHardGates` 拿来做**门对门**比较，从不与被测值比。③ 人工抽检全仓 **0 命中**（只有常量）；**`citationComplete` 字段不存在**，且 L1 报告不留 `answerKind` / `citations`；`hitAtKCase` 的 k = rerank 后进 verify 的集合长度（balanced 恰为 20，fast 为 10 → 更严）；L2「主题正确」**零机械判据**，夹具仅 3 条 `near_coref`；L2 四项零容忍只有 `history_in_evidence` 进判定，且 `historyLeaked` 只比对先前**用户**轮（比 PRD 窄）。④ 列出 **9 处代码比 PRD 更严**（规模门 ≥30 · L2 九类齐 · tau\* 无分数不外推 · AUROC 单类禁写 1 ……），供本图避免误改。⑤ 落地会翻的断言逐条点名；**`coverage > 0` → `>= 0.4` 不翻任何断言**。⑥ 另发现两条入口的批跑循环是**两份同义实现**（api CLI 与 worker batch）→ 门禁只落一侧会让口径分叉。
+- [裁定：差额怎么落](./issues/02-dec-gate-ruling.md) — 四档处理（**落** / **补源后落** / **记债不成闸** / **不动**），判据 = 「PRD 是不是写死」+「今天有没有数据源」；**缺测语义 = fail-closed**，唯一例外是 PRD 自带条件语的门（`hitAt20`「有标注时」）。**落**：`coverage >= 0.40`（原为 `> 0`）· `cRate <= 0.05` · `hitAtK >= 0.70`（null 不适用）· `judgeAuroc >= 0.65`（null 不放行）· L2 `near_coref` pass 率 `>= 0.80`（error 进分母）；**补源后落**：引用完整率（`answerKind` / `citations` 已在图上，两 runner 可采）；**记债**：人工抽检（全仓 0 命中，禁止做成恒 false 空转闸）· L2 其余三项零容忍 · `historyLeaked` 的比对宽度；**不动**：L2 规模 15（PRD 是「建议 30～50」）· `l1RerunBound` 回退 · 双写常量不合一只加一致性断言。两条必须写进回写的硬事实：`judgeAuroc` 生产入口今天恒 `null` → **落地后 `businessPass` 在生产路径上不可达，这是有意的**；引用完整率结构上只能是 1 或 null，门的真实作用是钉住不变式。**不触碰 `prds/00–11`**。
 
 ## Not yet specified
 
