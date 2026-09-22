@@ -1,7 +1,7 @@
 # L1 签字证据面的补齐（人工抽检 · 校准打分器 · 可复现字段）
 
 Label: wayfinder:map
-Status: open（前沿：工单 01 研究票）
+Status: open（前沿：工单 03 · 04 · 05 三张落地票）
 
 ## Destination
 
@@ -51,6 +51,9 @@ Status: open（前沿：工单 01 研究票）
 ## Decisions so far
 
 <!-- 索引：一条已收工单一行，够判断相关性即可，细节放大进链接 -->
+
+- [研究：L1 签字证据面今天到底缺什么、有哪些可复用形状](./issues/01-research-l1-evidence-sources.md) — 研究子代理产出（明细 42 KB 在 [research/01-evidence-sources.md](./research/01-evidence-sources.md)）。要点：① 三样都能补成「不可作假」，但**没有一样能离线产出可签字的真值**（缺人 / 缺真 judge 与 ≥100 标注 / 5 类字段连版本载体都没有）。② 人工抽检：`humanSpotMin`/`humanSpotErrorMax` **没有任何判定点拿它比过被测值**（只在 `compareHardGates` 存在性与方向比较里出现），`evaluateAdr046Bind` 从不读；PRD §5/§9/剧本 C/T/签字页必含行**全都没写**「谁/何时/写哪」→ 形状纯属实现选择。③ 打分器：注入只存在于单测，两条入口**都没有任何 env / 参数注入路径**；夹具 8 条（4 正 4 负）；`live vs mock` 的既有范式是 `*_MODE` 枚举 + 报告三态串。④ §8 逐条去向已列：可算/可取 6 类、取不到 5 类；**`L1Report.mode` 是 `retrieve_mode` 的历史别名，不是 ask 档位**。⑤ 会翻的既有断言点名 8 组；迁移最大号 **0022**，快照只有 `0000`/`0021`。⑥ **三条反直觉**：api 报告整对象直落 vs worker `persist.ts` 逐键白名单 → 加字段会被 **worker 静默丢弃**；加一个新 fail-closed 门会一次性打红 `adr046-hard-gates.test.ts` 的 **8 处 `businessPass === true`**；各包 `tests/index.md` 的「待处理」段今天全为「（无）」。
+- [裁定：三样证据面各落到什么形状](./issues/02-dec-l1-evidence-ruling.md) — 主控裁定。**人工抽检**：承载面 = **文件账本（Zod 进 contracts）+ 报告字段 + `--human-spot <path>` CLI 入参**，**不建表、不建 HTTP**（后者是无生产者的半接线，会重蹈 QUAL-ACL-CAP 被划出；前者撞迁移/快照风险，且本仓已有人证放文件不放库的先例 `fixtures/l1/RACI.md`）；**「错」不发明机械口径**（PRD 未定义）；进闸 = 条数 ≥`humanSpotMin` ∧ 错 ≤`humanSpotErrorMax`，缺测不放行，三个 reason code 各可分辨（`human_spot_missing` / `_below_min` / `_errors_above_max`）。**打分器**：新增 `JUDGE_CALIB_SCORER`（`off` 默认 / `mock` / `http`）+ 报告 `judgeAurocSource`，**判定只认 `live`**（mock 值可打印、不参与判定）；**落规模门**（PRD §4 写死 ≥100，reason `judge_auroc_calib_too_small`）；`http` 真打分器分两段评估，Gateway 侧 go/no-go 不齐就只留声明面并记债。**§8**：能取到的进报告（`models`/`retrieveK`/`rerankTopN`/`tauClaim`/`contextMode` + **三条哈希**对文件内容算 sha256），**既有 `mode` 不动**（改了就是改语义），`fallbackChains`/`promptVersions`/`lifecycle 规则`/`session 策略` 无版本载体 → **不拿源码文本哈希顶替**，一律 `null` + 记债；**L2 侧留给下一张图**。**统一纪律**：主动**不新增迁移**；唯一被改写期望值的既有断言是 `adr046-hard-gates.test.ts` 的助手及其 8 处断言；worker `reportJson` 白名单必须同步并加同构测例。
 
 ## Not yet specified
 
