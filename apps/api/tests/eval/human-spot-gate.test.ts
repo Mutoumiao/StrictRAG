@@ -10,6 +10,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
+import { JUDGE_CALIB_MIN_CASES } from '@strict-rag/contracts';
+
 import {
   PILOT_HARD_GATES,
   compareHardGates,
@@ -20,12 +22,18 @@ import {
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-/** 其余五项实测全达标；被测只改 humanSpot / 显式传 undefined 表示缺测 */
+/**
+ * 其余实测项全达标；被测只改 humanSpot / 显式传 undefined 表示缺测。
+ * AUROC 来源与规模是另两条 fail-closed 门（另见 judge-auroc-source-gate.test.ts）：
+ * 不喂满 → businessPass 恒红，就测不出抽检门本身。
+ */
 const OTHER_GATES_PASS = {
   coverage: 0.5,
   cRate: 0.03,
   hitAtK: 0.75,
   judgeAuroc: 0.7,
+  judgeAurocSource: 'live' as const,
+  judgeCalibPairs: JUDGE_CALIB_MIN_CASES,
   citationComplete: 1,
 };
 

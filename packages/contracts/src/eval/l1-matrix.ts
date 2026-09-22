@@ -367,3 +367,37 @@ export function judgeAurocFromScored(cases: readonly JudgeAurocScoredCase[]): {
   }
   return { auroc: auroc(pairs), scored: pairs.length };
 }
+
+/**
+ * 校准集规模下限：**100** 条（评测 PRD §4 写死「≥100 条」）。
+ * 判定侧（`evaluateAdr046Bind` 的 AUROC 门）只读本常量，禁止另写一份数字。
+ */
+export const JUDGE_CALIB_MIN_CASES = 100;
+
+/** 打分器来源声明取值（env `JUDGE_CALIB_SCORER`；同构范式见 `RETRIEVE_ES_MODE` 一类 `*_MODE`）。 */
+export const JUDGE_CALIB_SCORER_MODES = ['off', 'mock', 'http'] as const;
+export type JudgeCalibScorerMode = (typeof JUDGE_CALIB_SCORER_MODES)[number];
+
+/** 报告 `judgeAurocSource` 三态：只有 `live` 能进签字公式（PRD §6.1 / ADR-061：mock 数字禁进签字包）。 */
+export const JUDGE_AUROC_SOURCES = ['live', 'mock', 'none'] as const;
+export type JudgeAurocSource = (typeof JUDGE_AUROC_SOURCES)[number];
+
+/**
+ * env 声明 → 来源三态：`off`（含未声明 / 非法值）→ `none`（缺测，fail-closed）；
+ * `mock` → `mock`；`http`（真 Gateway）→ `live`。
+ * api CLI 与 worker 批跑共用同一套映射（禁止单边另写）；判定只认 `live`。
+ */
+export function judgeAurocSourceFor(mode: string | null | undefined): JudgeAurocSource {
+  if (mode === 'http') return 'live';
+  if (mode === 'mock') return 'mock';
+  return 'none';
+}
+
+/**
+ * 确定性伪打分器（仅 `JUDGE_CALIB_SCORER=mock` 用）：label=1 → 0.9，label=0 → 0.1。
+ * 值与标签同源 → AUROC 恒 1；**只可打印，绝不进判定**（来源记 `mock`，见 `judgeAurocSourceFor`）。
+ * 存在意义是走通链路与测例，不是产出可签字数字（PRD §6.1）。
+ */
+export function mockJudgeScorer(cases: readonly JudgeCalibCase[]): Array<number | null> {
+  return cases.map((c) => (c.label === 1 ? 0.9 : 0.1));
+}

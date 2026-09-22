@@ -19,6 +19,7 @@ import {
   type HardGates,
 } from '../eval/adr046-snapshot.js';
 import { HumanSpotLoadError, loadHumanSpotLedger } from '../eval/human-spot.js';
+import { liveJudgeScorerFromEnv } from '../eval/judge-scorer.js';
 import {
   accumulate,
   accumulateHitAtK,
@@ -32,12 +33,16 @@ import {
   hitAtKCase,
   hitAtKRate,
   judgeAurocFromScored,
+  judgeAurocSourceFor,
+  mockJudgeScorer,
   parseExpectedDocIds,
   parseJudgeCalibration,
   parseMinSupport,
   sweepTau,
   type GoldType,
+  type JudgeAurocSource,
   type JudgeCalibCase,
+  type JudgeCalibScorerMode,
   type L1Cell,
   type L1Matrix,
   type L1Outcome,
@@ -104,6 +109,11 @@ export type L1Report = {
   judgeAuroc: number | null;
   judgeAurocScored: number;
   /**
+   * 打分器来源三态（判定只认 `live`）：`off` → `none`、`mock` → `mock`、`http` → `live`。
+   * mock 值可打印但**绝不进判定**（PRD §6.1 / ADR-061）。
+   */
+  judgeAurocSource: JudgeAurocSource;
+  /**
    * 引用完整率：分子 = answerKind='knowledge' ∧ outcome='answered' ∧ citations>0；
    * 分母 = answerKind='knowledge' ∧ outcome='answered'；分母 0 → null（该门不适用）。
    * 图在 answered ∧ knowledge 时结构上必带合法 citation（graph/run.ts validIds 闸），
@@ -152,7 +162,13 @@ export type RunL1Options = {
   /** 预解析校准题；有则不再读文件 */
   judgeCalibCases?: readonly JudgeCalibCase[];
   /**
-   * 按校准题打分。缺省不跑 live judge → judgeAuroc=null。
+   * 打分器来源声明（默认读 env `JUDGE_CALIB_SCORER` = `off`）。**声明是来源的唯一决定者**：
+   * `off` 不跑任何打分器（注入的 `scoreJudge` 也不跑）→ 缺测；`mock` 跑内置确定性伪打分器；
+   * `http` 才用注入的（= 真 Gateway）打分器。禁止用注入绕过声明，也禁止 mock 冒充 live。
+   */
+  judgeScorerMode?: JudgeCalibScorerMode;
+  /**
+   * 按校准题打分。只在声明 `http`（live）时生效；缺省不跑 live judge → judgeAuroc=null。
    * 返回与 cases 等长；缺/越界分数跳过。
    */
   scoreJudge?: (cases: readonly JudgeCalibCase[]) => Promise<Array<number | null>>;
@@ -285,17 +301,33 @@ export function loadJudgeCalib(calibPath: string): JudgeCalibCase[] {
   }
 }
 
+/**
+ * 校准打分器 → (值, 有效对数, 来源)。
+ * 来源只由声明决定（env / 单测入参），注入的打分器只是「怎么打分」：
+ * - `off`（默认）→ 不跑任何打分器 → `none` + null（把「未测」显形为红）；
+ * - `mock` → 内置确定性伪打分器 → `mock`（值可打印，**判定不认**）；
+ * - `http` → 注入的真 Gateway 打分器 → `live`（没注入 = 没测 → null）。
+ */
 async function scoreJudgeAuroc(opts: RunL1Options): Promise<{
   judgeAuroc: number | null;
   judgeAurocScored: number;
+  judgeAurocSource: JudgeAurocSource;
 }> {
-  if (!opts.scoreJudge) return { judgeAuroc: null, judgeAurocScored: 0 };
+  const mode = opts.judgeScorerMode ?? env.JUDGE_CALIB_SCORER;
+  const judgeAurocSource = judgeAurocSourceFor(mode);
+  const scorer =
+    mode === 'mock'
+      ? async (cases: readonly JudgeCalibCase[]) => mockJudgeScorer(cases)
+      : mode === 'http'
+        ? opts.scoreJudge
+        : undefined;
+  if (!scorer) return { judgeAuroc: null, judgeAurocScored: 0, judgeAurocSource };
   const cases =
     opts.judgeCalibCases !== undefined
       ? [...opts.judgeCalibCases]
       : loadJudgeCalib(opts.judgeCalibPath ?? defaultJudgeCalibPath());
-  if (cases.length === 0) return { judgeAuroc: null, judgeAurocScored: 0 };
-  const scores = await opts.scoreJudge(cases);
+  if (cases.length === 0) return { judgeAuroc: null, judgeAurocScored: 0, judgeAurocSource };
+  const scores = await scorer(cases);
   if (scores.length !== cases.length) {
     throw new GoldLoadError(
       `scoreJudge length ${scores.length} !== calibration cases ${cases.length}`,
@@ -304,7 +336,7 @@ async function scoreJudgeAuroc(opts: RunL1Options): Promise<{
   const scored = judgeAurocFromScored(
     cases.map((c, i) => ({ label: c.label, score: scores[i] })),
   );
-  return { judgeAuroc: scored.auroc, judgeAurocScored: scored.scored };
+  return { judgeAuroc: scored.auroc, judgeAurocScored: scored.scored, judgeAurocSource };
 }
 
 export function resolveEvalMode(
@@ -429,6 +461,9 @@ export function formatReportMd(report: L1Report): string {
     `| judgeAuroc | ${
       report.judgeAuroc === null ? 'null' : String(Math.round(report.judgeAuroc * 1000) / 1000)
     } (${report.judgeAurocScored}) |`,
+    `| judgeAurocSource | ${report.judgeAurocSource}${
+      report.judgeAurocSource === 'live' ? '' : '（不入判定）'
+    } |`,
     `| gate_bundle | ${report.gateSnapshot?.gate_bundle ?? '—'} |`,
     `| signedPackage | ${report.gateVerdict?.signedPackage ?? false} |`,
     `| businessPass | ${report.gateVerdict?.businessPass ?? false} |`,
@@ -543,6 +578,7 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
     tauSweep: swept.grid,
     judgeAuroc: calib.judgeAuroc,
     judgeAurocScored: calib.judgeAurocScored,
+    judgeAurocSource: calib.judgeAurocSource,
     citationComplete: citationCompleteRate(rows),
     citationCompleteDen: rows.filter(
       (r) => r.outcome === 'answered' && r.answerKind === 'knowledge',
@@ -591,6 +627,8 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
     cRate: cRate(matrix),
     hitAtK: report.hitAtK,
     judgeAuroc: report.judgeAuroc,
+    judgeAurocSource: report.judgeAurocSource,
+    judgeCalibPairs: report.judgeAurocScored,
     citationComplete: report.citationComplete,
     humanSpot: report.humanSpot,
     caseReasons: rows.map((r) => r.reason),
@@ -624,6 +662,19 @@ async function main(): Promise<void> {
   const goldPath = process.env.L1_GOLD_PATH ?? defaultGoldPath(repoRoot);
   const outDir = process.env.L1_OUT_DIR ?? defaultOutDir(repoRoot);
 
+  // 打分器来源声明（默认 off = 缺测）。声明 http 时才接真 Gateway：
+  // Gateway 侧不齐（仍是 mock）→ 直接 exit 2，禁止把 mock 分数标成 live。
+  const judgeScorerMode = env.JUDGE_CALIB_SCORER;
+  let scoreJudge: RunL1Options['scoreJudge'];
+  if (judgeScorerMode === 'http') {
+    try {
+      scoreJudge = liveJudgeScorerFromEnv();
+    } catch (err) {
+      console.error(err instanceof Error ? err.message : String(err));
+      process.exit(2);
+    }
+  }
+
   try {
     const report = await runL1Golden({
       goldPath,
@@ -631,6 +682,8 @@ async function main(): Promise<void> {
       kbId,
       maxCases,
       humanSpotPath: args.humanSpotPath,
+      judgeScorerMode,
+      scoreJudge,
     });
     console.log(
       JSON.stringify(
@@ -655,6 +708,7 @@ async function main(): Promise<void> {
           tauStar: report.tauStar,
           judgeAuroc: report.judgeAuroc,
           judgeAurocScored: report.judgeAurocScored,
+          judgeAurocSource: report.judgeAurocSource,
           humanSpot: report.humanSpot,
           errorCount: report.errorCount,
           outDir,

@@ -135,12 +135,30 @@ function goldFile(dir: string, cases: unknown): string {
   return writeJson(dir, 'gold.yaml', { cases });
 }
 
-const CALIB = [
-  { id: 'p', claim: 'c1', evidence: 'e1', label: 1 as const },
-  { id: 'n', claim: 'c2', evidence: 'e2', label: 0 as const },
-];
+/** 100 条校准集（50 支持 / 50 不支持）：满足 PRD §4 的 ≥100 规模门 */
+function signoffCalib(): Array<{ id: string; claim: string; evidence: string; label: 1 | 0 }> {
+  return [
+    ...Array.from({ length: 50 }, (_, i) => ({
+      id: `jc-p${i}`,
+      claim: `c${i}`,
+      evidence: `e${i}`,
+      label: 1 as const,
+    })),
+    ...Array.from({ length: 50 }, (_, i) => ({
+      id: `jc-n${i}`,
+      claim: `c${i}`,
+      evidence: `e${i}`,
+      label: 0 as const,
+    })),
+  ];
+}
 
-/** 除人工抽检外全绿的批跑入参（注入 execute / 打分器 / 四要素，不打 live） */
+/** 确定性假 gateway 打分器（离线走链路；不打真网络）：支持 → 0.9，不支持 → 0.1 */
+const fakeJudgeScorer = async (
+  cases: ReadonlyArray<{ id: string; claim: string; evidence: string; label: 1 | 0 }>,
+): Promise<Array<number | null>> => cases.map((c) => (c.label === 1 ? 0.9 : 0.1));
+
+/** 除人工抽检外全绿的批跑入参（注入 execute / 声明 http 的假 gateway 打分器 / 四要素，不打 live） */
 function allGreenRun(dir: string, humanSpotPath?: string) {
   const execute = async (params: ExecuteAskParams): Promise<ExecuteAskResult> =>
     params.body.question.startsWith('a') ? answered() : abstained();
@@ -151,8 +169,10 @@ function allGreenRun(dir: string, humanSpotPath?: string) {
     persistEval: false,
     esMode: 'http',
     execute,
-    judgeCalibCases: CALIB,
-    scoreJudge: async () => [0.9, 0.1],
+    // 声明 http（来源 live）+ 规模达标的校准集，否则 AUROC 门恒红、测不出抽检门
+    judgeScorerMode: 'http',
+    judgeCalibCases: signoffCalib(),
+    scoreJudge: fakeJudgeScorer,
     snapshot: { proposal: true, businessR: true, productA: true },
     ...(humanSpotPath ? { humanSpotPath } : {}),
   });
@@ -275,6 +295,9 @@ describe('runL1Golden · 该门可达（不是空转闸）', () => {
     expect(report.coverage).toBe(1);
     expect(report.citationComplete).toBe(1);
     expect(report.judgeAuroc).toBe(1);
+    // AUROC 门此时也真绿：来源 live + 有效对数 100（PRD §4 规模门）
+    expect(report.judgeAurocSource).toBe('live');
+    expect(report.judgeAurocScored).toBe(100);
     expect(report.humanSpot).toEqual({
       checked: 20,
       errors: 1,

@@ -2,11 +2,16 @@
  * 目标：api env 默认值保持关闭态，tauClaim 双源冲突必须拒绝。
  * 需求：基建: api env Zod
  * 被测：env Zod 对齐（不启动进程）
- * 简介：rewrite / AUTH_ENFORCE 默认关；ask/ingest RPM 默认 0。
+ * 简介：rewrite / AUTH_ENFORCE 默认关；ask/ingest RPM 默认 0；校准打分器来源默认 off（缺测）。
  */
 
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
 
 /**
  * tauClaim 唯一源规则（与 env.ts superRefine 对齐，不启动进程）。
@@ -198,5 +203,32 @@ describe('tauClaim unique source', () => {
   it('allows legacy equal to primary', () => {
     const r = TauSchema.safeParse({ TAU_CLAIM: 0.5, TAU_CLAIM_LEGACY: 0.5 });
     expect(r.success).toBe(true);
+  });
+});
+
+/** 与 env.ts 中 JUDGE_CALIB_SCORER 对齐（默认 off = 缺测；禁止改成 mock / http） */
+const JudgeCalibScorerSchema = z.object({
+  JUDGE_CALIB_SCORER: z.enum(['off', 'mock', 'http']).default('off'),
+});
+
+describe('JUDGE_CALIB_SCORER default stays off', () => {
+  it('default / omitted → off（缺测，不是 mock）', () => {
+    const r = JudgeCalibScorerSchema.safeParse({});
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.JUDGE_CALIB_SCORER).toBe('off');
+  });
+
+  it('mock / http 只能显式 opt-in', () => {
+    const mock = JudgeCalibScorerSchema.safeParse({ JUDGE_CALIB_SCORER: 'mock' });
+    expect(mock.success).toBe(true);
+    if (mock.success) expect(mock.data.JUDGE_CALIB_SCORER).toBe('mock');
+    const http = JudgeCalibScorerSchema.safeParse({ JUDGE_CALIB_SCORER: 'http' });
+    expect(http.success).toBe(true);
+    if (http.success) expect(http.data.JUDGE_CALIB_SCORER).toBe('http');
+  });
+
+  it('仓库 .env.example 写死 off（默认开关不得被改）', () => {
+    const example = readFileSync(path.join(repoRoot, '.env.example'), 'utf8');
+    expect(example).toMatch(/^JUDGE_CALIB_SCORER=off$/m);
   });
 });

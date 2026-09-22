@@ -7,6 +7,8 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { JUDGE_CALIB_MIN_CASES } from '@strict-rag/contracts';
+
 import {
   PILOT_HARD_GATES,
   compareHardGates,
@@ -24,12 +26,22 @@ const LEGAL_HUMAN_SPOT = {
   errors: PILOT_HARD_GATES.humanSpotErrorMax,
 };
 
+/**
+ * 合法 AUROC 来源与规模（恰在门限上：来源 `live` + 有效对数 = JUDGE_CALIB_MIN_CASES）。
+ * 来源判别（只认 live）与 PRD §4 规模门都是 fail-closed 新增项，不喂这两项则所有
+ * 「业务 PASS 为真」断言必红。来源三态 / 规模边界另见 judge-auroc-source-gate.test.ts。
+ */
+const LEGAL_JUDGE_SOURCE = 'live' as const;
+const LEGAL_JUDGE_PAIRS = JUDGE_CALIB_MIN_CASES;
+
 /** 四要素齐 + 试点默认包（不放宽）→ signedPackage 恒真，单独观察实测门 */
 function bind(over: {
   coverage: number | null;
   cRate?: number | null;
   hitAtK?: number | null;
   judgeAuroc?: number | null;
+  judgeAurocSource?: 'live' | 'mock' | 'none' | null;
+  judgeCalibPairs?: number | null;
   citationComplete?: number | null;
   humanSpot?: { checked: number; errors: number } | null;
 }) {
@@ -49,6 +61,8 @@ function bind(over: {
     diff: compareHardGates(gates),
     signoffEligible: true,
     humanSpot: LEGAL_HUMAN_SPOT,
+    judgeAurocSource: LEGAL_JUDGE_SOURCE,
+    judgeCalibPairs: LEGAL_JUDGE_PAIRS,
     caseReasons: ['verified'],
     ...over,
   });

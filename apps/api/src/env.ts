@@ -143,6 +143,12 @@ const EnvSchema = z
      */
     EVAL_INTERNAL_TOKEN: z.string().optional().default(''),
     /**
+     * L1 校准打分器来源声明（评测 PRD §4 校准 / §6 硬门）：off（**默认**，= 缺测）/ mock / http。
+     * 只有 http（报告记 `live`）能进 ADR-046 判定；mock 是确定性伪打分器，值只可打印、绝不进签字包
+     * （PRD §6.1 / ADR-061）。http 须 Gateway 真为 http（否则启动即拒）。
+     */
+    JUDGE_CALIB_SCORER: z.enum(['off', 'mock', 'http']).default('off'),
+    /**
      * Langfuse 开关。true 时打 mock export 日志；未配密钥仍可 ask。
      * 真 SDK 接线不阻塞本切片。
      */

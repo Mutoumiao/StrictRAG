@@ -40,7 +40,8 @@
         "L2_GOLD_PATH",
         "L2_OUT_DIR",
         "L2_REWRITE_ENABLED",
-        "L2_PERSIST_EVAL"
+        "L2_PERSIST_EVAL",
+        "JUDGE_CALIB_SCORER"
       ]
     },
     "check-types": {
@@ -90,7 +91,8 @@
         "L2_GOLD_PATH",
         "L2_OUT_DIR",
         "L2_REWRITE_ENABLED",
-        "L2_PERSIST_EVAL"
+        "L2_PERSIST_EVAL",
+        "JUDGE_CALIB_SCORER"
       ]
     }
   }

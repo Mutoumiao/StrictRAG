@@ -132,6 +132,7 @@ export const evalPersist: EvalPersist = {
           tauSweep: report.tauSweep,
           judgeAuroc: report.judgeAuroc,
           judgeAurocScored: report.judgeAurocScored,
+          judgeAurocSource: report.judgeAurocSource,
           citationComplete: report.citationComplete,
           citationCompleteDen: report.citationCompleteDen,
           humanSpot: report.humanSpot,

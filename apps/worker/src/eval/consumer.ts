@@ -99,6 +99,8 @@ export async function handleEvalJob(
       retrieveMode: job.retrieveMode,
       execute,
       maxCases: job.maxCases,
+      // 与 api CLI 同名的来源声明（默认 off = 缺测）；worker 只落库，判定仍在 api 侧
+      judgeScorerMode: env.JUDGE_CALIB_SCORER,
     });
     await persist.saveReport(job.runId, report);
     logger.info(

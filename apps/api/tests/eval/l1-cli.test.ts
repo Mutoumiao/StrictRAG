@@ -2,7 +2,7 @@
  * 目标：L1 CLI 注入路径可跑且 skipTrace，不打 live。
  * 需求：B10 · 覆盖 C4 · 覆盖 C2 · 覆盖 C3
  * 被测：runL1Golden / loadGold / writeL1Report
- * 简介：注入路径可跑且跳过落库 trace；有 expectedDocIds 时写 Hit@k；有 minSupport 时写 tauStar；注入校准打分器时写 judgeAuroc。
+ * 简介：注入路径可跑且跳过落库 trace；有 expectedDocIds 时写 Hit@k；有 minSupport 时写 tauStar；声明 http（live）时注入的校准打分器写 judgeAuroc 与来源标记。
  */
 
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -240,6 +240,7 @@ describe('buildEvalRunInsert / evalRunDbRanAt', () => {
       tauSweep: [],
       judgeAuroc: null,
       judgeAurocScored: 0,
+      judgeAurocSource: 'none',
       citationComplete: null,
       citationCompleteDen: 0,
       humanSpot: null,
@@ -285,6 +286,7 @@ describe('buildEvalRunInsert / evalRunDbRanAt', () => {
       tauSweep: [],
       judgeAuroc: null,
       judgeAurocScored: 0,
+      judgeAurocSource: 'none',
       citationComplete: null,
       citationCompleteDen: 0,
       humanSpot: null,
@@ -461,7 +463,7 @@ describe('runL1Golden mock graphDeps path', () => {
     expect(md).toContain('0.8');
   });
 
-  it('注入校准打分器写 judgeAuroc；不注入则 null；不改 2×2', async () => {
+  it('声明 http（live）时注入的校准打分器写 judgeAuroc；不声明则 null；不改 2×2', async () => {
     const dir = tmp();
     const goldPath = goldFile(dir, [
       { id: 'a1', question: 'q', type: 'answerable' },
@@ -477,12 +479,14 @@ describe('runL1Golden mock graphDeps path', () => {
       kbId: 'kb',
       persistEval: false,
       execute: async () => abstained(),
+      judgeScorerMode: 'http',
       judgeCalibCases: calib,
       scoreJudge: async () => [0.9, 0.1],
     });
     expect(scored.matrix).toEqual({ A: 0, B: 1, C: 0, D: 1 });
     expect(scored.judgeAuroc).toBe(1);
     expect(scored.judgeAurocScored).toBe(2);
+    expect(scored.judgeAurocSource).toBe('live');
     expect(scored.signoffEligible).toBe(false);
     const md = readFileSync(path.join(dir, 'out-auroc', 'l1-last-run.md'), 'utf8');
     expect(md).toContain('judgeAuroc');
@@ -497,6 +501,28 @@ describe('runL1Golden mock graphDeps path', () => {
     });
     expect(unlabeled.judgeAuroc).toBeNull();
     expect(unlabeled.judgeAurocScored).toBe(0);
+    // 声明默认 off → 缺测来源；注入打分器也不得绕过声明
+    expect(unlabeled.judgeAurocSource).toBe('none');
+  });
+
+  it('声明 off（默认）时注入的打分器不跑：来源 none 且值为 null', async () => {
+    const dir = tmp();
+    const goldPath = goldFile(dir, [{ id: 'a1', question: 'q', type: 'answerable' }]);
+    const report = await runL1Golden({
+      goldPath,
+      outDir: path.join(dir, 'out'),
+      kbId: 'kb',
+      persistEval: false,
+      execute: async () => abstained(),
+      judgeCalibCases: [
+        { id: 'p', claim: 'c1', evidence: 'e1', label: 1 },
+        { id: 'n', claim: 'c2', evidence: 'e2', label: 0 },
+      ],
+      scoreJudge: async () => [0.9, 0.1],
+    });
+    expect(report.judgeAuroc).toBeNull();
+    expect(report.judgeAurocScored).toBe(0);
+    expect(report.judgeAurocSource).toBe('none');
   });
 
   it('校准仅一类有效分 → judgeAuroc null', async () => {
@@ -508,6 +534,7 @@ describe('runL1Golden mock graphDeps path', () => {
       kbId: 'kb',
       persistEval: false,
       execute: async () => abstained(),
+      judgeScorerMode: 'http',
       judgeCalibCases: [
         { id: 'p', claim: 'c1', evidence: 'e1', label: 1 },
         { id: 'n', claim: 'c2', evidence: 'e2', label: 0 },
@@ -516,6 +543,7 @@ describe('runL1Golden mock graphDeps path', () => {
     });
     expect(report.judgeAuroc).toBeNull();
     expect(report.judgeAurocScored).toBe(1);
+    expect(report.judgeAurocSource).toBe('live');
   });
 
   it('显式空校准集即使有打分器也不回落仓根夹具', async () => {
@@ -527,11 +555,13 @@ describe('runL1Golden mock graphDeps path', () => {
       kbId: 'kb',
       persistEval: false,
       execute: async () => abstained(),
+      judgeScorerMode: 'http',
       judgeCalibCases: [],
       scoreJudge: async () => [0.9, 0.1],
     });
     expect(report.judgeAuroc).toBeNull();
     expect(report.judgeAurocScored).toBe(0);
+    expect(report.judgeAurocSource).toBe('live');
   });
 
   it('live + 各≥30 → signoffEligible；同规模 mock → false', async () => {
@@ -600,6 +630,7 @@ describe('writeL1Report', () => {
       tauSweep: [],
       judgeAuroc: null,
       judgeAurocScored: 0,
+      judgeAurocSource: 'none',
       citationComplete: null,
       citationCompleteDen: 0,
       humanSpot: null,

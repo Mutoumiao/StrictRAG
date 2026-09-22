@@ -11,11 +11,15 @@ import {
   hitAtKCase,
   hitAtKRate,
   judgeAurocFromScored,
+  judgeAurocSourceFor,
+  mockJudgeScorer,
   parseMinSupport,
   sweepTau,
   type EvalRetrieveMode,
   type GoldType,
+  type JudgeAurocSource,
   type JudgeCalibCase,
+  type JudgeCalibScorerMode,
   type L1Cell,
   type L1Matrix,
   type L1Outcome,
@@ -23,6 +27,8 @@ import {
   type HumanSpotReport,
   toHumanSpotReport,
 } from '@strict-rag/contracts';
+
+import { env } from '../env.js';
 
 import { loadHumanSpotLedger } from './human-spot.js';
 
@@ -83,6 +89,11 @@ export type L1BatchReport = {
   judgeAuroc: number | null;
   judgeAurocScored: number;
   /**
+   * 打分器来源三态（与 api CLI 同形状 / 同一套映射）：`off` → `none`、`mock` → `mock`、`http` → `live`。
+   * 判定只认 `live`，且判定只在 api 侧（worker 只落库）。
+   */
+  judgeAurocSource: JudgeAurocSource;
+  /**
    * 引用完整率：分子 = answerKind='knowledge' ∧ outcome='answered' ∧ citations>0；
    * 分母 = answerKind='knowledge' ∧ outcome='answered'；分母 0 → null（该门不适用）。
    * 图在 answered ∧ knowledge 时结构上必带合法 citation（graph/run.ts validIds 闸），
@@ -106,6 +117,12 @@ export async function runL1Batch(opts: {
   maxCases?: number;
   now?: () => Date;
   judgeCalibCases?: readonly JudgeCalibCase[];
+  /**
+   * 打分器来源声明（与 api CLI 同名同义；默认读 env `JUDGE_CALIB_SCORER` = `off`）。
+   * `off` → 不跑任何打分器（注入的也不跑）→ 缺测；`mock` → 内置确定性伪打分器（只打印）；
+   * `http` → 用注入的真打分器（来源 `live`）。worker 侧不硬造判定点。
+   */
+  judgeScorerMode?: JudgeCalibScorerMode;
   scoreJudge?: (cases: readonly JudgeCalibCase[]) => Promise<Array<number | null>>;
   /** 人工抽检账本路径（与 api CLI `--human-spot <path>` 同构）；**不传 = 缺测** */
   humanSpotPath?: string;
@@ -164,11 +181,20 @@ export async function runL1Batch(opts: {
   const counts = goldTypeCounts(sliced);
   const retrieveMode = opts.retrieveMode;
   const swept = sweepTau(rows);
+  // 来源只由声明决定（与 api `scoreJudgeAuroc` 同构，共用 `judgeAurocSourceFor`）
+  const judgeScorerMode = opts.judgeScorerMode ?? env.JUDGE_CALIB_SCORER;
+  const judgeAurocSource = judgeAurocSourceFor(judgeScorerMode);
+  const judgeScorer =
+    judgeScorerMode === 'mock'
+      ? async (calib: readonly JudgeCalibCase[]) => mockJudgeScorer(calib)
+      : judgeScorerMode === 'http'
+        ? opts.scoreJudge
+        : undefined;
   let judgeAuroc: number | null = null;
   let judgeAurocScored = 0;
-  if (opts.scoreJudge && opts.judgeCalibCases && opts.judgeCalibCases.length > 0) {
+  if (judgeScorer && opts.judgeCalibCases && opts.judgeCalibCases.length > 0) {
     const calib = opts.judgeCalibCases;
-    const scores = await opts.scoreJudge(calib);
+    const scores = await judgeScorer(calib);
     if (scores.length !== calib.length) {
       throw new Error(
         `scoreJudge length ${scores.length} !== calibration cases ${calib.length}`,
@@ -196,6 +222,7 @@ export async function runL1Batch(opts: {
     tauSweep: swept.grid,
     judgeAuroc,
     judgeAurocScored,
+    judgeAurocSource,
     citationComplete: citationCompleteRate(rows),
     citationCompleteDen: rows.filter(
       (r) => r.outcome === 'answered' && r.answerKind === 'knowledge',

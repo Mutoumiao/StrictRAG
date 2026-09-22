@@ -8,12 +8,15 @@
  * 该门不适用）与 citationComplete（无 knowledge answered 题 → 分母 0 → 不适用）。任何加法都只许
  * 加严，禁止放宽既有判定。
  *
- * `judgeAuroc` 在生产入口今天恒为 null（CLI `main()` 不传 `scoreJudge`、worker consumer 同），
- * 故 `businessPass` 在生产路径上**不可达**。这是有意的 —— 把「未测」显形为红，而不是留一条
- * 覆盖率 0.001 也能变真的假绿。judgeAuroc 有生产者路径（可注入校准打分器），缺的是接线。
+ * `judgeAuroc` 由 `JUDGE_CALIB_SCORER` 声明来源接线：`off`（默认）不跑打分器、`mock` 跑确定性
+ * 伪打分器（值可打印、**不进判定**）、`http` 走真 Gateway（来源 `live`）。判定只认 `live` 且校准集
+ * 有效对数须达 PRD §4 的 ≥100，故默认配置下 `businessPass` 在生产路径上仍**不可达** —— 这是有意的：
+ * 把「未测 / 只测了 mock」显形为红，而不是留一条覆盖率 0.001 也能变真的假绿。
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+
+import { JUDGE_CALIB_MIN_CASES, type JudgeAurocSource } from './l1-matrix.js';
 
 /** 试点默认硬门（prds/08-quality/02 §6） */
 export const PILOT_HARD_GATES = {
@@ -93,6 +96,13 @@ export type BindSnapshotInput = {
   hitAtK?: number | null;
   /** Judge AUROC 实测；缺接线 → null → 不放行（缺测显形为红） */
   judgeAuroc?: number | null;
+  /**
+   * 打分器来源（报告 `judgeAurocSource`）。**判定只认 `live`**：mock 值可打印但不得进签字公式；
+   * 缺省 / `'none'` → 不放行（PRD §6.1 / ADR-061：mock 数字禁进签字包）。
+   */
+  judgeAurocSource?: JudgeAurocSource | null;
+  /** 校准集**有效对数**（报告 `judgeAurocScored`）；须达 PRD §4 规模 → 缺省 0 → 不放行 */
+  judgeCalibPairs?: number | null;
   /** 引用完整率实测；分母 0 → null → 该门不适用 */
   citationComplete?: number | null;
   /** 人工抽检账本条数/错数；未登记账本 → null → 不放行（缺测显形为红） */
@@ -176,6 +186,8 @@ export function evaluateAdr046Bind(input: {
   cRate?: number | null;
   hitAtK?: number | null;
   judgeAuroc?: number | null;
+  judgeAurocSource?: JudgeAurocSource | null;
+  judgeCalibPairs?: number | null;
   citationComplete?: number | null;
   humanSpot?: HumanSpotCounts | null;
   caseReasons?: Array<string | undefined>;
@@ -203,9 +215,18 @@ export function evaluateAdr046Bind(input: {
   // Hit@k：null = 无标注 = 该门不适用（PRD「有标注时」）
   const hitAtKOk = input.hitAtK == null || input.hitAtK >= gates.hitAt20Min;
   if (!hitAtKOk) reasons.push('hit_at_k_below_min');
-  // Judge AUROC：null 不放行（把「未测」显形为红）
-  const judgeAurocOk = input.judgeAuroc != null && input.judgeAuroc >= gates.judgeAurocMin;
-  if (!judgeAurocOk) reasons.push('judge_auroc_missing_or_below_min');
+  // Judge AUROC（PRD §6 硬门 ≥ judgeAurocMin）：**判定只认来源 live** —— mock 值可打印但不得
+  // 进签字公式（PRD §6.1 / ADR-061：mock 数字禁进签字包）；且校准集有效对数须达 PRD §4 规模。
+  // 三条红各自可分辨：值缺 / 低于门限 · 来源非 live · 校准集规模不足。
+  const judgeAurocValue = input.judgeAuroc ?? null;
+  const judgeAurocSource = input.judgeAurocSource ?? null;
+  const judgeCalibPairs = input.judgeCalibPairs ?? 0;
+  const judgeAurocValueOk = judgeAurocValue != null && judgeAurocValue >= gates.judgeAurocMin;
+  const judgeCalibSizeOk = judgeCalibPairs >= JUDGE_CALIB_MIN_CASES;
+  const judgeAurocOk = judgeAurocValueOk && judgeAurocSource === 'live' && judgeCalibSizeOk;
+  if (!judgeAurocValueOk) reasons.push('judge_auroc_missing_or_below_min');
+  else if (judgeAurocSource !== 'live') reasons.push('judge_auroc_source_not_live');
+  else if (!judgeCalibSizeOk) reasons.push('judge_auroc_calib_too_small');
   // 引用完整率：分母 0 的题集 → null → 该门不适用
   const citationCompleteOk =
     input.citationComplete == null || input.citationComplete >= gates.citationCompleteMin;
@@ -265,6 +286,8 @@ export function bindQualitySnapshotToEval(input: BindSnapshotInput): {
     cRate: input.cRate ?? null,
     hitAtK: input.hitAtK ?? null,
     judgeAuroc: input.judgeAuroc ?? null,
+    judgeAurocSource: input.judgeAurocSource ?? null,
+    judgeCalibPairs: input.judgeCalibPairs ?? null,
     citationComplete: input.citationComplete ?? null,
     humanSpot: input.humanSpot ?? null,
     caseReasons: input.caseReasons,
