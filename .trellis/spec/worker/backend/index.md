@@ -11,7 +11,8 @@
 - [ ] 是否与 api 共用 `@strict-rag/db`？  
 - [ ] 队列 payload 是否有 contracts/Zod？  
 - [ ] 是否避免在 worker 实现 HTTP API？  
-- [ ] 改 eval 消费者时是否只跑 L1 golden / L2 fixtures、写 `eval_runs`、L1 有 expectedDocIds 时写 Hit@k、有 minSupport 时写 tauStar、注入校准打分器时写 judgeAuroc、**禁止** import api / 宣称签字或准出 PASS / 把 Hit@k 或 tau* 或 AUROC 当签字公式 / 写 `TAU_CLAIM`？  
+- [ ] 改 eval 消费者时是否只跑 L1 golden / L2 fixtures、写 `eval_runs`、L1 有 expectedDocIds 时写 Hit@k、有 minSupport 时写 tauStar、注入校准打分器时写 judgeAuroc、L2 落 `docHit*` / `citationComplete*` 但**不得**把它们接进 `computeL2SignoffEligible` 或 case 的 `failReasons`（`docHitRate` 未映射恒 0，不得当成绩）、**禁止** import api / 宣称签字或准出 PASS / 把 Hit@k 或 tau* 或 AUROC 当签字公式 / 写 `TAU_CLAIM`？  
+- [ ] 给 L2 报告加字段时是否同步 `eval/persist.ts` 的 `saveL2Report` **逐键白名单**（漏了会静默丢弃且零测试红）并补一条「白名单不缺新键」测例？  
 - [ ] 改 scan 时是否读 [quality-guidelines](./quality-guidelines.md) 启动闸（X-01/X-02）？  
 - [ ] chunk 是否尊重 `IMPLEMENTED` 策略（X-03），未另造注册表？  
 - [ ] 改重试/入队/chunk/embed 时是否读 [ingest-idempotency](./ingest-idempotency.md)（X-04）？  

@@ -12,8 +12,14 @@ import { uuidv7 } from 'uuidv7';
 
 import {
   acceptHit,
+  accumulateHitAtK,
   computeL2SignoffEligible,
+  emptyHitAtK,
   historyLeaked,
+  hitAtKCase,
+  hitAtKRate,
+  l2CitationComplete,
+  l2CitationOk,
   l2NearCorefPassRate,
   nextSessionId,
   type L2Type,
@@ -55,6 +61,18 @@ export type L2CaseRow = {
   rewriteUsed?: boolean;
   historyInEvidence: boolean;
   expectedThemePersist: boolean;
+  /** 夹具原样（逻辑 id）；无标注 → 缺省（该题不计 docHit） */
+  expectedDocIds?: string[];
+  /** 末轮实测 `evidence_snapshot[].docId`；error 行 / 无证据 → `[]` */
+  evidenceDocIds: string[];
+  /** 命中期望文档（复用 `hitAtKCase`）；无标注 → `null`。**不进判定** */
+  docHit: boolean | null;
+  /** 图上 answerKind；拒答 / error / 未下发 → 缺省（不冒充 knowledge） */
+  answerKind?: 'knowledge' | 'chitchat';
+  /** 图上 citations.length；error 行 → 缺省 */
+  citationCount?: number;
+  /** 合法 citation 三态：`null` = 未下发（≠ 有引用，≠ 无引用）。**不进 failReasons** */
+  citationOk: boolean | null;
   failReasons: string[];
   errorMessage?: string;
 };
@@ -81,6 +99,24 @@ export type L2Report = {
   nearCorefPassRate: number | null;
   /** 近指代通过率分母（near_coref 题数） */
   nearCorefPassDen: number;
+  /**
+   * 命中期望文档率（复用 `hitAtKCase` / `emptyHitAtK` / `accumulateHitAtK` / `hitAtKRate`）：
+   * 分母 = 有非空 `expectedDocIds` 的题数（含 error 题）；分母 0 → null。
+   * **未映射（夹具逻辑 id vs `documents.id` uuid）时恒 0，不得当成绩** ——
+   * 夹具 `l2-corpus/*` 从未入库、`documents` 无 `external_id`。
+   * **不进 `computeL2SignoffEligible`**（PRD §6.2 没有这道门）。
+   */
+  docHitRate: number | null;
+  docHitHits: number;
+  docHitScored: number;
+  /**
+   * 引用完整率：口径 = L1 `citationCompleteRate`（分子 = knowledge ∧ answered ∧ citations>0；
+   * 分母 = knowledge ∧ answered；分母 0 → null）。与 L1 同款：**记率、不判词**
+   * （不进 `signoffEligible`，不进任何 case 的 `failReasons`）。
+   */
+  citationComplete: number | null;
+  /** 引用完整率分母（knowledge ∧ answered 题数） */
+  citationCompleteDen: number;
   cases: L2CaseRow[];
 };
 
@@ -214,14 +250,22 @@ export function formatL2ReportMd(report: L2Report): string {
         ? 'null'
         : String(Math.round(report.nearCorefPassRate * 1000) / 1000)
     } (den=${report.nearCorefPassDen}) |`,
+    `| docHitRate | ${
+      report.docHitRate === null ? 'null' : String(Math.round(report.docHitRate * 1000) / 1000)
+    } (${report.docHitHits}/${report.docHitScored}) —— **未映射时恒 0，不得当成绩**（逻辑 id ≠ KB uuid；不进 signoffEligible） |`,
+    `| citationComplete | ${
+      report.citationComplete === null
+        ? 'null'
+        : String(Math.round(report.citationComplete * 1000) / 1000)
+    } (den=${report.citationCompleteDen}) —— 只记率、不进判定 |`,
     '',
     '## cases',
     '',
-    '| id | type | verdict | status | reason | rewriteUsed | leak | themePersist | fail |',
-    '|----|------|---------|--------|--------|-------------|------|--------------|------|',
+    '| id | type | verdict | status | reason | rewriteUsed | leak | themePersist | docHit | citationOk | fail |',
+    '|----|------|---------|--------|--------|-------------|------|--------------|--------|------------|------|',
     ...report.cases.map(
       (c) =>
-        `| ${c.id} | ${c.type} | ${c.verdict} | ${c.lastStatus ?? '—'} | ${c.lastReason ?? c.errorMessage ?? '—'} | ${c.rewriteUsed ?? '—'} | ${c.historyInEvidence} | ${c.expectedThemePersist} | ${c.failReasons.join(',') || '—'} |`,
+        `| ${c.id} | ${c.type} | ${c.verdict} | ${c.lastStatus ?? '—'} | ${c.lastReason ?? c.errorMessage ?? '—'} | ${c.rewriteUsed ?? '—'} | ${c.historyInEvidence} | ${c.expectedThemePersist} | ${c.docHit === null ? '—' : String(c.docHit)} | ${c.citationOk === null ? '—' : String(c.citationOk)} | ${c.failReasons.join(',') || '—'} |`,
     ),
     '',
   ];
@@ -247,6 +291,7 @@ export async function runL2Golden(opts: RunL2Options): Promise<L2Report> {
   }
 
   const rows: L2CaseRow[] = [];
+  const docHitAcc = emptyHitAtK();
   let passCount = 0;
   let failCount = 0;
   let errorCount = 0;
@@ -307,6 +352,9 @@ export async function runL2Golden(opts: RunL2Options): Promise<L2Report> {
 
       const graph = last!.graph;
       const evidenceTexts = (graph.evidence_snapshot ?? []).map((e) => e.text ?? '');
+      const evidenceDocIds = (graph.evidence_snapshot ?? [])
+        .map((e) => e.docId)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0);
       const priorUserTexts = c.turns.slice(0, -1).map((t) => t.text);
       const leaked = historyLeaked(evidenceTexts, priorUserTexts);
       const failReasons: string[] = [];
@@ -319,6 +367,16 @@ export async function runL2Golden(opts: RunL2Options): Promise<L2Report> {
       if (verdict === 'pass') passCount += 1;
       else failCount += 1;
 
+      // 采集面（只落报告，不进 failReasons / signoffEligible）
+      const answerKind =
+        graph.answerKind === 'knowledge' || graph.answerKind === 'chitchat'
+          ? graph.answerKind
+          : undefined;
+      // 与 L1 CLI 同款：回包没有 citations 数组按 0 计（answered ∧ knowledge 时代图上必有引用）
+      const citationCount = Array.isArray(graph.citations) ? graph.citations.length : 0;
+      const docHit = hitAtKCase(c.expectedDocIds, evidenceDocIds);
+      accumulateHitAtK(docHitAcc, docHit);
+
       rows.push({
         id: c.id,
         type: c.type,
@@ -328,16 +386,30 @@ export async function runL2Golden(opts: RunL2Options): Promise<L2Report> {
         rewriteUsed: graph.rewriteUsed,
         historyInEvidence: leaked,
         expectedThemePersist: c.expected.themePersist,
+        expectedDocIds: c.expectedDocIds,
+        evidenceDocIds,
+        docHit,
+        // 只在下发合法值时带上；未下发保持缺省（不冒充 knowledge）
+        ...(answerKind ? { answerKind } : {}),
+        citationCount,
+        citationOk: l2CitationOk({ answerKind, citationCount }),
         failReasons,
       });
     } catch (err) {
       errorCount += 1;
+      // error 题按「未命中」计（与 L1 批跑同款）；无 expected 名单仍不计分
+      const docHit = hitAtKCase(c.expectedDocIds, []);
+      accumulateHitAtK(docHitAcc, docHit);
       rows.push({
         id: c.id,
         type: c.type,
         verdict: 'error',
         historyInEvidence: false,
         expectedThemePersist: c.expected.themePersist,
+        expectedDocIds: c.expectedDocIds,
+        evidenceDocIds: [],
+        docHit,
+        citationOk: null,
         failReasons: [],
         errorMessage: err instanceof Error ? err.message : String(err),
       });
@@ -345,6 +417,7 @@ export async function runL2Golden(opts: RunL2Options): Promise<L2Report> {
   }
 
   const mode = resolveEvalMode(opts.esMode);
+  const citation = l2CitationComplete(rows);
   const report: L2Report = {
     run_type: 'session_multiturn',
     signoffEligible: computeL2SignoffEligible({
@@ -366,6 +439,11 @@ export async function runL2Golden(opts: RunL2Options): Promise<L2Report> {
     zeroToleranceHits,
     nearCorefPassRate: l2NearCorefPassRate(rows),
     nearCorefPassDen: rows.filter((r) => r.type === 'near_coref').length,
+    docHitRate: hitAtKRate(docHitAcc),
+    docHitHits: docHitAcc.hits,
+    docHitScored: docHitAcc.scored,
+    citationComplete: citation.citationComplete,
+    citationCompleteDen: citation.citationCompleteDen,
     cases: rows,
   };
 

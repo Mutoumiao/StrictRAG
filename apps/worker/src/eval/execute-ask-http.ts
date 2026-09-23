@@ -122,12 +122,22 @@ export function createEvalHttpL2Execute(opts: EvalHttpExecuteOpts): L2TurnExecut
     }
     const status = payload.data?.status;
     if (status === 'answered' || status === 'abstained') {
+      const ids = payload.data?.evidenceDocIds;
+      const kind = payload.data?.answerKind;
+      const count = payload.data?.citationCount;
+      // 不读 minSupport：L2 行上无 claims，「历史文本被当 claim 送进 verifier」在图里不可观测（裁定 4）
       return {
         outcome: status,
         reason: payload.data?.reason,
         rewriteUsed: payload.data?.rewriteUsed ?? false,
         evidenceTexts: payload.data?.evidenceTexts ?? [],
+        evidenceDocIds: Array.isArray(ids)
+          ? ids.filter((id): id is string => typeof id === 'string' && id.length > 0)
+          : [],
         answer: payload.data?.answer ?? '',
+        // 只在下发合法值时带上；未下发保持缺省（不冒充 knowledge）
+        ...(kind === 'knowledge' || kind === 'chitchat' ? { answerKind: kind } : {}),
+        ...(typeof count === 'number' && Number.isFinite(count) ? { citationCount: count } : {}),
       };
     }
     return { outcome: 'error', errorMessage: `unexpected ask status: ${String(status)}` };

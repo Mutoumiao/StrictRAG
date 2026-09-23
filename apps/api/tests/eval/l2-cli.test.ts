@@ -487,6 +487,11 @@ describe('buildL2EvalRunInsert / persist gate', () => {
       zeroToleranceHits: 0,
       nearCorefPassRate: null,
       nearCorefPassDen: 0,
+      docHitRate: null,
+      docHitHits: 0,
+      docHitScored: 0,
+      citationComplete: null,
+      citationCompleteDen: 0,
       cases: [],
       ...patch,
     };
@@ -514,6 +519,13 @@ describe('buildL2EvalRunInsert / persist gate', () => {
     expect(row.ranAt).not.toContain('T');
     expect(row.ranAt).not.toContain('Z');
     expect(evalRunDbRanAt(report.ranAt)).toBe(row.ranAt);
+    // 报告本体整对象直落：新增采集面字段（docHit / citation）自动带上
+    const json = row.reportJson as Record<string, unknown>;
+    expect(json.docHitRate).toBeNull();
+    expect(json.docHitHits).toBe(0);
+    expect(json.docHitScored).toBe(0);
+    expect(json.citationComplete).toBeNull();
+    expect(json.citationCompleteDen).toBe(0);
   });
 
   it('live report still maps signoffEligible to 0 unless report says true', () => {

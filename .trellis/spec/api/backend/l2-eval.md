@@ -37,6 +37,9 @@
 | `l2TypeCoverage(cases)` | 同上 | `{ present, missing }`；测钉 `missing=[]` |
 | `defaultL2GoldPath()` | 同上 | `<repo>/fixtures/l2/gold.yaml` |
 | `nextSessionId` / `acceptHit` / `historyLeaked` | `scripts/run-l2-golden.ts` | 分配 / 末轮机械分 |
+| `hitAtKCase` / `emptyHitAtK` / `accumulateHitAtK` / `hitAtKRate` | contracts `eval/l1-matrix.ts` | docHit 逐题判据与整批率；**直接复用**，禁另写口径 |
+| `l2CitationOk` / `l2CitationComplete` | contracts `eval/l2-matrix.ts` | 合法 citation 三态 / 整批率（后者复用 L1 `citationCompleteRate` 与同一分母谓词） |
+| `L2_EVIDENCE_REPORT_KEYS` / `L2_EVIDENCE_ROW_KEYS` | 同上 | 两侧采集面字段名单（同构唯一锚点） |
 | `runL2Golden(opts)` | 同上 | 串行批跑 + 进程内窗；可注入 `execute`；`persistEval?` |
 | `buildL2EvalRunInsert` | 同上 | 纯映射：`runType=session_multiturn` · `signoffEligible='0'` · `matrix*=0` · `coverage=null` · `reportJson.l2Fingerprint`（prompt+model；**≠** 准出） |
 | `l2RewriteFingerprint` | `eval/l2-fingerprint.ts` | SHA-256 hex（prompt + NUL + modelId）；不要把窗/问句/evidence 算进去 |
@@ -95,9 +98,32 @@ runner **只机械钉**「先前用户轮全文不得出现在末轮 `evidence_s
 - **口径**：`l2NearCorefPassRate(rows)` = `type='near_coref' ∧ verdict='pass'` 的行数 ÷ **全部** `near_coref` 行（**含 `error`**；error 不算 pass）；分母 0 → `null`。
 - **为什么 error 进分母**：排除它会让「全批 error」退化成缺测 → 该门不适用 → 放行（fail-open）。本仓纪律是「无有效数据不外推」（与 τ 扫描的 `scored=0 → tauStar=null` 同款）。
 - **缺测（`null`）→ 不放行**。
-- **残余（写口径时不许省）**：本率**不含**「主题是否正确」（今天无 judge，且 runner 未采集 `evidence_snapshot.docId` 命中）、**不含**「合法 citation」；夹具只有 3 条 `near_coref`，80% 只能取 0 / 33.3 / 66.7 / 100% → 该门今天约等于「3/3 全过」而非比例门。
+- **残余（写口径时不许省）**：本率**不含**「主题是否正确」（今天无 judge）、**不含**「合法 citation」——两者已按下方「采集面」落成 `docHitRate` / `citationComplete`，但**明确不进本式**（PRD §6.2 没有这两道门，且 `docHitRate` 未映射时恒 0）；夹具只有 3 条 `near_coref`，80% 只能取 0 / 33.3 / 66.7 / 100% → 该门今天约等于「3/3 全过」而非比例门。
 - **未动**：`L2_SIGNOFF_MIN_CASES` 仍是 15（PRD 的 30～50 是**建议**，不是硬门，改它反而严于 PRD）；其余三项零容忍（主题粘连胡答 / 冲突场景跟错数字 / 合法路径跳过 verify）与 `historyLeaked` 的比对宽度（只比对先前**用户**轮，比 PRD 窄）均**未**收紧，属债。
 - **禁止**：把 `null` 判成放行；把「3/3 全过」写成「已满足 80% 比例门」。
+
+---
+
+### 采集面：`docHit` / 合法 citation（2026-09-23 起）
+
+> 目的：把「主题是否命中期望文档」从**没有原料**变成**有原料且有判据**，同时**不动任何判词**（既有 case verdict 逐位不变）。
+> 工单 `.scratch/l2-report-determinability/issues/03-task-l2-evidence-collection.md` · 裁定 `02-dec-l2-ruling.md`。
+
+| 层 | 字段 | 口径 |
+|----|------|------|
+| 行 | `expectedDocIds?` | **夹具原样**（逻辑 id）；无标注 → 缺省 |
+| 行 | `evidenceDocIds` | api CLI 取末轮 `graph.evidence_snapshot[].docId`；worker 取回包 `data.evidenceDocIds`；无 → `[]` |
+| 行 | `docHit: boolean \| null` | **直接复用** contracts `hitAtKCase`；无标注 → `null`（不计分，**不放行**也不拉红） |
+| 行 | `answerKind?` / `citationCount?` | 图上 `answerKind` / `citations.length`；未下发 → **键缺省**（不冒充 knowledge，也不当 0） |
+| 行 | `citationOk: true \| false \| null` | `null` = **不适用**（非 `knowledge`）**或**未下发；`false` = 图明确答了 `knowledge` 却 `citations === 0`；`true` = 有引用（contracts `l2CitationOk`） |
+| 批 | `docHitRate` / `docHitHits` / `docHitScored` | **直接复用** `emptyHitAtK` / `accumulateHitAtK` / `hitAtKRate`；分母 = 有非空 `expectedDocIds` 的题数（**含 `error` 题**，与 L1 批跑同款）；分母 0 → `null` |
+| 批 | `citationComplete` / `citationCompleteDen` | contracts `l2CitationComplete` → **直接复用** L1 `citationCompleteRate`（分子 = `knowledge ∧ answered ∧ citations>0`；分母 = `knowledge ∧ answered`；分母 0 → `null`） |
+
+- **`docHitRate` 未映射时恒 0，不得当成绩**：夹具写逻辑 id（`l2-corpus/*` / `ingest-samples/*`），报告比的是当前 KB 的 `documents.id` uuid；`fixtures/l2/corpus/*` 从未走 worker 入库、`documents` 无 `external_id`。**禁止**为了让这个数字非 0 而改夹具 / 改 id 体系 / 做模糊或子串匹配（映射属数据工程，不在本图）。
+- **两条都不进判定**：`docHit*` 与 `citationComplete*` **不得**接进 `computeL2SignoffEligible`；`citationOk === false` **不得**加进 `failReasons`。PRD §6.2 没有这两道门，接进去就是第二道「恒 false 空转闸」；`computeL2SignoffEligible` 的公式与取值域**一字未动**。与 L1 同款语义：**记率、不判词**。`citationOk` 只在 `knowledge` 上判词：`chitchat` 的「合法 citation」**不适用** → `null`（把「不适用」写成 `false` 会让人把正常路由读成引用缺失；原始事实仍由 `citationCount` 回显）。
+- **不采集 `minSupport`**：L2 行上无 claims，「历史文本被当 claim 送进 verifier」在图里不可观测 → 采它只会把假象带进报告（裁定 4）。
+- **两侧同构用测例钉**：字段名单唯一锚点是 contracts `L2_EVIDENCE_REPORT_KEYS` / `L2_EVIDENCE_ROW_KEYS`；api `L2Report`/`L2CaseRow` 与 worker `L2BatchReport`/`L2BatchCaseRow` 是三份手抄形状 —— **改名 / 漏键必须让两侧测例一起红**。worker `persist.ts` 的 `saveL2Report` 是**逐键白名单**，加字段必须同步（否则**静默丢弃且零测试红**）。
+- **md 渲染**：`docHitRate` 旁写明「**未映射时恒 0，不得当成绩**」；`citationComplete` 与行级 `docHit` / `citationOk` 一并渲染。worker **无** md 渲染（只写 `reportJson`），只需同构字段 + 白名单。
 
 ---
 
@@ -124,6 +150,7 @@ CLI 退出码：`0` 写出报告（含 fail/error 题）；`2` 缺 `L2_KB_ID` / 
 | runner | `tests/eval/l2-cli.test.ts` | same/new/none 分配；跨 case 不串窗；泄漏 fail；accept 命中 pass；rewrite 关 + expected true → fail；真 gold+注入 `caseCount≥15` 且 `signoffEligible===false`；execute throw → error |
 | persist | 同上 | mapper：`runType=session_multiturn` / `'0'` / matrix 0 / coverage null / ranAt 非 ISO-Z / `reportJson.l2Fingerprint` 与函数一致；`persistEval: false` 不碰 DB；开闸用 persist mock，不连真 PG |
 | 指纹 | `tests/eval/l2-fingerprint.test.ts` | 同输入稳定；改 prompt 一字或改 modelId 则变 |
+| 采集面 | api `tests/eval/l2-evidence-collection.test.ts` · contracts `tests/eval/l2-evidence-fields.test.ts` · worker `tests/eval/run-l2-batch-evidence-collection.test.ts` | docHit 复用 `hitAtKCase`（无标注 → null 不计分）；**未映射恒 0** 且不抛错；`citationOk` 三态不进 `failReasons`；两侧键集 = contracts 名单；worker 落库白名单不缺新键 |
 
 ---
 

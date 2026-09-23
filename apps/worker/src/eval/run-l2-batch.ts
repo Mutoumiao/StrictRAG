@@ -1,7 +1,13 @@
 import {
   acceptHit,
+  accumulateHitAtK,
   computeL2SignoffEligible,
+  emptyHitAtK,
   historyLeaked,
+  hitAtKCase,
+  hitAtKRate,
+  l2CitationComplete,
+  l2CitationOk,
   l2NearCorefPassRate,
   nextSessionId,
   type EvalRetrieveMode,
@@ -18,7 +24,13 @@ export type L2TurnExecuteResult =
       reason?: string;
       rewriteUsed?: boolean;
       evidenceTexts?: string[];
+      /** 末轮实测 evidence docId；未采集 → `[]`（与 `evidenceTexts` 同一条采集面） */
+      evidenceDocIds?: string[];
       answer?: string;
+      /** 图上 answerKind；拒答 / 未下发 → 缺省（不冒充 knowledge） */
+      answerKind?: 'knowledge' | 'chitchat';
+      /** 图上 citations.length；未下发 → 缺省（不进引用完整率分母） */
+      citationCount?: number;
     }
   | { outcome: 'error'; errorMessage?: string };
 
@@ -37,6 +49,18 @@ export type L2BatchCaseRow = {
   rewriteUsed?: boolean;
   historyInEvidence: boolean;
   expectedThemePersist: boolean;
+  /** 夹具原样（逻辑 id）；无标注 → 缺省（该题不计 docHit） */
+  expectedDocIds?: string[];
+  /** 末轮实测 evidence docId；error 行 / 无采集 → `[]` */
+  evidenceDocIds: string[];
+  /** 命中期望文档（复用 `hitAtKCase`）；无标注 → `null`。**不进判定** */
+  docHit: boolean | null;
+  /** 图上 answerKind；拒答 / error / 未下发 → 缺省（不冒充 knowledge） */
+  answerKind?: 'knowledge' | 'chitchat';
+  /** 图上 citations.length；未下发 → 缺省 */
+  citationCount?: number;
+  /** 合法 citation 三态：`null` = 未下发（≠ 有引用，≠ 无引用）。**不进 failReasons** */
+  citationOk: boolean | null;
   failReasons: string[];
   errorMessage?: string;
 };
@@ -60,6 +84,22 @@ export type L2BatchReport = {
   nearCorefPassRate: number | null;
   /** 近指代通过率分母（near_coref 题数） */
   nearCorefPassDen: number;
+  /**
+   * 命中期望文档率（复用 `hitAtKCase` / `emptyHitAtK` / `accumulateHitAtK` / `hitAtKRate`，与 api CLI 同口径）：
+   * 分母 = 有非空 `expectedDocIds` 的题数（含 error 题）；分母 0 → null。
+   * **未映射（夹具逻辑 id vs `documents.id` uuid）时恒 0，不得当成绩**。
+   * **不进 `computeL2SignoffEligible`**。
+   */
+  docHitRate: number | null;
+  docHitHits: number;
+  docHitScored: number;
+  /**
+   * 引用完整率：口径 = L1 `citationCompleteRate`（分子 = knowledge ∧ answered ∧ citations>0；
+   * 分母 = knowledge ∧ answered；分母 0 → null）。**记率、不判词**（不进 `signoffEligible`）。
+   */
+  citationComplete: number | null;
+  /** 引用完整率分母（knowledge ∧ answered 题数） */
+  citationCompleteDen: number;
   cases: L2BatchCaseRow[];
 };
 
@@ -79,6 +119,7 @@ export async function runL2Batch(opts: {
   const mint = opts.mintSessionId ?? (() => uuidv7());
   const windows = new Map<string, WindowTurn[]>();
   const rows: L2BatchCaseRow[] = [];
+  const docHitAcc = emptyHitAtK();
   let passCount = 0;
   let failCount = 0;
   let errorCount = 0;
@@ -126,6 +167,13 @@ export async function runL2Batch(opts: {
       if (verdict === 'pass') passCount += 1;
       else failCount += 1;
 
+      // 采集面（只落报告，不进 failReasons / signoffEligible）
+      const evidenceDocIds = last?.evidenceDocIds ?? [];
+      const answerKind = last?.answerKind;
+      const citationCount = last?.citationCount;
+      const docHit = hitAtKCase(c.expectedDocIds, evidenceDocIds);
+      accumulateHitAtK(docHitAcc, docHit);
+
       rows.push({
         id: c.id,
         type: c.type,
@@ -135,22 +183,39 @@ export async function runL2Batch(opts: {
         rewriteUsed: last?.rewriteUsed,
         historyInEvidence: leaked,
         expectedThemePersist: c.expected.themePersist,
+        expectedDocIds: c.expectedDocIds,
+        evidenceDocIds,
+        docHit,
+        // 只在下发合法值时带上；未下发保持缺省（不冒充 knowledge）
+        ...(answerKind ? { answerKind } : {}),
+        ...(typeof citationCount === 'number' && Number.isFinite(citationCount)
+          ? { citationCount }
+          : {}),
+        citationOk: l2CitationOk({ answerKind, citationCount }),
         failReasons,
       });
     } catch (err) {
       errorCount += 1;
+      // error 题按「未命中」计（与 api CLI 同款）；无 expected 名单仍不计分
+      const docHit = hitAtKCase(c.expectedDocIds, []);
+      accumulateHitAtK(docHitAcc, docHit);
       rows.push({
         id: c.id,
         type: c.type,
         verdict: 'error',
         historyInEvidence: false,
         expectedThemePersist: c.expected.themePersist,
+        expectedDocIds: c.expectedDocIds,
+        evidenceDocIds: [],
+        docHit,
+        citationOk: null,
         failReasons: [],
         errorMessage: err instanceof Error ? err.message : String(err),
       });
     }
   }
 
+  const citation = l2CitationComplete(rows);
   return {
     run_type: 'session_multiturn',
     retrieveMode: opts.retrieveMode,
@@ -170,6 +235,11 @@ export async function runL2Batch(opts: {
     zeroToleranceHits,
     nearCorefPassRate: l2NearCorefPassRate(rows),
     nearCorefPassDen: rows.filter((r) => r.type === 'near_coref').length,
+    docHitRate: hitAtKRate(docHitAcc),
+    docHitHits: docHitAcc.hits,
+    docHitScored: docHitAcc.scored,
+    citationComplete: citation.citationComplete,
+    citationCompleteDen: citation.citationCompleteDen,
     cases: rows,
   };
 }

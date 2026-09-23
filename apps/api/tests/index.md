@@ -124,6 +124,7 @@
 | `eval/l1-matrix.test.ts` | L1 2×2 纯函数累计与覆盖计算正确，且不得当作签字。 | B10 | `cellFor / accumulate / coverage / computeSignoffEligible` | ≠ 签字；error 出格。 | 现行 |
 | `eval/l1-repro-fields.test.ts` | L1 报告必须落 PRD §8 可复现区块：能取到的取真值（模型 / 档位预算 / τ / 两条哈希），取不到的一律 null 而非伪值；既有 mode 语义不变。 | prds/08-quality/02-evaluation-and-gates.md §8 可复现字段 | `runL1Golden · formatReportMd · writeL1Report` | 图上档位 → 预算（fast 60/10、balanced 150/20、无回包 null）；注入校准题 → 校准集哈希 null；KB 绑定读取器抛错 → null；全 null 区块 md 渲染不炸。 | 现行 |
 | `eval/l2-cli.test.ts` | L2 CLI 注入可跑；signoffEligible 走工程公式，mock 必 false。 | P2.5-L2 | `runL2Golden / parseL2CliEnv` | 工程可签字 ≠ 准出 PASS。 | 现行 |
+| `eval/l2-evidence-collection.test.ts` | api L2 CLI 必须把末轮 evidence docId / citations / answerKind 采成可核对原料，落 docHit 与引用完整率，且两者都不进判定。 | prds/08-quality/02-evaluation-and-gates.md §6.2 · 裁定 02 | `runL2Golden · formatL2ReportMd` | 注入 execute；未映射恒 0 不得当成绩；citationOk 三态且不进 failReasons；md 渲染新率并写明告警。 | 现行 |
 | `eval/l2-fingerprint.test.ts` | rewrite 指纹纯函数稳定，且不因此打开 rewrite。 | ADR-046 相关 | `l2RewriteFingerprint` | 非开 rewrite。 | 现行 |
 | `eval/l2-gold.test.ts` | L2 题面加载拒绝非法文件，且不得当作准出。 | P2.5-L2 | `loadL2Gold / l2TypeCoverage / defaultL2GoldPath` | ≠ 准出。 | 现行 |
 | `eval/l2-near-coref-rate.test.ts` | api L2 CLI 必须落近指代通过率并进工程 signoffEligible，且报告可逐项读出。 | prds/08-quality/02-evaluation-and-gates.md §6.2 :188 | `runL2Golden · formatL2ReportMd` | 注入路径可跑；分母含 error；分母 0 → null → 不放行。 | 现行 |
