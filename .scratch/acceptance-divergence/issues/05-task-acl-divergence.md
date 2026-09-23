@@ -42,12 +42,14 @@ Blocked by: 02-dec-per-row-ruling
 **逐行收口（动作 → 文件 → 证据）**
 
 1. `S1`：覆盖表 S1 行缺口列改写为「已裁定：乙（实质）+ 债」并补 `it` → `apps/admin/tests/shell/auth-guard.test.tsx:79`（`S1/Y6：web_consumer 空码 → 清会话 + /login，不进壳子树`）；依据 `apps/admin/src/components/auth-guard.tsx:41-46` + ADR-045（`:957`）已被 ADR-051（`:1344`）修订。
-2. `S4`：补 `it`（① KB 角色锚点 + 无壳码 → 不进壳；② 同锚点 + `admin.shell` → 进壳）→ 同文件 `:107`（`S4：进壳只认 admin.shell，KB 角色（read / write）不参与判定`）；依据 `packages/admin-catalog/src/role-templates.ts:19`/`:24` · `apps/api/src/auth/role-hydrate.ts:111` · `apps/api/src/auth/permissions/resolve.ts:22`。
+2. `S4`：补 `it`（① KB 角色锚点 + 无壳码 → 不进壳；② 同锚点 + `admin.shell` → 进壳）→ 同文件 `:106`（`S4：进壳只认 admin.shell，KB 角色（read / write）不参与判定`）；依据 `packages/admin-catalog/src/role-templates.ts:19`/`:24` · `apps/api/src/auth/role-hydrate.ts:111` · `apps/api/src/auth/permissions/resolve.ts:22`。
 3. `Y6`：与 `S1` 同一 `it`、同一条债 → 覆盖表 Y6 行缺口列同源改写。
 4. `X4`：**不动源码**（`apps/api/src/services/kb-settings.ts:273` 保持原样）+ 覆盖值 `已测` → 证据 `apps/api/tests/ask/mode-doc-types-gate.test.ts:134`；依据 ADR-050（`prds/11-decisions/00-adr-index.md:1308`）+ `prds/12-delivery-guides/04-交付控制台.md:124`；`apps/api/tests/kb/ask-mode-doc-types.test.ts:52` 仍钉「空白名单放行」（未改）。
 5. `X5`：**不动 `apps/api/src/services/retrieve/es-sparse.ts`**；缺口列精确化为「净效果对称（`corpus.ts:44-47` + `retrieve.ts:212`），ES 查询体不含 `doc_type`」，阻塞方 = 真 ES（B8）。
 
-**新增 `it` 名单**（`apps/admin/tests/shell/auth-guard.test.tsx`，5 例全绿，无删改既有断言）：`S1/Y6：web_consumer 空码 → 清会话 + /login，不进壳子树`（`:79`）· `S4：进壳只认 admin.shell，KB 角色（read / write）不参与判定`（`:107`）。
+**新增 `it` 名单**（`apps/admin/tests/shell/auth-guard.test.tsx`，5 例全绿，无删改既有断言）：`S1/Y6：web_consumer 空码 → 清会话 + /login，不进壳子树`（`:79`）· `S4：进壳只认 admin.shell，KB 角色（read / write）不参与判定`（`:106`）。
+
+**主控订正（2026-09-24，工单 07 反向复核抓到）**：上面两处原本写 `:107`，实际 `grep` 为 `:106`（差一行）。已改；这正是本图要治的「转述漂移」，记下来当本图的第三条教训。
 
 **覆盖表改动**（`docs/testing/coverage/02-acl.md`）：五行缺口列改定型写法（「源码侧待定 / 待补测」命中 0）；计数 `已测 56→58`、`部分测 8→6`（合计仍 69）；尾注改为「**部分测**（P2必签/契约/授码）：S1 S3 · Y6 · X5」（`S4` / `X4` 移出）、删「S1 / S4 / Y6 / X4 / X5 为源码侧待定」两处、新增第六轮叙述。
 
