@@ -179,6 +179,7 @@ export const evalPersist: EvalPersist = {
           docHitScored: report.docHitScored,
           citationComplete: report.citationComplete,
           citationCompleteDen: report.citationCompleteDen,
+          repro: report.repro,
           cases: report.cases,
           kbId: report.kbId,
         },

@@ -85,9 +85,10 @@ export function computeL2SignoffEligible(input: {
 }
 
 /**
- * L2 采集面 + 零容忍处置区块的字段名单：api（`L2Report` / `L2CaseRow`）与 worker
- * （`L2BatchReport` / `L2BatchCaseRow`）是三份手抄形状，本名单是「同名同语义」的单一锚点 ——
- * 任一侧改名 / 漏键，两侧同构测例一起红。
+ * L2 报告自有键的同构锚点（采集面 + 零容忍区块 + 可复现区块）：api（`L2Report` / `L2CaseRow`）
+ * 与 worker（`L2BatchReport` / `L2BatchCaseRow`）是三份手抄形状，本名单是「同名同语义」的单一
+ * 锚点 —— 任一侧改名 / 漏键，两侧同构测例一起红。worker `persist.ts` 的 `saveL2Report` 是逐键
+ * 白名单，漏键**静默丢弃且零测试红**，故新键必须同时进本名单与白名单。
  */
 export const L2_EVIDENCE_REPORT_KEYS = [
   'docHitRate',
@@ -96,6 +97,7 @@ export const L2_EVIDENCE_REPORT_KEYS = [
   'citationComplete',
   'citationCompleteDen',
   'zeroToleranceCoverage',
+  'repro',
 ] as const;
 
 /** 行级名单；`expectedDocIds` / `evidenceDocIds` / `docHit` / `citationOk` 恒在行上。 */

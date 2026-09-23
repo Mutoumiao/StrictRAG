@@ -16,6 +16,11 @@ import {
   type L2Type,
   type L2ZeroToleranceCoverage,
 } from '@strict-rag/contracts';
+import {
+  emptyL2Repro,
+  l2GoldSetHash,
+  type L2Repro,
+} from '@strict-rag/contracts/eval-repro-l2';
 import { uuidv7 } from 'uuidv7';
 
 export type L2Verdict = 'pass' | 'fail' | 'error';
@@ -108,6 +113,12 @@ export type L2BatchReport = {
   citationComplete: number | null;
   /** 引用完整率分母（knowledge ∧ answered 题数） */
   citationCompleteDen: number;
+  /**
+   * PRD §8 可复现区块（L2 侧三键，与 api CLI 同形状 = `@strict-rag/contracts/eval-repro-l2` 的
+   * `L2Repro`）：`l2GoldSetHash` 取真值（本跑实际题面 id 集合，worker 侧拿得到 case id）；两个
+   * 版本键**全仓无载体** → 恒 `null`。**不进任何判定**；`persist.ts` 的逐键白名单必须同步带本键。
+   */
+  repro: L2Repro;
   cases: L2BatchCaseRow[];
 };
 
@@ -249,6 +260,8 @@ export async function runL2Batch(opts: {
     docHitScored: docHitAcc.scored,
     citationComplete: citation.citationComplete,
     citationCompleteDen: citation.citationCompleteDen,
+    // §8 区块：worker 只填剧本集哈希（源 = 本跑实际使用的 case id 集合，含 maxCases 截断）
+    repro: { ...emptyL2Repro(), l2GoldSetHash: l2GoldSetHash(sliced.map((c) => c.id)) },
     cases: rows,
   };
 }

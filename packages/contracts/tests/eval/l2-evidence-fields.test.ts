@@ -67,7 +67,7 @@ describe('l2CitationComplete 复用 L1 口径', () => {
 });
 
 describe('两侧手抄形状的字段名单', () => {
-  it('报告 6 键（含零容忍处置区块）、行 6 键，逐字锁定且无重复', () => {
+  it('报告 7 键（含零容忍区块与可复现区块）、行 6 键，逐字锁定且无重复', () => {
     expect([...L2_EVIDENCE_REPORT_KEYS]).toEqual([
       'docHitRate',
       'docHitHits',
@@ -75,6 +75,7 @@ describe('两侧手抄形状的字段名单', () => {
       'citationComplete',
       'citationCompleteDen',
       'zeroToleranceCoverage',
+      'repro',
     ]);
     expect([...L2_EVIDENCE_ROW_KEYS]).toEqual([
       'expectedDocIds',

@@ -26,6 +26,11 @@ import {
   type L2Type,
   type L2ZeroToleranceCoverage,
 } from '@strict-rag/contracts';
+import {
+  emptyL2Repro,
+  l2GoldSetHash,
+  type L2Repro,
+} from '@strict-rag/contracts/eval-repro-l2';
 
 import { l2RewriteFingerprint } from '../eval/l2-fingerprint.js';
 import { defaultL2GoldPath, loadL2Gold, L2GoldLoadError } from '../eval/l2-gold.js';
@@ -126,6 +131,12 @@ export type L2Report = {
   citationComplete: number | null;
   /** 引用完整率分母（knowledge ∧ answered 题数） */
   citationCompleteDen: number;
+  /**
+   * PRD §8 可复现区块（L2 侧三键）：`l2GoldSetHash` 取真值（本跑实际题面 id 集合，口径 = L1
+   * `l1QuestionIdsHash`）；两个版本键**全仓无载体** → 恒 `null`（禁止拿源码文本哈希顶替）。
+   * 形状 = `@strict-rag/contracts/eval-repro-l2` 的 `L2Repro`，与 worker 批跑同构；**不进任何判定**。
+   */
+  repro: L2Repro;
   cases: L2CaseRow[];
 };
 
@@ -233,6 +244,27 @@ export function writeL2Report(
   return { jsonPath, mdPath };
 }
 
+/**
+ * §8 可复现区块的 md 行；取不到的渲染成「—」（不得渲染成 `null` / 空串），照 L1 `reproMdLines` 风格。
+ * 两个版本键**全仓无载体** → 恒「—」，不是「本跑没量到」。
+ */
+function reproMdLines(repro: L2Repro): string[] {
+  const dash = (value: string | null): string => (value === null ? '—' : value);
+  return [
+    '',
+    '## 可复现（PRD §8）',
+    '',
+    '> `l2GoldSetHash` = **本跑实际使用**的题面 id 集合（trim → 去空 → 升序 → sha256），口径同 L1；',
+    '> `sessionStrategyVersion` / `rewritePromptVersion` **全仓无版本载体** → 恒「—」（记债，禁止拿源码文本哈希顶替）。区块不进任何判定。',
+    '',
+    '| 字段 | 值 |',
+    '|------|-----|',
+    `| l2GoldSetHash | ${dash(repro.l2GoldSetHash)} |`,
+    `| sessionStrategyVersion | ${dash(repro.sessionStrategyVersion)} |`,
+    `| rewritePromptVersion | ${dash(repro.rewritePromptVersion)} |`,
+  ];
+}
+
 export function formatL2ReportMd(report: L2Report): string {
   const lines = [
     '# L2 last run',
@@ -267,6 +299,7 @@ export function formatL2ReportMd(report: L2Report): string {
         ? 'null'
         : String(Math.round(report.citationComplete * 1000) / 1000)
     } (den=${report.citationCompleteDen}) —— 只记率、不进判定 |`,
+    ...reproMdLines(report.repro),
     '',
     '## zeroToleranceCoverage（PRD §6.2 四项零容忍逐条处置）',
     '',
@@ -467,6 +500,8 @@ export async function runL2Golden(opts: RunL2Options): Promise<L2Report> {
     docHitScored: docHitAcc.scored,
     citationComplete: citation.citationComplete,
     citationCompleteDen: citation.citationCompleteDen,
+    // §8 区块：剧本集哈希取真值（本跑实际题面集，含 maxCases 截断后的形状）；版本类无载体留 null
+    repro: { ...emptyL2Repro(), l2GoldSetHash: l2GoldSetHash(cases.map((c) => c.id)) },
     cases: rows,
   };
 

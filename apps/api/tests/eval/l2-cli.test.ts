@@ -12,6 +12,7 @@ import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { l2ZeroToleranceCoverage } from '@strict-rag/contracts';
+import { emptyL2Repro } from '@strict-rag/contracts/eval-repro-l2';
 
 import { l2RewriteFingerprint } from '../../src/eval/l2-fingerprint.js';
 import { defaultL2GoldPath } from '../../src/eval/l2-gold.js';
@@ -495,6 +496,7 @@ describe('buildL2EvalRunInsert / persist gate', () => {
       docHitScored: 0,
       citationComplete: null,
       citationCompleteDen: 0,
+      repro: emptyL2Repro(),
       cases: [],
       ...patch,
     };

@@ -40,7 +40,8 @@
 | `hitAtKCase` / `emptyHitAtK` / `accumulateHitAtK` / `hitAtKRate` | contracts `eval/l1-matrix.ts` | docHit 逐题判据与整批率；**直接复用**，禁另写口径 |
 | `l2CitationOk` / `l2CitationComplete` | contracts `eval/l2-matrix.ts` | 合法 citation 三态 / 整批率（后者复用 L1 `citationCompleteRate` 与同一分母谓词） |
 | `l2ZeroToleranceCoverage` / `L2_ZERO_TOLERANCE_ITEM_KEYS` / `L2_ZERO_TOLERANCE_PLACE_KEYS` | 同上 | PRD §6.2 四项零容忍的**处置档位区块**（`mechanical` / `debt`，两侧同源）；见下方「零容忍四项的处置档位」 |
-| `L2_EVIDENCE_REPORT_KEYS` / `L2_EVIDENCE_ROW_KEYS` | 同上 | 两侧采集面 + 零容忍区块的字段名单（同构唯一锚点） |
+| `L2_EVIDENCE_REPORT_KEYS` / `L2_EVIDENCE_ROW_KEYS` | 同上 | L2 报告自有键的同构锚点（采集面 + 零容忍区块 + 可复现区块）/ 行级名单（同构唯一锚点） |
+| `l2GoldSetHash` / `emptyL2Repro` / `L2Repro` | contracts `eval/l2-repro.ts`（子路径 `@strict-rag/contracts/eval-repro-l2`） | §8 L2 侧可复现区块（三键）与其哈希纯函数；见下方「可复现区块：`repro`」 |
 | `runL2Golden(opts)` | 同上 | 串行批跑 + 进程内窗；可注入 `execute`；`persistEval?` |
 | `buildL2EvalRunInsert` | 同上 | 纯映射：`runType=session_multiturn` · `signoffEligible='0'` · `matrix*=0` · `coverage=null` · `reportJson.l2Fingerprint`（prompt+model；**≠** 准出） |
 | `l2RewriteFingerprint` | `eval/l2-fingerprint.ts` | SHA-256 hex（prompt + NUL + modelId）；不要把窗/问句/evidence 算进去 |
@@ -167,6 +168,33 @@ runner **只机械钉**「先前用户轮全文不得出现在末轮 `evidence_s
 
 ---
 
+### 可复现区块：`repro`（2026-09-23 起）
+
+> 目的：PRD §8 :224 的可复现条目里，属于 L2 的是「**L2 剧本集哈希**」与「**session 策略版本 / rewrite prompt 版本**」。L1 图已建同构写法（`L1Repro` / `emptyL1Repro()` / `l1QuestionIdsHash`），本区块把 L2 侧那三键落成**同风格**的形状 —— 能取到的取真值，取不到的一律 `null` + 记债。
+> 工单 `.scratch/l2-report-determinability/issues/05-task-l2-repro-fields.md` · 裁定 `02-dec-l2-ruling.md`（裁定 7）。
+
+**区块**：报告键 `repro`，类型 `L2Repro`（contracts `eval/l2-repro.ts`，子路径 `@strict-rag/contracts/eval-repro-l2`），api `L2Report` 与 worker `L2BatchReport` **都必带**，**禁单边另写**。
+
+| 键 | 去向 | 口径 |
+|----|------|------|
+| `l2GoldSetHash` | **取真值** | `l2GoldSetHash(cases.map(c => c.id))` —— 逐字复用 `l1QuestionIdsHash`（逐项 trim → 去空 → **升序** → `JSON.stringify` → sha256），**不另发明哈希**；空集 → `null` |
+| `sessionStrategyVersion` | **恒 `null` + 记债** | 全仓无版本载体：`SESSION_REWRITE_ENABLED` 只是布尔，KB 侧只有 `SessionRewriteLock`（形状 `{ enabledDefault: false, locked: true }`，是「锁」不是版本） |
+| `rewritePromptVersion` | **恒 `null` + 记债** | `rewriteSystemPrompt()`（`graph/prompts.ts`）是内联字符串 → 源码即版本，无常量 / 无 KB 配置键 / 无表列 |
+
+- **禁止拿源码文本哈希顶替**：prompt / 源码文本哈希会随**任意重构噪声**跳变（改一行注释也变），形似而非语义 —— 这是前图已定的纪律，两个版本键的类型被钉成 `null` 字面量（编一个假版本号过不了 `tsc`）。
+- **算的是「本跑实际使用的题面集」**：运行集会受 `L2_MAX_CASES` 截断（截断即另一个题面集，哈希随之变）；api 侧取 `cases.slice(0, maxCases)` 后的集合，worker 侧同。L2 case id 受 `/^l2-[a-z0-9-]+$/` 约束且夹具内唯一，故跨进程稳定。
+- **`l2GoldSetHash` 在 L1 侧仍是 `null` 保留键**：`L1Repro.l2GoldSetHash` 与 `emptyL1Repro()` 一字不动（L1 不加载 L2 夹具，**不要**顺手去填它）—— 同名不同源，两侧各自填自己那半。
+- **与 `l2RewriteFingerprint` 并存、不合并**：后者（`eval/l2-fingerprint.ts`，prompt + NUL + modelId 的 sha256）语义是「rewrite 提示词 + 模型身份」，**不含任何一道题的 id**，与「剧本集哈希」不是一回事。它**保持原样**：不改名、不搬家、不并入 `repro`（改名会连带打红 `l2-cli.test.ts` 与 obs 侧断言）。
+- **区块范围就到这三个键**：§8 的通用字段（`models` / `retrieveK` / `rerankTopN` / `tauClaim` / `contextMode` / …）在 L1 侧已有落点，L2 侧**本图不扩**（记债）。`mode` / `retrieve_mode` 在本区块内**不存在**（既有顶层键是同一语义的历史别名，不许造第二源）。
+- **为什么不进 `…/eval/runs` 的 DTO**：`EvalRunSchema` 是 `.strict()`，加键会破坏既有无损读回；与前图 L1 侧同裁 → **记债**（区块只进报告 / `report_json`）。
+- **两侧同构用测例钉**：`repro` 进 contracts `L2_EVIDENCE_REPORT_KEYS`；api `buildL2EvalRunInsert` 是 `{...report}` 直落（自动带上），worker `saveL2Report` 是**逐键白名单**，**必须同步加键**（漏键静默丢弃、零测试红）。
+- **md 渲染**：api `formatL2ReportMd` 渲染 `## 可复现（PRD §8）` 三行，取不到的渲染成「—」（不渲染 `null` / 空串）；worker **无** md 渲染。
+- 区块**不进任何判定**：`computeL2SignoffEligible` 的公式与取值域**一字未动**，`repro` 不是它的入参、也不出现在任何 case 的 `failReasons` 里。
+
+**销账路径（记债，未做）**：① 两个版本键要销账，先得有版本载体（prompt 常量或 KB 配置键 / session 策略版本号）—— 属产品语义变更，须回写 PRD 后另开；② §8 L2 侧通用字段（`models` / 档位预算 / τ）的销账要 worker 拿到本次 run 的档位与模型身份（内口今天不下发 `mode`），属改内口形状，本图不做。
+
+---
+
 ## 4. Validation
 
 | 条件 | 行为 |
@@ -192,6 +220,7 @@ CLI 退出码：`0` 写出报告（含 fail/error 题）；`2` 缺 `L2_KB_ID` / 
 | 指纹 | `tests/eval/l2-fingerprint.test.ts` | 同输入稳定；改 prompt 一字或改 modelId 则变 |
 | 采集面 | api `tests/eval/l2-evidence-collection.test.ts` · contracts `tests/eval/l2-evidence-fields.test.ts` · worker `tests/eval/run-l2-batch-evidence-collection.test.ts` | docHit 复用 `hitAtKCase`（无标注 → null 不计分）；**未映射恒 0** 且不抛错；`citationOk` 三态不进 `failReasons`；两侧键集 = contracts 名单；worker 落库白名单不缺新键 |
 | 零容忍区块 | api `tests/eval/l2-zero-tolerance-coverage.test.ts` · contracts `tests/eval/l2-zero-tolerance-coverage.test.ts` · worker `tests/eval/l2-zero-tolerance-coverage.test.ts` | 四项逐条取值（1 处 `mechanical` + 4 处 `debt`）；`historyText` 一项如实摊成两处；`historyInEvidence.hits` **同源** `zeroToleranceHits`（泄漏题 = 2 即红）；非法命中数抛错；伪造 `mechanical` / 白名单漏键即红；区块不进判定（真 gold 全绿仍 `signoffEligible`） |
+| 可复现区块 | contracts `tests/eval/l2-repro.test.ts` · api `tests/eval/l2-repro-fields.test.ts` · worker `tests/eval/run-l2-batch-repro.test.ts` | `l2GoldSetHash` 逐字等同 `l1QuestionIdsHash`（不另发明哈希）；换序同值 / 改一个 case id 即变 / 空集 → `null`；拼接式哈希的碰撞反证；两个版本键恒 `null` 且类型只可能是 `null`；L1 侧保留键仍 `null`（不被顺手填）；api md 渲染成「—」；`repro` 不在 `l2Fingerprint` 位置（并存不合并）；两侧键集 = `L2_EVIDENCE_REPORT_KEYS`，worker 白名单不缺 `repro` |
 | 图上不变式 | api `tests/ask/evidence-from-retrieve-only.test.ts` | 行为型：窗文本进 rewrite 提示词但**不进** `evidence_snapshot`（逐字段 = retrieve 输出）、拒答路径不回填；源码形状守卫：`run.ts` 的 `evidence_snapshot` 写点唯一且来源 = `r.evidence` |
 
 ---
