@@ -4,7 +4,7 @@
 > **用途**：立下一张图时先读本文挑目的地，避免重扫 9 张图。
 > **口径**：9 张图的**前沿全部为空**；下表是清点后聚类的结果（38 簇，同缺口多图点到已合并）。**离线可做**一栏指「只靠读源码 + 写纯函数 + 补测例 + 回写文档，在本机能做完」。
 >
-> **清点后的动向**（2026-09-23 追加）：簇 4 + 5 + 2 的 L1 侧已由 [`l1-signoff-evidence`](./l1-signoff-evidence/map.md) 收口；**簇 1（L2 报告的可判定面）已立为 [`l2-report-determinability`](./l2-report-determinability/map.md)**，下文该簇的行仍作该图的开工证据。
+> **清点后的动向**（2026-09-23 追加）：簇 4 + 5 + 2 的 L1 侧已由 [`l1-signoff-evidence`](./l1-signoff-evidence/map.md) 收口；**簇 1（L2 报告的可判定面）已由 [`l2-report-determinability`](./l2-report-determinability/map.md) 收口**；**簇 31 里的「16 行 Then ↔ 源码不一致」已立为 [`acceptance-divergence`](./acceptance-divergence/map.md)**，下文该簇的行仍作该图的开工证据。三张图均**只在本分支**推进、不带 worktree。
 
 ## 汇总表
 
