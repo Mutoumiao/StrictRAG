@@ -1,7 +1,7 @@
 # L2 报告的可判定面（采集面 · 零容忍 · §8 字段）
 
 Label: wayfinder:map
-Status: open（前沿：工单 03 · 04 · 05；01 · 02 已收口）
+Status: resolved（前沿：空；工单 01 · 02 · 03 · 04 · 05 · 06 全收口）
 
 ## Destination
 
@@ -64,21 +64,69 @@ Status: open（前沿：工单 03 · 04 · 05；01 · 02 已收口）
 
 - [研究：L2 报告的可判定面今天到底缺什么、有哪些可复用形状](./issues/01-research-l2-evidence-sources.md) — 研究子代理产出（明细 53.6 KB 在 [research/01-l2-evidence-sources.md](./research/01-l2-evidence-sources.md)）。要点：① **最关键的硬结论：「按 `expectedDocIds` 判命中」今天不成立** —— 夹具写逻辑 id、真跑 `docId` 是 `documents.id`（uuid v7），`documents` 表**无 `external_id`**、`fixtures/l2/corpus/*` **从未入库且无入口**、worker 通道丢 `evidenceDocIds` → 照搬 `hitAtKCase` 只会得到**恒 0**（`false` 而非 `null`）。② `expectedDocIds` **全仓零消费者**；夹具实测 **18 条**（非 20）全部带 id，共 25 个逻辑 id，`near_coref` 仅 3 条。③ **采集面的真断点在 worker 类型**：内口**早已在**下发 `evidenceDocIds` / `citationCount` / `answerKind` / `minSupport`（`routes/eval.ts`），`createEvalHttpL2Execute` 只读 5 / 9 键；api 侧 `run-l2-golden.ts` 的 `e.docId` 就在 `e.text` 旁边。④ **上轮 assistant 文本进 evidence 结构上不可能**（`graph/run.ts` 的 `evidence` 是唯一写点、正文来自 retrieve）；今天的 `historyLeaked` 抓的是**语料撞词**，不是「图把聊天当证据」→ 把它当已覆盖的零容忍是自欺。⑤ `min_support` 维度无量（`AskGraphResult` 不含 claims）；另三项零容忍**均无判据原料**。⑥ `l2RewriteFingerprint` **≠ 剧本集哈希**（它算 prompt+modelId）；session 策略 / rewrite prompt 版本**全仓无载体**。⑦ 回归面比预期小：加必填报告字段只打红**一处**报告字面量（`l2-cli.test.ts` 的 `sampleReport()` + 3 个 `it`），worker 侧零处；**真正的爆炸面是改 `AskGraphResult` / `ExecuteAskResult`**。⑧ `evaluateL2Stale` **无任何生产调用点**；落库的 evidence 快照**无正文**（`EvidenceSnapshotItem` 无 `text`）→ 不能从 `ask_traces` 反推泄漏，必须在活体回合里采。
 - [裁定：L2 三腿证据面各落到什么形状](./issues/02-dec-l2-ruling.md) — 主控裁定，**两条总原则**：只补「可核对原料 + 真钉得住的判据」；判不出来的一律记债、不许造形似代理。**采集面**：两侧补 `docId` / `citations.length` / `answerKind`（内口本就在发，断点在 worker 类型），三层同名字段 + 跨侧同构测例；「命中期望文档」**只落报告、绝不进 `signoffEligible`**（PRD §6.2 没有这个门 + 今天恒 0 → 加进去就是第二个恒 false 空转闸），落 `docHitRate` / `docHitHits` / `docHitScored`，并把「未映射时恒 0 不得当成绩」写进 md / spec / README + 加护栏测例（照抄 L1 的 `l1-hit-at-k.test.ts` 形状）；「合法 citation」复用 `citationCompleteRate` 记率 + 行级三态 `citationOk`，**不改任何既有 case 判词**（`false` 不进 `failReasons`）。**零容忍**：「历史文本进 evidence」**不扩到 assistant 观测文本**（assistant 合法答案本就逐字引库 → 会假红），改为把「evidence 只来自 retrieve」的**图上不变式钉成测例**；`min_support` 半句**不可判记债**（图不含 claims）；另三项（主题粘连 / 冲突数字 / 跳过 verify）**一律记债、不造代理**；但报告加 `zeroToleranceCoverage` 区块逐条声明四项的处置档位（`mechanical` / `debt`）—— 这是本图对「可核对」最直接的贡献。**§8**：新增 L2 可复现区块（`l2GoldSetHash` 用 `l1QuestionIdsHash` 同款写法取真值；`sessionStrategyVersion` / `rewritePromptVersion` 无载体 → `null` + 记债），**必须走子路径导出**并以 `pnpm build` 实证；`l2Fingerprint` **保持原样不动**（语义不同）；worker `saveL2Report` 白名单**同步加键 + 补同构测例**；区块**不透 DTO**（同前图 L1 侧）。**统一纪律**：不新增迁移 / 表 / 端点 · 收紧或逐位等价 · `signoffEligible` 公式与取值域**一字不动** · 夹具 18 条**一字不动**。**三句硬话**：`docHitRate` 恒 0 是今天的正确取值 · 两侧同构必须用测例钉 · **禁止**改 `AskGraphResult` / `ExecuteAskResult`（真正的爆炸面）。
+- [落 L2 采集面：`docId` 与「命中期望文档」](./issues/03-task-l2-evidence-collection.md) — 两侧补原料：api CLI 取末轮 `evidence_snapshot[].docId` + `citations.length` + `answerKind`；worker 扩 `L2TurnExecuteResult` 并从回包读三键（**内口本来就在发**，断点在 worker 类型）；行落 `expectedDocIds` / `evidenceDocIds` / `docHit` / `citationOk`，整批落 `docHitRate` / `docHitHits` / `docHitScored` / `citationComplete` / `citationCompleteDen`；contracts 新增 `L2_EVIDENCE_REPORT_KEYS` / `L2_EVIDENCE_ROW_KEYS`（三份手抄形状的同构唯一锚点）+ `l2CitationOk` / `l2CitationComplete`（后者**直接复用** L1 `citationCompleteRate`）。`docHit` 复用 `hitAtKCase`、整批复用 `emptyHitAtK` / `accumulateHitAtK` / `hitAtKRate`，**不另写口径**。新增 **3 文件 / 26 条 it**（含**恒 0 护栏**，照抄 `l1-hit-at-k` 形状）；仅改写 api `l2-cli.test.ts` 的 `sampleReport()` 与随它过的 3 条 it（worker 既有测例零改动 = verdict 逐位不变的回归证据）。反证 4 轮（拆采集面红 2 · 删白名单键红 1 · `>0` 反成 `>=0` 红 4 · 单边改名红 4）。**主控复核收窄一处**：`l2CitationOk` 只有 `knowledge` 才判 `true`/`false`，`chitchat` 的「合法 citation」**不适用 → `null`**（写成 `false` 会让正常路由被读成引用缺失）；连带改注释、一条 it 与 spec。门禁：contracts **32/264** · worker **53/241** · api **174/1084+3 skipped**。
+- [落 L2 零容忍四项的处置](./issues/04-task-l2-zero-tolerance.md) — 报告新增 `zeroToleranceCoverage`：**4 个 PRD 项 × 5 处去处**（PRD 把「历史文本进 evidence/`min_support`」写在**同一项**里点了两个去处，不许含糊成一行）；逐条声明 `judged: 'mechanical' | 'debt'`，`mechanical` 必带命中数、`debt` 必为 `null`（不许拿 `0` 冒充「已判且满足」），非法命中数**抛错**；整项 `judged` = 全部去处 mechanical 才 mechanical。今天 **1 处机械判（`historyInEvidence`，`hits` 与 `zeroToleranceHits` 同源）+ 4 处记债**，故四项在**整项**层面全部记为债。**不扩** `historyLeaked` 到上轮 assistant 观测文本（assistant 的合法答案本就逐字引库 → 会**假红**）；改为把「**evidence 只能来自 retrieve**」的图上不变式钉成测例 —— **行为型**（注入 retrieve/chat stub，窗文本进 rewrite 提示词但不进 `evidence_snapshot`，拒答路径也不回填）+ **源码形状守卫**（`graph/run.ts` 的 `evidence_snapshot` 写点唯一、来源 = `r.evidence`）。四条债的「PRD 写了什么 / 为什么判不了 / 缺什么才能销账」逐条写进 spec，并逐条明写**禁止造形似代理**。新增 **4 文件 / 19 条 it**。反证 4 轮（`debt` 伪改 `mechanical` 红 4 · 命中数不同源红 3+2 · `run.ts` 加第二写点红 3 · 窗文本塞进 `state.evidence` 红 1）。门禁：contracts **33/273** · worker **54/244** · api **176/1091+3 skipped**。
+- [落 §8 的 L2 侧字段](./issues/05-task-l2-repro-fields.md) — contracts 新增 `eval/l2-repro.ts`，走**子路径导出** `@strict-rag/contracts/eval-repro-l2`（与 L1 的 `eval-repro` 同例，避免 `node:crypto` 进客户端图）：`L2Repro` 三键 —— `l2GoldSetHash` **取真值**（函数体逐字复用 `l1QuestionIdsHash`：trim → 去空 → 升序 → JSON → sha256，**不另发明哈希**）、`sessionStrategyVersion` / `rewritePromptVersion` 因**全仓无载体**而类型钉成 `null` 字面量（记债，**禁止**拿源码文本哈希顶替）。两侧报告加 `repro` 必填键（源 = 本跑实际使用的 case id 集合）、api md 渲染（取不到写「—」）、`repro` 进同构锚点名单（6→7 键）、worker 白名单同步。`l2RewriteFingerprint` **保持原样不动**（语义不同：prompt+model 指纹）；L1 的保留键 `L1Repro.l2GoldSetHash` **仍为 `null`**（L1 不加载 L2 夹具）。`pnpm build --force`（0 缓存，8/8 成功，web/admin 均 Compiled successfully）实证子路径导出可用；**未验证**「加进主入口就会红」这条破坏性实验（已在 spec 标注依据是引用面核查 + 客户端打包面，不是失败实证）。新增 **3 文件 / 20 条 it**；反证 4 轮（白名单漏键红 2 · 锚点漏键红 2 · 拼接式偷懒哈希红 4 · 顺手填 L1 保留键红 2）。门禁：contracts **34/283** · worker **55/249** · api **177/1096+3 skipped** · `pnpm install --frozen-lockfile` 通过。
+- [回写镜像 / 覆盖表 / 夹具说明 + 收口门禁](./issues/06-task-writeback.md) — 见下方「目的地达成」。
+
+### 目的地达成（2026-09-23）
+
+「一次 L2 run 的报告，凭什么能拿来做 L2 准出判定」的三缺已补齐到**可核对**：
+
+1. **采集面拿到了原料**：api CLI 与 worker 内口两侧都取 `evidence_snapshot[].docId` / `citations.length` / `answerKind`（内口本就一直在发，断点原在 worker 的类型定义）；报告落行级 `expectedDocIds` / `evidenceDocIds` / `docHit` / `citationOk` 与整批 `docHitRate` / `docHitHits` / `docHitScored` / `citationComplete` / `citationCompleteDen`，**两侧同构**（三份手抄形状由 contracts 一份名单锚住，单边改名两侧一起红；worker 逐键白名单漏键会静默丢弃，已用测例钉住）。
+2. **零容忍四项各有可核对的处置**：报告 `zeroToleranceCoverage` 把 PRD §6.2 的 **4 个项 → 5 处去处**逐条声明，今天是 **1 处机械判 + 4 处记债**（四项在整项层面全部记为债）。能钉的钉住（「evidence 只能来自 retrieve」的图上不变式：行为型测例 + 源码形状守卫），判不了的**如实记债并写清缺什么才能销账**，**没有**造任何形似代理。
+3. **§8 的 L2 字段落地**：`repro` 三键 —— `l2GoldSetHash` 取真值（口径逐字复用 L1 的 `l1QuestionIdsHash`）、两个版本键因无载体而恒 `null`。
+4. **本条最该被记住的三句话**：① **`docHitRate` 恒 0 是今天的正确取值** —— 夹具写逻辑 id、真跑 `docId` 是 `documents.id`（uuid），`documents` 无 `external_id`、`fixtures/l2/corpus/*` 从未入库；本图**没有**为让它好看而改夹具 / 改 id 体系 / 做模糊或子串匹配。② **两条新判据都不进任何判定** —— PRD §6.2 没有「命中期望文档」这道门，且它今天恒 0，接进去就是第二个「恒 false 空转闸」；`computeL2SignoffEligible` 的公式与取值域**一字未动**。③ **PRD 的门限数字一个字未改**，改的是「报告里能不能读出判据原料」。
+
+**证据**：`packages/contracts/src/eval/l2-matrix.ts` · `l2-repro.ts` · `apps/api/src/scripts/run-l2-golden.ts` · `apps/worker/src/eval/{run-l2-batch,execute-ask-http,persist}.ts` · 测例 `packages/contracts/tests/eval/{l2-evidence-fields,l2-zero-tolerance-coverage,l2-repro}.test.ts` · `apps/api/tests/eval/{l2-evidence-collection,l2-zero-tolerance-coverage,l2-repro-fields}.test.ts` · `apps/api/tests/ask/evidence-from-retrieve-only.test.ts` · `apps/worker/tests/eval/{run-l2-batch-evidence-collection,l2-zero-tolerance-coverage,run-l2-batch-repro}.test.ts` · 夹具说明 `fixtures/l2/{README.md,sample-report.md}`。反证共 **15** 条红（03 四轮 · 04 四轮 · 05 四轮，另有多条跨包连带），还原后全绿。
+
+**收口门禁（在最后一次提交之后复跑）**：`pnpm check-types` **8/8** · `pnpm lint` **8/8** 零 warning · `pnpm build` **8/8** · `pnpm check:module-status` **39 条 = 2 env + 13 符号 + 24 表**，`1-路径` / `6-联动` / `7-时效` **全空** · `git status --short` 干净。
+
+**全仓测试的一条实测事实（不是本图引入，但必须说清）**：`pnpm test` 在**默认并发**下本机跑 3 次的结果是 —— 第一次 `@strict-rag/web#test` 3 条失败、第二次 1 条失败、失败**全部**是 `Test timed out in 5000ms`（从无断言失败），且失败条数每次不同；把 turbo 串行（`pnpm run test --concurrency=1`）后 **11/11 全成功**：api **177 文件 / 1096 通过 + 3 skipped** · worker **55 / 249** · contracts **34 / 283** · admin **38 / 185** · web **19 / 56** · db **11 / 31** · admin-catalog **1 / 13**（合计 **1913 通过 + 3 skipped**）。web 包单独跑也是 **19 / 56 全绿**（同两个用例单独跑 1.9–2.1s，并发下被挤到 >5s）。**结论：web 包在并发争抢下有既有的超时假红，与本图无关**（本图未触碰 web）—— 本图**没有**去调高超时阈值（那属放宽门禁）。
+
+**两条口径教训（与上一图的「七项硬门」同款）**：① **「零容忍」在本图有两个数** —— PRD §6.2 的**项数（4）**与**去处数（5）**；凡用到这个数就必须写出口径，否则「四项零容忍已判」与「5 处里只有 1 处判了」会被读成同一句话。② **`check:module-status` 的 `6-联动` 是「工作区未提交」的信号，不是欠账** —— 它读的是 `git status --porcelain`，源码一提交即自动消失；收官时真正要盯的是 `1-路径` / `3-符号` / `5-表` / `7-时效` 四类。
+
+**一条工程教训（本图新增）**：`docs/testing/coverage/03-ops.md` 的行数核算加式是**手工写的**，本图新加的那条曾把一个分段值写错（加式合计 42 而合计行写 40），是主控用脚本按行求和才抓出来的。**凡在镜像/覆盖表里写加式，必须用脚本按行机械核一遍**，不能靠肉眼。
 
 ## Not yet specified
 
-<!-- 收口后再填：本图没做到、但仍在目的地方向上的雾 -->
+<!-- 收口后剩下的雾，按「谁挡谁」分组，供下一张图挑一个当目的地 -->
 
-- **「主题粘连胡答」的机械判据**（裁定票 02 已定为**债**，此处留的是「将来怎么机械化」）：判它需要「本轮该答什么主题」的机器可读表示。今天最接近的原料是 `L2Case.expectedDocIds`（18 条全有）与 `expected.themePersist`，但 `themePersist=false` 的题（topic_switch / no_session）本来就**不该**命中上轮主题，语义是反的。能否用「命中 `expectedDocIds` 但 `themePersist=false` 时不得命中上轮主题文档」这类交叉约束表达，须先解决 id 映射。
-- **「冲突场景跟错数字」的机械判据**（已定为**债**）：`kb-conflict-*` 的 rubric 写了具体数字（800 / 200），库里是 600 / 120，但**数字在 rubric 自由文本里，不是结构化字段**。要机械化得先给夹具加结构化字段 → 属「先裁再动」，且改夹具会动既有断言。
-- **「合法路径跳过 verify」的机械判据**（已定为**债**）：`debug` 只有 `llmCalls` / `retrieveCalls` / `route_*` / `evidenceCount`，**无 purpose 维度** → 「这轮到底跑没跑 verify」在图上是不可观测的。
-- **`min_support` 那个方向**（已定为**债**）：`AskGraphResult` 不含 claims，`min_support` 只是 `Math.min(...scores)` 一个数值 → 「历史文本被当 claim 送进 verifier」不可观测。销账需要图上先透出 claims 或 claim 来源标记。
-- **「合法 citation」要不要进 L2 的闸**：本图只把它记成率（`citationComplete`）与行级三态，**没进 `signoffEligible`**（L2 没有 ADR-046 绑定，闸的构造面无先例）。它是不是 PRD §6.2 近指代那行「合法 citation」的硬门组成部分，须 PRD 澄清。
-- **逻辑 id → `documents.id` 映射**：本图**没有**做（属数据工程：要真 PG + 给 `fixtures/l2/corpus/*` 一个入库入口，`documents` 表也没有 `external_id`）。L1 侧同缺。这是 `docHitRate` 恒 0 的根因。
-- **L2 报告要不要来源标记**：L1 有了 `judgeAurocSource` 三态；L2 今天只有 `computeL2SignoffEligible` 里的 `retrieveMode === 'live'` 一处。是否要另加「近指代主题正确率来源 = judge / 人 / 缺测」这类标记，取决于上面第一条。
-- **`repro` / 新字段要不要透 DTO**：`EvalRunSchema` 是 `.strict()`，透出即扩契约面；前图 L1 侧刻意没透，本图 L2 侧同裁。何时透出待定。
-- **夹具本身是债**：`near_coref` 3 条 vs PRD「建议 30～50」、总数 18 条（下限 15 的余量只剩 3 条）；扩集须真语料与人，不挡本图的机械面。
-- **`contextMode` / `lifecycleFilterVersion` / `sessionStrategyVersion` 的「版本载体」**（承前图 B 段）：L1 侧已记债为恒 `null`；L2 侧同题，销账需要**先有载体**或 PRD 明确载体。
+本图已收口。下列是**收口后剩下的雾**（带（另图）的原样转给后续图，不是本图的欠账）。
+
+### A · 逻辑 id → `documents.id` 映射（`docHitRate` 恒 0 的根因）
+
+- **夹具的 `expectedDocIds` 是逻辑 id**（`l2-corpus/travel-stay` / `ingest-samples/01-doc`），真跑 `evidence.docId` 是 `documents.id`（uuid v7），`documents` 表**无 `external_id` 或等价列**，全仓**无映射文件 / env / 表**，只有两份 README 的表格与一句「跑批前人工替换」的纪律。**L1 侧同缺**（`fixtures/l1/README.md` 同款纪律）。
+- **`fixtures/l2/corpus/*` 三篇从未入库且无入口**（`scripts/demo-ingest.mjs` 只吃 `fixtures/ingest-samples`）。
+- 销账需要：给 L2 语料一个入库入口 + 一张可核对的「逻辑 id → 当前 KB uuid」映射面（L1 侧一起）。属**数据工程**，要真 PG，非离线可补。
+
+### B · 零容忍另四处去处（已裁定为债，销账各缺前置）
+
+- **`topicStickiness` 主题粘连胡答**：图上**没有**「本轮主题」这个机器可读字段；`L2Expected.themePersist` 只有期望值、无实测值可比。销账 = 先定义「主题」为何物并让图输出实测主题标识（或题面落 per-turn 期望主题 + 可比对字段）。**禁止**用「答里出现了别的文档关键词」顶替。
+- **`historyInMinSupport`**：`AskGraphResult` **不含 claims**，`min_support` 只是 `Math.min(...scores)` 一个数值 → 「历史文本被当 claim 送进 verifier」在图上**不可观测**。销账 = 图上透出 claims 或 claim 来源标记（属改 `AskGraphResult`）。
+- **`kbConflictNumber` 冲突场景跟错数字**：数字只在 `kb-conflict-*` 的 `rubric` **自由文本**里（800 / 200 vs 库内 600 / 120），夹具**无结构化数字字段**。销账 = 先裁「数字比对规则」并给夹具加结构化字段（属「先裁再动」，会动既有断言）。
+- **`skipVerify` 合法路径跳过 verify**：图上**没有**「这轮调没调 verify」的布尔；`debug` 只有 `llmCalls` / `retrieveCalls` / `route_*` / `evidenceCount`，**无 purpose 维度**；靠 `reason` 反推是形似判据。销账 = `debug` 加 purpose 维度或显式 verify 标记（属改 `AskGraphResult`）。
+- **`historyLeaked` 比 PRD 窄**：它判的是「**语料撞词**」（先前用户轮原文出现在 KB chunk 正文里），而 PRD 那半句的真机械对应物是「evidence 只能来自 retrieve」的图上不变式 —— 后者已钉成测例（工单 04），**故这一处其实已到边界**：没有更宽的可判对象了。**禁止**把上轮 assistant 观测文本纳入比对（会假红）。
+
+### C · §8 的版本载体与 L2 侧通用字段
+
+- **`sessionStrategyVersion` / `rewritePromptVersion` 全仓无载体**：`SESSION_REWRITE_ENABLED` 只是布尔，KB 侧只有 `SessionRewriteLock`，rewrite prompt 是内联字符串。销账二选一：引入版本常量载体（prompt 常量或 KB 配置键 / session 策略版本号），或 PRD 明确「版本」的载体是什么。**禁止**拿源码文本哈希顶替（会随任意重构噪声跳变）。
+- **§8 的 L2 侧通用字段**（`models` / 档位预算 / `tauClaim` / `contextMode`）**未落**：L1 侧已有落点（`L1Repro`），L2 侧本图不扩；worker 侧今天更取不到（内口不下发 `mode`）。销账 = 内口透出档位与模型身份。
+- **`repro` 与采集面区块**、**零容忍区块**都**不透** `…/eval/runs` 的 DTO（`EvalRunSchema` 是 `.strict()`）。销账 = 裁「要不要扩契约面」（L1 侧同裁）。
+- **`contextMode` / `lifecycleFilterVersion`** 的版本载体（承前图 B 段）：L1 侧已记债为恒 `null`；L2 侧同题。
+
+### D · L2 的闸构造面（本图刻意不碰）
+
+- **「合法 citation」要不要进 L2 的闸**：本图只把它记成率（`citationComplete`）与行级三态（`citationOk`），**未进** `computeL2SignoffEligible`（L2 没有 ADR-046 绑定，闸的构造面无先例）。它是不是 PRD §6.2 近指代那行「合法 citation」的硬门组成部分，**须 PRD 澄清**。
+- **「命中期望文档」要不要进闸**：同上；且它还额外卡在 §A 的映射上。
+- **L2 报告要不要来源标记**：L1 有了 `judgeAurocSource` 三态；L2 今天只有 `retrieveMode === 'live'` 一处。是否要另加「近指代主题正确率来源 = judge / 人 / 缺测」这类标记，取决于「主题正确」怎么机械化（§B 第一项）。
+- **夹具债**：`near_coref` **3 条**（80% 只能取 0 / 33.3 / 66.7 / 100%，该门今天 ≈「3/3 全过」）、总数 **18 条**（实现下限 15 的余量只剩 3 条）vs PRD「建议 30～50」。扩集须真语料与人。
+
+### E · 相邻未做（工具债 / 跨图）
+
+- **`check:module-status` 的三类误报**：`5-表`（给裸 `null` 加反引号，若同文档另有 `null` 落在「表」字 ±10 字符内就报成表名）、`3-符号`（给未上任何包导出面的常量名加反引号）。本图又踩到一次 `5-表`（新增 6 处，已按先例去掉反引号改写成描述性文字）。销账 = 加黑名单或改判据。
+- **`evaluateL2Stale` 无任何生产调用点**（本图核实）：`l2_stale` 告警是「函数在、线没接」。销账 = 接上调用点。
+- **§6.0 运行时从签字包加载 τ**：与 ADR-007「`TAU_CLAIM` 唯一源」冲突，属改冻结语义（须 ADR → 改 PRD → 升版）；两张图已划出。
 
 ## Out of scope
 
