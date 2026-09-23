@@ -7,7 +7,7 @@
 | 成熟度 | **可演示**（S2c 运营薄壳：文档 / 审批 / 成员 / 分片 / 设置 / 模型 + 用户 / 角色 / 部门 + **数据面板** + **反馈队列** + **评测底线**） |
 | 默认依赖模式 | 鉴权 = 临时双 JWT + admin **dev-login**（经 api）· 知识库 = 顶栏关闭列表（本次 GET 可见库，禁止粘贴 uuid）· 菜单 = `clipMenuForShell` 裁剪（catalog 为 SSOT）· API 默认 `http://127.0.0.1:4000` |
 | 关联模块 | API 依赖：`api` 的文档 / 审批 / 成员 / 分片 / 设置 / 模型 / 用户角色 / 部门 / dashboard / **feedback-queue** / **gold-questions · eval/runs**；菜单与权限码：`admin-catalog`；类型：`contracts`；样式：`ui` |
-| 最近更新 | 2026-09-20（复核：分片策略弹窗 `chunk-strategy-panel.tsx`、KB 设置 docTypes / 策略 / 绑定三写已具备；`pending_review` 审阅面**未做**）；2026-09-17（入库报告行展示 `contextualize_l1_ok` / `contextualize_l0_fallback`，未记录明说未记录）；2026-09-16（审批中心回显提交人；角色页树状授码） |
+| 最近更新 | 2026-09-24（**壳准入行为钉测 + 债写明**：`tests/shell/auth-guard.test.tsx` 新增两条 `it` —— 无 `admin.shell`（web_consumer 空码）→ 清会话 + 跳 /login、**不进壳子树**；进壳只认 `admin.shell`、**KB 角色（read / write）不参与判定**。并写明「壳准入只认 `admin.shell` + **无服务端硬拦截（403 / 302→web）**」的债）；2026-09-20（复核：分片策略弹窗 `chunk-strategy-panel.tsx`、KB 设置 docTypes / 策略 / 绑定三写已具备；`pending_review` 审阅面**未做**）；2026-09-17（入库报告行展示 `contextualize_l1_ok` / `contextualize_l0_fallback`，未记录明说未记录）；2026-09-16（审批中心回显提交人；角色页树状授码） |
 | Spec | `.trellis/spec/admin/frontend/` |
 | PRD | `prds/00-product/05-frontend-ia.md` · 审批 / 成员相关 API |
 
@@ -20,7 +20,7 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 ## 已具备能力
 
 ### 鉴权外壳
-- 登录页、客户端 session、`AdminAuthGuard`（在 ops layout 层拦截未登录访问 + 校验 `admin.shell` 权限码，无码清会话并回登录页）
+- 登录页、客户端 session、`AdminAuthGuard`（在 ops layout 层拦截未登录访问 + 校验 `admin.shell` 权限码，无码清会话并回登录页）；**准入只认 `admin.shell` 权限码**（与 KB 角色无关，行为已由 RTL 专测钉住）—— **无服务端硬拦截**：持读取能力但无壳码的用户只被客户端清会话 + 跳 /login，**不产生** 403 / 302→web
 - 开发登录 `admin/dev-login`（可选角色模板）；登出仅清除本地 session
 - 顶栏按当前用户权限裁剪后展示菜单
 
@@ -135,6 +135,7 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 |----|------|------|
 | Soft Bento / product.pen 未做像素级对齐 | 观感不是最终定稿 | 色板与原子组件在 `packages/ui`；本包只做组合 |
 | 无 E2E、多数运营页无 RTL 测试、无 http 全路径 refresh 测试 | 修改 chunks / models 页面只能靠手测 | 已覆盖外壳 / Guard / 审批 / members / 末位超管 / 超管全码锁 / 反馈纳入黄金集 + R5/R6；catalog 有单测；P0 清单见 `docs/testing/p0-redlines.md` |
+| **app 壳准入只认 `admin.shell`，且无服务端硬拦截（验收剧本 S1 / Y6）** | 验收剧本 S1 / Y6 的具名信号（403 / 302→web）在**客户端会话壳**下**不可能**产生 → Then 只以「管理壳不可用」这一实质要求成立（已测）；服务端硬拦截**未落地** | 壳准入的冻结链：ADR-045 的门禁条款**已被 ADR-051 修订**为「admin 壳 = 拥有 `admin.shell` 权限码」；`admin.shell` **打包在写能力模板首项**里（doc_operator / kb_admin 两支；web_consumer 为空）→ 「仅 read」无壳码。销账条件 = 先 ADR 改会话载体 / 根中间件。裁定见 wayfinder 图 acceptance-divergence |
 
 ---
 

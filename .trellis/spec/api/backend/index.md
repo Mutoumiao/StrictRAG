@@ -80,3 +80,7 @@
 - `prds/04-pipelines/02-online-ask-langgraph.md`  
 - `prds/07-models` · `prds/08-quality` · `prds/09-security`  
 - IS：`docs/module-status/api.md`
+
+## ADR-ready 裁定指针
+
+- 验收剧本 ↔ 源码分歧的 **ADR-ready 裁定书（八条）**：`.scratch/acceptance-divergence/research/02-adr-ready-findings.md`（wayfinder 图 `acceptance-divergence`）—— api 侧四项 = `D-拼句` 死分支与 LLM 路 · `V5` 重提端点契约 · `X4` 白名单前提 · `T6` §6.0 与 ADR-007 · `P3` 抽样链；**改这些须走 ADR → 改 PRD → 升 `prds/README.md` 版本**，本仓不改 `prds/00–11`。
