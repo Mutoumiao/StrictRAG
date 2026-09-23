@@ -39,7 +39,8 @@
 | `nextSessionId` / `acceptHit` / `historyLeaked` | `scripts/run-l2-golden.ts` | 分配 / 末轮机械分 |
 | `hitAtKCase` / `emptyHitAtK` / `accumulateHitAtK` / `hitAtKRate` | contracts `eval/l1-matrix.ts` | docHit 逐题判据与整批率；**直接复用**，禁另写口径 |
 | `l2CitationOk` / `l2CitationComplete` | contracts `eval/l2-matrix.ts` | 合法 citation 三态 / 整批率（后者复用 L1 `citationCompleteRate` 与同一分母谓词） |
-| `L2_EVIDENCE_REPORT_KEYS` / `L2_EVIDENCE_ROW_KEYS` | 同上 | 两侧采集面字段名单（同构唯一锚点） |
+| `l2ZeroToleranceCoverage` / `L2_ZERO_TOLERANCE_ITEM_KEYS` / `L2_ZERO_TOLERANCE_PLACE_KEYS` | 同上 | PRD §6.2 四项零容忍的**处置档位区块**（`mechanical` / `debt`，两侧同源）；见下方「零容忍四项的处置档位」 |
+| `L2_EVIDENCE_REPORT_KEYS` / `L2_EVIDENCE_ROW_KEYS` | 同上 | 两侧采集面 + 零容忍区块的字段名单（同构唯一锚点） |
 | `runL2Golden(opts)` | 同上 | 串行批跑 + 进程内窗；可注入 `execute`；`persistEval?` |
 | `buildL2EvalRunInsert` | 同上 | 纯映射：`runType=session_multiturn` · `signoffEligible='0'` · `matrix*=0` · `coverage=null` · `reportJson.l2Fingerprint`（prompt+model；**≠** 准出） |
 | `l2RewriteFingerprint` | `eval/l2-fingerprint.ts` | SHA-256 hex（prompt + NUL + modelId）；不要把窗/问句/evidence 算进去 |
@@ -87,7 +88,8 @@ persist 的 `reportJson` **可带** `l2Fingerprint`（当前 `rewriteSystemPromp
 ### 零容忍
 
 主题粘连胡答 · 历史进 evidence/`min_support` · 冲突跟错聊天数字 · 合法路径跳过 verify。  
-runner **只机械钉**「先前用户轮全文不得出现在末轮 `evidence_snapshot[].text`」；`themePersist` **不**自动判。
+runner **只机械钉**「先前用户轮全文不得出现在末轮 `evidence_snapshot[].text`」；`themePersist` **不**自动判。  
+四项里「哪几处真判了、哪几处只是记债」由报告的 `zeroToleranceCoverage` 区块逐条声明 —— 见下方「零容忍四项的处置档位」。
 
 ---
 
@@ -99,7 +101,7 @@ runner **只机械钉**「先前用户轮全文不得出现在末轮 `evidence_s
 - **为什么 error 进分母**：排除它会让「全批 error」退化成缺测 → 该门不适用 → 放行（fail-open）。本仓纪律是「无有效数据不外推」（与 τ 扫描的 `scored=0 → tauStar=null` 同款）。
 - **缺测（`null`）→ 不放行**。
 - **残余（写口径时不许省）**：本率**不含**「主题是否正确」（今天无 judge）、**不含**「合法 citation」——两者已按下方「采集面」落成 `docHitRate` / `citationComplete`，但**明确不进本式**（PRD §6.2 没有这两道门，且 `docHitRate` 未映射时恒 0）；夹具只有 3 条 `near_coref`，80% 只能取 0 / 33.3 / 66.7 / 100% → 该门今天约等于「3/3 全过」而非比例门。
-- **未动**：`L2_SIGNOFF_MIN_CASES` 仍是 15（PRD 的 30～50 是**建议**，不是硬门，改它反而严于 PRD）；其余三项零容忍（主题粘连胡答 / 冲突场景跟错数字 / 合法路径跳过 verify）与 `historyLeaked` 的比对宽度（只比对先前**用户**轮，比 PRD 窄）均**未**收紧，属债。
+- **未动**：`L2_SIGNOFF_MIN_CASES` 仍是 15（PRD 的 30～50 是**建议**，不是硬门，改它反而严于 PRD）；其余三项零容忍（主题粘连胡答 / 冲突场景跟错数字 / 合法路径跳过 verify）与 `historyLeaked` 的比对宽度（只比对先前**用户**轮，比 PRD 窄）均**未**收紧 —— 已改为在 `zeroToleranceCoverage` 区块里**逐条如实记债**（见下方「零容忍四项的处置档位」）。
 - **禁止**：把 `null` 判成放行；把「3/3 全过」写成「已满足 80% 比例门」。
 
 ---
@@ -127,6 +129,44 @@ runner **只机械钉**「先前用户轮全文不得出现在末轮 `evidence_s
 
 ---
 
+### 零容忍四项的处置档位（2026-09-23 起）
+
+> 目的：PRD §6.2 写死「**零容忍（任一即 L2 失败）**：主题粘连胡答、历史文本进 evidence/`min_support`、冲突场景跟错数字、合法路径跳过 verify」，而全仓**只有一处**有真机械判据。本区块把「哪几处真判了、哪几处只是记债」写成**机器可读的事实声明** —— 读报告的人不必再靠文档纪律去猜。
+> 工单 `.scratch/l2-report-determinability/issues/04-task-l2-zero-tolerance.md` · 裁定 `02-dec-l2-ruling.md`（裁定 4 / 5 / 6）。
+
+**区块**：报告键 `zeroToleranceCoverage`，纯函数 `l2ZeroToleranceCoverage(zeroToleranceHits)`（contracts `eval/l2-matrix.ts`），api / worker 两侧同源调用，**禁单边另写**。
+形状 = **4 项**（`L2_ZERO_TOLERANCE_ITEM_KEYS`，PRD 原句顺序）× **5 处去**（`L2_ZERO_TOLERANCE_PLACE_KEYS`）—— 因为 PRD 把「历史文本进 evidence/`min_support`」写在**同一项**里点了两个去处：
+
+| item | judged | place | judged | hits |
+|------|--------|-------|--------|------|
+| `topicStickiness` | `debt` | `topicStickiness` | `debt` | `null` |
+| `historyText` | `debt`（半判半债，**不许**写成 `mechanical`） | `historyInEvidence` | **`mechanical`** | **= `zeroToleranceHits`（同源）** |
+| `historyText` | 同上 | `historyInMinSupport` | `debt` | `null` |
+| `kbConflictNumber` | `debt` | `kbConflictNumber` | `debt` | `null` |
+| `skipVerify` | `debt` | `skipVerify` | `debt` | `null` |
+
+- 整项 `judged` = **全部去处** `mechanical` 才 `mechanical`；任一处 `debt` → 整项 `debt`。故裁定 6 的 `historyInEvidence = mechanical` 落在**那一处去**的 `judged` 上；整项按 `debt` 记（另一处去是债），**不许**把半判半债含糊成一行 `mechanical`。
+- `mechanical` 必带命中数、`debt` 必为 `null`：**不许**拿 `0` 冒充「已判且满足」。非法命中数（NaN / 负 / 非有限）**抛错**，不许静默当 0 变成「零容忍全清白」。
+- 区块**不进任何判定**：`computeL2SignoffEligible` 的公式与取值域**一字未动**，`zeroToleranceHits` 仍是它唯一的零容忍合取项。「如实记债」≠ 放行；「一处机械判」≠ 该项已覆盖。
+- **两侧同构**：api `L2Report` 与 worker `L2BatchReport` **都必带**该键；worker `saveL2Report` 的逐键白名单**必须同步**（漏键静默丢弃、零测试红）。键名进 contracts `L2_EVIDENCE_REPORT_KEYS`，两侧键集由测例对同一锚点。api 侧 md 逐条渲染（item / place / judged / hits / note）。
+
+**四条债（逐条写清「PRD 写了什么 / 代码为什么判不了 / 缺什么才能销账」；禁止造形似代理）**
+
+| 去处 | PRD 写了什么 | 代码为什么判不了 | 缺什么才能销账 |
+|------|--------------|------------------|----------------|
+| `topicStickiness` 主题粘连胡答 | 「差旅后突然问无关制度 → **不得**粘连乱答」 | 图上**没有**「本轮主题」这个机器可读字段；`L2Expected.themePersist` 只有**期望值**，无实测值可比（runner 只把它回显成 `expectedThemePersist`） | 先定义「主题」为何物，并让图输出**实测主题标识**（或题面落 per-turn 期望主题 + 可比对字段）。**禁止**用「答里出现了别的文档关键词」这类形似判据顶替 |
+| `historyInEvidence` 历史文本进 evidence | 「历史文本进 evidence」 | **不是判不了，是路径不存在**：`graph/run.ts` 的 `evidence` 唯一写点 = retrieve 结果，正文来自 KB chunk；会话窗只进 `rewriteUserPrompt`。`historyLeaked` 抓的是「**语料撞词**」这一种，**比 PRD 窄** | 要更宽只能等「图把聊天当证据」这条路径出现 —— 今天没有可判对象。**禁止**把上轮 assistant 观测文本纳入比对：assistant 的合法答案本就**逐字引库** → 会**假红**（把合法行为判成零容忍） |
+| `historyInMinSupport` | 同一项里的「`min_support`」半句 | `AskGraphResult` **不含 claims**；`min_support` 只是 `Math.min(...scores)` 一个数值，文本进不去；「历史文本被当 claim 送进 verifier」在图上**不可观测** | 图上先透出 claims 或 claim 来源标记。**禁止**用「`minSupport` 为 0 即泄漏」这类代理充数（属改 `AskGraphResult`，本图**禁止**） |
+| `kbConflictNumber` 冲突场景跟错数字 | 「用户声称上轮数字与库不一致 → **以库为准或拒**，不跟聊天记录」 | 数字只在 `kb-conflict-*` 的 `rubric` **自由文本**里（800 / 200 vs 库内 600 / 120），夹具**无结构化数字字段**；图上只有 `answer` 文本与 `citations[].preview` | 先裁「数字比对规则」（如 answer 金额集合 ⊆ 被引 chunk 金额集合）并给夹具加结构化字段 —— 属「先裁再动」，会动既有断言。**禁止**在没规则前先写个近似匹配当判据 |
+| `skipVerify` 合法路径跳过 verify | 「对抗：按聊天记录答、忽略文档 → **仍 verify KB 或拒答**」 | 图上**没有**「这轮调没调 verify」的布尔；`debug` 只有 `llmCalls` / `retrieveCalls` / `route_*` / `evidenceCount`，**无 purpose 维度**；靠 `reason`（`verified` vs `unsupported_claims`）反推是**形似判据** | 图上给 `debug` 加 purpose 维度或显式 verify 标记（属改 `AskGraphResult`，本图**禁止**）。**禁止**用 `llmCalls` 计数反推调用序列当判据 |
+
+**图上不变式钉成测例（裁定 4）**：PRD 那半句的真机械对应物不是「比对更多文本」，而是**图上不变式「evidence 只能来自 retrieve」**。落地 = `apps/api/tests/ask/evidence-from-retrieve-only.test.ts`：
+
+- **行为型**（优先）：注入 retrieve 与 chat stub，会话窗里放一个独特串 → 断言 `evidence_snapshot` **逐字段等于** retrieve 输出、窗文本不出现在任何 `evidence_snapshot[].text`（拒答路径也不回填），并先断言该窗文本**确实进了 rewrite 提示词**（防止测例空转）。
+- **源码形状守卫**（补行为型拦不住的那半）：`graph/run.ts` 里 `evidence_snapshot:` 只两处（retrieve 分支的**写** + `finalize` 的**回读**），写点来源 = `r.evidence`。谁加**第二个写点** / 换来源即红。
+
+---
+
 ## 4. Validation
 
 | 条件 | 行为 |
@@ -151,6 +191,8 @@ CLI 退出码：`0` 写出报告（含 fail/error 题）；`2` 缺 `L2_KB_ID` / 
 | persist | 同上 | mapper：`runType=session_multiturn` / `'0'` / matrix 0 / coverage null / ranAt 非 ISO-Z / `reportJson.l2Fingerprint` 与函数一致；`persistEval: false` 不碰 DB；开闸用 persist mock，不连真 PG |
 | 指纹 | `tests/eval/l2-fingerprint.test.ts` | 同输入稳定；改 prompt 一字或改 modelId 则变 |
 | 采集面 | api `tests/eval/l2-evidence-collection.test.ts` · contracts `tests/eval/l2-evidence-fields.test.ts` · worker `tests/eval/run-l2-batch-evidence-collection.test.ts` | docHit 复用 `hitAtKCase`（无标注 → null 不计分）；**未映射恒 0** 且不抛错；`citationOk` 三态不进 `failReasons`；两侧键集 = contracts 名单；worker 落库白名单不缺新键 |
+| 零容忍区块 | api `tests/eval/l2-zero-tolerance-coverage.test.ts` · contracts `tests/eval/l2-zero-tolerance-coverage.test.ts` · worker `tests/eval/l2-zero-tolerance-coverage.test.ts` | 四项逐条取值（1 处 `mechanical` + 4 处 `debt`）；`historyText` 一项如实摊成两处；`historyInEvidence.hits` **同源** `zeroToleranceHits`（泄漏题 = 2 即红）；非法命中数抛错；伪造 `mechanical` / 白名单漏键即红；区块不进判定（真 gold 全绿仍 `signoffEligible`） |
+| 图上不变式 | api `tests/ask/evidence-from-retrieve-only.test.ts` | 行为型：窗文本进 rewrite 提示词但**不进** `evidence_snapshot`（逐字段 = retrieve 输出）、拒答路径不回填；源码形状守卫：`run.ts` 的 `evidence_snapshot` 写点唯一且来源 = `r.evidence` |
 
 ---
 

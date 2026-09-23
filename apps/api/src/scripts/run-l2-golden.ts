@@ -21,8 +21,10 @@ import {
   l2CitationComplete,
   l2CitationOk,
   l2NearCorefPassRate,
+  l2ZeroToleranceCoverage,
   nextSessionId,
   type L2Type,
+  type L2ZeroToleranceCoverage,
 } from '@strict-rag/contracts';
 
 import { l2RewriteFingerprint } from '../eval/l2-fingerprint.js';
@@ -91,6 +93,13 @@ export type L2Report = {
   failCount: number;
   errorCount: number;
   zeroToleranceHits: number;
+  /**
+   * PRD §6.2 四项零容忍的处置档位区块（`l2ZeroToleranceCoverage`，两侧同源）：
+   * 逐项声明 `judged: 'mechanical' | 'debt'`，`mechanical` 处带命中数。
+   * 今天只有 `historyInEvidence` 一处是机械判（`hits` 与 `zeroToleranceHits` **同源**），
+   * 其余四处一律 debt。**如实声明，不进任何判定**。
+   */
+  zeroToleranceCoverage: L2ZeroToleranceCoverage;
   /**
    * 近指代通过率：分子 = type='near_coref' ∧ verdict='pass'；分母 = 全部 near_coref 行（含 error）；
    * 分母 0 → null（不放行）。残余（不含主题正确 / 不含合法 citation / 夹具仅 3 题）见
@@ -258,6 +267,19 @@ export function formatL2ReportMd(report: L2Report): string {
         ? 'null'
         : String(Math.round(report.citationComplete * 1000) / 1000)
     } (den=${report.citationCompleteDen}) —— 只记率、不进判定 |`,
+    '',
+    '## zeroToleranceCoverage（PRD §6.2 四项零容忍逐条处置）',
+    '',
+    '> `mechanical` = 有真机械判据在跑（带命中数）；`debt` = 判不了、如实记债。**记债 ≠ 放行；机械判一处 ≠ 该项已覆盖。**',
+    '',
+    '| item | judged | place | judged | hits | note |',
+    '|------|--------|-------|--------|------|------|',
+    ...report.zeroToleranceCoverage.flatMap((item) =>
+      item.places.map(
+        (p) =>
+          `| ${item.key} | ${item.judged} | ${p.key} | ${p.judged} | ${p.hits === null ? '—' : p.hits} | ${p.note} |`,
+      ),
+    ),
     '',
     '## cases',
     '',
@@ -437,6 +459,7 @@ export async function runL2Golden(opts: RunL2Options): Promise<L2Report> {
     failCount,
     errorCount,
     zeroToleranceHits,
+    zeroToleranceCoverage: l2ZeroToleranceCoverage(zeroToleranceHits),
     nearCorefPassRate: l2NearCorefPassRate(rows),
     nearCorefPassDen: rows.filter((r) => r.type === 'near_coref').length,
     docHitRate: hitAtKRate(docHitAcc),

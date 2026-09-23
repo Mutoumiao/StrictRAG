@@ -85,8 +85,9 @@ export function computeL2SignoffEligible(input: {
 }
 
 /**
- * L2 采集面字段名单：api（`L2Report` / `L2CaseRow`）与 worker（`L2BatchReport` / `L2BatchCaseRow`）
- * 是三份手抄形状，本名单是「同名同语义」的单一锚点 —— 任一侧改名 / 漏键，两侧同构测例一起红。
+ * L2 采集面 + 零容忍处置区块的字段名单：api（`L2Report` / `L2CaseRow`）与 worker
+ * （`L2BatchReport` / `L2BatchCaseRow`）是三份手抄形状，本名单是「同名同语义」的单一锚点 ——
+ * 任一侧改名 / 漏键，两侧同构测例一起红。
  */
 export const L2_EVIDENCE_REPORT_KEYS = [
   'docHitRate',
@@ -94,6 +95,7 @@ export const L2_EVIDENCE_REPORT_KEYS = [
   'docHitScored',
   'citationComplete',
   'citationCompleteDen',
+  'zeroToleranceCoverage',
 ] as const;
 
 /** 行级名单；`expectedDocIds` / `evidenceDocIds` / `docHit` / `citationOk` 恒在行上。 */
@@ -155,4 +157,134 @@ export function l2CitationComplete(
       (r) => r.outcome === 'answered' && r.answerKind === 'knowledge',
     ).length,
   };
+}
+
+/** PRD §6.2「零容忍」四项的稳定键（按 PRD 原句顺序） */
+export const L2_ZERO_TOLERANCE_ITEM_KEYS = [
+  'topicStickiness',
+  'historyText',
+  'kbConflictNumber',
+  'skipVerify',
+] as const;
+
+export type L2ZeroToleranceItemKey = (typeof L2_ZERO_TOLERANCE_ITEM_KEYS)[number];
+
+/**
+ * 项内「去处」键。PRD 原句「历史文本进 evidence/`min_support`」一项点了**两处**
+ * （evidence 正文 / `min_support`），故去处比项多一条；其余三项各一处。
+ * 两者都列出来是为了让报告能如实表达「一处已机械判、一处记债」，不许含糊成一行。
+ */
+export const L2_ZERO_TOLERANCE_PLACE_KEYS = [
+  'topicStickiness',
+  'historyInEvidence',
+  'historyInMinSupport',
+  'kbConflictNumber',
+  'skipVerify',
+] as const;
+
+export type L2ZeroTolerancePlaceKey = (typeof L2_ZERO_TOLERANCE_PLACE_KEYS)[number];
+
+/**
+ * `mechanical` = 有真机械判据在跑（须带命中数）；`debt` = 判不了、如实记债。
+ * 缺什么才能销账写在 `.trellis/spec/api/backend/l2-eval.md`；**禁止**造形似代理充数。
+ */
+export type L2ZeroToleranceJudged = 'mechanical' | 'debt';
+
+export type L2ZeroTolerancePlace = {
+  key: L2ZeroTolerancePlaceKey;
+  judged: L2ZeroToleranceJudged;
+  /** `mechanical` = 本跑命中数；`debt` = `null`（无判据，不许拿 0 冒充「满足」） */
+  hits: number | null;
+  /** 一句话：判的是什么 / 为何记债 */
+  note: string;
+};
+
+export type L2ZeroToleranceItem = {
+  key: L2ZeroToleranceItemKey;
+  /** PRD §6.2 原句摘录；两处去的项写全，不许只写一半 */
+  prd: string;
+  /** 整项档位：全部去处 `mechanical` 才 `mechanical`；任一处 `debt` → 整项 `debt` */
+  judged: L2ZeroToleranceJudged;
+  places: L2ZeroTolerancePlace[];
+};
+
+export type L2ZeroToleranceCoverage = L2ZeroToleranceItem[];
+
+/**
+ * PRD §6.2 四项零容忍的**处置档位区块**（api / worker 两侧同源，禁单边另写）。
+ *
+ * 今天只有「历史文本进 evidence」这**一处**有真机械判据（`historyLeaked`），且它判的是
+ * 「**语料撞词**」这一种（先前用户轮原文恰好出现在 KB chunk 正文里），**不是**「图把聊天记录
+ * 当证据」—— 后者在图上结构上不成立（evidence 唯一写点 = retrieve 结果）。同理，此项在整项上
+ * 仍记 `debt`：PRD 同一项里的 `min_support` 那半句今天不可判，整项写 `mechanical` 会藏住那一半债。
+ * 其余各处一律 `debt`（主题粘连 / 冲突数字 / 跳过 verify / `min_support`）：判不了就如实记债，
+ * **不许**造形似代理冒充机械判据。
+ *
+ * `historyInEvidence.hits` 与报告的 `zeroToleranceHits` **同源**：调用方把同一个计数传进来，
+ * 禁止在本区块里另算一份 —— 另算会让报告自相矛盾，这条由测例钉住。
+ */
+export function l2ZeroToleranceCoverage(zeroToleranceHits: number): L2ZeroToleranceCoverage {
+  if (!Number.isFinite(zeroToleranceHits) || zeroToleranceHits < 0) {
+    throw new TypeError('zeroToleranceHits must be a finite number >= 0');
+  }
+  const items: Omit<L2ZeroToleranceItem, 'judged'>[] = [
+    {
+      key: 'topicStickiness',
+      prd: '主题粘连胡答',
+      places: [
+        {
+          key: 'topicStickiness',
+          judged: 'debt',
+          hits: null,
+          note: '图上无机器可读主题字段；expected.themePersist 只有期望值、无实测值可比',
+        },
+      ],
+    },
+    {
+      key: 'historyText',
+      prd: '历史文本进 evidence/min_support',
+      places: [
+        {
+          key: 'historyInEvidence',
+          judged: 'mechanical',
+          hits: zeroToleranceHits,
+          note: 'historyLeaked：先前用户轮原文出现在末轮 evidence 正文（判的是语料撞词这一种）',
+        },
+        {
+          key: 'historyInMinSupport',
+          judged: 'debt',
+          hits: null,
+          note: 'AskGraphResult 不含 claims；min_support 只是数值，不可观测',
+        },
+      ],
+    },
+    {
+      key: 'kbConflictNumber',
+      prd: '冲突场景跟错数字',
+      places: [
+        {
+          key: 'kbConflictNumber',
+          judged: 'debt',
+          hits: null,
+          note: '数字只在 rubric 自由文本里，不是结构化字段；无判据',
+        },
+      ],
+    },
+    {
+      key: 'skipVerify',
+      prd: '合法路径跳过 verify',
+      places: [
+        {
+          key: 'skipVerify',
+          judged: 'debt',
+          hits: null,
+          note: 'debug 只有 llmCalls / route_*，无 purpose 维度；「跑没跑 verify」不可观测',
+        },
+      ],
+    },
+  ];
+  return items.map((item) => ({
+    ...item,
+    judged: item.places.every((p) => p.judged === 'mechanical') ? 'mechanical' : 'debt',
+  }));
 }

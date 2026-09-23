@@ -171,6 +171,7 @@ export const evalPersist: EvalPersist = {
           failCount: report.failCount,
           errorCount: report.errorCount,
           zeroToleranceHits: report.zeroToleranceHits,
+          zeroToleranceCoverage: report.zeroToleranceCoverage,
           nearCorefPassRate: report.nearCorefPassRate,
           nearCorefPassDen: report.nearCorefPassDen,
           docHitRate: report.docHitRate,

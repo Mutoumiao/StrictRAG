@@ -11,6 +11,8 @@ import path from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { l2ZeroToleranceCoverage } from '@strict-rag/contracts';
+
 import { l2RewriteFingerprint } from '../../src/eval/l2-fingerprint.js';
 import { defaultL2GoldPath } from '../../src/eval/l2-gold.js';
 import { rewriteSystemPrompt } from '../../src/graph/prompts.js';
@@ -485,6 +487,7 @@ describe('buildL2EvalRunInsert / persist gate', () => {
       failCount: 1,
       errorCount: 0,
       zeroToleranceHits: 0,
+      zeroToleranceCoverage: l2ZeroToleranceCoverage(0),
       nearCorefPassRate: null,
       nearCorefPassDen: 0,
       docHitRate: null,
@@ -526,6 +529,7 @@ describe('buildL2EvalRunInsert / persist gate', () => {
     expect(json.docHitScored).toBe(0);
     expect(json.citationComplete).toBeNull();
     expect(json.citationCompleteDen).toBe(0);
+    expect(json.zeroToleranceCoverage).toEqual(l2ZeroToleranceCoverage(0));
   });
 
   it('live report still maps signoffEligible to 0 unless report says true', () => {

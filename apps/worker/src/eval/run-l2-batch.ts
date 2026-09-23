@@ -9,10 +9,12 @@ import {
   l2CitationComplete,
   l2CitationOk,
   l2NearCorefPassRate,
+  l2ZeroToleranceCoverage,
   nextSessionId,
   type EvalRetrieveMode,
   type L2Case,
   type L2Type,
+  type L2ZeroToleranceCoverage,
 } from '@strict-rag/contracts';
 import { uuidv7 } from 'uuidv7';
 
@@ -76,6 +78,12 @@ export type L2BatchReport = {
   failCount: number;
   errorCount: number;
   zeroToleranceHits: number;
+  /**
+   * PRD §6.2 四项零容忍的处置档位区块（`l2ZeroToleranceCoverage`，与 api CLI 同源）：
+   * 逐项声明 `judged: 'mechanical' | 'debt'`，`mechanical` 处带命中数（与 `zeroToleranceHits` 同源）。
+   * **如实声明，不进任何判定**；`persist.ts` 的逐键白名单必须同步带上本键（否则静默丢弃）。
+   */
+  zeroToleranceCoverage: L2ZeroToleranceCoverage;
   /**
    * 近指代通过率：分子 = type='near_coref' ∧ verdict='pass'；分母 = 全部 near_coref 行（含 error）；
    * 分母 0 → null（不放行）。残余（不含主题正确 / 不含合法 citation / 夹具仅 3 题）见
@@ -233,6 +241,7 @@ export async function runL2Batch(opts: {
     failCount,
     errorCount,
     zeroToleranceHits,
+    zeroToleranceCoverage: l2ZeroToleranceCoverage(zeroToleranceHits),
     nearCorefPassRate: l2NearCorefPassRate(rows),
     nearCorefPassDen: rows.filter((r) => r.type === 'near_coref').length,
     docHitRate: hitAtKRate(docHitAcc),
