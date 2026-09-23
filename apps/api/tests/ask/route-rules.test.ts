@@ -1,8 +1,9 @@
 /**
  * 目标：闲聊走 chitchat，知识/政策问句走 single，禁止政策句被当成闲聊；fast 档不得调 LLM route。
- * 需求：prds/04-pipelines/02-online-ask-langgraph.md · 剧本 D-fast
+ * 需求：prds/04-pipelines/02-online-ask-langgraph.md · 剧本 D-fast · 剧本 D-拼句 · ADR-033
  * 被测：ruleRoute · runAskGraph（chat purpose 序列）
- * 简介：问候为 chitchat；带知识/政策词的问句必须 single；fast 模糊短句走 single 且无 purpose=route。
+ * 简介：问候为 chitchat；带知识/政策词的问句必须 single；fast 模糊短句走 single 且无 purpose=route；
+ *       route_source 取值域对齐 ADR-033 观测四元（chitchat→rule_chitchat、知识向→rule_knowledge、其余→fallback_single）。
  */
 import { describe, expect, it } from 'vitest';
 
@@ -26,6 +27,21 @@ describe('ruleRoute (M1)', () => {
 
   it('policy word → single not chitchat', () => {
     expect(ruleRoute('你好，年假政策').routeLabel).toBe('single');
+  });
+
+  it('D-拼句: 「你好，请问差旅住宿标准」→ single 非 chitchat，route_source=rule_knowledge', () => {
+    expect(ruleRoute('你好，请问差旅住宿标准')).toMatchObject({
+      routeLabel: 'single',
+      route_post_block: false,
+      route_source: 'rule_knowledge',
+    });
+  });
+
+  it('纯寒暄「你好」→ chitchat，route_source=rule_chitchat', () => {
+    expect(ruleRoute('你好')).toMatchObject({
+      routeLabel: 'chitchat',
+      route_source: 'rule_chitchat',
+    });
   });
 
   it('D-fast: mode=fast 下短句走 single 且从未以 purpose=route 调 chat', async () => {

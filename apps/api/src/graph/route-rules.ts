@@ -2,7 +2,8 @@ import type { AskMode, RouteLabel } from './state.js';
 
 export type RouteDecision = {
   routeLabel: RouteLabel;
-  route_source: 'rule' | 'fallback_single';
+  // ADR-033 观测四元（`llm` 为 P2 未落路径，不预置）
+  route_source: 'rule_chitchat' | 'rule_knowledge' | 'fallback_single';
   route_llm_conf: number | null;
   route_post_block: boolean;
   route_llm_skipped: boolean;
@@ -67,7 +68,8 @@ export function ruleRoute(question: string, mode: AskMode = 'balanced'): RouteDe
     if (blocked) {
       return {
         routeLabel: 'single',
-        route_source: 'rule',
+        // 后置禁词闸语义 = 判为知识向；该支在 P2 无 LLM route 时不可达
+        route_source: 'rule_knowledge',
         route_llm_conf: null,
         route_post_block: true,
         route_llm_skipped: true,
@@ -75,7 +77,7 @@ export function ruleRoute(question: string, mode: AskMode = 'balanced'): RouteDe
     }
     return {
       routeLabel: 'chitchat',
-      route_source: 'rule',
+      route_source: 'rule_chitchat',
       route_llm_conf: null,
       route_post_block: false,
       route_llm_skipped: true,
@@ -85,7 +87,7 @@ export function ruleRoute(question: string, mode: AskMode = 'balanced'): RouteDe
   if (KNOWLEDGE_HINT.test(question) || n.length > 4) {
     return {
       routeLabel: 'single',
-      route_source: 'rule',
+      route_source: 'rule_knowledge',
       route_llm_conf: null,
       route_post_block: false,
       route_llm_skipped: true,

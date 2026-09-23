@@ -1,7 +1,7 @@
 # 落地：ask 分册五行（D-拼句 · H1 · H5e · U8 · J7c）
 
 Type: task
-Status: open
+Status: claimed（主控 2026-09-23 认领；实现子代理执行）
 Blocked by: 02-dec-per-row-ruling
 
 ## Question
@@ -27,3 +27,28 @@ Blocked by: 02-dec-per-row-ruling
 
 - 源码 / 测例 / 覆盖表改动（可提交的 diff）。
 - 本工单 `## Answer`：五行逐行的「收口动作 → 落到哪个文件 → 证据」+ 反证记录（至少把一行改回旧口径 / 拆掉新测例，看是否变红）。
+
+## Answer
+
+### 五行收口（动作 → 文件 → 证据）
+
+| 行 | 收口动作 | 落点 | 证据 |
+|---|---|---|---|
+| `D-拼句` | `route_source` 取值域对齐 ADR-033 观测四元：类型收为 `'rule_chitchat' \| 'rule_knowledge' \| 'fallback_single'`（`llm` 不预置）；映射 `looksChitchat∧!blocked→rule_chitchat`、后置闸 `looksChitchat∧blocked→rule_knowledge`、知识向线索 ∨ `len>4 → rule_knowledge`，空问 / 模糊短句保持 `fallback_single`；`route_post_block` / `routeLabel` / `route_llm_skipped` 未动 | `apps/api/src/graph/route-rules.ts:6,71,80,90` | `apps/api/tests/ask/route-rules.test.ts` 新 `it('D-拼句: 「你好，请问差旅住宿标准」→ single 非 chitchat，route_source=rule_knowledge')`（:32）钉 single + `route_post_block=false` + `rule_knowledge` |
+| `D-拼句`（补） | 钉住纯寒暄支 | `apps/api/tests/ask/route-rules.test.ts` | 新 `it('纯寒暄「你好」→ chitchat，route_source=rule_chitchat')`（:40） |
+| `H1` | 不补 `Retry-After` 头（「可带 / 建议」= 许可）；覆盖值改 `已测` | `docs/testing/coverage/00-ask.md:51` | `apps/api/tests/obs/rate-limit.test.ts` 的 `it('限流触发 → 429 + RATE_LIMITED')`、`apps/api/tests/obs/quota-planes.test.ts` 的 `it('ask RPM>0 触顶 → 429 RATE_LIMITED + plane=ask + ask_quota_exhausted，不得 200 answered')` |
+| `H5e` | 保留 `部分测`；不建 debug / maintenance 档位（ADR-030/034 + `prds/10-delivery/02-ops-runbook.md:201` 禁止），实质不变式由 `H5c` 覆盖 | `docs/testing/coverage/00-ask.md:59` | 缺口列按裁定原文改写，无「源码侧待定」 |
+| `U8` | 不补启动闸（析取已满足，支 B 已落）；覆盖值改 `已测` | `docs/testing/coverage/00-ask.md:87` | `apps/api/tests/kb/settings-http.test.ts` 的 `it('PATCH 含 sessionRewriteEnabledDefault → 400')`（400 `SESSION_REWRITE_DISABLED`） |
+| `J7c` | 同 U8（本行回指 U8）；覆盖值改 `已测` | `docs/testing/coverage/00-ask.md:96` | `packages/contracts/tests/kb/settings-contract.test.ts` 的 `it('requires sessionRewrite locked off')` |
+
+本册小计：`已测` 26→30、`部分测` 25→21（64 行不变）→ `docs/testing/coverage/00-ask.md:111-119`。
+
+### 反证（两轮）
+
+1. 把「知识向线索 ∨ `len>4`」支映射改坏为 `rule_chitchat` → 新 `it('D-拼句…')` **变红**（`route_source: 'rule_chitchat'` ≠ 期望 `rule_knowledge`；1 failed | 5 passed）。
+2. 映射仍坏、**删掉**该 `it` → **5 passed 全绿**（证明红来自该 `it` × 映射，非他因；反证手段确有区分力）。
+**还原后绿**：还原映射与该 `it` 后复跑 —— `pnpm check-types` **8/8**、`pnpm lint` **零 warning**、`pnpm run test --filter @strict-rag/api` **177 文件 / 1098 passed · 3 skipped**（turbo 命中，与首轮绿态同 hash）。
+
+### 未做（「七项不加」守住）
+
+未补 `Retry-After` 头 · 未加 rewrite 启动闸 · 未建 debug / maintenance 档位 · 未新增重提端点 · 未建 worker 指标面 · 未加模型三类闸 · 未收紧 `state.ts:61,124` 与 `ask.contract.ts:129` 宽松类型；未改 `prds/`、`fixtures/`、任何默认开关（`AUTH_ENFORCE` / `SESSION_REWRITE_ENABLED`）。
