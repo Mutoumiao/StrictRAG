@@ -125,4 +125,33 @@ describe('剧本 V5 · admin reject 后禁 scan', () => {
     expect(body.error.details?.approvalStatus).toBe('rejected');
     expect(enqueueState.calls).toHaveLength(0);
   });
+
+  it('V5 边界：rejected 再 reject 幂等 200 且不写库（无回 pending 的重提路径）；非 pending → RULE_VIOLATION', async () => {
+    const app = buildApp();
+    const accessToken = await token(['super_admin']);
+
+    // 已 rejected：幂等 200，不重复落库，approvalStatus 仍为 rejected（仓内无 rejected→pending 重提）
+    docState.approvalStatus = 'rejected';
+    const again = await app.request(`/api/v1/documents/${DOC}/reject`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    expect(again.status).toBe(200);
+    const againBody = (await again.json()) as { data: { approvalStatus: string } };
+    expect(againBody.data.approvalStatus).toBe('rejected');
+    expect(docState.rejectCalls).toBe(0);
+    expect(docState.approvalStatus).toBe('rejected');
+
+    // 非 pending（已批）→ RULE_VIOLATION，不得驳回
+    docState.approvalStatus = 'approved';
+    const notPending = await app.request(`/api/v1/documents/${DOC}/reject`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    expect(notPending.status).toBe(400);
+    const notPendingBody = (await notPending.json()) as { ok: boolean; error: { code: string } };
+    expect(notPendingBody.ok).toBe(false);
+    expect(notPendingBody.error.code).toBe('RULE_VIOLATION');
+    expect(docState.rejectCalls).toBe(0);
+  });
 });
