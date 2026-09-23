@@ -8,6 +8,8 @@
 
 工程绿（vitest + mock/注入）**≠** 签字 PASS。C1 的 2×2 纯函数与 CLI 注入可部分测；C2 τ 扫描 / C3 Judge AUROC 为部分测；C4 Hit@k 为已测；C5 为人签 UAT。在线抽样分不得作为本剧通过条件。
 
+本表另有一行 **`L2`**（**派生行**，非剧本 C 的编号步骤）：PRD 剧本 J 的 P2.5 通过条件含「**L2 报告归档**」（`prds/10-delivery/03-acceptance-scenarios.md` 剧本 J-P2.5 · 角色范围「P2.5：J-P2.5 + **L2**」），故把 L2 报告**本体的可判定面**拉进验收面。它**不是**「L2 已通过」：覆盖值 `部分测`，`computeL2SignoffEligible` 仍是工程公式（live ∧ 九类齐 ∧ 零容忍机械项=0 ∧ ≥15 ∧ 近指代率 ≥0.8），真跑归档 + RACI 人签仍缺。
+
 | ID | 期望摘要 | 阶段 | 形态 | 覆盖 | 主包 | 证据 | 缺口 |
 |----|----------|------|------|------|------|------|------|
 | C1 | 黄金集 1:1、seed 固定，产出 2×2 | 签字剧；工程 seed 可测 | 单测+注入 | 部分测 | api · worker | apps/api/tests/eval/l1-matrix.test.ts · apps/api/tests/eval/l1-cli.test.ts · apps/api/tests/eval/http-eval-runs.test.ts · apps/worker/tests/eval/run-l1-batch.test.ts · fixtures/l1/gold.yaml | 已断言 A–D 格、error 出格、coverage=A/(A+B)、mock 时 `signoffEligible=false`、gold≥30+30、HTTP 入队。缺：live 固定 seed 真跑 2×2 数字、业务题面人审。**阻塞方：live 真跑 + 业务/产品人签（签字剧），非离线可补。** |
@@ -15,6 +17,7 @@
 | C3 | Judge 校准产出 AUROC 报告 | 签字剧 | 单测 | 部分测 | api · worker · contracts | packages/contracts/tests/eval/l1-judge-calib-source.test.ts · packages/contracts/tests/eval/l1-judge-auroc.test.ts · apps/api/tests/eval/judge-auroc-source-gate.test.ts · apps/api/tests/eval/l1-cli.test.ts · apps/api/tests/env/defaults.test.ts · apps/worker/tests/eval/run-l1-batch-judge-source.test.ts · apps/worker/tests/eval/run-l1-batch.test.ts · fixtures/l1/judge-calibration.json | 独立校准集 + Mann-Whitney；不用 gold type 当 label。**本轮把「打分器来源」与 PRD §4 规模门接进判定**：env `JUDGE_CALIB_SCORER`（off 默认 / mock / http）→ 报告 `judgeAurocSource`（live / mock / none），**判定只认 live**（mock 值可打印、绝不进签字公式，PRD §6.1 / ADR-061），worker 与 api 共用同一套映射；规模门 `JUDGE_CALIB_MIN_CASES`（=100）进判定，边界 99 不过 / 100 · 101 过，且与「来源非 live」「值缺 / 低于门限」三条 red 各自可分辨；真打分器走 `purpose=judge`（go/no-go：声明 http 而 Gateway 非 http → 入口 exit 2）。缺：live judge 真跑（本机无 Gateway / 密钥）、≥100 条真标注校准集（夹具仍 8 题 → 真入口被如实拒绝，**不是**空转闸）、独立 `verifier_calib` 入队。**阻塞方：live judge 真跑 + ≥100 真标注 + 人签，非离线可补。** |
 | C4 | 有 expectedDocIds 时算 Hit@k | 签字剧 | 单测 | 已测 | api · worker · contracts | packages/contracts/tests/eval/l1-hit-at-k.test.ts · apps/api/tests/eval/l1-cli.test.ts · apps/worker/tests/eval/run-l1-batch.test.ts | 有非空 expected 按 evidence.docId 交集计分；无名单不计分；不进 2×2 / signoffEligible。逻辑 id→uuid 仍是**跑批前人工步骤**（`fixtures/l1/README.md:20-24`；`fixtures/l1/gold.yaml` 写逻辑 id，`run-l1-golden.ts:669` / `run-l1-batch.ts:176` 直比 `evidence.docId`）→ 未映射时 Hit@k 恒 0；本轮补的是「未映射不得伪命中」护栏（`packages/contracts/tests/eval/l1-hit-at-k.test.ts`：互不命中且不抛错 · 换 uuid 后命中 · 只认 trim 后全等） |
 | C5 | 签字页对照试点门禁，RACI 人签 | 签字剧；工程绿≠PASS | UAT | UAT | api | apps/api/tests/eval/l1-matrix.test.ts（`computeSignoffEligible`）· apps/api/tests/eval/adr046-snapshot.test.ts · fixtures/l1/RACI.md | 工程可算 `signoffEligible`；签字 PASS 须 live + 四要素 + RACI 人签。mock coverage 禁进签字叙事。 |
+| L2 | L2 报告归档：报告**本体的可判定面**齐 —— 命中期望文档（`docHitRate` / `docHitHits` / `docHitScored`）· 合法 citation（行级 `citationOk` + 整批 `citationComplete` / `citationCompleteDen`）· 零容忍四项处置档位（`zeroToleranceCoverage`）· §8 可复现区块（`repro` 三键）；且**不得**因「记债」而变绿 | P2.5（PRD 剧本 J 的通过条件；派生行，非剧本 C 编号步骤） | 单测 | 部分测 | api · worker · contracts | 新增 10 文件 / **65** 条 it（contracts 29 · api 20 · worker 16）：packages/contracts/tests/eval/l2-evidence-fields.test.ts（10）· packages/contracts/tests/eval/l2-zero-tolerance-coverage.test.ts（9）· packages/contracts/tests/eval/l2-repro.test.ts（10）· apps/api/tests/eval/l2-evidence-collection.test.ts（8）· apps/api/tests/eval/l2-zero-tolerance-coverage.test.ts（3）· apps/api/tests/eval/l2-repro-fields.test.ts（5）· apps/api/tests/ask/evidence-from-retrieve-only.test.ts（4）· apps/worker/tests/eval/run-l2-batch-evidence-collection.test.ts（8）· apps/worker/tests/eval/l2-zero-tolerance-coverage.test.ts（3）· apps/worker/tests/eval/run-l2-batch-repro.test.ts（5）；改写既有 2 处（contracts `eval/l2-evidence-fields.test.ts` 键集 6→7 · api `eval/l2-cli.test.ts` 的 `sampleReport()` 补键）· 夹具 fixtures/l2/gold.yaml（**一字未动**：18 条 / `expectedDocIds` 25 处引用 / 去重 6 个逻辑 id / `near_coref` 仅 3 条） | 已断言：`docHit` 复用 `hitAtKCase`（无标注 → `null` 不计分）；**未映射恒 0** 且不抛错、`signoffEligible` 仍为工程公式值；`citationOk` 三态（`chitchat` / 未下发 → `null`）不进 `failReasons`；两侧键集 = contracts `L2_EVIDENCE_REPORT_KEYS`（7 键）/ `L2_EVIDENCE_ROW_KEYS`（6 键）；worker `saveL2Report` 白名单不缺键（`set` 载荷逐键比对）；零容忍区块 = 4 项 × 5 处去，逐条取值（**1 处 `mechanical` + 4 处 `debt`**）且 `historyInEvidence.hits` 与 `zeroToleranceHits` 同源、非法命中数抛错；`l2GoldSetHash` 逐字等同 `l1QuestionIdsHash`、换序同值 / 改一个 id 即变 / 空集 → `null`、两个版本键恒 `null`；`evidence_snapshot` 逐字段 = retrieve 输出且 `run.ts` 写点唯一。**缺口**：①**工程绿 ≠ L2 准出** —— `computeL2SignoffEligible` 公式与取值域一字未动，真跑归档 + RACI 人签仍缺；②`docHitRate` 在夹具**逻辑 id 未映射**时恒 0（`fixtures/l2/corpus/*` 从未入库、`documents` 无 `external_id`）→ **不得当成绩**，且不进判定；③PRD §6.2 四项零容忍 → **5 处去处只有 1 处机械判**（`historyInEvidence`，判的是「语料撞词」这一种），另 **4 处记债**（`historyText` 整项半判半债，不许写成整项 mechanical）；④`repro` 的两个版本键（session 策略 / rewrite prompt）**全仓无版本载体** → 恒 `null`；⑤夹具 18 条 / `near_coref` 仅 3 条 → 80% 门今天 ≈「3/3 全过」；⑥区块与 `repro` **不透** `…/eval/runs` DTO（`EvalRunSchema` `.strict()`）；⑦§8 的 L2 侧通用字段（`models` / 档位 / `tauClaim`）未落。**阻塞方：live 真跑 + 语料入库（逻辑 id → `documents.id` 映射）+ 人签，非离线可补。** |
 
 ## 剧本 G · 反馈闭环
 
@@ -182,9 +185,11 @@ Phase 4 建议，**不挡 P2** → 默认延后。I2 指标与 I4 双轨可部�
 
 **第五轮（2026-09-23 · 图 `l1-signoff-evidence` 工单 06）**：本分册**无行级覆盖值变化**（C 行仍 1 已测 / 3 部分测 / 1 UAT；T 行仍 3 已测 / 5 部分测 / 2 延后），只改证据与缺口文字 —— **C3** 的证据补上「打分器来源三态进判定（判定只认 live，mock 只打印）」与「PRD §4 规模门 ≥100 进判定（reason 与缺测可分辨）」，缺口仍缺 live judge 真跑与 ≥100 真标注；**C4 / T3 / T6** 的行号随源码改动同步（C4 的 `run-l1-golden.ts:437` → `:669`、`run-l1-batch.ts:115` → `:176`、`fixtures/l1/README.md:23` → `:20-24`；T3 的 `adr046-snapshot.ts:146` → `:165`；T6 的 `:174,268` → `:265,315`）；**T4** 的「五项实测」改「**六项**实测」（人工抽检账本 + 打分器来源 live + 校准规模 ≥100 已随新门进助手；常量 7 键，人工抽检占两键）；剧本 C 的导语把 C4 改回与行级一致的「已测」。判据来源 `prds/08-quality` 的门限数字**一个字未改**，改的是「有没有数据源 + 有没有真按它判」。
 
+**第六轮（2026-09-23 · 图 `l2-report-determinability` 工单 06）**：**新增 1 行**（剧本 C 的派生行 **`L2`**，覆盖值 `部分测`），该行由 PRD 剧本 J 的 P2.5 通过条件「L2 报告归档」与角色范围「P2.5：J-P2.5 + **L2**」支撑，**不是**剧本 C 的编号步骤、也**不是**「L2 已通过」。该行登记本轮图工单 03 / 04 / 05 落地的 10 个测例文件 / 65 条 it 与其缺口（工程绿 ≠ 准出 · `docHitRate` 未映射恒 0 · 四项零容忍 5 处去处只有 1 处机械判 · 两个版本键恒 `null` · 夹具 18 条 / `near_coref` 3 条 · 区块不透 DTO · §8 L2 侧通用字段未落）。**其余各行字面与覆盖值一个字未改**（C1–C5 / G / N / O / P / R / T / AB / AC / AD / I 全部保持第五轮终态）。判据来源 `prds/08-quality` §6.2 / §8 的门限与字段表**未动**；本图只补「报告里能不能读出判据原料」，**没有**给 `computeL2SignoffEligible` 加任何合取项。
+
 | 剧本 | 步骤数 | 已测 | 部分测 | 缺测 | 缺实现 | 延后 | UAT |
 |------|--------|------|--------|------|--------|------|-----|
-| C | 5 | 1 | 3 | 0 | 0 | 0 | 1 |
+| C | 6 | 1 | 4 | 0 | 0 | 0 | 1 |
 | G | 3 | 1 | 2 | 0 | 0 | 0 | 0 |
 | N | 9 | 1 | 0 | 0 | 0 | 0 | 8 |
 | O | 11 | 2 | 1 | 0 | 0 | 8 | 0 |
@@ -195,6 +200,8 @@ Phase 4 建议，**不挡 P2** → 默认延后。I2 指标与 I4 双轨可部�
 | AC | 9 | 7 | 2 | 0 | 0 | 0 | 0 |
 | AD | 10 | 10 | 0 | 0 | 0 | 0 | 0 |
 | I | 5 | 0 | 2 | 0 | 0 | 3 | 0 |
-| **合计** | **93** | **40** | **18** | **0** | **3** | **23** | **9** |
+| **合计** | **94** | **40** | **19** | **0** | **3** | **23** | **9** |
 
-ID 闭集（93）：C1–C5；G1–G3；N1–N9；O1–O11；P1–P11；R1–R12；T1–T10；AB1–AB8；AC1–AC9；AD1–AD10；I1–I5。
+行数须与上表合计一致：C **6**（= PRD 剧本 C 的 5 步 **+ 1 派生行 `L2`**）· G3 · N9 · O11 · P11 · R12 · T10 · AB8 · AC9 · AD10 · I5 = **94**；1+1+1+2+1+6+3+8+7+10+0 = 40 已测，4+2+0+1+2+1+5+0+2+0+2 = 19 部分测，0+0+0+0+0+0+0+0+0+0+0 = 0 缺测，0+0+0+0+1+2+0+0+0+0+0 = 3 缺实现，0+0+0+8+7+3+2+0+0+0+3 = 23 延后，1+0+8+0+0+0+0+0+0+0+0 = 9 UAT（2026-09-23 第六轮按行级机械重数：C 由 5 步 + 新派生行 = 6，其余不变）。
+
+ID 闭集（94）：C1–C5 · **L2**（派生行 · PRD 剧本 J 的 P2.5 通过条件「L2 报告归档」）；G1–G3；N1–N9；O1–O11；P1–P11；R1–R12；T1–T10；AB1–AB8；AC1–AC9；AD1–AD10；I1–I5。

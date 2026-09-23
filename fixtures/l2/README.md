@@ -35,6 +35,18 @@ L2_KB_ID=<kb-uuid> pnpm --filter @strict-rag/api exec tsx src/scripts/run-l2-gol
 报告：`artifacts/l2-last-run.json` + `.md`（gitignore）。`signoffEligible` **恒 false**。  
 CI 只钉纯函数 + mock `execute`；**禁止**把本跑数字写成 L2 通过。
 
+## 报告字段（2026-09-23 起新增的可判定面）
+
+| 字段 | 位置 | 口径 |
+|------|------|------|
+| `docHitRate` / `docHitHits` / `docHitScored` | 报告 | 命中期望文档（复用 L1 `hitAtKCase` 一族）；分母 = 有非空 `expectedDocIds` 的题数（**含 `error` 题**）；分母 0 → `null`。**`docHitRate` 未映射时恒 0，不得当成绩**（夹具写逻辑 id、真跑 `evidence.docId` 是 KB uuid；见下方「逻辑 id 映射」） |
+| `citationComplete` / `citationCompleteDen` | 报告 | 引用完整率与其分母（口径 = L1 `citationCompleteRate`：分子 = `knowledge ∧ answered ∧ citations>0`）；**只记率、不判词** |
+| `zeroToleranceCoverage` | 报告 | PRD §6.2 四项零容忍的**处置档位**（4 项 × 5 处去处，逐处 `mechanical` / `debt`）；见下方「零容忍」 |
+| `repro` | 报告 | §8 可复现区块三键：`l2GoldSetHash`（本跑**实际使用**的题面 id 集合，取真值）· `sessionStrategyVersion` / `rewritePromptVersion`（**全仓无版本载体** → 恒 `null`，禁拿源码文本哈希顶替） |
+| `docHit` / `citationOk` / `evidenceDocIds` / `answerKind` / `citationCount` | cases 行 | 判据**原料**：`docHit` 无标注题 → `null` 不计分；`citationOk` 只对 `knowledge` 判词（`chitchat` / 未下发 → `null`），`false` **不进** `failReasons` |
+
+**四者都不进判定**：`docHit*` / `citationComplete*` / `zeroToleranceCoverage` / `repro` 都**不接进** `computeL2SignoffEligible`（PRD §6.2 没有这些门；「记债」更不得当门）。
+
 ## 逻辑 id 映射
 
 真跑前须把 gold 中的逻辑 id **映射**为当前 KB 的 `documents.id`（uuid）。与 L1 相同纪律。
@@ -47,6 +59,8 @@ CI 只钉纯函数 + mock `execute`；**禁止**把本跑数字写成 L2 通过�
 | `l2-corpus/leave-policy` | `fixtures/l2/corpus/leave-policy.txt` |
 
 `corpus/` 正文**尚未**走 worker 入库。未映射 / 未入库时不得拿检索命中率当成绩。
+
+**今天无映射入口**（这是 `docHitRate` 恒 0 的根因，不是「没量到」而是「没得量」）：`documents` 表**无 `external_id` 或等价列**，`fixtures/l2/corpus/*` 三篇从未入库且无入库入口；`expectedDocIds` 与 `evidence.docId` 今天必然比不中。
 
 ## 题型（§6.2 八类 + 隔离）
 
@@ -64,17 +78,21 @@ CI 只钉纯函数 + mock `execute`；**禁止**把本跑数字写成 L2 通过�
 
 签字目标规模（**非本窗**）建议 30～50 + 真跑归档，见 P2.5 出口。
 
-## 零容忍（写入账本；机械 runner 只钉历史泄漏）
+## 零容忍（写入账本；报告逐处声明处置档位）
 
-任一即未来 L2 失败：
+「任一即 L2 失败」的四项在报告里由 `zeroToleranceCoverage` **逐处声明** `mechanical` / `debt`：
 
-- 主题粘连胡答（本窗**不**自动判；报告只回显 `themePersist`）
-- 历史文本进 evidence / `min_support`（runner 机械检查先前用户轮全文）
-- 冲突场景跟错聊天数字
-- 合法路径跳过 verify
+- 主题粘连胡答 —— `debt`（本窗**不**自动判；报告只回显 `themePersist`）
+- 历史文本进 evidence / `min_support` —— 分两处去：`historyInEvidence` **`mechanical`**（`historyLeaked`，判的是「**语料撞词**」这一种：先前用户轮原文恰好出现在 KB chunk 正文里）· `historyInMinSupport` `debt`
+- 冲突场景跟错聊天数字 —— `debt`
+- 合法路径跳过 verify —— `debt`
+
+**口径必须写全**：PRD §6.2 的**四项 → 五处去处 = 1 处机械判 + 4 处记债**；`historyText` 一项**半判半债**，故**四项在整项层面全部记为 `debt`**（把它写成整项 `mechanical` 会把 `min_support` 那半句债藏起来）。**`mechanical` 才带 `hits`；`debt` 恒 `null`。记债 ≠ 放行。**
 
 ## 本窗不做
 
 - 把 persist 当准出 / 算出 `signoffEligible=true` / ADR-046 快照 / 主题 LLM judge
+- 把 `docHitRate` / `citationComplete` / `zeroToleranceCoverage` / `repro` 当成绩或当判定项；把 `debt` 读成放行
+- 为了让 `docHitRate` 非 0 而改 id 体系 / 做模糊或子串匹配（映射属数据工程）
 - 打开仓库默认 `SESSION_REWRITE_ENABLED`
 - 宣称 L2 准出 / 全文 P2 / 生产 ES / 连续追问已开
