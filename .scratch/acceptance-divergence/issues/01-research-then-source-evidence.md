@@ -1,7 +1,7 @@
 # 研究：16 行「Then ↔ 源码」分歧的逐行取证
 
 Type: research
-Status: open
+Status: resolved（取证子代理 2026-09-24 完成；本票只读取证，未改任何源码 / 测例 / 文档 / 配置）
 Blocked by: —
 
 ## Question
@@ -29,3 +29,26 @@ Blocked by: —
 
 - `.scratch/acceptance-divergence/research/01-then-source-evidence.md`（简体中文；每行一节；末尾附「16 行 × 四类初步归类」的汇总表，只做归类不做裁定）。
 - 本工单文件末尾追加 `## Answer`（≤ 20 行，指向上面那份文件 + 三到五条最硬的发现）。
+
+## Answer
+
+取证落盘：`.scratch/acceptance-divergence/research/01-then-source-evidence.md`（16 行每行含 6 项：PRD 逐字 + 行号 / 加强软化句、Then 硬要求 vs 许可·析取·举例拆解、源码实数带锚点 + 实跑检索命令、覆盖表口径逐字与转述核对、现有测例、离线可做性；末尾附 16×甲乙丙丁归类表）。
+
+归类（只归类不裁定）：甲 4（`M8` `V5` `X4` `R9`）· 乙 6（`H1` `U8` `J7c` `S1` `Y6` `AC2`）· 丙 4（`D-拼句` `H5e` `S4` `P3`）· 丁 2（`X5` `T6`）。
+
+最硬发现：
+1. **「覆盖表按必须读了 PRD 的许可 / 析取」共 6 行**：`H1`（`:146`「**可带** Retry-After」；`prds/05-api/01-http-api-hono.md:562/599` 两处均写「**建议**」）、`U8`（`:365`「或」）、`J7c`（`:572`「或」）、`S1`/`Y6`（`:320`/`:415`「403 **或** 302→web」）、`AC2`（`:479` 字面只要求「可保存」；`prds/05-api/01-http-api-hono.md:465` 也只要求「至少一模型」）。
+2. **真实源码缺口 4 行**：`M8`（审计 hash + uploaderId + timestamp 无落点）、`V5`（无 `rejected→pending` 重提端点）、`X4`（`kb-settings.ts:278` KB 未配 `docTypes` 时放行任意类型）、`R9`（worker 入库 embed 零打点，`git grep plane apps/worker/src` 零命中）。
+3. **引用了源码不存在的面 4 行**：`D-拼句`（`route_source=rule_knowledge` 源码零命中；`route_post_block=true` 支与 `looksChitchat` 互斥不可达）、`H5e`（debug / maintenance 档位 `apps/api/src` 零命中）、`S4`（壳准入只认平台码 `admin.shell`，非 KB read/write）、`P3`（调用侧 `ChatPurpose` 无 `judge_aux` + 无 online_sample 链）。
+4. **覆盖表转述与源码有出入 3 处（结论多不受影响）**：`M8` 写 `routes/documents/index.ts:361` 实际 `:352`；`X4` 把 `assertScopeDocTypesAllowed` 出处写成 `routes/ask.ts`，实际定义在 `services/kb-settings.ts:273`；`U8`/`J7c`/`AC2`/`D-拼句` 行号轻微漂移。
+5. **撞冻结语义 / 外部基建 2 行**：`T6`（无运行时加载入口，落实撞 ADR-007「TAU_CLAIM 唯一源」，源码注释 `kb-settings.ts:62-68` 自陈须先 ADR）、`X5`（ES 查询期 `doc_type` filter 缺，`es-sparse.ts` 零命中，阻塞方 = 真 ES / B8）；边界行 `S1`/`S4`/`X5` 已括注，供工单 02 裁定。
+
+## 主控复核补记（对抗性反向复核，2026-09-23）
+
+本票结论经主控逐条反向复核：**归类表 16 行全部核对，三行需修正，其余 13 行采纳**。修正项已同步进 `map.md` 基线与工单 02：
+
+1. **`D-拼句` 由 丙 改判为「乙（行本身）+ 甲（它点到的面）」**。本票正确挖出 ADR-033 观测四元（`:402`），但归类停在第 2 层。主控补：`route_source` 的冻结取值域在**四处**冻结写法里（ADR-033 决策 5 + 图边 `:133` + 在线 `:170` + 运维 `:46` 指标标签），源码 `'rule'` **不在枚举内** → 属**源码缺实现（且 `docs/module-status/api.md` 对该字段零记载，连债都没记）**，不是「Then 引用不存在的面」。主控已量清爆炸面：生产点仅 `route-rules.ts`，`state.ts:61` / `ask.contract.ts:129` 均宽松类型，既有断言**零处**断言 `'rule'`。
+2. **`S4` 由 丙 改判为 乙**。本票列了两种读法但未定读法。主控另查到本票未引的 **ADR-051 `:1344`「修订 ADR-045 壳准入：admin 壳 = 拥有 `admin.shell` 权限码」** 与 ADR-045 #3（`:963-964`）「任一 `write`/`admin` 即可进 admin」→ 因 `admin.shell` 打包在写能力模板里（`role-templates.ts:19`/`:24`），「有写能力 ⟹ 有壳码 ⟹ 可进壳」**成立**，故 Then 的硬要求按**能力**读成立；Then 的 KB 角色措辞沿用的是**已被修订**的 ADR-045。
+3. **`S1` / `Y6` 保留 乙，但须写清「引的是已被修订的 ADR-045 #1」**。本票把「与 Then 不一致」当成结论，主控补上冻结链：ADR-045 #1（`:957`）→ ADR-051（`:1344`）修订；`Y6` 无括注可依，裁定难度高于 `S1`。
+4. **采纳**：`H1` `U8` `J7c` `AC2` 的乙类判定（措辞硬证；`prds/05-api/01-http-api-hono.md:562`/`:599` 的「建议」与 `:465`「至少一模型」主控已逐字复核一致）；`M8` `V5` `X4` `R9` 的甲类判定（锚点主控逐条复跑一致）；`H5e` `P3` 的丙类；`X5` `T6` 的丁类。
+5. **采纳本票 3 处转述出入**（`M8` `:361`→`:352`、`X4` 函数出处、多处行号漂移）—— 已写进工单 07 的覆盖表订正清单口径。

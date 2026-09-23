@@ -1,7 +1,7 @@
 # 验收剧本 16 行「Then ↔ 源码」分歧的裁定与收口
 
 Label: wayfinder:map
-Status: open（前沿：工单 01）
+Status: open（前沿：工单 03 · 04 · 05 · 06 —— 02 已解锁、均未认领；01 · 02 已收口）
 
 ## Destination
 
@@ -20,6 +20,7 @@ Status: open（前沿：工单 01）
 
 - **Then 的措辞就是判据**。PRD 原文写「**可带**」（H1）、「**可为** … **或**」（D-拼句）、「…**或** …」（U8 / J7c / S1 / Y6）、「**建议** Retry-After」（`prds/05-api/01-http-api-hono.md` RATE_LIMITED 那行）的，都是**许可 / 析取**，**源码满足任一支即合规**；覆盖表按「必须」记成缺口，属**镜像偏严（over-claim）**——本图必须订正，不许原样留着当欠账。
 - **PRD 写死且是单一硬要求**的（如 X4「未知类型 → **400**」、S4「**可进** admin」、T6「**加载拒绝**」），源码缺就是**实现缺口**：能离线且属「收紧或逐位等价」的落地并补测例；撞冻结语义（如 T6 撞 ADR-007「`TAU_CLAIM` 唯一源」）或撞外部基建（X5 的 ES 查询期 filter 属 B8）的，**如实记债并写明阻塞方**。
+- **第三类（建图后新识）· 冻结契约缺口**：某行点到的源码面与**别处已冻的契约**（ADR / 图边 / 在线 / 运维 PRD 的字段表与指标标签）取值域不一致，且**该面既非收紧也非逐位等价地可对齐**（例：`D-拼句` 点到的 `route_source` —— ADR-033 观测四元钉死四值，源码只有 `'rule'` + `'fallback_single'`）。这类**可以落地**，但必须同时满足三条：① **爆炸面已量清**（生产点 + 引用面 + **既有断言清单**，逐条列出），② 该面的类型在上下游是**宽松类型**（`string` / `z.string()`，无需改 DTO 契约），③ 收口报告**显式声明**这是「**行为可见的契约对齐**」（既非收紧亦非逐位等价），并附爆炸面证据。凡三条有一条不满足 → 记债 + ADR-ready，不许硬改。
 - **不改 `prds/00–11`**。「Then 写错了」这条结论**本图只能写成 ADR-ready 裁定书**（改冻结语义须 ADR → 改 PRD → 升 `prds/README.md` 版本），不许直接改剧本一个字。
 
 ### 成功长什么样
@@ -53,16 +54,16 @@ Status: open（前沿：工单 01）
 
 | 行 | 分册 | PRD 原文要点（措辞） | 源码现状（亲核） | 分歧类型初判 |
 |---|---|---|---|---|
-| `D-拼句` | ask:83 | 「你好，请问差旅住宿标准」→ **不得** chitchat（后置禁词闸；应 single 检索路径）；`route_post_block` **可为** true **或** `route_source=rule_knowledge` | 该问句在 `apps/api/src/graph/route-rules.ts` 走 `n.length > 4` 支 → `routeLabel='single'` / `route_source='rule'` / `route_post_block=false`；`route_source=rule_knowledge` 全仓不存在（仅 `'rule'` / `'fallback_single'`）；`route_post_block=true` 那一支需 `looksChitchat ∧ POST_BLOCK.test(question)` 同时为真，而 `looksChitchat` 只认「整句就是寒暄」（归一后仅剩称呼 + 尾标点）→ 该支**事实不可达** | 硬要求（不得 chitchat / 应 single）**已满足**；注释里的机制与取值**与源码不符**（措辞面 + 死分支） |
+| `D-拼句` | ask:83 | 「你好，请问差旅住宿标准」→ **不得** chitchat（后置禁词闸；应 single 检索路径）；`route_post_block` **可为** true **或** `route_source=rule_knowledge` | 该问句在 `apps/api/src/graph/route-rules.ts` 走 `n.length > 4` 支 → `routeLabel='single'` / `route_source='rule'` / `route_post_block=false` → **硬要求（不得 chitchat / 应 single）已满足**。但本条暴露一个**独立且更硬的缺口**：`route_source` 的**冻结取值域**是 `rule_chitchat` \| `rule_knowledge` \| `llm` \| `fallback_single`（**ADR-033 决策 5**，`prds/11-decisions/00-adr-index.md:402`；另见 `prds/04-pipelines/03-graph-edges-frozen.md:133` · `prds/04-pipelines/02-online-ask-langgraph.md:170` · `prds/10-delivery/02-ops-runbook.md:46` 运维指标标签 —— **四处冻结写法**），而源码类型只有 `'rule' \| 'fallback_single'`（`route-rules.ts:5`），`'rule'` **不在冻结枚举内**；`route_post_block=true` 那一支需 `looksChitchat ∧ POST_BLOCK.test(question)` 同时为真，而 `looksChitchat` 只认「整句就是寒暄」→ 该支**事实不可达**；`docs/module-status/api.md` 对 `route_source` **零记载**（缺口连债都没记） | 行本身的硬要求 = **乙**（已满足）；它点到的 `route_source` 取值域 = **甲（源码缺实现，冻结契约）**，且**爆炸面已量清**：生产点只有 `route-rules.ts`，`state.ts:61` / `ask.contract.ts:129` 都是宽松 `string` / `z.string()`，既有测例**零处**断言 `'rule'` |
 | `H1` | ask:146 | **429** `RATE_LIMITED`；**可带** Retry-After | `apps/api/src` 全仓无 `Retry-After`；429 + `RATE_LIMITED` + body `retryAfterSec` 已有测（`apps/api/tests/obs/rate-limit.test.ts` · `quota-planes.test.ts`）；`prds/05-api/01-http-api-hono.md` 亦写「**建议** `Retry-After`」 | **许可**（可带 / 建议）→ 不设该头即合规；覆盖表按「必须」记 → 镜像偏严 |
 | `H5e` | ask:154 | debug / maintenance 试图 RRF-only 出 knowledge answered → **拒绝**；仅可 `abstained` + 详细 trace **或** 暂停 ask | `apps/api/src` 无 `maintenance` / `degraded` / debug 档位开关（grep 零命中）；`apps/api/src/env.ts` 无该维度；现有测只盖「rerank 失败禁 RRF-only answered」 | Then 引用了**源码不存在的面**（无该运行档位）→ 实现缺口 or 须删措辞（撞冻结语义） |
 | `U8` | ask:365 | P2 配置 `sessionRewriteEnabledDefault=true` 无 L2 → **启动/配置拒绝** **或** ask rewrite 路径 **400 `SESSION_REWRITE_DISABLED`** | `apps/api/src/routes/kb-settings.ts:111-115` 已 PATCH → 400 `SESSION_REWRITE_DISABLED`（`apps/api/tests/kb/settings-http.test.ts:297` 已断言）；`apps/api/src/env.ts` 无「无 L2 却强制 true → 启动失败」检测 | **析取**（或）→ 源码已满足一支；「启动侧那一支」未做 |
 | `J7c` | ask:572 | 未 L2 强制开 rewrite / 误开配置 → **拒绝** **或** `SESSION_REWRITE_DISABLED`（见 U8） | 同上；`packages/contracts/src/common/biz-code.ts` 有该码 | **析取**（或）→ 同上 |
 | `M8` | ingest:208 | infected 删除后：RustFS **无残留**；**无**隔离区；审计含 **hash + uploaderId + timestamp** | `apps/worker/src/ingest/object-store.ts:79` 有 `deleteObject`（`pipeline.ts:310` 在 MALWARE 路径调用）；worker 侧无「hash + uploaderId + timestamp」审计面；`uploaded_by` 已在 api 侧两处写入（覆盖表称「已过期项」） | 「对象已删」可离线断言；**审计面**源码无落点 |
 | `V5` | ingest:380 | admin reject → 不 scan；**可重提** | 无 `rejected → pending` 重提端点（`git grep 重新提交\|resubmit\|re-submit` 在 `apps/api/src` + `packages/contracts/src` 零命中）；`reject` 200 后 `scan` 403 已有测 | Then 要求的能力源码无落点（且 PRD 未定义端点） |
-| `S1` | acl:320 | 用户 U 仅 KB-A `read` → 打开 admin → **403 或 302→web**（管理壳不可用） | `apps/admin/src/components/auth-guard.tsx`：无会话 / 无 `admin.shell` → `clearClientSession()` + `router.replace('/login')`；**既非 403 也非 302→web**（客户端会话下无服务端 302 可用） | **析取 + 括注**；两个具名信号在「客户端会话壳」下都不成立，但括注「壳不可用」成立 |
-| `S4` | acl:323 | 用户 V：KB-A `read` + KB-B `write` → **可进 admin** | `auth-guard.tsx` 进壳**只认平台码 `admin.shell`**，与「哪个 KB 的什么码」无关 → 该 Then 在现码模型下不成立 | 单一硬要求，源码行为与该表述冲突 |
-| `Y6` | acl:415 | 无 `admin.shell` 用户打开 admin → **403**/302→web | 同 S1（无码 → 清会话 + 跳 `/login`） | 同 S1 |
+| `S1` | acl:320 | 用户 U 仅 KB-A `read` → 打开 admin → **403 或 302→web**（管理壳不可用） | `apps/admin/src/components/auth-guard.tsx`：无会话 / 无 `admin.shell` → `clearClientSession()` + `router.replace('/login')`；**既非 403 也非 302→web**（客户端会话壳无服务端 302 能力）。壳准入的**冻结链**：ADR-045 #1（`prds/11-decisions/00-adr-index.md:957`）「admin 准入 = 根中间件硬拦截：`isPlatformAdmin \|\| hasAnyMembershipRole(['write','admin'])`；否则 **403**（API）或 **302→web**（页面）」→ 已被 **ADR-051 `:1344` 修订**为「admin 壳 = 拥有 **`admin.shell`** 权限码」。源码把 `admin.shell` **打包进**写能力模板（`packages/admin-catalog/src/role-templates.ts:19` / `:24`），`web_consumer` 为空 → 「仅 read」无壳码 | 括注「壳不可用」**成立**（乙）；两个具名信号（403 / 302→web）源于**已被修订的 ADR-045 #1**，在客户端会话壳下不可得 → 附带一条「壳硬拦截未落地」的债（丁 味） |
+| `S4` | acl:323 | 用户 V：KB-A `read` + KB-B `write` → **可进 admin** | **按能力读 → 成立**：有写能力 ⟹ 其全局角色模板为 `doc_operator` / `kb_admin` ⟹ 有效码含 `admin.shell`（打包，见上）⟹ 可进壳。**按「按 KB 的成员角色驱动」读 → 不成立**：有效码只来自全局角色（`apps/api/src/auth/role-hydrate.ts:111` · `apps/api/src/auth/permissions/resolve.ts:22`），`kb_members.role` 不参与运行时授权（ADR-051 / ADR-035「角色列降级为模板锚点」）。**ADR-051 修订的正是 ADR-045 #3「任一 write/admin 即可进 admin」**，故 Then 的 KB 角色措辞沿用的是**已被修订**的那套 | **乙**（硬要求「可进 admin」按能力读成立），并记一条「Then 的 KB 角色措辞源于被修订的 ADR-045」的措辞债 |
+| `Y6` | acl:415 | 无 `admin.shell` 用户打开 admin → **403**/302→web | 同 S1（无码 → 清会话 + 跳 `/login`）；本行**无**「（管理壳不可用）」括注，两个具名信号就是全部 Then | 同 S1 但**无括注可依** → 裁定须回答「客户端清会话 + 跳 /login 算不算『不进壳』的等价观测」；服务端硬拦截须先动会话载体（须 ADR）→ 大概率落**甲 + 记债** |
 | `X4` | acl:543 | `docTypes:["no_such_type"]` → **400** | `apps/api/src/services/kb-settings.ts:273-288` `assertScopeDocTypesAllowed`：**KB 未配 `docTypes` 时直接 `{ok:true}` 放行任意类型**；KB 配了才逐条比对 | **单一硬要求，源码有缺口**（未配置时未知类型不 400） |
 | `X5` | acl:544 | 单测：dense 与 ES filter **均含** `doc_type∈hr`；**对称**；禁止一路全库一路过滤 | `apps/api/src/services/retrieve/es-sparse.ts` **零处** `doc_type` / `docType`（查询期只 `kbId` + match）；`services/retrieve/corpus.ts` 在**装载层**先滤再 dense∥sparse | 源码缺实现，**阻塞方 = 真 ES 切片（B8）** |
 | `R9` | ops:307 | ask 调用 `plane=ask`；**入库 embed `plane=ingest`**；purpose 可区分 | `apps/worker/src` **零处** `plane`（worker 入库 embed 链无任何打点）；`plane=ingest` 仅见于 api 侧 complete 路径 | 源码缺实现（worker 侧打点） |
@@ -72,11 +73,20 @@ Status: open（前沿：工单 01）
 
 **一条已捕获的镜像瑕疵（写下来当本图的第二轮教训）**：`docs/testing/coverage/00-ask.md` 的 `D-拼句` 缺口列写「`route_post_block=true` 分支在纯规则路径不可达」——主控亲核 `route-rules.ts` 后确认这条**结论本身成立**（`looksChitchat` 只认整句寒暄 + 尾标点，`POST_BLOCK` 的 `\?|？` 与 `\d{2,}` 等无法与之共存），但覆盖表**没说清**它与 Then 的关系：Then 的硬要求（不得 chitchat / 应 single）**已满足**，不可达的只是那句注释所指的机制。→ 本图不许把「机制不可达」当「Then 不成立」。
 
+**主控复核补记（建图后自查，已订正基线）**：
+
+1. **`S4` 一行我初判下得太重**。亲核 `apps/api/src/auth/role-hydrate.ts:111`（`effectiveCodes: defaultCodesForRoles(claimsRoles)`）与 `apps/api/src/auth/permissions/resolve.ts:22` 后确认：有效码**只来自全局角色**，`kb_members.role` 不参与；但 `admin.shell` 同时被**打包在** `DOC_OPERATOR_CODES` / `KB_ADMIN_CODES`（`packages/admin-catalog/src/role-templates.ts:19` / `:24`）里，`web_consumer` 为空。故 `S4` 的 Then **按能力读成立**（有写能力 ⟹ 有壳码 ⟹ 可进壳），只在「按 KB 的成员角色驱动」这一读法下不成立。
+2. **三行壳准入的冻结链是「ADR-045 #1 **被 ADR-051 修订**」**，不是简单的「源码与 Then 冲突」：ADR-045 #1（`:957`）写「根中间件硬拦截 … 否则 403（API）或 302→web（页面）」，ADR-051（`:1344`）把它**修订**成「admin 壳 = 拥有 `admin.shell` 权限码」；ADR-045 #3（`:963-964`）「任一 `write`/`admin` 即可进 admin」同样被修订。→ `S1` / `S4` / `Y6` 三行的裁定必须写清**它们引的是哪一版**，否则「源码侧待定」会被下一张图读成「源码错」。
+3. **`D-拼句` 我初判为「措辞面 + 死分支」，不够**。它点到的 `route_source` 是**四处冻结写法**（ADR-033 决策 5 + 图边 PRD `:133` + 在线 PRD `:170` + 运维 PRD `:46` 的指标标签），源码类型 `'rule' | 'fallback_single'` 里 `'rule'` **不在冻结枚举内**；`docs/module-status/api.md` 对该字段**零记载**。→ 这是**冻结契约缺口**（本图第三类），爆炸面已量清：生产点只有 `route-rules.ts`，上下游都是宽松类型，既有断言**零处**断言 `'rule'`。
+
 ## Decisions so far
 
 <!-- 索引：一条已收工单一行，够判断相关性即可，细节放大进链接 -->
 
 （尚未收工单）
+
+- [研究：16 行「Then ↔ 源码」分歧的逐行取证](./issues/01-research-then-source-evidence.md) — 研究子代理产出，明细 16 节 + 归类表在 [research/01-then-source-evidence.md](./research/01-then-source-evidence.md)。要点：① **「覆盖表按『必须』读了 PRD 的『许可 / 析取』措辞」共 6 行**（`H1` 的「**可带** Retry-After」，且 API PRD `:562` / `:599` 两处都写「**建议**」；`U8` / `J7c` 的「**或**」；`S1` / `Y6` 的「403 **或** 302→web」；`AC2` 的「**可保存**」，API PRD `:465` 只要求「至少一模型」）。② 真实源码缺口 4 行（`M8` 审计面 · `V5` 重提端点 · `X4` 空枚举放行 · `R9` worker 零打点），锚点可复跑。③ 引用了源码不存在的面 4 行（`D-拼句` · `H5e` · `S4` · `P3`）。④ 撞冻结语义 / 外部基建 2 行（`T6` 撞 ADR-007 · `X5` 撞 B8）。⑤ **覆盖表转述与源码有出入 3 处**（`M8` 写 `:361` 实为 `:352`；`X4` 把函数出处写成 `routes/ask.ts`，实为 `services/kb-settings.ts:273`；多处行号漂移）。**主控反向复核后改判三行**（见该票「主控复核补记」）：`D-拼句` 由丙改判为「乙 + 它点到的面属甲」、`S4` 由丙改判为乙、`S1`/`Y6` 须写清「引的是已被修订的 ADR-045 #1」；其余 13 行采纳。
+- [裁定：16 行分歧各归谁、按什么收口](./issues/02-dec-per-row-ruling.md) — 主控自裁（工单 01 + 主控反向复核为依据）。**逐行归属**：`已测` **7 行**（`D-拼句` `H1` `U8` `J7c` `S4` `X4` `AC2`）· 保留 `部分测` **9 行**（`S1` `Y6` `H5e` `M8` `V5` `X5` `R9` `T6` `P3`），**一行不留「源码侧待定」**。**三处最关键裁定**：① **`D-拼句` 点到的 `route_source` 是「冻结契约缺口」**（ADR-033 观测四元 + 图边 `:133` + 在线 `:170` + 运维 `:46` **四处**冻结写法钉死四值，源码只有 `'rule' | 'fallback_single'`，`'rule'` 不在枚举内；镜像对该字段**零记载**）→ **本图唯一一处源码落地**，爆炸面已量清（生产点仅 `route-rules.ts`；`state.ts:61` / `ask.contract.ts:129` 均宽松类型；既有断言**零处**断言 `'rule'`）；`route_post_block=true` 支在 P2 不可达属**非缺陷**（它对应 ADR-033 的 LLM 路，P2 未接）。② **`S1` / `S4` / `Y6` 三行同源，冻结链是「ADR-045 #1 `:957` **被 ADR-051 `:1344` 修订**」**：因 `admin.shell` **打包在写能力模板**里（`role-templates.ts:19`/`:24`），「有写能力 ⟹ 有壳码 ⟹ 可进壳」**成立** → `S4` 按能力读为乙；`S1` / `Y6` 的具名信号在客户端会话壳下不可能有（服务端 302 须先动会话载体）→ 保留 `部分测` + 记一条「壳硬拦截未落地」的债。③ **七项「不加」**：不补 `Retry-After` 头 · 不补 rewrite 启动闸 · 不建 debug / maintenance 档位（ADR-030/034 与运维手册 `:201` **禁止**该逃生口）· 不把 `judge_aux` 加进 `ChatPurpose`（无抽样链 = 空壳面）· 不建 worker 指标面 · 不加三类模型闸 · 不新增重提端点 —— 每项都有依据（多为「补了会反 ADR 或引入离线不可满足的前置」）。**跨行纪律三条**：缺口列定型写法（禁「源码侧待定 / 待补测」，记债须写**销账条件**）· ADR-ready 裁定书集中落 `research/02-adr-ready-findings.md`（八条）并只留一行 spec 指针、**不动 `prds/`** · 新增源码面全局只一处。
 
 ## Not yet specified
 
