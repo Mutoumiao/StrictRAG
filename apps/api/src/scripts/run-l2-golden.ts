@@ -31,7 +31,13 @@ import {
   l2GoldSetHash,
   type L2Repro,
 } from '@strict-rag/contracts/eval-repro-l2';
+import {
+  resolveExpectedDocIds,
+  summarizeDocMap,
+  type DocMapSource,
+} from '@strict-rag/contracts/eval-corpus-ledger';
 
+import { CorpusLedgerError, resolveCorpusLedgerForRun } from '../eval/corpus-map.js';
 import { l2RewriteFingerprint } from '../eval/l2-fingerprint.js';
 import { defaultL2GoldPath, loadL2Gold, L2GoldLoadError } from '../eval/l2-gold.js';
 
@@ -137,6 +143,15 @@ export type L2Report = {
    * 形状 = `@strict-rag/contracts/eval-repro-l2` 的 `L2Repro`，与 worker 批跑同构；**不进任何判定**。
    */
   repro: L2Repro;
+  /**
+   * 映射来源三键（**如实标注，不进 `computeL2SignoffEligible`**）：`ledger` = 按账本解析；
+   * `none` = 未传账本（逐位保持今天语义）。缺映射继续算 `docHit=false`（恒 0），绝不变成 `null`。
+   */
+  docMapSource: DocMapSource;
+  /** 成功换成 uuid 的去重逻辑 id 数（未传账本 → 0） */
+  docMapResolved: number;
+  /** 账本里没有的逻辑 id（字典序去重） */
+  docMapUnmappedIds: string[];
   cases: L2CaseRow[];
 };
 
@@ -163,6 +178,13 @@ export type RunL2Options = {
   persistEval?: boolean;
   /** 单测注入；默认 persistL2EvalRun（勿连真 PG） */
   persist?: (report: L2Report, opts: L2PersistOpts) => Promise<string>;
+  /**
+   * 映射账本路径（env `L2_DOC_MAP`，可选）。不传 → 与今天**逐位一致**（`docMapSource='none'`）；
+   * 传了 → 读账本并按 `hitAtKCase` 之前解析 `expectedDocIds`（kbId / 指纹不符 → 抛错拒跑）。
+   */
+  docMapPath?: string;
+  /** 夹具根（账本新鲜度校验用）；默认 `resolveRepoRoot()` */
+  repoRoot?: string;
 };
 
 export type L2CliParse =
@@ -299,6 +321,11 @@ export function formatL2ReportMd(report: L2Report): string {
         ? 'null'
         : String(Math.round(report.citationComplete * 1000) / 1000)
     } (den=${report.citationCompleteDen}) —— 只记率、不进判定 |`,
+    `| docMapSource | ${report.docMapSource}${
+      report.docMapSource === 'ledger'
+        ? `（resolved=${report.docMapResolved}，unmapped=${report.docMapUnmappedIds.join(',') || '—'}）`
+        : '（未传账本：逻辑 id 映射未启用，缺映射仍算 miss）'
+    } |`,
     ...reproMdLines(report.repro),
     '',
     '## zeroToleranceCoverage（PRD §6.2 四项零容忍逐条处置）',
@@ -330,6 +357,19 @@ export function formatL2ReportMd(report: L2Report): string {
 export async function runL2Golden(opts: RunL2Options): Promise<L2Report> {
   const gold = loadL2Gold(opts.goldPath);
   const cases = opts.maxCases && opts.maxCases > 0 ? gold.cases.slice(0, opts.maxCases) : gold.cases;
+  // 账本先读：kbId / 指纹不符立刻失败，别跑完一整批才发现映射不可用
+  const ledger = opts.docMapPath
+    ? resolveCorpusLedgerForRun({
+        ledgerPath: opts.docMapPath,
+        kbId: opts.kbId,
+        repoRoot: opts.repoRoot ?? resolveRepoRoot(),
+      })
+    : null;
+  // 有账本时把逻辑 id 换成 uuid（缺映射原样保留 → 必然 miss）；无账本逐位保持今天语义
+  const expectedForHit = (
+    expected: readonly string[] | undefined,
+  ): readonly string[] | undefined =>
+    ledger ? resolveExpectedDocIds(expected, ledger) : expected;
   const run = opts.execute ?? executeAsk;
   const tenantId = opts.tenantId ?? process.env.L2_TENANT_ID ?? DEV_TENANT_ID;
   const userId = opts.userId ?? process.env.L2_USER_ID ?? DEV_USER_ID;
@@ -429,7 +469,7 @@ export async function runL2Golden(opts: RunL2Options): Promise<L2Report> {
           : undefined;
       // 与 L1 CLI 同款：回包没有 citations 数组按 0 计（answered ∧ knowledge 时代图上必有引用）
       const citationCount = Array.isArray(graph.citations) ? graph.citations.length : 0;
-      const docHit = hitAtKCase(c.expectedDocIds, evidenceDocIds);
+      const docHit = hitAtKCase(expectedForHit(c.expectedDocIds), evidenceDocIds);
       accumulateHitAtK(docHitAcc, docHit);
 
       rows.push({
@@ -453,7 +493,7 @@ export async function runL2Golden(opts: RunL2Options): Promise<L2Report> {
     } catch (err) {
       errorCount += 1;
       // error 题按「未命中」计（与 L1 批跑同款）；无 expected 名单仍不计分
-      const docHit = hitAtKCase(c.expectedDocIds, []);
+      const docHit = hitAtKCase(expectedForHit(c.expectedDocIds), []);
       accumulateHitAtK(docHitAcc, docHit);
       rows.push({
         id: c.id,
@@ -473,6 +513,11 @@ export async function runL2Golden(opts: RunL2Options): Promise<L2Report> {
 
   const mode = resolveEvalMode(opts.esMode);
   const citation = l2CitationComplete(rows);
+  // 映射来源三键（如实标注，不进 computeL2SignoffEligible）：未传账本 → none/0/[]
+  const docMap = summarizeDocMap(
+    cases.map((c) => c.expectedDocIds),
+    ledger,
+  );
   const report: L2Report = {
     run_type: 'session_multiturn',
     signoffEligible: computeL2SignoffEligible({
@@ -502,6 +547,9 @@ export async function runL2Golden(opts: RunL2Options): Promise<L2Report> {
     citationCompleteDen: citation.citationCompleteDen,
     // §8 区块：剧本集哈希取真值（本跑实际题面集，含 maxCases 截断后的形状）；版本类无载体留 null
     repro: { ...emptyL2Repro(), l2GoldSetHash: l2GoldSetHash(cases.map((c) => c.id)) },
+    docMapSource: docMap.docMapSource,
+    docMapResolved: docMap.docMapResolved,
+    docMapUnmappedIds: docMap.docMapUnmappedIds,
     cases: rows,
   };
 
@@ -532,6 +580,8 @@ async function main(): Promise<void> {
   const repoRoot = resolveRepoRoot();
   const goldPath = process.env.L2_GOLD_PATH ?? defaultL2GoldPath(repoRoot);
   const outDir = process.env.L2_OUT_DIR ?? defaultOutDir(repoRoot);
+  // 映射账本路径（可选）：不设 → 与今天逐位一致；设了但不可用 → CorpusLedgerError → exit 2
+  const docMapPath = process.env.L2_DOC_MAP?.trim() || undefined;
 
   try {
     const report = await runL2Golden({
@@ -539,6 +589,7 @@ async function main(): Promise<void> {
       outDir,
       kbId: parsed.kbId,
       maxCases: parsed.maxCases,
+      docMapPath,
     });
     console.log(
       JSON.stringify(
@@ -553,6 +604,7 @@ async function main(): Promise<void> {
           failCount: report.failCount,
           errorCount: report.errorCount,
           zeroToleranceHits: report.zeroToleranceHits,
+          docMapSource: report.docMapSource,
           outDir,
         },
         null,
@@ -560,7 +612,7 @@ async function main(): Promise<void> {
       ),
     );
   } catch (err) {
-    if (err instanceof L2GoldLoadError) {
+    if (err instanceof L2GoldLoadError || err instanceof CorpusLedgerError) {
       console.error(err.message);
       process.exit(2);
     }

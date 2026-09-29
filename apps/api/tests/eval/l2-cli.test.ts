@@ -497,6 +497,9 @@ describe('buildL2EvalRunInsert / persist gate', () => {
       citationComplete: null,
       citationCompleteDen: 0,
       repro: emptyL2Repro(),
+      docMapSource: 'none',
+      docMapResolved: 0,
+      docMapUnmappedIds: [],
       cases: [],
       ...patch,
     };

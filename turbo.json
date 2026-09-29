@@ -33,6 +33,7 @@
         "L1_GOLD_PATH",
         "L1_OUT_DIR",
         "L1_PERSIST_EVAL",
+        "L1_DOC_MAP",
         "L2_KB_ID",
         "L2_MAX_CASES",
         "L2_TENANT_ID",
@@ -41,6 +42,7 @@
         "L2_OUT_DIR",
         "L2_REWRITE_ENABLED",
         "L2_PERSIST_EVAL",
+        "L2_DOC_MAP",
         "JUDGE_CALIB_SCORER"
       ]
     },
@@ -84,6 +86,7 @@
         "L1_GOLD_PATH",
         "L1_OUT_DIR",
         "L1_PERSIST_EVAL",
+        "L1_DOC_MAP",
         "L2_KB_ID",
         "L2_MAX_CASES",
         "L2_TENANT_ID",
@@ -92,6 +95,7 @@
         "L2_OUT_DIR",
         "L2_REWRITE_ENABLED",
         "L2_PERSIST_EVAL",
+        "L2_DOC_MAP",
         "JUDGE_CALIB_SCORER"
       ]
     }

@@ -14,6 +14,11 @@ import {
   type L1Repro,
   type L1ReproKbBinding,
 } from '@strict-rag/contracts/eval-repro';
+import {
+  resolveExpectedDocIds,
+  summarizeDocMap,
+  type DocMapSource,
+} from '@strict-rag/contracts/eval-corpus-ledger';
 import { evalRuns, formatLocalDateTime } from '@strict-rag/db';
 import { uuidv7 } from 'uuidv7';
 
@@ -25,6 +30,7 @@ import {
   type BindVerdict,
   type HardGates,
 } from '../eval/adr046-snapshot.js';
+import { CorpusLedgerError, resolveCorpusLedgerForRun } from '../eval/corpus-map.js';
 import { HumanSpotLoadError, loadHumanSpotLedger } from '../eval/human-spot.js';
 import { liveJudgeScorerFromEnv } from '../eval/judge-scorer.js';
 import {
@@ -141,6 +147,15 @@ export type L1Report = {
   errorCount: number;
   cases: L1CaseRow[];
   kbId: string;
+  /**
+   * 映射来源三态（**如实标注，不进任何判定**）：`ledger` = 按账本解析；`none` = 未传账本
+   * （逐位保持今天语义）。缺映射**继续算 miss**，绝不变成 `null` / 「该门不适用」。
+   */
+  docMapSource: DocMapSource;
+  /** 成功换成 uuid 的去重逻辑 id 数（未传账本 → 0） */
+  docMapResolved: number;
+  /** 账本里没有的逻辑 id（字典序去重）；这些 id 原样进比对，必然 miss */
+  docMapUnmappedIds: string[];
   /** 写入 eval_runs 后的 id（可选） */
   evalRunId?: string;
   /** ADR-046 配置快照（绑定本跑身份；≠ 业务 PASS） */
@@ -188,6 +203,13 @@ export type RunL1Options = {
   scoreJudge?: (cases: readonly JudgeCalibCase[]) => Promise<Array<number | null>>;
   /** 人工抽检账本路径（CLI `--human-spot <path>`）；**不传 = 缺测**（该门不放行） */
   humanSpotPath?: string;
+  /**
+   * 映射账本路径（env `L1_DOC_MAP`，可选）。不传 → 与今天**逐位一致**（`docMapSource='none'`）；
+   * 传了 → 读账本并按 `hitAtKCase` 之前解析 `expectedDocIds`（kbId / 指纹不符 → 抛错拒跑）。
+   */
+  docMapPath?: string;
+  /** 夹具根（账本新鲜度校验用）；默认 `resolveRepoRoot()` */
+  repoRoot?: string;
   /**
    * §8 `models.kbBindings` 读取器（需读库；CLI `main()` 注入 `modelGatewayRepo.listKbBindings`）。
    * 不注入 / 读库失败 = 取不到 → `null`（不得编造绑定）。
@@ -572,6 +594,11 @@ export function formatReportMd(report: L1Report): string {
     `| hitAtK | ${
       report.hitAtK === null ? 'null' : String(Math.round(report.hitAtK * 1000) / 1000)
     } (${report.hitAtKHits}/${report.hitAtKScored}) |`,
+    `| docMapSource | ${report.docMapSource}${
+      report.docMapSource === 'ledger'
+        ? `（resolved=${report.docMapResolved}，unmapped=${report.docMapUnmappedIds.join(',') || '—'}）`
+        : '（未传账本：逻辑 id 映射未启用，缺映射仍算 miss）'
+    } |`,
     `| citationComplete | ${ccText} (den=${report.citationCompleteDen}) |`,
     `| humanSpot | ${
       report.humanSpot === null
@@ -618,6 +645,14 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
     ? toHumanSpotReport(loadHumanSpotLedger(opts.humanSpotPath), opts.humanSpotPath)
     : null;
   const cases = opts.maxCases && opts.maxCases > 0 ? all.slice(0, opts.maxCases) : all;
+  // 账本先读：kbId / 指纹不符立刻失败，别跑完一整批才发现映射不可用
+  const ledger = opts.docMapPath
+    ? resolveCorpusLedgerForRun({
+        ledgerPath: opts.docMapPath,
+        kbId: opts.kbId,
+        repoRoot: opts.repoRoot ?? resolveRepoRoot(),
+      })
+    : null;
   const run = opts.execute ?? executeAsk;
   const matrix = emptyMatrix();
   const hitAcc = emptyHitAtK();
@@ -666,7 +701,11 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
       errorMessage = err instanceof Error ? err.message : String(err);
     }
     errorCount += accumulate(matrix, c.type, outcome);
-    const hit = hitAtKCase(c.expectedDocIds, evidenceDocIds);
+    // 有账本时把逻辑 id 换成 uuid（缺映射原样保留 → 必然 miss）；无账本逐位保持今天语义
+    const expectedDocIds = ledger
+      ? resolveExpectedDocIds(c.expectedDocIds, ledger)
+      : c.expectedDocIds;
+    const hit = hitAtKCase(expectedDocIds, evidenceDocIds);
     accumulateHitAtK(hitAcc, hit);
     rows.push({
       id: c.id,
@@ -684,6 +723,11 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
 
   const mode = resolveEvalMode(opts.esMode);
   const counts = goldTypeCounts(cases);
+  // 映射来源三键（如实标注，不进任何判定）：未传账本 → none/0/[]
+  const docMap = summarizeDocMap(
+    cases.map((c) => c.expectedDocIds),
+    ledger,
+  );
   const swept = sweepTau(rows);
   const calib = await scoreJudgeAuroc(opts);
   const snapIn = opts.snapshot;
@@ -743,6 +787,9 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
     errorCount,
     cases: rows,
     kbId: opts.kbId,
+    docMapSource: docMap.docMapSource,
+    docMapResolved: docMap.docMapResolved,
+    docMapUnmappedIds: docMap.docMapUnmappedIds,
   };
 
   const wantPersist =
@@ -816,6 +863,8 @@ async function main(): Promise<void> {
   const repoRoot = resolveRepoRoot();
   const goldPath = process.env.L1_GOLD_PATH ?? defaultGoldPath(repoRoot);
   const outDir = process.env.L1_OUT_DIR ?? defaultOutDir(repoRoot);
+  // 映射账本路径（可选）：不设 → 与今天逐位一致；设了但不可用 → CorpusLedgerError → exit 2
+  const docMapPath = process.env.L1_DOC_MAP?.trim() || undefined;
 
   // 打分器来源声明（默认 off = 缺测）。声明 http 时才接真 Gateway：
   // Gateway 侧不齐（仍是 mock）→ 直接 exit 2，禁止把 mock 分数标成 live。
@@ -837,6 +886,7 @@ async function main(): Promise<void> {
       kbId,
       maxCases,
       humanSpotPath: args.humanSpotPath,
+      docMapPath,
       judgeScorerMode,
       scoreJudge,
       // §8 models.kbBindings：读库失败走 runL1Golden 的 catch → null（不得编造绑定）
@@ -865,6 +915,9 @@ async function main(): Promise<void> {
           hitAtK: report.hitAtK,
           hitAtKHits: report.hitAtKHits,
           hitAtKScored: report.hitAtKScored,
+          docMapSource: report.docMapSource,
+          docMapResolved: report.docMapResolved,
+          docMapUnmappedIds: report.docMapUnmappedIds,
           citationComplete: report.citationComplete,
           citationCompleteDen: report.citationCompleteDen,
           tauStar: report.tauStar,
@@ -881,7 +934,11 @@ async function main(): Promise<void> {
       ),
     );
   } catch (err) {
-    if (err instanceof GoldLoadError || err instanceof HumanSpotLoadError) {
+    if (
+      err instanceof GoldLoadError ||
+      err instanceof HumanSpotLoadError ||
+      err instanceof CorpusLedgerError
+    ) {
       console.error(err.message);
       process.exit(2);
     }

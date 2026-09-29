@@ -140,6 +140,11 @@ export const evalPersist: EvalPersist = {
           errorCount: report.errorCount,
           cases: report.cases,
           kbId: report.kbId,
+          // 映射来源三键：worker 批跑无账本解析（裁定 2 范围），如实落「无映射」取值；
+          // api CLI 侧才有真值（经 buildEvalRunInsert 整对象直落）。放白名单以免库内形状与 api 分叉。
+          docMapSource: 'none',
+          docMapResolved: 0,
+          docMapUnmappedIds: [],
         },
       })
       .where(eq(evalRuns.id, runId));
@@ -182,6 +187,10 @@ export const evalPersist: EvalPersist = {
           repro: report.repro,
           cases: report.cases,
           kbId: report.kbId,
+          // 映射来源三键：worker L2 批跑无账本解析，如实落「无映射」取值（api CLI 侧才有真值）。
+          docMapSource: 'none',
+          docMapResolved: 0,
+          docMapUnmappedIds: [],
         },
       })
       .where(eq(evalRuns.id, runId));

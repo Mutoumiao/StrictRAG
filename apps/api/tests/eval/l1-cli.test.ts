@@ -250,6 +250,9 @@ describe('buildEvalRunInsert / evalRunDbRanAt', () => {
       errorCount: 0,
       cases: [],
       kbId: '01900000-0000-7000-8000-0000000000aa',
+      docMapSource: 'none',
+      docMapResolved: 0,
+      docMapUnmappedIds: [],
     };
     const row = buildEvalRunInsert(report, {
       goldPath: '/g.yaml',
@@ -297,6 +300,9 @@ describe('buildEvalRunInsert / evalRunDbRanAt', () => {
       errorCount: 0,
       cases: [],
       kbId: 'k',
+      docMapSource: 'none',
+      docMapResolved: 0,
+      docMapUnmappedIds: [],
     };
     expect(buildEvalRunInsert(report, {}).signoffEligible).toBe('1');
   });
@@ -642,6 +648,9 @@ describe('writeL1Report', () => {
       errorCount: 0,
       cases: [],
       kbId: 'k',
+      docMapSource: 'none',
+      docMapResolved: 0,
+      docMapUnmappedIds: [],
     };
     const { jsonPath, mdPath } = writeL1Report(dir, report);
     expect(readFileSync(jsonPath, 'utf8')).toContain('"mode": "mock"');
