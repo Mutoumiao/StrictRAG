@@ -2,7 +2,7 @@
 
 Label: wayfinder:research
 Type: research
-Status: open
+Status: resolved
 
 ## Question
 
@@ -21,4 +21,17 @@ Status: open
 
 ## Answer
 
-<!-- 收口时填：要点 + 正文链接 -->
+**已解**。正文（332 行，8 组问题逐组带证据 + 回归面清单 + 未核实清单）：[`../research/01-worker-eval-surface.md`](../research/01-worker-eval-surface.md)。主控已独立复核其中三条最要紧的事实（契约子路径导出、`corpus-map.ts` 的相对 import、`defaultRepoRoot` 的层数）。
+
+要点：
+
+- **调用链**：`routes/eval.ts:238` → `enqueue`（`services/queue.ts:60` 的 `enqueueEval`，绑定于 `routes/eval.ts:114`）→ 队列 `sr-eval` / job 名 `golden_2x2` → worker 注册点 `index.ts:113` → `handleEvalJob`（`consumer.ts:16`）→ `runL1Batch`(`:96`) / `runL2Batch`(`:52`) → `persist.ts:101` / `:153` → 表 `eval_runs`。
+- **本图最重要的新事实**：**这条链从未被端到端跑过** —— api 侧测试注入假 `enqueue`，worker 侧测试注入内存 persist，中间的 BullMQ / 真 PG / 真 HTTP 无人贯通。故工单 05 会是**第一次**真跑这条链。
+- **env 面**：worker 评测相关键只有 4 个（`EVAL_ASK_BASE_URL` / `EVAL_INTERNAL_TOKEN` / `EVAL_L2_GOLD_PATH` / `JUDGE_CALIB_SCORER`），**无 `L1_DOC_MAP` / `L2_DOC_MAP`**；`env` 在**模块加载期**一次求值。既有形状支持「评测输入走进程级 env」（`persist.ts:29-32` · `consumer.ts:103`）；**反例**：`retrieveMode` / `maxCases` / `runType` 是**随 job 下发**的（`eval-job.ts:17-20`）。
+- **比对点共 3 处**：L1 `run-l1-batch.ts:176`；L2 `run-l2-batch.ts:193`（正常）与 `:219`（error）。两个批跑函数的 opts **都没有账本参数**。
+- **落库**：`saveReport` 27 键 / `saveL2Report` 23 键，三键硬编码在 `persist.ts:146-148` 与 `:190-192`；`reportJson` 列是 **jsonb**。
+- **第二条新事实（立图时未料）**：`toEvalRunDto`（`services/eval-runs.ts:203`，经 `extraStatsFromReport` `:95` + `casesFromReport` `:132`）**不透出 `docMap*` 与 `repro`** —— 即便 worker 落了真值，经 API 也只能看到 `hitAtK` 三个数字，看不到「映射来源」。已作为工单 02 第 8 组的裁定项。
+- **复用可行性**：`corpus-ledger.ts` 三个函数是**纯函数**（只依赖 `node:crypto`），worker **可直接 import**；而 `corpus-map.ts`（相对 import `./corpus-fixtures.js`）与 `corpus-fixtures.ts`（`node:fs` + `repoRoot`）**不能直接复用** → 共享落点须裁定（工单 02 第 1b 组）。
+- **账本可达性零障碍**：docker compose **无任何 host 目录挂载**（只有 pg/es/mongo/rustfs 四个命名卷），api 与 worker 都在 host 跑 → worker 直读 host 文件系统；`repoRoot` 从 `apps/worker/src/eval` 上溯 4 层 = 仓库根，与 api 侧同式同根。
+- **回归面**：直接钉住报告键集 / 落库白名单的 **12 条 it（8 个文件）** + **2 条语义钉子** = 常规范畴内最可能打红 **14 条**；若把 `corpus-map` / `corpus-fixtures` 上移或改签名，另有 **31 条 it（跨 api / contracts）** 的条件面。
+- **未核实 8 条**（原样转给工单 05 与 02）：真跑的实际 env 组合 · 经队列一次 L1 的端到端行为 · jsonb 回读等价性 · `services/eval-runs.ts:285-330` 的 SQL 谓词真 PG 行为 · worker→`/internal/eval/execute-ask` 真链路 · 账本↔库内文档运行时不变量 · worker 侧共享落点（属待裁）· 本机 Docker 稳定性。

@@ -58,9 +58,20 @@ Status: open（前沿：工单 01）
 | 同类先例 | worker 侧已有**进程级路径 env** 的先例：`EVAL_L2_GOLD_PATH`（`persist.ts:29-32`，缺省回落 `<repoRoot>/fixtures/l2/gold.yaml`）与 `JUDGE_CALIB_SCORER`（`consumer.ts:103`）—— 说明「worker 的评测输入走 env」是本仓既有形状 |
 | 前图已裁定、本图不动 | 账本**形状**与**解析落点**（跑批 CLI 内、`hitAtKCase` 之前）；「命中期望文档」**不进** `computeL2SignoffEligible`；worker 侧批跑**不进任何判定**（判定只在 api 侧）—— 本图只把**数字含义**对齐，**不改**任何判定公式 |
 
+### 立图后主控补充核实（2026-09-29，供工单 02 裁定）
+
+| 事实 | 证据 |
+|---|---|
+| **契约子路径已就位，worker 复用无阻碍** | `packages/contracts/package.json:10` 已含 `"./eval-corpus-ledger": "./src/eval/corpus-ledger.ts"`；`apps/worker/package.json:17` 依赖 `@strict-rag/contracts: workspace:*`；且 worker **已有**子路径 import 先例（`run-l1-batch.ts:31-33` import `@strict-rag/contracts/eval-repro`） |
+| **但 worker 拿不到 api 包内的两个文件** | `apps/api/src/eval/corpus-map.ts:12` 用相对路径 import `./corpus-fixtures.js`；`apps/worker/package.json` 依赖里**没有** `@strict-rag/api` → 跨 app 复用不可能。共享落点须裁定（工单 02 第 1b 组） |
+| **上移的技术成本低** | `corpus-fixtures.ts` 无 api 专属依赖（只用 `node:crypto` / `node:fs` / `path` / `fileURLToPath` + `@strict-rag/contracts/eval-corpus-ledger`）；其 `defaultRepoRoot` 从 `apps/api/src/eval` 上溯 **4 层**，而 `apps/worker/src/eval` 同为 4 层 → 指向**同一个** monorepo 根（`apps/worker/src/eval/persist.ts:31` 今天用的就是同一个表达式） |
+| **worker 读仓内 `fixtures/` 已有先例** | `apps/worker/src/eval/persist.ts:29-32` 的 `defaultL2GoldPath` 缺省回落 `path.join(repoRoot, 'fixtures/l2/gold.yaml')` —— 故「worker 侧需要能看到 `fixtures/`」不是本图新引入的假设 |
+
 ## Decisions so far
 
 <!-- 每关闭一张工单追加一行：名称（链接）+ 一行要点 -->
+
+- [01 · 研究：worker 评测路径与账本接缝的现状面](./issues/01-research-worker-eval-path.md) — 正文 [`research/01-worker-eval-surface.md`](./research/01-worker-eval-surface.md)。要点：调用链 `routes/eval.ts:238` → `enqueueEval` → `sr-eval`/`golden_2x2` → `index.ts:113` → `consumer.ts:16` → 两个批跑 → `persist.ts:101/:153` → `eval_runs`；**这条链从未被端到端跑过**（api 测注入假 `enqueue`、worker 测注入内存 persist），故工单 05 是第一次真跑。worker 评测 env 仅 4 键、**无 `L1_DOC_MAP`/`L2_DOC_MAP`**，`env` 在模块加载期一次求值；既有形状支持「输入走进程级 env」，但 `retrieveMode`/`maxCases`/`runType` 是**随 job 下发**的反例。比对点共 3 处（L1 `:176`；L2 `:193`/`:219`）。落库三键硬编码于 `persist.ts:146-148`/`:190-192`，`reportJson` 是 jsonb。**新发现**：`toEvalRunDto` **不透出 `docMap*`/`repro`**（→ 工单 02 第 8 组）。复用：`corpus-ledger.ts` 纯函数可直接 import；`corpus-map.ts`/`corpus-fixtures.ts` 不能（→ 第 1b 组）。**账本可达性零障碍**：compose 无 host 挂载、api 与 worker 都在 host 跑，`repoRoot` 两侧同式同根。回归面：12 条 it（8 文件）+ 2 条语义钉子 = **14 条**最可能打红，另有 31 条条件面（若上移 `corpus-map`/`corpus-fixtures`）。未核实 8 条已转工单 02 / 05。
 
 ## Not yet specified
 
