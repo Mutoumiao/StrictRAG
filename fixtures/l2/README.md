@@ -60,7 +60,7 @@ CI 只钉纯函数 + mock `execute`；**禁止**把本跑数字写成 L2 通过�
 
 `corpus/` 正文**尚未**走 worker 入库。未映射 / 未入库时不得拿检索命中率当成绩。
 
-**今天无映射入口**（这是 `docHitRate` 恒 0 的根因，不是「没量到」而是「没得量」）：`documents` 表**无 `external_id` 或等价列**，`fixtures/l2/corpus/*` 三篇从未入库且无入库入口；`expectedDocIds` 与 `evidence.docId` 今天必然比不中。
+**映射入口已落**（工单 03 / 04）：`apps/api/src/scripts/ingest-eval-corpus.ts` 把两份语料入库并产出映射账本；跑批侧 `L2_DOC_MAP` 指定账本即按当前 KB 的 uuid 比对（未映射继续算 miss）。未传账本时 `docHitRate` 仍恒 0（夹具写逻辑 id、真跑 `evidence.docId` 是 KB uuid），**不得当成绩**。`documents` 表仍**无 `external_id` 或等价列** —— 映射在夹具之外建立（账本），不改 id 体系。
 
 ## 题型（§6.2 八类 + 隔离）
 

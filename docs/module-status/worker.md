@@ -130,3 +130,7 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 | 环境变量默认值 | `apps/worker/src/env.ts` |
 | 单测 | `apps/worker/tests/ingest/` · `tests/env/`——**不是**入库 E2E；导航 `apps/worker/tests/index.md` |
 | Task（辅证 · 已归档） | `08-04-p1-*` · `08-12-spec-w1-scan-failclosed` · `08-12-spec-w1-chunk-strategy-truth` · `08-12-spec-w1-ingest-idempotency-impl` · `08-12-ingest-jobs-ledger-min` · `08-12-ingest-doc-lock-min` · QUAL-2：`08-11-qual-scan-engine` |
+
+## 2026-09-29 · 评测语料映射账本（工单 03 / 04）
+
+worker 批跑本图不接映射账本（范围裁定），但其落库报告的逐键白名单已同步补上映射来源三键，使库内报告形状与 api CLI 路径不分叉（漏键即静默丢失）。worker 侧三键如实为「无映射」取值，不进任何判定。细节以源码为准。

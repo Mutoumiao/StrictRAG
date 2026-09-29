@@ -23,6 +23,8 @@
 
 入库后真实 `documents.id`（uuid）因环境而异。live 跑批前请按本表把 gold 中逻辑 id **替换/映射** 为当前 KB 内文档 uuid。报告可写 Hit@k（字符串全等）；**不对 A 格命中率设下限**，映射缺失只让 Hit@k 变低，不影响工程底座 2×2 验收。
 
+> **映射入口已落**（工单 03 / 04）：`apps/api/src/scripts/ingest-eval-corpus.ts` 把两份语料入库并产出映射账本（落 artifacts，运行产物不入库）；跑批侧用 env 指定账本即按当前 KB 的 uuid 比对，未传账本时与本表人工替换前的行为**逐位一致**（缺映射继续算 miss）。命令见 `docs/ops/operable-stack.md`。
+
 ## 题型比例（本窗 seed）
 
 | type | 约数 | 说明 |

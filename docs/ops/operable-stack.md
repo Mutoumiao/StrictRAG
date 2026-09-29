@@ -48,6 +48,24 @@ pnpm db:migrate
 pnpm up:apps
 ```
 
+### 评测语料入库 + 映射账本（工单 03 / 04）
+
+把两份评测语料（`fixtures/ingest-samples/*.txt` 与 `fixtures/l2/corpus/*.txt`）送入某个 KB，并产出
+「逻辑 id → documents.id」映射账本（`artifacts/eval-corpus-ledger-<kbId>.json`，运行产物不入库）：
+
+```bash
+# 新建 KB（或 INGEST_KB_ID=<kb-uuid> 复用既有）；打印 kbId 与账本路径
+INGEST_KB_NAME=eval-corpus-kb pnpm --filter @strict-rag/api exec tsx src/scripts/ingest-eval-corpus.ts
+
+# 跑 L1 / L2 时按账本把逻辑 id 解析为 uuid（不传 = 与今天逐位一致）
+L1_KB_ID=<kbId> L1_DOC_MAP=artifacts/eval-corpus-ledger-<kbId>.json \
+  pnpm --filter @strict-rag/api exec tsx src/scripts/run-l1-golden.ts
+L2_KB_ID=<kbId> L2_DOC_MAP=artifacts/eval-corpus-ledger-<kbId>.json \
+  pnpm --filter @strict-rag/api exec tsx src/scripts/run-l2-golden.ts
+```
+
+账本 `kbId` / `corpusFingerprint` 与本次 KB / 当前夹具不符即拒跑（exit 2）。缺映射**继续算 miss**，绝不变成「该门不适用」。`retrieve_mode` 仍以 env 为准；mock 数字禁止写入签字页。
+
 `pnpm up:apps` = compose 中间件（若未起）+ api + worker，不必手拼四进程。仅中间件：`node scripts/up-stack.mjs --compose-only`。
 
 Mongo 冒烟（须 `MONGODB_URL`）：

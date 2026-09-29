@@ -195,8 +195,18 @@ Seed 规模：可答 30 + 不可答类 30（含 `false_premise`）；**mock 数�
 | `L1_TENANT_ID` | 否 | 固定 dev uuid | |
 | `L1_USER_ID` | 否 | 固定 dev uuid | |
 | `L1_PERSIST_EVAL` | 否 | 关 | `1`/`true` → insert `eval_runs`（db migration 0006） |
+| `L1_DOC_MAP` | 否 | 关 | 映射账本路径（`artifacts/eval-corpus-ledger-<kbId>.json`）；不设 = 与今天逐位一致；账本缺 / 解析失败 / `kbId` 或 `corpusFingerprint` 不符 → exit 2 |
 
-> **Turbo**：`turbo.json` 的 `lint` / `test` task env 须声明 `L1_*`（含 `L1_PERSIST_EVAL`）；新增键同步改 turbo。
+> **Turbo**：`turbo.json` 的 `lint` / `test` task env 须声明 `L1_*`（含 `L1_PERSIST_EVAL` / `L1_DOC_MAP`）；新增键同步改 turbo。
+
+#### 评测语料映射账本（工单 03 / 04）
+
+- **入库入口**：`apps/api/src/scripts/ingest-eval-corpus.ts`（env 驱动；`INGEST_KB_ID` 复用 / `INGEST_KB_NAME` 新建，二者至少一个，否则 exit 2）——把 `fixtures/ingest-samples/*.txt` 与 `fixtures/l2/corpus/*.txt` 逐篇走既有 HTTP 面（upload-url → PUT → complete → approve → scan → 轮询 ready → lifecycle=active，不新增端点 / 表 / 迁移）送入某 KB。
+- **四眼审批（ADR-048 #4）**：本 CLI 全步带 token，故 `approve` 的 actor 已知；同一身份自审必被 403。流程用**两个 dev-login 身份**——上传者（`ingest-eval-corpus@local.dev` / `super_admin`）走上传递交与 scan / 读取，审批人（`ingest-eval-reviewer@local.dev` / `kb_admin`）**只**用于 `approve`；并对首篇发一次自审探针钉住 403（非 403 即失败点名逻辑 id）。**成员边界（显式）**：`AUTH_ENFORCE=false`（默认）时审批人无需是该 KB 成员即可通过（成员闸 `whenEnforced`）；`AUTH_ENFORCE=true` 时审批人**必须是该 KB 成员**，CLI **不自动加成员** —— 需人工先加，否则 `approve` 被拒、CLI 如实失败并点名逻辑 id。
+- **逻辑 id 由目录结构派生**（`ingest-samples/<name>` / `l2-corpus/<name>`），禁止脚本手抄；权威对照是两份 fixtures README，由 `tests/eval/eval-corpus-map.test.ts` 机械核对（gold 逻辑 id ⊆ 派生 id）。
+- **账本形状 / 指纹 / 解析**唯一锚在 contracts 子路径 `@strict-rag/contracts/eval-corpus-ledger`（含 `node:crypto`，故不进主入口）：`buildCorpusLedger` / `parseCorpusLedger` / `corpusFingerprint` / `resolveExpectedDocIds` / `summarizeDocMap`。账本落 `artifacts/`（运行产物不入库）。
+- **跑批解析落点**：`runL1Golden` 在 `hitAtKCase` **之前**解析 `expectedDocIds`（`docMapPath`）。**未映射继续算 miss**（原样保留逻辑 id，绝不变成 `null` / 该门不适用）；报告顶层三键 `docMapSource` / `docMapResolved` / `docMapUnmappedIds` 如实标注来源，**都不进任何判定**（`PILOT_HARD_GATES` / `evaluateAdr046Bind` 公式一字不动）。
+- **worker 侧本图不接**：`run-l1-batch.ts` 不做账本解析；其落库白名单（`eval/persist.ts` 的 `saveReport`）已同步带上三键（常量 none/0/[]），使库内形状与 api 路径不分叉。
 
 #### 产物与 git
 
