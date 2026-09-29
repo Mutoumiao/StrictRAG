@@ -2,7 +2,7 @@
 
 Label: wayfinder:research
 Type: research
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -21,4 +21,14 @@ Status: claimed
 
 ## Answer
 
-（待填）
+**已解**。正文（365 行，8 组问题逐组带证据 + 回归面清单）：[`../research/01-corpus-map-surface.md`](../research/01-corpus-map-surface.md)。
+
+要点（主控已独立复算其中两条最要紧的数字）：
+
+- **修正地图口径**：L1 夹具 60 题里**只有 30 题**带 `expectedDocIds`（另 30 题无该键）→ `hitAtKScored = 30`（**不是 60**），`hitAtK = 0/30 = 0`（非 null）。**结论方向不变**：`hit_at_k_below_min` → `businessPass` 恒 false。地图开工基线已按此改正。
+- **两侧 id 面**：L1 = 30 处引用 / 去重 10 个（`ingest-samples/01..10-doc`）；L2 = 25 处 / 去重 6 个（`ingest-samples/01..03-doc` + `l2-corpus/{travel-stay,meal-allowance,leave-policy}`）；两侧交叉 3 个，但 L1/L2 走独立 KB env → **账本须按 KB 分辨**。
+- **现成面**：`demo-ingest.mjs` 已能从 `upload-url` 回包拿到真 `docId`（`:131-132`），缺的三件是「不吃 `fixtures/l2/corpus` · 不落映射 · 每次新建 KB」；各步幂等性已逐条判定（**`upload-url` 非幂等**、**`complete` 会把 ready 打回**、`approve` 幂等、`scan` 非幂等）。
+- **报告无现成槽位**：`L1Repro` 与顶层 `mode`/`retrieve_mode` 都承载不了「映射来源」→ 必须新增键；L1 落库 api 侧整对象直落、worker 侧**逐键白名单**（漏键静默丢）。
+- **`hitAtK == null` 今天默认不可达** → 缺映射必然是「`scored > 0` 且 `hits = 0`」（记 miss），正合地图红线。
+- **回归面**（工单 04 的靶子）：L1 三处字面量报告（`l1-cli.test.ts:228/275/620`）· `l1-repro.test.ts:69-89` 精确键集 · worker `saveReport`/`saveL2Report` 白名单 · `turbo.json` env 段 · md 渲染断言。
+- **未核实（需跑服务）**：真栈实测 `hitAtK`（工单 05 取）。**需人裁**的 5 项已全部由工单 02 裁定。

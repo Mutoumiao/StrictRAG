@@ -45,16 +45,19 @@ Status: open（前沿：01）
 | 门限常量 | `apps/api/src/eval/adr046-snapshot.ts:27` `hitAt20Min: 0.7`（`PILOT_HARD_GATES`） |
 | 门怎么用的 | 同文件 `:216` `const hitAtKOk = input.hitAtK == null \|\| input.hitAtK >= gates.hitAt20Min;`（`:217` 不过则 `reasons.push('hit_at_k_below_min')`）；`:250-259` 的 `businessPass` 含 `hitAtKOk` |
 | 数字怎么来的 | `apps/api/src/scripts/run-l1-golden.ts:669` `hitAtKCase(c.expectedDocIds, evidenceDocIds)` → `:723` `hitAtK: hitAtKRate(hitAcc)` → `:783` `hitAtK: report.hitAtK` 进 `bindQualitySnapshotToEval` |
-| 比的两种 id | 期望侧 = 夹具**逻辑 id**（`packages/contracts/src/eval/l1-matrix.ts:107-126` 只做 trim 后**字符串全等**）；实测侧 = `result.graph.evidence_snapshot[].docId`（`run-l1-golden.ts:660-662`）= `documents.id`（uuid v7） |
-| 夹具实况 | `fixtures/l1/gold.yaml` **60 条** case、**全部**带 `expectedDocIds`、去重 **10 个逻辑 id**（`ingest-samples/01-doc` … `10-doc`）；`fixtures/l2/gold.yaml` **18 条**、**全部**带、去重 **6 个逻辑 id**（`ingest-samples/01..03-doc` + `l2-corpus/{travel-stay,meal-allowance,leave-policy}`） |
-| 映射面 | **不存在**：全仓无 `external_id` / 映射文件 / env / 表（`git grep` 只在 `.scratch/` 命中讨论文字）；只有 `fixtures/l1/README.md`（「live 跑批前请按本表把 gold 中逻辑 id **替换/映射** 为当前 KB 内文档 uuid」）与 `fixtures/l2/README.md` 的**人工纪律** |
+| 比的两种 id | 期望侧 = 夹具**逻辑 id**（`packages/contracts/src/eval/l1-matrix.ts:111-127` 只做 trim 后**字符串全等**）；实测侧 = `result.graph.evidence_snapshot[].docId`（`run-l1-golden.ts:660-662`）= `documents.id`（uuid v7） |
+| 夹具实况 | `fixtures/l1/gold.yaml` **60 条** case，其中 **30 条**（answerable 类）带 `expectedDocIds`（30 处引用、去重 **10 个逻辑 id**：`ingest-samples/01-doc` … `10-doc`）；`fixtures/l2/gold.yaml` **18 条**、**全部**带（25 处引用、去重 **6 个逻辑 id**：`ingest-samples/01..03-doc` + `l2-corpus/{travel-stay,meal-allowance,leave-policy}`）。**两侧有 3 个 id 交叉**（`01..03-doc`），但 L1 / L2 是两个独立 KB env → 账本按 **KB** 分辨 |
+| 映射面 | **不存在**：全仓无 `external_id` / 映射文件 / env / 表（`external_id` 字样只在说明性文字里出现：`fixtures/l2/README.md` · `docs/module-status/{api,worker}.md` · `run-l2-golden.ts` 注释）；只有 `fixtures/l1/README.md`（「live 跑批前请按本表把 gold 中逻辑 id **替换/映射** 为当前 KB 内文档 uuid」）与 `fixtures/l2/README.md` 的**人工纪律** |
 | 语料入库入口 | `scripts/demo-ingest.mjs` **只吃** `fixtures/ingest-samples`（`:34` `FIXTURES_DIR`）；它**已经**从 upload-url 回包拿到真 `docId`（`:131-132` 解构、`:152` `docIds.push(docId)`、`:153` 打印 `enqueued <title> → <docId>`），但**每跑新建一个 KB**（`demo-kb-${Date.now()}`，`:115`）且**不落任何映射文件** → 映射随跑次蒸发。`fixtures/l2/corpus/*` 三篇**从未入库且无入口** |
-| 结构性后果 | `hitAcc.scored = 60`（题题有标注）→ `hitAtK = 0/60 = 0`（**非 null**）→ `0 >= 0.7` 假 → `hit_at_k_below_min` → **`businessPass` 恒 false**。**这是数据工程缺口，不是检索质量差**，且**与是否 live 无关**（真模型也救不回没映射的 id） |
+| 结构性后果 | `hitAcc.scored = 30`（60 题里 30 题带标注；另 30 题 `parseExpectedDocIds → null` 不计分）→ `hitAtK = 0/30 = 0`（**非 null**）→ `0 >= 0.7` 假 → `hit_at_k_below_min` → **`businessPass` 恒 false**。**这是数据工程缺口，不是检索质量差**，且**与是否 live 无关**（真模型也救不回没映射的 id）。`hitAtK == null`（该门不适用）在**默认夹具下不可达** |
 | 前图已裁定、本图不动 | 「命中期望文档」**不进** `computeL2SignoffEligible`（L2 侧只落报告）；`docHitRate` 未映射恒 0 是 L2 侧今天的正确取值 —— 本图**只**补映射数据面，**不改**任何一处的判定公式 |
 
 ## Decisions so far
 
 <!-- 每关闭一张工单追加一行：名称（链接）+ 一行要点 -->
+
+- [01 · 研究：评测语料入库与逻辑 id 映射的现状面](./issues/01-research-corpus-map-surface.md) — 正文 [`research/01-corpus-map-surface.md`](./research/01-corpus-map-surface.md)。要点：**修正地图口径** —— L1 带标注题是 **30/60**（`hitAtKScored = 30`、`hitAtK = 0/30 = 0` 非 null），恒 0 链逐跳成立、结论不变；L1 去重 10 个逻辑 id / L2 去重 6 个（交叉 3 个）→ **账本按 KB 分辨**；`demo-ingest.mjs` 已能拿到真 `docId` 但每跑新建 KB、不落映射、不吃 `fixtures/l2/corpus`；**报告无现成槽位承载「映射来源」→ 必须新增键**（L1 落库 api 侧整对象直落、worker 侧逐键白名单，漏键静默丢）；`hitAtK == null` 今天默认**不可达**（缺映射必然是 scored>0 且 hits=0 = 记 miss）；回归面清单已列（L1 三处字面量报告 · `l1-repro` 精确键集 · worker 白名单 · turbo env · md 渲染断言）。**未核实**：真栈实测数字（留给工单 05）。
+- [02 · 裁定：账本形状 / 解析落点 / 未映射行为 / 新鲜度](./issues/02-dec-map-shape-and-resolver.md) — 六组裁定：① **一份账本 = 一个 KB**，落 `artifacts/eval-corpus-ledger-<kbId>.json`（运行产物不入库），形状（`version` / `kbId` / `tenantId` / `generatedAt` / `corpusFingerprint` / `entries[{logicalId,docId,title,sourceFile,sourceSha256}]`）由 `packages/contracts/src/eval/corpus-ledger.ts` **子路径导出**唯一锚住；② 入库入口 = **新增 TS CLI** `apps/api/src/scripts/ingest-eval-corpus.ts`（不动 `demo-ingest.mjs`），解析落点 = **跑批 CLI 内、`hitAtKCase` 之前**，参数走 **env**（`L1_DOC_MAP`/`L2_DOC_MAP`）；③ 未映射**继续算 miss**（**绝不变成 `null`**），`kbId`/指纹不符或账本不可解析 → **拒跑 exit 2**，报告加顶层三键 `docMapSource`/`docMapResolved`/`docMapUnmappedIds` 且**都不进判定**；④ 新鲜度 = `kbId` 全等 ∧ `corpusFingerprint` 全等，「docId 还在不在库内」不做运行时校验（记雾）；⑤ L2 一起接但**不进判定**；⑥ 新增配置键若进 module-status 正文须同步加黑名单以守基线 39 条。
 
 ## Not yet specified
 
