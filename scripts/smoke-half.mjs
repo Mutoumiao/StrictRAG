@@ -103,9 +103,33 @@ async function main() {
     headers: auth,
   });
   assertOk('complete', complete, { expectStatus: 200 });
-  const approve = await api('POST', `/api/v1/documents/${docId}/approve`, { headers: auth });
+
+  // ADR-048 #4 四眼：提交人不得批自己的单 → 审批必须换主体（先钉住自审被拒，再换人）
+  const selfApprove = await api('POST', `/api/v1/documents/${docId}/approve`, { headers: auth });
+  if (selfApprove.status !== 403) {
+    throw new Error(
+      `self-approve should be 403 (ADR-048 #4), got ${selfApprove.status}: ${JSON.stringify(selfApprove.json)}`,
+    );
+  }
+  const reviewerLogin = await api('POST', '/api/v1/auth/admin/dev-login', {
+    body: {
+      email: 'half-smoke-reviewer@local.dev',
+      roleTemplate: 'kb_admin',
+      tenantId: TENANT,
+    },
+  });
+  assertOk('reviewer-login', reviewerLogin, { expectStatus: 201 });
+  const reviewerToken = reviewerLogin.json?.data?.accessToken;
+  if (typeof reviewerToken !== 'string' || reviewerToken.length === 0) {
+    throw new Error(`reviewer-login missing accessToken: ${JSON.stringify(reviewerLogin.json)}`);
+  }
+  const reviewerAuth = { authorization: `Bearer ${reviewerToken}` };
+
+  const approve = await api('POST', `/api/v1/documents/${docId}/approve`, {
+    headers: reviewerAuth,
+  });
   assertOk('approve', approve, { expectStatus: 200 });
-  const scan = await api('POST', `/api/v1/documents/${docId}/scan`, { headers: auth });
+  const scan = await api('POST', `/api/v1/documents/${docId}/scan`, { headers: reviewerAuth });
   assertOk('scan', scan, { expectStatus: 200 });
 
   const deadline = Date.now() + TIMEOUT_MS;
