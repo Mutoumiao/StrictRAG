@@ -1,0 +1,76 @@
+# 真中间件栈真跑记录（2026-09-29）
+
+本文件是**一次真跑的原始证据**：在 Windows + Docker Desktop 上，把 `docker/docker-compose.yml` 的五服务真起，对**真 PostgreSQL / Redis / Elasticsearch / MongoDB / RustFS** 跑迁移与端到端入库。
+
+**它不是生产线**：`operable-stack.md` 的「非生产级」口径一条未变；这里的 ES 是 vanilla 8.15.3（**无 IK**），扫描仍 `mock_clean`，向量仍 `mock`，`AUTH_ENFORCE` 仍 false。**此页任何数字都不得进签字包。**
+
+- 执行图：[`.scratch/real-stack-evidence/map.md`](../../.scratch/real-stack-evidence/map.md)（工单 02–06）
+- 逐项取证：`.scratch/real-stack-evidence/research/02-stack-up.md` · `03-migrate-real-pg.md` · `04-half-smoke.md` · `05-real-es.md`
+
+## 1. 结论速览
+
+| 项 | 结果 |
+|----|------|
+| 五服务真起 | ✅ 全 `running|healthy` |
+| 逐服务探活 | ✅ `pg_isready` / `PONG` / ES `status:green` / Mongo `ping=1` / RustFS `{"status":"ok","ready":true}` |
+| `GET /ready` | ✅ `postgres`·`redis`·`elasticsearch`·`mongo` = up；`s3` 首启前 down（桶由首次 put 建）；`gateway` skipped |
+| 迁移在真 PG 上 apply | ✅ 空库从零 apply 零错误；**23 SQL = 23 journal = 23 已应用**；`db:generate` 零漂移 |
+| 端到端入库（真 RustFS + 真 Mongo + **真 ES**） | ✅ 上传 → complete → 四眼审批 → scan → parse → chunk → embed → ES bulk → 双就绪 `ready` |
+| ask 有引用 | ❌ **阻塞方 = 无可用 Gateway**（需 chat + embed + rerank 三契约，见 §4） |
+
+## 2. 本轮真跑改掉的两处源码缺陷
+
+两处都**只在真集群上现形**，且都是收紧：
+
+### 2.1 `bulkIndexSparse` 未等刷新 → 真集群上必现误红
+
+- 现象：`stage=es_index` 首次执行失败 `ES_RECONCILE_FAILED`，文档被写成 `status=failed` / `errorCode=ES_RECONCILE_FAILED`，靠 BullMQ 重试 2 秒后才转 `ready`。
+- 根因：ES 近实时，`POST /_bulk` 之后立刻 `_search` 读不到刚写入的文档 → `reconcileIndexed` 判 `missing`。mock ES 是进程内 set 比对，**永远不会暴露**。
+- 修复：`POST /_bulk?refresh=wait_for`（`apps/worker/src/ingest/es-http.ts`）；新增测例 `apps/worker/tests/ingest/es-bulk-refresh-before-reconcile.test.ts` 钉住该参数与「写后读一次判 ok」。
+- 真跑复核：修复后入库段 `uploaded → indexing_es → ready` **一次成功**，无 `failed` 过渡、无重试。
+
+### 2.2 `smoke:half` 与 ADR-048 四眼闸不一致
+
+- 现象：`POST /documents/:id/approve` 回 403 `self_approve_forbidden`。
+- 根因：脚本用同一 dev-login 主体上传并审批；`apps/api/src/routes/documents/index.ts` 按 ADR-048 #4 调 `evaluateSelfDecide` 挡自审。四眼闸是后加的，脚本没跟着改。
+- 修复：脚本先**断言自审必须 403**，再换 `half-smoke-reviewer@local.dev`（`kb_admin`）审批与 scan。
+
+## 3. 真 ES 上的检索行为（本机实测）
+
+- **中文检索可用**：`match` 查「检索闸」在 `strict_rag_dev` 上命中 2 条（`max_score` 非零），索引与查询两侧都由默认 `standard` 分词。
+  → **IK 不是该路径「能用」的必要条件**；它影响分词粒度与排序质量。「B8 真 ES+IK」里的 IK 仍属排序质量 / 生产话术，本页不为它下结论。
+- **mapping 落地**：uuid 类字段全 `keyword`、`sparseText` `text`、`visibilityLevel` `integer`，与 worker 的 `SPARSE_INDEX_PROPERTIES` 逐字段一致。
+- **`aclPrincipals` 三态真集群复核**（此前只在 mock 断言过）：
+  - `null` → 字段不写；`[]` → 写哨兵 `["__acl_none__"]`（ES `exists` 不认空数组）；`[uid]` → 写 uid 列表；
+  - 查询期 `should = [must_not exists(aclPrincipals), term(aclPrincipals: uid)]`：非名单用户只见「无名单」文档；名单内用户可见「无名单」+「本人名单」文档。**逐位符合预期。**
+- **没装 IK 的代价**：`es-sparse.ts` 查询期无 `doc_type` 过滤（索引也无该字段），故 ES 在**超集**上排序，范围内的文档可能被挤出 top-k。**这不构成泄漏**——`retrieve.ts` 在 sparse 命中后立刻与 PG 语料求交，场外 chunk 一律丢弃；损失是召回而非安全。
+
+## 4. ask 段的真边界：一份同时提供三条契约的 Gateway
+
+`GATEWAY_MODE=http` 时，api 的客户端要求上游**同时**提供：
+
+| 用途 | 路径 | 响应要点 |
+|------|------|----------|
+| chat（generate / claim_split / judge / route / rewrite） | `POST {base}/chat/completions` | `choices[0].message.content` 须是**严格 JSON 单行** |
+| embed | `POST {base}/embeddings` | `data[{embedding,index}]` |
+| **rerank** | `POST {base}/rerank` | `results[{index, relevance_score}]` |
+
+三条缺一不可：`runRetrieve` **无条件**调 rerank，失败即拒答。而缺 `GATEWAY_BASE_URL` 时走 mock，mock chat 返回纯文本 `[mock:generate] …`（不是 JSON）→ `internal_guard` → `abstained` → 烟测在 ask 一步因空引用失败。**这是既定口径，不是环境故障**（`half-smoke.md` 已写）。
+
+本机补充实测：本机 Ollama 有 embedding 与 rerank 模型、**没有对话模型**，且 Ollama 不暴露 `/rerank` 端点 → 「把 Gateway 指向本机 Ollama」在本机也不成立。
+
+**因此**：`docs/module-status/worker.md` 里「入库闭环可演示」与 api 侧「问答可演示」两条，在真栈上**取到的是不同水位**——入库段已在本机真栈跑通；问答段需要一台真 Gateway，本机没有。
+
+## 5. 复现命令
+
+```bash
+docker compose -f docker/docker-compose.yml up -d      # 五服务
+pnpm db:migrate                                        # 真 PG 上 apply（全新库先配 SUPER_ADMIN_*）
+pnpm up:apps                                           # 或分别启 api / worker，叠加 .env.operable.example
+pnpm smoke:half                                        # 端到端；ask 一步需真 Gateway
+```
+
+## 6. 本机执行的两条注意事项（非仓库缺陷）
+
+- Docker Desktop 在本机运行期间**自行退出两次**，每次需重新拉起并 `compose up -d`（卷保留，数据不丢）。
+- 真跑期间曾尝试拉取一个本地对话模型用于 ask 段，**在本机网络上未推进**（数分钟零字节增长），已终止；不影响 §1–§3 的任何结论。

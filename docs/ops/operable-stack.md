@@ -3,6 +3,8 @@
 目标：Docker 里把 **PostgreSQL、Redis、Elasticsearch、Mongo、S3 兼容存储** 拉起来，入库和检索能互相打到这些服务。  
 **不是** 真杀毒、**不是** IK 生产集群、**不是** 改仓库默认 mock（CI 仍走 mock）。
 
+> **本机真跑记录**（2026-09-29）：[real-stack-evidence.md](./real-stack-evidence.md) —— 五服务 healthy、真 PG 迁移 23/23 零漂移、端到端入库真跑通、真 ES 中文检索与 `aclPrincipals` 三态实测，以及 ask 段要一台真 Gateway 的边界。
+
 ## 1. 起中间件
 
 ```bash
@@ -26,6 +28,16 @@ docker compose -f docker/docker-compose.yml up -d
 cp .env.example .env
 cat .env.operable.example >> .env
 ```
+
+**全新库必须再配一个超管引导（否则 api 起不来）**：`apps/api/src/index.ts:20` 在 `serve()` **之前**无条件跑超管引导，库里没有 active 超管时缺 `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` 会直接 `process.exit(1)`（`services/superadmin-bootstrap.ts`）。`.env.example` 里这两行是**注释掉的**，追加以下内容进同一个 `.env`：
+
+```bash
+# 仅在库里还没有 active 超管时需要；已有超管后这段可留可删
+SUPER_ADMIN_EMAIL=admin@local.dev
+SUPER_ADMIN_PASSWORD=<自定，勿用示例值>
+```
+
+已有超管的环境**不需要**这两行。`development` 下另可用 `POST /api/v1/auth/admin/dev-login` 造主体，但那要求 api **已经在跑**，绕不过首次引导。
 
 追加后同一文件内后出现的键覆盖先前 mock 默认。样例含 http ES、S3、Mongo URL。扫描仍 `INGEST_SCAN_MODE=mock_clean`（development only）。**禁止** `on`。向量默认仍 `INGEST_EMBED_MODE=mock`（dims=8）；要真向量另配 Gateway。`AUTH_ENFORCE` 仍 false。
 
@@ -57,7 +69,9 @@ pnpm smoke:half
 `GET http://127.0.0.1:4000/ready` 期望：
 
 - `postgres` / `redis` = `up`（硬依赖）
-- `elasticsearch` / `s3` / `mongo` = `up`（配了 URL/s3 才会探测）
+- `elasticsearch` / `mongo` = `up`（配了 URL 才会探测）
+- `s3` = `up` **仅在桶已存在之后**：桶由**首次 `putObject`** 时创建（`apps/api/src/services/storage.ts` 的 `ensureReady`），故新起的 RustFS 上、第一次上传之前它恒为 `down`；这不是故障
+- `gateway` = `skipped`（未配 `GATEWAY_BASE_URL`）
 
 ## 4. 链路
 

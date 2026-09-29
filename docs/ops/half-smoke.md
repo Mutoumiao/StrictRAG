@@ -6,7 +6,7 @@
 ## 前置
 
 1. `docker compose -f docker/docker-compose.yml up -d` 或 `pnpm up:apps`（见 [operable-stack.md](./operable-stack.md)）
-2. `pnpm db:migrate`
+2. `pnpm db:migrate`（**全新库**还须先按 [operable-stack.md](./operable-stack.md) §2 配 `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD`，否则 api 起不来）
 3. api :4000 与 worker 已起（`pnpm up:apps`）
 
 扫描 / 向量 / ES 可为 mock（CI 默认 mock 即可入库）。  
@@ -29,7 +29,7 @@ pnpm smoke:half
 | 2 | `POST /api/v1/auth/admin/dev-login` | ask 始终验成员；超管可 ask |
 | 3 | `POST /api/v1/knowledge-bases` | 建库 |
 | 4 | `POST .../upload-url` → `PUT` 对象 → `POST .../complete` | 单篇 `fixtures/ingest-samples/01-doc.txt` |
-| 5 | `POST .../approve` → `POST .../scan` | 审批闸后入队 |
+| 5 | `POST .../approve`（**自审必 403**）→ 换 `half-smoke-reviewer@local.dev`（`kb_admin`）再 `approve` → `POST .../scan` | 审批闸后入队；ADR-048 #4 四眼：提交人不得批自己的单 |
 | 6 | 轮询 `GET /api/v1/documents/:id` | `status=ready` 且双就绪 |
 | 7 | `PATCH .../lifecycle` `{ lifecycle: "active" }` | **显式上架** |
 | 8 | `POST .../ask` | `data.citations` 非空 |
