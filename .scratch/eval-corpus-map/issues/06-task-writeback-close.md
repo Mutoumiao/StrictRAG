@@ -2,7 +2,7 @@
 
 Label: wayfinder:task
 Type: task
-Status: open
+Status: resolved
 Blocked by: 03, 04, 05
 
 ## Question
@@ -25,4 +25,24 @@ Blocked by: 03, 04, 05
 
 ## Answer
 
-（待填）
+**已解**。回写清单逐条落地（详见下方表），门禁在**最后一次提交之后**复跑。
+
+| 回写处 | 改了什么 |
+|---|---|
+| `docs/ops/operable-stack.md` §3 | 补「评测语料入库 + 映射账本」小节：建语料 KB 出账本、`L1_DOC_MAP` / `L2_DOC_MAP` 用法、与今天逐位一致的说明、拒跑条件 |
+| `docs/ops/real-stack-evidence.md` | §1 速览加一行（13 篇入库 + `hitAtK` 0/30 → 30/30）；**新增 §7** 记本图：背景（Hit@20 是 PRD 硬门却结构性恒 0）、新增能力、两跑对照表、**不是签字数字**、Docker 自退第 3 次与那次全 error 的留痕 |
+| `fixtures/l1/README.md` / `fixtures/l2/README.md` | 「逻辑 id 映射」一节由「人工替换纪律」改写为「映射入口已落 + 怎么用 + 缺映射继续算 miss」。**只改 README，数据文件一字未动** |
+| `docs/module-status/api.md` | 工单 03/04 段落 + **真栈实测段**（0/30 → 30/30、`hit_at_k_below_min` 消失、其余阻塞方一条未动、`businessPass` 仍 false、非签字数字、worker 侧边界） |
+| `docs/module-status/contracts.md` / `worker.md` | 新契约（子路径导出 + 账本形状）与 worker 两个落库白名单同步加键；worker 侧「不接账本」的边界写明 |
+| `docs/testing/coverage/03-ops.md` | **C4** 与派生行 **L2** 的缺口列改写：逻辑 id → uuid 由「跑批前人工步骤」改为「映射入口已落」（C4 仍 `已测`、L2 仍 `部分测`，**覆盖值一律不动**）；L2 的阻塞方收窄为「live 真跑 + 人签」 |
+| `docs/testing/coverage.md` | 新增**第十一轮**（2026-09-29，图 `eval-corpus-map`）：**无行级覆盖值变化**（四册合计仍 280 / 163 / 59），写清「补的是数据面不是门禁」、真栈实测结论、判据来源一字未改；「当前保持 `部分测` 的行」里 L2 的括注同步 |
+| `.trellis/spec/api/backend/l1-eval.md` / `l2-eval.md` | HOW：账本参数、解析落点、三键、四眼审批与 `AUTH_ENFORCE` 成员边界 |
+| `.scratch/fog-inventory-2026-09-23.md` | 追加 2026-09-29 动向行：映射面已落、门限未动、**本图没解决什么**（worker 侧批跑、L2 真跑准出） |
+
+**对抗性反向复核**（逐条核「这话在源码里真能指到吗」）：① 「`hitAtK` 现在算得出真数字」—— 由两跑原始报告 + 两份 `l1-gate-snapshot.json` 的 `reasons` 差集支撑，**不是**「Hit@20 已通过签字」；② 「未传账本逐位一致」—— 有测例与真跑对照（两跑 `matrix` / `errorCount` / `outcome` 分布逐位相同）；③ 「不进任何判定」—— 核过 `PILOT_HARD_GATES` / `computeSignoffEligible` / `evaluateAdr046Bind` / `computeL2SignoffEligible` / `hitAtKCase` 均未改（`git show` 可证）；④ 「覆盖值未动」—— 第十一轮明确写「无行级覆盖值变化」；⑤ 「不是签字数字」—— 每处都点明 mock 向量 / mock chat / 无 IK / `retrieve_mode=live` 只反映 ES 档位。
+
+**未回写（写明理由）**：`.trellis/tasks/08-06-project-backlog/status.md` 与 `prds/12-delivery-guides/04-交付控制台.md` —— 本图**没有**改任何 ID 行 / 关键路径 / 完成标签（`B10-followup` 仍是「部分」，其余硬门余量未变），按总表自身纪律无需同步；且 `/prds` 与 `.trellis/tasks/` 不在版本库（`.gitignore`），改了不留痕。
+
+**收口门禁（在最后一次提交之后复跑）**：`pnpm check-types` **8/8** · `pnpm lint` **8/8** 零 warning · `pnpm run test --concurrency=1` **11/11**（api **181** 文件 / **1134** 通过）· `node scripts/module-status/check.mjs` **39 条 = 2 env + 13 符号 + 24 表**，`1-路径` / `6-联动` / `7-时效` **全空** · `git status --short` 干净。
+
+**本地提交**（**不 push**）：见地图「目的地达成」的提交清单。

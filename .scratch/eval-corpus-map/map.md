@@ -1,7 +1,7 @@
 # 让 L1 硬门 Hit@20 可实测（评测语料入库 + 逻辑 id 映射）
 
 Label: wayfinder:map
-Status: open（前沿：01）
+Status: resolved（前沿：空；工单 01 · 02 · 03 · 04 · 05 · 06 全收口）
 
 ## Destination
 
@@ -58,10 +58,48 @@ Status: open（前沿：01）
 
 - [01 · 研究：评测语料入库与逻辑 id 映射的现状面](./issues/01-research-corpus-map-surface.md) — 正文 [`research/01-corpus-map-surface.md`](./research/01-corpus-map-surface.md)。要点：**修正地图口径** —— L1 带标注题是 **30/60**（`hitAtKScored = 30`、`hitAtK = 0/30 = 0` 非 null），恒 0 链逐跳成立、结论不变；L1 去重 10 个逻辑 id / L2 去重 6 个（交叉 3 个）→ **账本按 KB 分辨**；`demo-ingest.mjs` 已能拿到真 `docId` 但每跑新建 KB、不落映射、不吃 `fixtures/l2/corpus`；**报告无现成槽位承载「映射来源」→ 必须新增键**（L1 落库 api 侧整对象直落、worker 侧逐键白名单，漏键静默丢）；`hitAtK == null` 今天默认**不可达**（缺映射必然是 scored>0 且 hits=0 = 记 miss）；回归面清单已列（L1 三处字面量报告 · `l1-repro` 精确键集 · worker 白名单 · turbo env · md 渲染断言）。**未核实**：真栈实测数字（留给工单 05）。
 - [02 · 裁定：账本形状 / 解析落点 / 未映射行为 / 新鲜度](./issues/02-dec-map-shape-and-resolver.md) — 六组裁定：① **一份账本 = 一个 KB**，落 `artifacts/eval-corpus-ledger-<kbId>.json`（运行产物不入库），形状（`version` / `kbId` / `tenantId` / `generatedAt` / `corpusFingerprint` / `entries[{logicalId,docId,title,sourceFile,sourceSha256}]`）由 `packages/contracts/src/eval/corpus-ledger.ts` **子路径导出**唯一锚住；② 入库入口 = **新增 TS CLI** `apps/api/src/scripts/ingest-eval-corpus.ts`（不动 `demo-ingest.mjs`），解析落点 = **跑批 CLI 内、`hitAtKCase` 之前**，参数走 **env**（`L1_DOC_MAP`/`L2_DOC_MAP`）；③ 未映射**继续算 miss**（**绝不变成 `null`**），`kbId`/指纹不符或账本不可解析 → **拒跑 exit 2**，报告加顶层三键 `docMapSource`/`docMapResolved`/`docMapUnmappedIds` 且**都不进判定**；④ 新鲜度 = `kbId` 全等 ∧ `corpusFingerprint` 全等，「docId 还在不在库内」不做运行时校验（记雾）；⑤ L2 一起接但**不进判定**；⑥ 新增配置键若进 module-status 正文须同步加黑名单以守基线 39 条。
+- [03 · 落「评测语料入库入口 + 可核对映射账本」](./issues/03-task-corpus-ingest-and-ledger.md) — 契约 `packages/contracts/src/eval/corpus-ledger.ts`（子路径 `@strict-rag/contracts/eval-corpus-ledger`，`node:crypto` 不进主入口）+ 入库 CLI `apps/api/src/scripts/ingest-eval-corpus.ts`（13 篇语料 → 账本，逻辑 id 由目录结构派生，缺 docId 点名抛错）。**只在真跑才现形的缺陷已当场修**：CLI 全步带 token → 同一身份上传并审批会撞 **ADR-048 #4 四眼闸**（403 `self_approve_forbidden`），改双身份 + 首篇自审探针（非 403 即失败）；`demo-ingest.mjs` 无此坑（approve 不带 token → 无 actor）。边界：`AUTH_ENFORCE=true` 时审批人须为 KB 成员。测例 contracts 15 + api 23（含四眼 3）；反证 4 轮。
+- [04 · 落「跑批侧按账本解析 + 报告来源标记」](./issues/04-task-resolver-and-report-source.md) — `L1_DOC_MAP` / `L2_DOC_MAP`（已登记 `turbo.json`）：不设 → **与今天逐位一致**（有实证）；设了 → 校验 `kbId` + 语料指纹，不符 `exit 2`；解析落在 `hitAtKCase` 之前，缺映射原样保留。报告顶层三键（L1/L2 同形）不进任何判定；worker 两个落库白名单同步加键（常量 `none/0/[]`，因 run-batch 按裁定不改）。修好研究列出的全部回归面（三处字面量报告 / `sampleReport` / md 断言），**未**用 `as any` / `@ts-ignore`。
+- [05 · 真栈真跑：入库 → 带账本跑 L1 → 实测 Hit@20](./issues/05-task-real-stack-hit20.md) — 取证 [`research/05-real-stack-hit20.md`](./research/05-real-stack-hit20.md)。真栈五服务 healthy；13 篇语料入库并激活；账本 13 条。**同夹具同 KB 对照：不带账本 `hitAtK = 0/30`；带账本 `30/30`（`docMapSource=ledger`、`docMapResolved=10`、`unmapped=[]`）**；ADR-046 裁决的 `hit_at_k_below_min` 在带账本那跑**消失**，其余阻塞方（`coverage_zero_or_null` · `judge_auroc_*` · `human_spot_missing` · 四要素 · `internal_guard`）**一条未动** → `businessPass` 两跑都仍 false。**不是签字数字**（mock 向量 8 维 / mock chat / 无 IK / 60 题全 `abstained`）。环境事实：Docker Desktop **第 3 次自退**，其中一次落在两跑之间 → 那跑 60 条全 `error`（`Failed query … "documents"`），**机制诚实**（`errorCount=60` 而非假绿），重启后原样重跑得 `errorCount=0`。
+- [06 · 回写 + 收口门禁](./issues/06-task-writeback-close.md) — 回写 ops 配方与证据文（§7）/ 两份 fixtures README / module-status（api 真跑段 + contracts + worker）/ 覆盖表（C4 + L2 缺口列改写、**覆盖值一律不动**）/ coverage.md 第十一轮 / `.trellis/spec` HOW / 雾清单；对抗性反向复核 5 条逐条核过。门禁：`check-types` 8/8 · `lint` 8/8 零 warning · `pnpm run test --concurrency=1` **11/11**（api **181** 文件 / **1134** 通过）· `check:module-status` **39 条**（`1/6/7` 全空）· 工作区干净。
+
+### 目的地达成（2026-09-29）
+
+**「让 L1 硬门 Hit@20 从结构性必失败变成可真测」已达成**：
+
+1. **数据面补齐**：13 篇评测语料有仓内可重复的入库入口（`ingest-eval-corpus.ts`），产出**可核对**的映射账本（`kbId` + 语料指纹 + 逐条 `logicalId → docId/title/sourceSha256`，落 `artifacts/` 不入库）；形状与解析口径由 contracts 一份子路径契约锚住。
+2. **跑批侧接上**：`L1_DOC_MAP` / `L2_DOC_MAP` 在比对前解析；**不传 = 逐位同今天**（有实证与测例）；账本与本次 KB 或当前夹具不符 → **exit 2 拒跑**；缺映射**继续算 miss**，**绝不**变成 `null`。
+3. **真栈实测**：`hitAtK` 从 `0/30` 到 `30/30`，硬门裁决的 `hit_at_k_below_min` 消失 —— 这道 PRD 冻结的门第一次算出了真数字。**门限与公式一个字未改**。
+4. **诚实边界**：`businessPass` 仍 false（其余阻塞方一条未动，且都非本图能代）；向量/chat 仍 mock、无 IK，故实测值**不是签字数字**；worker 侧批跑按裁定未接账本。
+5. **该被记住的三句话**：① **恒 0 不是检索差，是没得量** —— 夹具写逻辑 id、实测是 uuid，缺的是数据面；② **补数据 ≠ 降门** —— 未映射继续算 miss 是这条改动的底线，把缺失写成「该门不适用」等于把 PRD「有标注则硬门」改成常开；③ **真跑仍在教东西** —— 四眼闸这一处缺陷（同身份自审 403）与 Docker 自退，都只在真跑里现形，mock 与单测都测不出来。
+
+**提交（本地，未 push）**：`51108e6` 契约 · `fd212fd` 入库 CLI · `250416f` 跑批接线 · `4799f7d` 文档回写 · `d7c5611` 工单 03/04 收口 · `a214e52`/`92f476d` 立图与 01/02 收口，以及本图收口的最后一笔。
 
 ## Not yet specified
 
 <!-- 收口后剩下的雾，按「谁挡谁」分组，供下一张图挑一个当目的地 -->
+
+本图已收口。下列是**收口后剩下的雾**（带（另图）的原样转给后续图，不是本图的欠账）。
+
+### A · 本图显式划出的（同一数据工程缺口的其它表现）
+
+- **worker 侧批跑不接账本**：`apps/worker/src/eval/run-l1-batch.ts` 与 `run-l2-batch.ts` 仍在 `hitAtKCase` 处直比逻辑 id → 其 Hit@k / docHit 仍**恒 0**。**今天不构成假绿**（两处都不进任何判定，落库白名单也只是常量 `none/0/[]`），但「同一个数字在两处含义不同」本身就是坑。销账要先裁：worker 侧的账本从哪来（env？同请求下发？）、落库形状是否与 api 侧同构（`saveReport` / `saveL2Report` 是逐键白名单，漏键静默丢）。
+- **账本 ↔ 库内文档不做运行时对账**：本图只机械校验 `kbId` 与**夹具指纹**两项；「账本里的 docId 是否还在库里」由人用 `GET /knowledge-bases/:kbId/documents`（全量、无分页）比对 `id` + `title`。候选销账两条：给 eval CLI 加一次库内存在性校验（会引入 DB 读、扩大回归面），或给列表项补 `createdAt` / `checksumSha256`（契约变更）。
+- **`hitAtK` 的 k 语义**（承 `quality-gate-parity` 簇 29）：k = rerank 后进 verify 的集合长度（balanced 恰 20、fast 为 10 → 更严），与 PRD「检索 Top-k」不是同一集合 —— 本图**未碰**。
+
+### B · 本图实测反证「门能算」≠「门能过」的部分
+
+- **L2 侧的真跑与准出**（簇 7）：`docHitRate` 现在**可以真测**（`L2_DOC_MAP` 已接、有测例），但本机没跑真 L2 批跑；L2 准出仍须 live 真跑归档 + RACI 人签，且四项零容忍 5 处去处只有 1 处机械判。
+- **其余五道 L1 硬门的真值**：`coverage`（需真 Gateway：mock chat 让 60 题全 `abstained`）· `judgeAuroc`（需 live 打分器 + ≥100 真标注校准集）· `humanSpot`（须人）· 四要素（须业务提案与人签）。本图把 `hitAtK` 从「不可能」变成「可能」，其余五道**仍不可能**。
+- **簇 39（dev-only 桩 Gateway 是否允许）**：本图的实测再次把它顶到台前 —— 没有真 Gateway，覆盖率恒 0、`abstained × 60`。要不要为「无 key 机器」提供 dev-only 桩，仍是**产品决定**（前图已记为雾，本图不擅自建）。
+
+### C · 本机环境事实（非仓库缺陷，但会打断真跑）
+
+- **Docker Desktop 反复自行退出**（本轮第 3 次）。后果：长跑批跑若撞上，整批 case 记 `error`。**不需要改代码**（机制诚实），但「真栈证据」类工作要预留重启与重跑的时间预算，且**必须**把故障那一跑留痕。
+
+### D · 与前图同一批的其它口子（原样转，未动）
+
+- 簇 **8**（`CorpusLoader` 未传 `tenantId`）· 簇 **11**（`loadVisibilityContext` 请求级缓存）· 簇 **13**（`kb_members.role` 完整性债）· 簇 **22**（`drizzle/meta` 类型/默认值级人工走查）· 簇 **31 余量**（覆盖表剩余 **59** 行 `部分测`）· 簇 **32**（`/prds` 与 `.trellis/tasks/` 不在版本库）。
 
 ## Out of scope
 

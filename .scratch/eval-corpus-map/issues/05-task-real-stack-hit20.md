@@ -2,7 +2,7 @@
 
 Label: wayfinder:task
 Type: task
-Status: open
+Status: resolved
 Blocked by: 03, 04
 
 ## Question
@@ -22,4 +22,26 @@ Blocked by: 03, 04
 
 ## Answer
 
-（待填）
+**已解**。取证全文：[`../research/05-real-stack-hit20.md`](../research/05-real-stack-hit20.md)。
+
+**真栈**：compose 五服务全 `healthy`（PG 16+pgvector · Redis 7 · ES 8.15.3 vanilla · Mongo 7 · RustFS）· `pnpm db:migrate` 幂等成功 · `/ready` = `postgres/redis/elasticsearch/s3/mongo` 全 up（`gateway: skipped`）。语料入库走新入口：**13 篇**（`ingest-samples/01..10-doc` + `l2-corpus/{leave-policy,meal-allowance,travel-stay}`）全部 `ready` 且 `lifecycle=active`，账本 13 条、`fingerprint=c437c632…`。**四眼闸真跑生效**（首篇自审探针必须 403，通过 → 审批确实换了第二个身份）。
+
+**两跑对照（同一夹具、同一 KB、唯一变量 = `L1_DOC_MAP`）**：
+
+| 字段 | 不带账本 | 带账本 |
+|---|---|---|
+| `hitAtK` | **0**（0/30） | **1**（30/30） |
+| `docMapSource` / `docMapResolved` / `docMapUnmappedIds` | `none` / 0 / `[]` | `ledger` / **10** / `[]` |
+| `verdict.reasons` | 含 **`hit_at_k_below_min`** | **不含**该条 |
+| `businessPass` | false | false |
+| `matrix` / `errorCount` / `outcome` | `{A:0,B:30,C:0,D:30}` / 0 / `abstained × 60` | 同左 |
+
+**目的地达成的直接证据**：PRD 冻结的 `Hit@20 ≥ 70%` 这道硬门，从「结构性必失败」变成「算出真数字并通过（30/30）」——`hit_at_k_below_min` 在带账本那一跑**消失**。命中的 30 条恰是全部 `answerable` 题。
+
+**同时如实写清它没解决什么**（`businessPass` 仍 false，其余阻塞方一条未动，且都与映射无关）：`coverage_zero_or_null`（无 Gateway → mock chat 非法 JSON → 60 题全 `abstained`）· `judge_auroc_missing_or_below_min`（无 live 打分器 + 校准集仅 8 条 < PRD ≥100）· `human_spot_missing`（须人写抽检账本）· `missing_proposal` / `missing_signatures` / `internal_guard`（ADR-046 四要素与业务人签）。**这些一条都不是本图能代的**。
+
+**不是签字数字**（本票实测的边界，全部写进取证文）：向量仍 mock（8 维）、chat 仍 mock（无 `GATEWAY_BASE_URL`）、ES 是 vanilla 无 IK、`AUTH_ENFORCE=false`、扫描 `mock_clean`；`retrieve_mode=live` 只反映 ES 检索档位，不等于可签字。
+
+**真跑暴露的环境事实**：Docker Desktop **再次自行退出**（本轮第 3 次）。其中一次落在两次 L1 之间的窗口 → 那一跑 60 条 case 全 `error`（原文 `Failed query: select … from "documents" …`，PG 不可达），`errorCount=60` / `coverage=null`；**机制诚实**（不假绿、不静默跳过）。重启守护进程 + `compose up -d` 后**原样重跑**得 `errorCount=0`，本票数字以健康栈上的重跑为准，故障那一跑留痕不删。
+
+**未做**：未跑 L2 批跑（`L2_DOC_MAP` 接线已落有测例）· 未接真 Gateway / 未做 live judge / 未做人工抽检 · worker 侧 run-batch 按裁定未接账本。
