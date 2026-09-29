@@ -1,7 +1,7 @@
 # 让评测批跑的两条入口（api CLI / worker 队列）对同一数字给同一含义
 
 Label: wayfinder:map
-Status: open（前沿：工单 01）
+Status: resolved（前沿：空；工单 01 · 02 · 03 · 04 · 05 · 06 全收口）
 
 ## Destination
 
@@ -77,13 +77,31 @@ Status: open（前沿：工单 01）
 - [02 · 裁定：worker 侧账本的来源 / 读取时机 / 失效语义 / 落库形状](./issues/02-dec-worker-ledger-source.md) — 八组裁定。① **来源 = 与 api CLI 同名的 worker 进程级 env**（`L1_DOC_MAP` / `L2_DOC_MAP`）；否掉「job payload 下发」（= 让 API 客户端指定服务器文件路径）与「按 kbId 约定发现」（放错目录会静默退化成恒 0）；「一进程一份账本」是**既有**限制（同款 `EVAL_L2_GOLD_PATH`）。② **复用落点 = 上移 `contracts` 新子路径 `./eval-corpus-ledger-file`**（`corpus-fixtures` + `corpus-map` 搬家，行为逐位不变），api 侧改为 **re-export 保路径**（那 31 条条件面测试 import 路径一个字不改）；`defaultRepoRoot` 改为**显式入参**（层数关系变了，禁沿用硬编码上溯）。③ **每次 job 重读**（路径取 env 快照、内容每次重读 → 换账本不必重启）。④ **三态互斥**：未设置 = 逐位一致；设置但不可用 = **响亮失败**（复用 `CorpusLedgerError` 原文，禁降级）；设置且自洽 = 解析。⑤ **落库三键改取报告真值**（`summarizeDocMap(…,null)` 恰等于今天的常量，测例钉住）。⑥ **L2 同办**（三处比对点全接，`docHitRate` 仍不进判定）。⑦ **「账本↔库内存在性对账」不纳入**（CLI 侧无 DB 读，单侧加会制造新的不对称）→ 转下一图。⑧ **配置键无需手工动作**：turbo 已登记且 per-task 全覆盖；`check.mjs:304-306` 会把 worker `env.ts` 字段名**自动**加进黑名单（守基线 39 条）。⑨ **DTO 透出三键纳入本图**（`EvalRunSchema` + `toEvalRunDto` 同时改，缺键 `?? 'none'` 容错；不动 admin）。
 - [01 · 研究：worker 评测路径与账本接缝的现状面](./issues/01-research-worker-eval-path.md) — 正文 [`research/01-worker-eval-surface.md`](./research/01-worker-eval-surface.md)。要点：调用链 `routes/eval.ts:238` → `enqueueEval` → `sr-eval`/`golden_2x2` → `index.ts:113` → `consumer.ts:16` → 两个批跑 → `persist.ts:101/:153` → `eval_runs`；**这条链从未被端到端跑过**（api 测注入假 `enqueue`、worker 测注入内存 persist），故工单 05 是第一次真跑。worker 评测 env 仅 4 键、**无 `L1_DOC_MAP`/`L2_DOC_MAP`**，`env` 在模块加载期一次求值；既有形状支持「输入走进程级 env」，但 `retrieveMode`/`maxCases`/`runType` 是**随 job 下发**的反例。比对点共 3 处（L1 `:176`；L2 `:193`/`:219`）。落库三键硬编码于 `persist.ts:146-148`/`:190-192`，`reportJson` 是 jsonb。**新发现**：`toEvalRunDto` **不透出 `docMap*`/`repro`**（→ 工单 02 第 8 组）。复用：`corpus-ledger.ts` 纯函数可直接 import；`corpus-map.ts`/`corpus-fixtures.ts` 不能（→ 第 1b 组）。**账本可达性零障碍**：compose 无 host 挂载、api 与 worker 都在 host 跑，`repoRoot` 两侧同式同根。回归面：12 条 it（8 文件）+ 2 条语义钉子 = **14 条**最可能打红，另有 31 条条件面（若上移 `corpus-map`/`corpus-fixtures`）。未核实 8 条已转工单 02 / 05。
 
+- [06 · 回写 + 收口门禁](./issues/06-task-writeback-close.md) — 回写 9 个文件（module-status worker/api/contracts · ops 配方与证据文 §8 · coverage 第十二轮与 03-ops 两行缺口 · 两份 api spec · 雾清单注记）。门禁（回写后复跑）：`check-types` 8/8 · `lint` 8/8 零 warning · 全仓 `test --concurrency=1` **11/11 包** · `check:module-status` **39 条**（`1/6/7` 空）。对抗性反向复核 5 条镜像声明全部指到源码（env 两键 · consumer 传参 · persist 取真值 · DTO 透出 + 容错 · contracts 子路径）。
+
+### 目的地达成（2026-09-29）
+
+**「让评测批跑的两条入口对同一个数字给同一含义」已达成**：
+
+1. **同一条链有了第二个消费方**：worker 队列路径接上与 api CLI **同名同义**的进程级 env `L1_DOC_MAP` / `L2_DOC_MAP`，在 `hitAtKCase` 之前按**同一份账本**解析；读取面（`corpus-fixtures` / `corpus-map`）逐位上移到 contracts 子路径，两条入口 import 同一份实现。
+2. **三态分离，拒绝有据**：未设置 = 与改动前**逐位一致**；设置但账本不可用 = **响亮失败**（错误信息复用 `CorpusLedgerError` 原文）；设置且自洽 = 解析。**缺映射继续算 miss，绝不变成 `null`。**
+3. **落库与透出同形**：`persist` 两处白名单改取报告真值（未设账本时取值恰等于旧常量，库内形状不变）；报告 DTO 透出映射来源三键且缺键容错。**没有「报告说有账本、库里说没有」这类分叉。**
+4. **真栈实证**：本仓**第一次**把「运营台发起 → BullMQ → worker → 落库」端到端跑通 —— `hitAtK` 从 `0/30` 到 `30/30`，与 api CLI 侧**完全相同**（`resolved=10`）；账本 kbId 不符则 job `failed` 且点名原因。
+5. **诚实边界**：这些数字**不是签字数字**（向量/chat 仍 mock、无 IK、可答类全 `abstained`）；`signoff_eligible=1` 是 L1 **工程口径**，非业务 PASS；门限与判定公式**一个字未改**。
+
+**该被记住的三句话**：① **「同一个数字在两处含义不同」本身就是坑** —— 它不会报错，只会让运营台显示一个结构性假零；② **「未设置」与「设置但不可用」必须分成两态** —— 合成一个出口，等于把一道新鲜的闸改成常开；③ **首次真跑总会教东西** —— turbo 的 `dev` 任务 env 白名单、`pnpm --filter` 的 `@` 经 `.cmd` 被拼坏、Docker 自退后 ES 端口转发丢失，这三条都只在真跑里现形。
+
+**提交（本地，未 push）**：`68f36c4` 工单 01 · `fa62a3b` 工单 02 · 工单 03/04 的实现与收口 · `5d341c7` 工单 05 · 工单 06 回写与本图封图。
+
 ## Not yet specified
 
 <!-- 收口后剩下的雾，按「谁挡谁」分组，供下一张图挑一个当目的地 -->
 
-### A · 本图裁为「不纳入」的（承接前图 A 段第二条）
+### A · 本图显式划出的三条（同一数据工程缺口的其它表现）
 
-- **账本 ↔ 库内文档不做运行时对账**：账本只机械校验 `kbId` 与**夹具指纹**两项；「账本里的 docId 是否还在库里」今天由人用 `GET /knowledge-bases/:kbId/documents` 比对。worker 侧**有 DB 访问**（`persist.ts` 用 `getDb()`），所以这条在 worker 侧的实现成本比 CLI 侧低 —— 但会同时牵动两侧（CLI 侧无 DB 读），**本图先裁是否纳入**（工单 02），未纳入则原样转下一图。
+- **账本 ↔ 库内文档不做运行时对账**（工单 02 第 6 组已裁：**不纳入本图**）：账本只机械校验 `kbId` 与**夹具指纹**两项；「账本里的 docId 是否还在库里」今天由人用 `GET /knowledge-bases/:kbId/documents` 比对。**裁「不纳入」的理由**：CLI 侧**没有** DB 读（前图裁定 4 显式划出），单在 worker 侧加会制造**新的**两侧不对称 —— 恰与本图判据相反。**销账落点**：共享层（contracts 子路径）加**可选**校验，两侧一起接或都不接。
+- **两条入口的题源不同**（工单 05 实测时新发现）：api CLI 读文件 `fixtures/l1/gold.yaml`，worker 队列读 **DB 表 `gold_questions`**。本图只对齐了「数字含义」，**未**对齐题源 —— 两侧的题面集合可以不同（本图实测：worker 侧灌 60 题后 `caseCount=60`，与 CLI 同夹具同题集；但这是运维操作对齐的结果，不是代码保证）。**销账要先裁**：题源该不该收敛到一处（DB 为准？文件为准？），以及「两侧题集不同」要不要成为可检测的信号。
+- **`EvalRunSchema` 的映射来源三键暂为可选**：为兼容历史行（`.strict()` 的列表路径会 parse）。要收紧为必填，须先回填 `eval_runs.report_json` 的历史数据。
 
 ### B · 承接前图 B 段（本图同样碰不到）
 

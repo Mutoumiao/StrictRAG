@@ -98,3 +98,31 @@ pnpm smoke:half                                        # 端到端；ask 一步�
 **本机注意（沿用 §6）**：本轮 Docker Desktop **再次自行退出**（第 3 次），其中一次落在两次 L1 之间的窗口里 → 那一跑 60 条 case 全部 `error`，原文是 `Failed query: select … from "documents" …`（PG 不可达），`errorCount=60` / `coverage=null`。**机制是诚实的**（不假绿、不静默跳过）；重启守护进程 + `compose up -d` 后原样重跑得 `errorCount=0`，本页数字以健康栈上的重跑为准。
 
 **本机留痕**（`artifacts/` 已 gitignore，为便于在本机复核，目录名列出）：入库账本 `artifacts/eval-corpus-ledger-<kbId>.json`（13 条）；故障那一跑 `artifacts/l1-with-map/`（`errorCount=60`，**留痕不删**）；健康栈上的成对重跑 `artifacts/l1-no-map-2/`（0/30）与 `artifacts/l1-with-map-2/`（30/30）——两份 `l1-gate-snapshot.json` 的 `verdict.reasons` 差集就是 §7 那张表。
+
+## 8. 续图（2026-09-29 · `eval-ledger-parity`）：worker 队列路径接账本 + 三态实测
+
+逐项取证：[`.scratch/eval-ledger-parity/research/05-real-stack-worker-run.md`](../../.scratch/eval-ledger-parity/research/05-real-stack-worker-run.md)。
+
+**背景**：§7 只把 api CLI 一条入口接上账本，worker 队列路径（`POST /knowledge-bases/:kbId/eval/runs` → BullMQ `sr-eval` → `runL1Batch`）仍在 `hitAtKCase` 处直比「夹具逻辑 id vs `documents.id` uuid」→ `hitAtK` **结构性恒 0**；更关键的是**这条链此前从未被端到端跑过**（api 侧测试注入假 `enqueue`，worker 侧测试注入内存 persist）。本续图给 worker 侧加上与 CLI **同名同义**的进程级 env `L1_DOC_MAP` / `L2_DOC_MAP`，并**第一次**把「运营台发起 → 队列 → worker → 落库」在真栈上闭环。
+
+**链条首次贯通**：真 compose（PG + Redis + ES 8.15.3 + Mongo + RustFS）上，`POST /knowledge-bases/<kbId>/eval/runs`（`runType=golden_2x2`）→ `sr-eval` → worker 消费 → `eval_runs` 落库，全程真跑；同一 KB（`01a0eda2-6781-7ca3-90e8-17dcd7ba68c2`）、同一账本、同一夹具，**唯一变量 = worker 的 `L1_DOC_MAP`**（worker 每次以不同 env 重启 —— env 是模块加载期快照）。
+
+**三态对照**：
+
+| 场景 | worker 的 `L1_DOC_MAP` | run `status` | `hitAtK`（hits/scored） | `docMapSource` | `docMapResolved` | `errorMessage` |
+|---|---|---|---|---|---|---|
+| A | **未设置** | succeeded | **0**（0/30） | `none` | 0 | — |
+| B | 指向本 KB 账本 | succeeded | **1**（**30/30**） | **`ledger`** | **10** | — |
+| C | 指向 kbId 被改坏的账本 | **failed** | `null` | — | — | 点名「账本 kbId ≠ 本次 KB」 |
+
+三条结论：① **未设置 → 与改动前逐位一致**（A：`none` / 0 / `[]`，`hitAtK` 仍结构性 0）；② **设置且自洽 → 数字变成真比值**（B：`ledger` / 10 / `[]`，`hitAtK` 0 → 1，`docMapResolved=10` 与 §7 的 api CLI 侧**完全相同**）；③ **设置但不可用 → 响亮失败**（C：job 落 `failed`），**没有降级成「未设置」** —— 若降级，B 与 C 会给出同样的 `none/0/[]`，那道新鲜的闸就等于常开。
+
+**库内原始形状**（直接查 `eval_runs`，不经 DTO）：`report_json` 是 jsonb，`report_json.hitAtK` 与顶层列 `hit_at_k` 一致（B：`ledger/10/1/30/30`；A：`none/0/0/30/0`）—— 落库白名单已按报告真值写，不再硬编码常量；失败行（C）**不写 `report_json`**（`markFailed` 只写 `status` + `error_message`），故其 `src`/`hit` 为空是正确表现，不是丢字段。`signoff_eligible=1`（B 跑）是 **L1 的工程口径**（`retrieveMode=live` ∧ 两类各 ≥30），**不是业务 PASS**：`coverage=0`（mock chat 全 `abstained`）、无 judge AUROC、无人工抽检、无四要素。
+
+**这不是签字数字**：向量仍 mock（8 维）、chat 仍 mock（无 `GATEWAY_BASE_URL`）、ES 是 vanilla 8.15.3 无 IK、可答类全 `abstained`（`coverage=0`）。`retrieve_mode=live` 只反映 ES 检索档位。本页任何数字都不得进签字包。
+
+**本机留痕**（`artifacts/` 已 gitignore，列出便于本机复核）：本轮账本 `artifacts/eval-corpus-ledger-01a0eda2-6781-7ca3-90e8-17dcd7ba68c2.json`（13 条）；场景 C 用的坏账本 `artifacts/l5-bad-ledger.json`（kbId 改成 `00000000-0000-7000-8000-0000000000ff`，entries 未动）—— **留痕不删**；三条 run 的落库行可直接 `select` 复核。
+
+**环境坑三条**（本轮踩到，已写入 [operable-stack.md §6](./operable-stack.md)）：turbo `dev` 任务 env 白名单过滤 operable 变量 · `pnpm --filter` 的 `@` 经 PowerShell `.cmd` 被拼坏 · Docker 自退后 ES host 端口转发丢失须 `restart` 容器。
+
+**未核实 / 不在本页**：两条入口的**题源不同**（CLI 读 `fixtures/l1/gold.yaml`、worker 读 DB 表 `gold_questions`）—— 本图只对齐数字**含义**，未对齐题源；账本 ↔ 库内文档的**运行时不变量**仍不做校验（前图裁定 4 显式划出）；L2 真跑与准出仍缺。

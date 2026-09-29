@@ -157,7 +157,7 @@ Seed 规模：可答 30 + 不可答类 30（含 `false_premise`）；**mock 数�
 
 - **覆盖率** `coverage = A / (A+B)`；无 answerable 样本 → `null`（勿当 0）。
 - `false_premise` **不**单独成格。
-- **Hit@k**（P4 最小）：只对非空 `expectedDocIds` 计分；hit = 该题 `evidence_snapshot.docId` 与 expected 有交集；k = 该列表长度；总率 = hits/scored，scored=0 → `null`。**不**进 `signoffEligible`，**不**改 2×2。逻辑 id→uuid 映射仍由跑批前人工处理。
+- **Hit@k**（P4 最小）：只对非空 `expectedDocIds` 计分；hit = 该题 `evidence_snapshot.docId` 与 expected 有交集；k = 该列表长度；总率 = hits/scored，scored=0 → `null`。**不**进 `signoffEligible`，**不**改 2×2。逻辑 id→uuid 映射由跑批前按账本解析（api CLI `L1_DOC_MAP` / worker `L1_DOC_MAP`，见下方「评测语料映射账本」；未映射继续算 miss）。
 - **τ 扫描**（P4 最小）：挂现有 L1 批跑。有 `minSupport` 才按网格重阈（min 否决：`minSupport≥τ` → answered）；无分数保持原 outcome（未进 judge 不得因降 τ 变成 answered）；error 出格。网格 `0.30…0.90` 步长 `0.05`。`cRate=C/(C+D)`。**tau\*** = coverage≥0.4 ∧ cRate≤0.05 的最大 τ；没有 → `null`。本跑 2×2 仍按 env `TAU_CLAIM` 的真实 outcome。**不**写 env、**不**让公开 ask 传 τ、**不**进 `signoffEligible`。`unsupported_claims` 的图结果必须带回 `minSupport`。
 - **Judge AUROC**（P4 最小）：独立 `fixtures/l1/judge-calibration.json`（`claim` + `evidence` + `supported|unsupported`）。**禁止**用 gold `type` / ask outcome 当 label。Mann-Whitney；注入打分器才计分；无打分器 / 单类 / 无有效分 → `judgeAuroc=null`。**不**进 `signoffEligible`，但**已**进 api 侧 `evaluateAdr046Bind` 的放行判定（值 ≥ 门限 ∧ 来源 = live ∧ 校准集有效对数 ≥ 100），**不**新开 `verifier_calib` 入队。
 
@@ -199,14 +199,14 @@ Seed 规模：可答 30 + 不可答类 30（含 `false_premise`）；**mock 数�
 
 > **Turbo**：`turbo.json` 的 `lint` / `test` task env 须声明 `L1_*`（含 `L1_PERSIST_EVAL` / `L1_DOC_MAP`）；新增键同步改 turbo。
 
-#### 评测语料映射账本（工单 03 / 04）
+#### 评测语料映射账本（工单 03 / 04 / 05）
 
 - **入库入口**：`apps/api/src/scripts/ingest-eval-corpus.ts`（env 驱动；`INGEST_KB_ID` 复用 / `INGEST_KB_NAME` 新建，二者至少一个，否则 exit 2）——把 `fixtures/ingest-samples/*.txt` 与 `fixtures/l2/corpus/*.txt` 逐篇走既有 HTTP 面（upload-url → PUT → complete → approve → scan → 轮询 ready → lifecycle=active，不新增端点 / 表 / 迁移）送入某 KB。
 - **四眼审批（ADR-048 #4）**：本 CLI 全步带 token，故 `approve` 的 actor 已知；同一身份自审必被 403。流程用**两个 dev-login 身份**——上传者（`ingest-eval-corpus@local.dev` / `super_admin`）走上传递交与 scan / 读取，审批人（`ingest-eval-reviewer@local.dev` / `kb_admin`）**只**用于 `approve`；并对首篇发一次自审探针钉住 403（非 403 即失败点名逻辑 id）。**成员边界（显式）**：`AUTH_ENFORCE=false`（默认）时审批人无需是该 KB 成员即可通过（成员闸 `whenEnforced`）；`AUTH_ENFORCE=true` 时审批人**必须是该 KB 成员**，CLI **不自动加成员** —— 需人工先加，否则 `approve` 被拒、CLI 如实失败并点名逻辑 id。
 - **逻辑 id 由目录结构派生**（`ingest-samples/<name>` / `l2-corpus/<name>`），禁止脚本手抄；权威对照是两份 fixtures README，由 `tests/eval/eval-corpus-map.test.ts` 机械核对（gold 逻辑 id ⊆ 派生 id）。
 - **账本形状 / 指纹 / 解析**唯一锚在 contracts 子路径 `@strict-rag/contracts/eval-corpus-ledger`（含 `node:crypto`，故不进主入口）：`buildCorpusLedger` / `parseCorpusLedger` / `corpusFingerprint` / `resolveExpectedDocIds` / `summarizeDocMap`。账本落 `artifacts/`（运行产物不入库）。
 - **跑批解析落点**：`runL1Golden` 在 `hitAtKCase` **之前**解析 `expectedDocIds`（`docMapPath`）。**未映射继续算 miss**（原样保留逻辑 id，绝不变成 `null` / 该门不适用）；报告顶层三键 `docMapSource` / `docMapResolved` / `docMapUnmappedIds` 如实标注来源，**都不进任何判定**（`PILOT_HARD_GATES` / `evaluateAdr046Bind` 公式一字不动）。
-- **worker 侧本图不接**：`run-l1-batch.ts` 不做账本解析；其落库白名单（`eval/persist.ts` 的 `saveReport`）已同步带上三键（常量 none/0/[]），使库内形状与 api 路径不分叉。
+- **worker 侧（2026-09-29 起接账本）**：来源 = worker 进程级 env `L1_DOC_MAP`（与 api CLI **同名同义**，**不是** job payload；一进程一份账本，换账本须重启进程 —— env 是模块加载期快照）。`consumer.ts` 把 env 快照里的路径传给 `runL1Batch({ docMapPath })`（空 / 纯空白 = 未设置）；`run-l1-batch.ts` 在 `hitAtKCase` **之前**调 `resolveCorpusLedgerForRun` 解析逻辑 id，读取时机是**每次 job**（路径取 env 快照、文件内容每次 job 重读）。**失效三态**：未设置 = 与改动前逐位一致（三键 `none` / `0` / `[]`，缺映射继续算 miss）；设置但账本不可用（缺文件 / 非 JSON / 形状违约 / `kbId` 或指纹不符）→ 抛 `CorpusLedgerError` → `consumer.ts` 捕获后 `markFailed`（**响亮失败**，绝不降级成「未设置」）；设置且自洽 → 解析。落库白名单（`eval/persist.ts` 的 `saveReport`）三键改**取报告真值**（未设账本时恰等于旧常量）。**判定仍在 api 侧**：三键与账本解析都不进 `PILOT_HARD_GATES` / `evaluateAdr046Bind`。共享实现 = contracts 子路径 `@strict-rag/contracts/eval-corpus-ledger-file`（api 侧 `corpus-fixtures.ts` / `corpus-map.ts` 改为其纯 re-export，import 路径一个字未变）。
 
 #### 产物与 git
 

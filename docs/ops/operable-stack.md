@@ -66,6 +66,14 @@ L2_KB_ID=<kbId> L2_DOC_MAP=artifacts/eval-corpus-ledger-<kbId>.json \
 
 账本 `kbId` / `corpusFingerprint` 与本次 KB / 当前夹具不符即拒跑（exit 2）。缺映射**继续算 miss**，绝不变成「该门不适用」。`retrieve_mode` 仍以 env 为准；mock 数字禁止写入签字页。
 
+**worker 队列路径（运营台发起 → BullMQ → worker）**：worker 进程同样设 `L1_DOC_MAP` / `L2_DOC_MAP`（与 CLI **同名同义**，来源 = worker 进程环境，**不是** job payload），worker 消费 `sr-eval` job 时**每次重读**账本文件、并在 `hitAtKCase` 之前把逻辑 id 解析为 uuid。三态：
+
+- **未设置**（空 / 纯空白）→ 与不接账本时逐位一致：报告三键 `docMapSource` / `docMapResolved` / `docMapUnmappedIds` = `none` / `0` / `[]`，缺映射继续算 miss；
+- **设置但账本不可用**（缺文件 / 非 JSON / 形状违约 / `kbId` 或语料指纹不符）→ 该 job **响亮失败**（`eval_runs.status=failed` + `error_message` 复用账本错误原文），**绝不**降级成「未设置」；
+- **设置且自洽** → 解析。
+
+worker 换账本须**重启进程**（env 是模块加载期快照）。判定仍在 api 侧、worker 只落库；三键与账本解析都不进任何判定。
+
 `pnpm up:apps` = compose 中间件（若未起）+ api + worker，不必手拼四进程。仅中间件：`node scripts/up-stack.mjs --compose-only`。
 
 Mongo 冒烟（须 `MONGODB_URL`）：
@@ -105,3 +113,9 @@ pnpm smoke:half
 - ES IK / 多租户独立索引 / aclPrincipals 全文 / 仓库默认开 `DEPT_ACL_ENFORCE`  
 - 仓库默认 `AUTH_ENFORCE` / `DEPT_ACL_ENFORCE` / rewrite  
 - 生产 IdP、盘上加密五面全绿  
+
+## 6. 本机排障（2026-09-29 真跑实测三条，非仓库缺陷）
+
+1. **`pnpm dev:api` 起来后 operable env 全被过滤掉**：`dev:api` 走 `turbo run dev`，而 `turbo.json` 的 `dev` 任务 env 白名单只有 6 个键（`APP_ENV` / `API_BASE_URL` / `DATABASE_URL` / `REDIS_URL` / `NEXT_PUBLIC_APP_ENV` / `NEXT_PUBLIC_API_BASE_URL`），turbo 的 strict env 模式会把 `ELASTICSEARCH_URL` / `STORAGE_MODE` / `SUPER_ADMIN_EMAIL` 等**全部过滤掉** → api 以 mock/local 起来（`GET /ready` 里 es/s3/mongo 全 `skipped`）。**绕法**：不经 turbo 起，例如 `pnpm --dir <app 绝对路径> dev`；官方配方 `pnpm up:apps` 用 `pnpm --filter <包> start`，**同样不经 turbo**，故不受影响。
+2. **`pnpm --filter @strict-rag/api` 在 PowerShell 下传参失败**：包名里的 `@` 与 `--filter` 在 PowerShell 调 `pnpm.cmd` 时被 shell 拼接破坏（报 `Unknown option: 'filter @strict-rag/api dev'`）。**绕法**：用 `pnpm --dir <app 绝对路径> <script>`。
+3. **Docker Desktop 自退后 ES host 端口转发可能丢失**：Docker 重启后五服务都 healthy，`docker compose ps` 也显示 `0.0.0.0:9200->9200/tcp`，但 host 侧连不上（容器内 `_cluster/health` 正常）。**绕法**：`docker compose restart elasticsearch`，约 9 秒恢复；PG / Redis / Mongo / S3 的转发在重启后正常重建，只有 ES 踩到过这一条。
