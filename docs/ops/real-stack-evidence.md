@@ -96,3 +96,5 @@ pnpm smoke:half                                        # 端到端；ask 一步�
 **这不是签字数字**：向量仍 mock（8 维）、chat 仍 mock（无 `GATEWAY_BASE_URL`）、60 题全部 `abstained`、ES 是 vanilla 无 IK；`retrieve_mode=live` 只反映 ES 检索档位。本页任何数字都不得进签字包。
 
 **本机注意（沿用 §6）**：本轮 Docker Desktop **再次自行退出**（第 3 次），其中一次落在两次 L1 之间的窗口里 → 那一跑 60 条 case 全部 `error`，原文是 `Failed query: select … from "documents" …`（PG 不可达），`errorCount=60` / `coverage=null`。**机制是诚实的**（不假绿、不静默跳过）；重启守护进程 + `compose up -d` 后原样重跑得 `errorCount=0`，本页数字以健康栈上的重跑为准。
+
+**本机留痕**（`artifacts/` 已 gitignore，为便于在本机复核，目录名列出）：入库账本 `artifacts/eval-corpus-ledger-<kbId>.json`（13 条）；故障那一跑 `artifacts/l1-with-map/`（`errorCount=60`，**留痕不删**）；健康栈上的成对重跑 `artifacts/l1-no-map-2/`（0/30）与 `artifacts/l1-with-map-2/`（30/30）——两份 `l1-gate-snapshot.json` 的 `verdict.reasons` 差集就是 §7 那张表。
