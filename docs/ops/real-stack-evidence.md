@@ -16,6 +16,7 @@
 | `GET /ready` | ✅ `postgres`·`redis`·`elasticsearch`·`mongo` = up；`s3` 首启前 down（桶由首次 put 建）；`gateway` skipped |
 | 迁移在真 PG 上 apply | ✅ 空库从零 apply 零错误；**23 SQL = 23 journal = 23 已应用**；`db:generate` 零漂移 |
 | 端到端入库（真 RustFS + 真 Mongo + **真 ES**） | ✅ 上传 → complete → 四眼审批 → scan → parse → chunk → embed → ES bulk → 双就绪 `ready` |
+| 评测语料入库 + L1 Hit@20（**续图 `eval-corpus-map`**） | ✅ 13 篇语料入库并激活、账本 13 条；**同一夹具**不带账本 `hitAtK=0/30`、带账本 `30/30`（mock 向量 + 无 Gateway，**非签字数字**，见 §7） |
 | ask 有引用 | ❌ **阻塞方 = 无可用 Gateway**（需 chat + embed + rerank 三契约，见 §4） |
 
 ## 2. 本轮真跑改掉的两处源码缺陷
@@ -74,3 +75,24 @@ pnpm smoke:half                                        # 端到端；ask 一步�
 
 - Docker Desktop 在本机运行期间**自行退出两次**，每次需重新拉起并 `compose up -d`（卷保留，数据不丢）。
 - 真跑期间曾尝试拉取一个本地对话模型用于 ask 段，**在本机网络上未推进**（数分钟零字节增长），已终止；不影响 §1–§3 的任何结论。
+
+## 7. 续图（2026-09-29 · `eval-corpus-map`）：评测语料入库 + 映射账本 → L1 Hit@20 可真测
+
+逐项取证：[`.scratch/eval-corpus-map/research/05-real-stack-hit20.md`](../../.scratch/eval-corpus-map/research/05-real-stack-hit20.md)。
+
+**背景**：PRD §3 / §6 把 **Hit@20 ≥ 70%（有标注时）** 写成硬门，代码侧也把它接进了 ADR-046 判定（`evaluateAdr046Bind` 的 `hitAtKOk` 进 `businessPass`）。但夹具写的是**逻辑 id**（`ingest-samples/01-doc` 等），真跑 `evidence.docId` 是 `documents.id`（uuid），而全仓既无映射面、`fixtures/l2/corpus/*` 也从未入库 → `hitAtK` 是**结构性恒 0**（`0 >= 0.7` 假 → `hit_at_k_below_min`），**与是否用真模型无关**。本续图把这层数据面补上。
+
+**新增能力**（本页不重复接口细节，见 `operable-stack.md` §3）：入库入口 `apps/api/src/scripts/ingest-eval-corpus.ts` 把两份语料 13 篇送入一个 KB 并写出账本 `artifacts/eval-corpus-ledger-<kbId>.json`（含 `kbId` / 语料指纹 / 每条的 `logicalId`、`docId`、`title`、源文件 sha256）；跑批侧 `L1_DOC_MAP` / `L2_DOC_MAP` 指定账本后在比对前解析，账本与本次 KB 或当前夹具不符即 **exit 2 拒跑**，未传账本时与今天逐位一致。
+
+**真栈实测（同一夹具、同一 KB、唯一变量 = 账本）**：
+
+| 字段 | 不带账本 | 带账本 |
+|---|---|---|
+| `hitAtK` | **0**（0/30） | **1**（30/30） |
+| `docMapSource` / `docMapResolved` / `docMapUnmappedIds` | `none` / 0 / `[]` | `ledger` / 10 / `[]` |
+| `verdict.reasons` 是否含 `hit_at_k_below_min` | **含** | **不含** |
+| `businessPass` | false | false（其余阻塞方一条未动：`coverage_zero_or_null` · `judge_auroc_*` · `human_spot_missing` · 四要素 · `internal_guard`） |
+
+**这不是签字数字**：向量仍 mock（8 维）、chat 仍 mock（无 `GATEWAY_BASE_URL`）、60 题全部 `abstained`、ES 是 vanilla 无 IK；`retrieve_mode=live` 只反映 ES 检索档位。本页任何数字都不得进签字包。
+
+**本机注意（沿用 §6）**：本轮 Docker Desktop **再次自行退出**（第 3 次），其中一次落在两次 L1 之间的窗口里 → 那一跑 60 条 case 全部 `error`，原文是 `Failed query: select … from "documents" …`（PG 不可达），`errorCount=60` / `coverage=null`。**机制是诚实的**（不假绿、不静默跳过）；重启守护进程 + `compose up -d` 后原样重跑得 `errorCount=0`，本页数字以健康栈上的重跑为准。

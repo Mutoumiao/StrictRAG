@@ -257,3 +257,5 @@
 ## 2026-09-29 · 评测语料映射账本（工单 03 / 04）
 
 评测语料入库入口与「逻辑 id → 当前 KB uuid」映射解析面已落，让 L1 硬门 Hit@20 的数据面第一次可真测：逻辑 id 由夹具目录结构派生（不手抄清单），映射账本与跑批解析共用同一契约；账本按 KB 分辨并落 artifacts（运行产物不入库）。跑批侧在比对前把逻辑 id 解析为当前 KB 的 uuid，缺映射继续算 miss（绝不变成该门不适用）；报告如实标注映射来源与未映射 id。此段为工单 03 / 04 回写；细节以源码与对应包 env 为准。
+
+**2026-09-29 · 真栈实测（图 `eval-corpus-map` 工单 05）**：在真 compose 栈（PG + Redis + ES 8.15.3 + Mongo + RustFS，`INGEST_EMBED_MODE=mock` 8 维向量、无 Gateway）上把 13 篇评测语料入库（全部 ready + active）并跑两次 L1：**不带账本 `hitAtK=0/30`、带账本 `30/30`**（`docMapSource=ledger`、`docMapResolved=10`、`docMapUnmappedIds=[]`）；ADR-046 裁决的 reasons 里 **`hit_at_k_below_min` 消失**，其余阻塞方（`coverage_zero_or_null` · `judge_auroc_missing_or_below_min` · `human_spot_missing` · `missing_proposal` · `missing_signatures` · `internal_guard`）**一条未动**，故 `businessPass` 两跑都仍为 false。**这不是签字数字**：向量与 chat 仍 mock、ES 无 IK、60 题全部 `abstained`（无 Gateway）；`retrieve_mode=live` 只反映 ES 检索档位，不等于可签字。边界：worker 侧 `run-l1-batch.ts` 不接账本（其 Hit@k 仍恒 0，且不进任何判定）；账本指「本次跑用的映射」的**来源**，不改变任何门限。
