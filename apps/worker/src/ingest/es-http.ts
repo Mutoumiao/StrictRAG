@@ -169,7 +169,9 @@ export async function bulkIndexSparse(
     lines.push(JSON.stringify({ index: { _index: cfg.index, _id: d.chunkId } }));
     lines.push(JSON.stringify(sparseBulkSource(d)));
   }
-  const res = await fetch(`${base}/_bulk`, {
+  // refresh=wait_for：ES 近实时，bulk 后若不等刷新，紧随其后的 listIndexedChunkIds 会读到 0 命中
+  // → reconcileIndexed 误判 missing → 文档被标 ES_RECONCILE_FAILED（真集群上必现，mock 不会）。
+  const res = await fetch(`${base}/_bulk?refresh=wait_for`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-ndjson' },
     signal: AbortSignal.timeout(timeoutMs),
