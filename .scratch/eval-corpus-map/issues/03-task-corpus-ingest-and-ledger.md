@@ -2,7 +2,7 @@
 
 Label: wayfinder:task
 Type: task
-Status: open
+Status: resolved
 Blocked by: 02
 
 ## Question
@@ -22,4 +22,21 @@ Blocked by: 02
 
 ## Answer
 
-（待填）
+**已解**（实现由子代理按裁定书落，主控逐文件复核 + 独立复跑门禁）。
+
+**契约面**（新文件 `packages/contracts/src/eval/corpus-ledger.ts`，子路径导出 `@strict-rag/contracts/eval-corpus-ledger`）：
+- 类型 `CorpusLedger` = `version(=1)` · `kbId` · `tenantId` · `generatedAt` · `corpusFingerprint` · `entries[{logicalId, docId, title, sourceFile, sourceSha256}]`（**按 `logicalId` 升序**）
+- 纯函数：`parseCorpusLedger`（形状 + 版号 + **自洽**：`corpusFingerprint` 必须等于按 entries 重算值）· `buildCorpusLedger`（重复逻辑 id / 坏 sha → 抛）· `corpusFingerprint`（升序 `logicalId:sha` 以 `\n` 连接后 sha256）· `sortLedgerEntries` · `resolveExpectedDocIds`（命中换 uuid，**缺映射原样保留**）· `summarizeDocMap`（报告三键）
+- `node:crypto` 只在子路径模块里（主入口保持可进客户端打包），与 `eval-repro` 同例。
+
+**入库入口**（新文件 `apps/api/src/scripts/ingest-eval-corpus.ts`，env 驱动、缺配置 `exit 2`）：`health→ready→dev-login→建/复用 KB→逐篇 upload-url/PUT/complete/approve/scan→轮询 ready→lifecycle=active→写账本`；账本落 `artifacts/eval-corpus-ledger-<kbId>.json`（`artifacts/` 已 gitignore）；打印 `kbId` 与账本路径供 `L1_KB_ID` / `L2_KB_ID` 复用；**未拿到 docId 的语料抛错点名**（不静默跳过）。语料目录与逻辑 id 前缀的绑定来自 `apps/api/src/eval/corpus-fixtures.ts`（**目录结构派生**，不手抄清单）。
+
+**一处只在真跑才现形的缺陷，已当场修**：CLI 原设计「全步带 token」→ 同一身份上传并审批 → 撞 **ADR-048 #4 四眼闸**（`routes/documents/index.ts:469-476` 的 `evaluateSelfDecide`）必 403。改法照 `smoke-half.mjs` 先例：两个 dev-login 身份（`ingest-eval-corpus@local.dev`/`super_admin` 与 `ingest-eval-reviewer@local.dev`/`kb_admin`），**只用审批人 token 调 approve**，并在首篇先**钉住「上传者自审必 403」**（非 403 即失败）。附注：`scripts/demo-ingest.mjs` 没这个坑，因为它 approve **不带 token** → 无 actor → 闸不点火（故未动它）。
+
+**显式边界（不静默）**：`AUTH_ENFORCE=false`（默认）时审批人无需是该 KB 成员；`AUTH_ENFORCE=true` 时**审批人必须是该 KB 成员**，本 CLI **不自动加成员**（已写进 CLI 头注释与 `.trellis/spec/api/backend/l1-eval.md`）。
+
+**测例**：`packages/contracts/tests/eval/corpus-ledger.test.ts`（15 条）· `apps/api/tests/eval/ingest-eval-corpus.test.ts`（13 条，含四眼三条）· `apps/api/tests/eval/eval-corpus-map.test.ts`（5 条，新鲜度/拒跑）；已登记各包 `tests/index.md`。
+
+**反证**（4 轮，均记录破坏点与还原后全绿）：① 比较前不解析 → `l1-doc-map` 2 红；② 去掉指纹新鲜度校验 → `l1-doc-map` 1 红；③ worker 白名单漏键 → `persist-doc-map-keys` 1 红；④ 审批换回上传者 token → `ingest-eval-corpus` 1 红。
+
+**未做**：`fixtures/` 数据文件一字未动（只改两份 README 的说明文字）· `scripts/demo-ingest.mjs` 未动 · 未新增迁移/表/端点 · 未跑服务（真栈实测属工单 05）。
