@@ -36,6 +36,9 @@ export type EvalRunRow = {
   hitAtKScored?: number;
   tauStar?: number | null;
   judgeAuroc?: number | null;
+  docMapSource?: 'ledger' | 'none';
+  docMapResolved?: number;
+  docMapUnmappedIds?: string[];
   cases?: EvalRunCaseRow[];
 };
 
@@ -101,6 +104,9 @@ export function extraStatsFromReport(report: unknown): {
   hitAtKScored?: number;
   tauStar?: number | null;
   judgeAuroc?: number | null;
+  docMapSource?: 'ledger' | 'none';
+  docMapResolved?: number;
+  docMapUnmappedIds?: string[];
 } {
   if (!report || typeof report !== 'object') return {};
   const row = report as Record<string, unknown>;
@@ -113,6 +119,9 @@ export function extraStatsFromReport(report: unknown): {
     hitAtKScored?: number;
     tauStar?: number | null;
     judgeAuroc?: number | null;
+    docMapSource?: 'ledger' | 'none';
+    docMapResolved?: number;
+    docMapUnmappedIds?: string[];
   } = {};
   if (typeof row.passCount === 'number') out.passCount = row.passCount;
   if (typeof row.failCount === 'number') out.failCount = row.failCount;
@@ -126,6 +135,18 @@ export function extraStatsFromReport(report: unknown): {
   if (row.judgeAuroc === null) out.judgeAuroc = null;
   else if (typeof row.judgeAuroc === 'number' && Number.isFinite(row.judgeAuroc)) {
     out.judgeAuroc = row.judgeAuroc;
+  }
+  if (row.docMapSource === 'ledger' || row.docMapSource === 'none') {
+    out.docMapSource = row.docMapSource;
+  }
+  if (typeof row.docMapResolved === 'number' && Number.isInteger(row.docMapResolved) && row.docMapResolved >= 0) {
+    out.docMapResolved = row.docMapResolved;
+  }
+  if (
+    Array.isArray(row.docMapUnmappedIds) &&
+    row.docMapUnmappedIds.every((id) => typeof id === 'string')
+  ) {
+    out.docMapUnmappedIds = row.docMapUnmappedIds as string[];
   }
   return out;
 }
@@ -220,6 +241,10 @@ export function toEvalRunDto(row: EvalRunRow, includeCases: boolean): EvalRun {
     hitAtKScored: row.hitAtKScored,
     tauStar: row.tauStar,
     judgeAuroc: row.judgeAuroc,
+    // 映射来源三键：缺键容错（历史行没有 → none/0/[]），与 `EvalRunSchema` 的可选三键同改
+    docMapSource: row.docMapSource ?? 'none',
+    docMapResolved: row.docMapResolved ?? 0,
+    docMapUnmappedIds: row.docMapUnmappedIds ?? [],
     ranAt: row.ranAt,
     jobId: row.jobId,
     errorMessage: row.errorMessage,

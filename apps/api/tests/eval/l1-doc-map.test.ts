@@ -30,7 +30,7 @@ function tmp(): string {
   return d;
 }
 
-const REPO_ROOT = defaultRepoRoot();
+const REPO_ROOT = defaultRepoRoot(import.meta.url);
 const DOC_01 = '01900000-0000-7000-8000-0000000000a1';
 const DOC_02 = '01900000-0000-7000-8000-0000000000a2';
 const UUID_RE = /^[0-9a-f-]{36}$/;

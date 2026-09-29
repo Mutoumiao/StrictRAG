@@ -88,7 +88,7 @@ function positiveInt(source: NodeJS.ProcessEnv, key: string, fallback: number): 
 /** 解析 env：`INGEST_KB_ID` / `INGEST_KB_NAME` 至少一个；非法数值 → exit 2。 */
 export function parseIngestCliEnv(
   source: NodeJS.ProcessEnv = process.env,
-  repoRoot = defaultRepoRoot(),
+  repoRoot = defaultRepoRoot(import.meta.url),
 ): IngestCliParse {
   const kbId = source.INGEST_KB_ID?.trim() || undefined;
   const kbName = source.INGEST_KB_NAME?.trim() || undefined;
@@ -443,7 +443,7 @@ export async function ingestEvalCorpus(opts: {
 }
 
 async function main(): Promise<void> {
-  const repoRoot = defaultRepoRoot();
+  const repoRoot = defaultRepoRoot(import.meta.url);
   const parsed = parseIngestCliEnv(process.env, repoRoot);
   if (!parsed.ok) {
     console.error(parsed.message);

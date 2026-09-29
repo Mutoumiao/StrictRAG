@@ -21,6 +21,15 @@ import {
   l2GoldSetHash,
   type L2Repro,
 } from '@strict-rag/contracts/eval-repro-l2';
+import {
+  resolveExpectedDocIds,
+  summarizeDocMap,
+  type DocMapSource,
+} from '@strict-rag/contracts/eval-corpus-ledger';
+import {
+  defaultRepoRoot,
+  resolveCorpusLedgerForRun,
+} from '@strict-rag/contracts/eval-corpus-ledger-file';
 import { uuidv7 } from 'uuidv7';
 
 export type L2Verdict = 'pass' | 'fail' | 'error';
@@ -119,6 +128,15 @@ export type L2BatchReport = {
    * 版本键**全仓无载体** → 恒 `null`。**不进任何判定**；`persist.ts` 的逐键白名单必须同步带本键。
    */
   repro: L2Repro;
+  /**
+   * 映射来源三键（如实标注，**不进 `computeL2SignoffEligible`**）：`none` = 未传账本（逐位保持今天
+   * 语义）；`ledger` = 按账本解析。缺映射继续算 `docHit=false`（恒 0），绝不变成 `null`。
+   */
+  docMapSource: DocMapSource;
+  /** 成功换成 uuid 的去重逻辑 id 数（未传账本 → 0） */
+  docMapResolved: number;
+  /** 账本里没有的逻辑 id（字典序去重） */
+  docMapUnmappedIds: string[];
   cases: L2BatchCaseRow[];
 };
 
@@ -132,9 +150,30 @@ export async function runL2Batch(opts: {
   maxCases?: number;
   mintSessionId?: () => string;
   now?: () => Date;
+  /**
+   * 映射账本路径（env `L2_DOC_MAP`，可选）。不传 → 与今天**逐位一致**（`docMapSource='none'`）；
+   * 传了 → 读账本并在 `hitAtKCase` 之前把逻辑 id 解析为 uuid（kbId / 指纹不符 → 抛错，调用方
+   * 捕获后 `markFailed`，**不得**静默降级成「未设置」）。
+   */
+  docMapPath?: string;
+  /** 夹具根（账本新鲜度校验用）；默认按本文件位置上溯 4 层 */
+  repoRoot?: string;
 }): Promise<L2BatchReport> {
   const sliced =
     opts.maxCases && opts.maxCases > 0 ? opts.cases.slice(0, opts.maxCases) : opts.cases;
+  // 账本先读：kbId / 指纹不符立刻抛错（消费者捕获 → markFailed），别跑完一整批才发现映射不可用
+  const ledger = opts.docMapPath
+    ? resolveCorpusLedgerForRun({
+        ledgerPath: opts.docMapPath,
+        kbId: opts.kbId,
+        repoRoot: opts.repoRoot ?? defaultRepoRoot(import.meta.url),
+      })
+    : null;
+  // 有账本时把逻辑 id 换成 uuid（缺映射原样保留 → 必然 miss）；两处比对（正常分支与 error 分支）都走它
+  const expectedForHit = (
+    expected: readonly string[] | undefined,
+  ): readonly string[] | undefined =>
+    ledger ? resolveExpectedDocIds(expected, ledger) : expected;
   const mint = opts.mintSessionId ?? (() => uuidv7());
   const windows = new Map<string, WindowTurn[]>();
   const rows: L2BatchCaseRow[] = [];
@@ -190,7 +229,7 @@ export async function runL2Batch(opts: {
       const evidenceDocIds = last?.evidenceDocIds ?? [];
       const answerKind = last?.answerKind;
       const citationCount = last?.citationCount;
-      const docHit = hitAtKCase(c.expectedDocIds, evidenceDocIds);
+      const docHit = hitAtKCase(expectedForHit(c.expectedDocIds), evidenceDocIds);
       accumulateHitAtK(docHitAcc, docHit);
 
       rows.push({
@@ -215,8 +254,8 @@ export async function runL2Batch(opts: {
       });
     } catch (err) {
       errorCount += 1;
-      // error 题按「未命中」计（与 api CLI 同款）；无 expected 名单仍不计分
-      const docHit = hitAtKCase(c.expectedDocIds, []);
+      // error 题按「未命中」计（与 api CLI 同款）；无 expected 名单仍不计分。有账本时同样先解析
+      const docHit = hitAtKCase(expectedForHit(c.expectedDocIds), []);
       accumulateHitAtK(docHitAcc, docHit);
       rows.push({
         id: c.id,
@@ -235,6 +274,11 @@ export async function runL2Batch(opts: {
   }
 
   const citation = l2CitationComplete(rows);
+  // 映射来源三键（如实标注，不进 computeL2SignoffEligible）：未传账本 → none/0/[]
+  const docMap = summarizeDocMap(
+    sliced.map((c) => c.expectedDocIds),
+    ledger,
+  );
   return {
     run_type: 'session_multiturn',
     retrieveMode: opts.retrieveMode,
@@ -262,6 +306,9 @@ export async function runL2Batch(opts: {
     citationCompleteDen: citation.citationCompleteDen,
     // §8 区块：worker 只填剧本集哈希（源 = 本跑实际使用的 case id 集合，含 maxCases 截断）
     repro: { ...emptyL2Repro(), l2GoldSetHash: l2GoldSetHash(sliced.map((c) => c.id)) },
+    docMapSource: docMap.docMapSource,
+    docMapResolved: docMap.docMapResolved,
+    docMapUnmappedIds: docMap.docMapUnmappedIds,
     cases: rows,
   };
 }

@@ -40,7 +40,7 @@ function tmp(): string {
   return d;
 }
 
-const REPO_ROOT = defaultRepoRoot();
+const REPO_ROOT = defaultRepoRoot(import.meta.url);
 
 function baseEnv(over: Partial<IngestCliEnv> = {}): IngestCliEnv {
   return {

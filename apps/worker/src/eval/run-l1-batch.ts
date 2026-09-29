@@ -32,6 +32,15 @@ import {
   l1QuestionIdsHash,
   type L1Repro,
 } from '@strict-rag/contracts/eval-repro';
+import {
+  resolveExpectedDocIds,
+  summarizeDocMap,
+  type DocMapSource,
+} from '@strict-rag/contracts/eval-corpus-ledger';
+import {
+  defaultRepoRoot,
+  resolveCorpusLedgerForRun,
+} from '@strict-rag/contracts/eval-corpus-ledger-file';
 
 import { env } from '../env.js';
 
@@ -118,6 +127,15 @@ export type L1BatchReport = {
   errorCount: number;
   cases: L1BatchCaseRow[];
   kbId: string;
+  /**
+   * 映射来源三键（如实标注，**不进任何判定**）：`none` = 未传账本（逐位保持今天语义）；
+   * `ledger` = 按账本解析。缺映射**继续算 miss**，绝不变成 `null` / 「该门不适用」。
+   */
+  docMapSource: DocMapSource;
+  /** 成功换成 uuid 的去重逻辑 id 数（未传账本 → 0） */
+  docMapResolved: number;
+  /** 账本里没有的逻辑 id（字典序去重） */
+  docMapUnmappedIds: string[];
 };
 
 export async function runL1Batch(opts: {
@@ -137,12 +155,28 @@ export async function runL1Batch(opts: {
   scoreJudge?: (cases: readonly JudgeCalibCase[]) => Promise<Array<number | null>>;
   /** 人工抽检账本路径（与 api CLI `--human-spot <path>` 同构）；**不传 = 缺测** */
   humanSpotPath?: string;
+  /**
+   * 映射账本路径（env `L1_DOC_MAP`，可选）。不传 → 与今天**逐位一致**（`docMapSource='none'`）；
+   * 传了 → 读账本并在 `hitAtKCase` 之前把逻辑 id 解析为 uuid（kbId / 指纹不符 → 抛错，调用方
+   * 捕获后 `markFailed`，**不得**静默降级成「未设置」）。
+   */
+  docMapPath?: string;
+  /** 夹具根（账本新鲜度校验用）；默认按本文件位置上溯 4 层 */
+  repoRoot?: string;
 }): Promise<L1BatchReport> {
   const humanSpot = opts.humanSpotPath
     ? toHumanSpotReport(loadHumanSpotLedger(opts.humanSpotPath), opts.humanSpotPath)
     : null;
   const sliced =
     opts.maxCases && opts.maxCases > 0 ? opts.cases.slice(0, opts.maxCases) : opts.cases;
+  // 账本先读：kbId / 指纹不符立刻抛错（消费者捕获 → markFailed），别跑完一整批才发现映射不可用
+  const ledger = opts.docMapPath
+    ? resolveCorpusLedgerForRun({
+        ledgerPath: opts.docMapPath,
+        kbId: opts.kbId,
+        repoRoot: opts.repoRoot ?? defaultRepoRoot(import.meta.url),
+      })
+    : null;
   const matrix = emptyMatrix();
   const hitAcc = emptyHitAtK();
   let errorCount = 0;
@@ -173,7 +207,11 @@ export async function runL1Batch(opts: {
       errorMessage = err instanceof Error ? err.message : String(err);
     }
     errorCount += accumulate(matrix, c.type, outcome);
-    const hit = hitAtKCase(c.expectedDocIds, evidenceDocIds);
+    // 有账本时把逻辑 id 换成 uuid（缺映射原样保留 → 必然 miss）；无账本逐位保持今天语义
+    const expectedDocIds = ledger
+      ? resolveExpectedDocIds(c.expectedDocIds, ledger)
+      : c.expectedDocIds;
+    const hit = hitAtKCase(expectedDocIds, evidenceDocIds);
     accumulateHitAtK(hitAcc, hit);
     rows.push({
       id: c.caseKey,
@@ -191,6 +229,11 @@ export async function runL1Batch(opts: {
 
   const counts = goldTypeCounts(sliced);
   const retrieveMode = opts.retrieveMode;
+  // 映射来源三键（如实标注，不进任何判定）：未传账本 → none/0/[]
+  const docMap = summarizeDocMap(
+    sliced.map((c) => c.expectedDocIds),
+    ledger,
+  );
   const swept = sweepTau(rows);
   // 来源只由声明决定（与 api `scoreJudgeAuroc` 同构，共用 `judgeAurocSourceFor`）
   const judgeScorerMode = opts.judgeScorerMode ?? env.JUDGE_CALIB_SCORER;
@@ -251,5 +294,8 @@ export async function runL1Batch(opts: {
     errorCount,
     cases: rows,
     kbId: opts.kbId,
+    docMapSource: docMap.docMapSource,
+    docMapResolved: docMap.docMapResolved,
+    docMapUnmappedIds: docMap.docMapUnmappedIds,
   };
 }

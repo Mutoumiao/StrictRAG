@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest';
 
 import { defaultRepoRoot, readFixtureCorpus } from '../../src/eval/corpus-fixtures.js';
 
-const REPO_ROOT = defaultRepoRoot();
+const REPO_ROOT = defaultRepoRoot(import.meta.url);
 const derived = readFixtureCorpus(REPO_ROOT);
 const derivedIds = derived.map((f) => f.logicalId);
 const derivedSet = new Set(derivedIds);

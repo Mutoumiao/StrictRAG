@@ -8,6 +8,7 @@
     "./eval-repro": "./src/eval/l1-repro.ts",
     "./eval-repro-l2": "./src/eval/l2-repro.ts",
     "./eval-corpus-ledger": "./src/eval/corpus-ledger.ts",
+    "./eval-corpus-ledger-file": "./src/eval/corpus-ledger-file.ts",
     "./testing": "./src/testing.ts"
   },
   "scripts": {

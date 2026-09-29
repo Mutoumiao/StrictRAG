@@ -76,6 +76,14 @@ const EnvSchema = z
     /** L2 题面路径；空则仓根 fixtures/l2/gold.yaml */
     EVAL_L2_GOLD_PATH: z.string().optional().default(''),
     /**
+     * 评测语料映射账本路径（与 api CLI 同名同义 `L1_DOC_MAP` / `L2_DOC_MAP`）。
+     * **空 = 未设置**：与今天逐位一致（报告三键 `none` / `0` / `[]`，缺映射继续算 miss）。
+     * 非空而账本不可用（缺文件 / 非 JSON / 形状违约 / `kbId` 或语料指纹不符）→ 该 job 响亮失败
+     * （`markFailed`），**绝不**降级成「未设置」。
+     */
+    L1_DOC_MAP: z.string().optional().default(''),
+    L2_DOC_MAP: z.string().optional().default(''),
+    /**
      * L1 校准打分器来源声明（与 api 同名同义）：off（**默认**，= 缺测）/ mock / http。
      * worker 侧无 Gateway 打分客户端 → 只有 mock 会真出值（值只打印、不进判定）；
      * http 声明在 worker 侧 = 「声明 live 但本侧不产值」，判定仍不放行（判定只在 api 侧）。

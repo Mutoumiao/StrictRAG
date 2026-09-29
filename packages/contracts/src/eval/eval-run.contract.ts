@@ -49,6 +49,13 @@ export const EvalRunSchema = z
     passCount: z.number().int().nonnegative().optional(),
     failCount: z.number().int().nonnegative().optional(),
     zeroToleranceHits: z.number().int().nonnegative().optional(),
+    /**
+     * 映射来源三键（**如实标注，不进任何判定**）：`ledger` = 按账本解析；`none` = 未传账本。
+     * 可选以兼容历史行（缺键 → 读取侧回落 `none` / `0` / `[]`）。
+     */
+    docMapSource: z.enum(['ledger', 'none']).optional(),
+    docMapResolved: z.number().int().nonnegative().optional(),
+    docMapUnmappedIds: z.array(z.string()).optional(),
     ranAt: z.string(),
     jobId: z.string().nullable().optional(),
     errorMessage: z.string().nullable().optional(),

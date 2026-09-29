@@ -13,6 +13,14 @@ export type EvalConsumerDeps = {
   executeL2For?: (job: EvalJobData) => L2TurnExecute;
 };
 
+/**
+ * env 快照里的账本路径 → `docMapPath`：空 / 纯空白 = **未设置**（与今天逐位一致），其余原样传给
+ * 批跑函数（由它在 `hitAtKCase` 之前读文件并解析）。读取时机是「每次 job」，不是模块加载期。
+ */
+function docMapPathOf(raw: string): string | undefined {
+  return raw.trim() || undefined;
+}
+
 export async function handleEvalJob(
   raw: unknown,
   deps: EvalConsumerDeps = {},
@@ -55,6 +63,8 @@ export async function handleEvalJob(
         retrieveMode: job.retrieveMode,
         executeTurn,
         maxCases: job.maxCases,
+        // 账本路径取自 env 快照；**文件内容**由 runL2Batch 每次 job 重读（不读在模块顶层）
+        docMapPath: docMapPathOf(env.L2_DOC_MAP),
       });
       await persist.saveL2Report(job.runId, report);
       logger.info(
@@ -101,6 +111,9 @@ export async function handleEvalJob(
       maxCases: job.maxCases,
       // 与 api CLI 同名的来源声明（默认 off = 缺测）；worker 只落库，判定仍在 api 侧
       judgeScorerMode: env.JUDGE_CALIB_SCORER,
+      // 账本路径取自 env 快照；**文件内容**由 runL1Batch 每次 job 重读（不读在模块顶层）。
+      // 账本设置但不可用 → 下方 catch 捕获 → markFailed，绝不降级成「未设置」。
+      docMapPath: docMapPathOf(env.L1_DOC_MAP),
     });
     await persist.saveReport(job.runId, report);
     logger.info(
