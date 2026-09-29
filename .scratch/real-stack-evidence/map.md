@@ -1,7 +1,7 @@
 # 真中间件栈的证据化（把「未验证」变成「本机可复现」）
 
 Label: wayfinder:map
-Status: claimed（前沿：工单 01 起）
+Status: resolved（前沿：空；工单 01–06 全收口。**目的地按实测重写**：见下方「目的地达成情况」）
 
 ## Destination
 
@@ -43,18 +43,38 @@ Status: claimed（前沿：工单 01 起）
   - 不许为了让 `smoke:half` 绿去改 `smoke-half.mjs` 的断言（空引用必须失败）；要改只能**加严**；
   - 不许把真跑失败改写成「未验证」——失败要写清**哪一步、什么错、缺什么**。
 
+### 目的地达成情况（收口时按实测重写）
+
+| 原定成功长什么样 | 实际 |
+|---|---|
+| ① 五服务真起 healthy | ✅ 达成 |
+| ② `pnpm db:migrate` 真 PG 零错误 | ✅ 达成（23 = 23 = 23，`db:generate` 零漂移） |
+| ③ `pnpm smoke:half` 输出 `PASS` | ⚠️ **未达成，且不是「没跑」**：入库段（上传 → complete → 四眼审批 → scan → 双就绪 `ready`）在真 RustFS + 真 Mongo + **真 ES** 上跑通；末步 ask 因**无可用 Gateway**（三契约）按既定口径空引用失败。详见 [research/04](../.scratch/real-stack-evidence/research/04-half-smoke.md) 与雾簇 39 |
+| ④ 真 ES sparse 切片真跑 | ✅ 达成（建索引 / mapping / bulk / 中文检索命中 / `aclPrincipals` 三态与查询期收窄全部真跑通过） |
+| ⑤ 覆盖表被「真 ES / 真 PG」阻塞的行改判或写准 | ✅ 达成（E1 阻塞方改判；X5 阻塞方改判为「源码缺面」并证明不构成泄漏） |
+| ⑥ `check:module-status` 零漂移 | ✅ 达成（39 条基线未变） |
+
+**额外收获（不在原计划内）**：真集群上现形并修掉**两处源码缺陷**（ES bulk 不等刷新 → 误红 `ES_RECONCILE_FAILED`；`smoke:half` 撞 ADR-048 四眼闸），各留证据与测例。
+
 ## Decisions so far
 
-<!-- 索引：一行一票，票里存细节 -->
+- [工单 01 · 真栈可达性与阻塞行口径（研究）](./issues/01-research-real-stack-reachability.md) — 全仓**无任何** compose / migrate / smoke 的真跑原始输出；`smoke:half` 在无 Gateway 机器上**源码侧即注定**在末步失败；X5 的「对称」源码侧无面可验；E1/E2 与簇 23/24 本机可判，H5b/P1/H5d/AC4 与 T4/C1/C2/C3 本机判不了。正文：[research/01](./research/01-real-stack-reachability.md)
+- [工单 02 · 起真栈：compose 五服务 healthy + `/ready`](./issues/02-task-stack-up.md) — 五服务真起真绿、探活全过；**配方缺一步**：全新库上 api 因 `SuperAdminBootstrapError` **必然非零退出**，而四份运维文档都没写 `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` 这个前置（已补进 `operable-stack.md`）；`/ready` 的 s3 首启前恒 down（桶由首次 put 建，文档口径已订正）。正文：[research/02](./research/02-stack-up.md)
+- [工单 03 · 迁移在真 PG 上 apply 干净](./issues/03-task-migrate-on-real-pg.md) — 空库从零 apply 零错误，SQL 文件 / journal / 已应用 **23 = 23 = 23**，能力级真写真读通过，`db:generate` **零漂移**。雾簇 23 **已解**。正文：[research/03](./research/03-migrate-real-pg.md)
+- [工单 04 · `pnpm smoke:half` 端到端真跑](./issues/04-task-half-smoke-real.md) — **真跑抓出两处源码缺陷**：① `smoke-half.mjs` 用同一主体自审，撞 ADR-048 #4 四眼闸（403）→ 改为「先断言自审必 403，再换 `kb_admin` 审批」；② `bulkIndexSparse` 未等 ES 刷新即对账 → 文档被误写 `status=failed` / `ES_RECONCILE_FAILED`（mock ES 永不暴露）→ 改 `POST /_bulk?refresh=wait_for` 并补测例。修复后入库段一次成功。正文：[research/04](./research/04-half-smoke.md)
+- [工单 05 · 真 ES sparse 切片真跑](./issues/05-task-real-es-sparse.md) — 索引 / mapping / bulk / **中文检索命中** / `aclPrincipals` 三态与查询期收窄在真集群上逐位符合预期；**IK 不是「能命中」的必要条件**；X5 的不对称**不构成泄漏**（语料求交），代价是召回。正文：[research/05](./research/05-real-es.md)
+- [工单 06 · 回写与收口](./issues/06-task-writeback-close.md) — 回写 `docs/ops/operable-stack.md` · `half-smoke.md` · 新增 `docs/ops/real-stack-evidence.md` · `docs/module-status/worker.md` · coverage 两行缺口列 + 第十轮记录 · 雾索引重排。
 
 ## Not yet specified
 
-- `IK` 中文分词在真 ES 上的**装与不装**分别意味着什么：compose 用的是 vanilla ES 8.15.3（无 IK 插件），`sparseText` 是 `text` 无显式 analyzer → 走 `standard`。真跑能不能命中、命中质量如何，是工单 05 的直接产物；由此派生「IK 到底是不是 B8 必达」这一裁定的可判性。
-- 多租户**独立索引**（vs 现在的单索引 + `tenantId` filter）：这是 B8 的另一半，本图先把「单索引 + filter」真跑，独立索引另裁。
-- 真 ES 上 `aclPrincipals` 的 `__acl_none__` 哨兵与 `exists` 语义（此前只在 mock 上验过）。
-- 真 RustFS 的 `ensureBucket` / presign 路径在 compose 里是否真能 PUT（`STORAGE_MODE=s3`）。
-- Mongo 正文链路（`document_bodies`）在真 Mongo 上的 upsert / 读回。
-- 孤儿清理（簇 36）与自动 reindex（簇 37）在真栈上是否**只差调度基建**——若真跑证明「业务逻辑已对、只差 cron」，那是另一张图的活；本图只负责把「差什么」钉死。
+**本图已解（不再留在这里）**：IK 装不装意味着什么（**已实测：不是命中必要条件**，只影响分词粒度与排序质量）· 真 ES 上 `aclPrincipals` 哨兵与 `exists` 语义（**已实测逐位符合**）· 真 RustFS / 真 Mongo 链路是否真能 PUT / upsert（**已在端到端真跑中走过**）· 孤儿清理与自动 reindex「是不是只差调度基建」（**已裁定：孤儿清理是只差调度基建；自动 reindex 是人工触发，不再是欠债**）。
+
+**仍开着（已搬进 [`fog-inventory-2026-09-23.md`](../fog-inventory-2026-09-23.md) 簇 39 与相关簇）**：
+
+- **半产品「问答」段的可复现性**（本图最大的新雾）：`GATEWAY_MODE=http` 要求上游同时提供 chat + embeddings + **rerank** 三契约；常见本地模型服务（如 Ollama）只给前两条、也不暴露 `/rerank`。要不要为「无 key 机器」提供一个 **dev-only 的 JSON 桩 Gateway / 本地适配器**，是一个**产品决定**（不是工程默认值问题）——本图**不擅自建**，如实记为雾并写明两条路（先裁再做 / 或永久写成环境前置）。
+- 多租户**独立索引**（vs 单索引 + `tenantId` filter）：B8 的另一半，本图只真跑了单索引路线。
+- `E2`（supersede 后 ES 侧不引用旧版）的 ES 命中半截：同源可判，本图未落。
+- 真 PG/ES 上的**可重复集成测位**：本图的真跑是**取证**而非**仓内可重复断言**；E1 / X5 的销账都卡在这一条。
 
 ## Out of scope
 

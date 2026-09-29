@@ -2,7 +2,7 @@
 
 Label: wayfinder:task
 Type: task
-Status: open
+Status: resolved
 Blocked by: 01
 
 ## Question
@@ -19,4 +19,13 @@ Blocked by: 01
 
 ## Answer
 
-（待填）
+**已解**。取证全文：[`../research/02-stack-up.md`](../research/02-stack-up.md)。
+
+1. **五服务真起真绿**：`docker compose -f docker/docker-compose.yml up -d` → 五个容器全 `running|healthy`（postgres / redis / elasticsearch / mongo / rustfs）；逐服务探活：`pg_isready` → `accepting connections` · `redis-cli ping` → `PONG` · `:9200/_cluster/health` → `status: green` · `mongosh ping` → `1` · `:9000/health` → `{"status":"ok","ready":true}`。**无镜像拉取**（5 周前已在本机）。
+2. **`GET /ready`**：`{"ready":true,"checks":{"postgres":"up","redis":"up","elasticsearch":"up","gateway":"skipped","s3":"down","mongo":"up"}}`。硬依赖全 up。
+3. **两处与文档不符 / 缺口（已记入收口）**：
+   - `docs/ops/operable-stack.md:59-61` 写 `/ready` 期望 s3 = up；真栈上桶由**首次 put** 才创建（`apps/api/src/services/storage.ts:165-180`），故首启前恒 `down`。文档口径待订正。
+   - **配方缺一步（新发现）**：按 `operable-stack.md` §2 的配方在**全新库**上起 api，进程**必然非零退出**（`SuperAdminBootstrapError`），因为 `apps/api/src/index.ts:20` 在 `serve()` 前无条件跑超管引导，而 `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` 在 `.env.example:73-74` 里是**注释掉的**，四份运维文档**全都没写这个前置**。这是配方缺口（不是代码缺陷：引导超管是有意的 fail-closed 闸）。
+4. 本机补上 `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` 后 api 正常起、`/ready` 正常回。
+
+**未做（如实）**：不改仓库 `.env` / `.env.example` 的默认值；叠加只在进程环境里注入。

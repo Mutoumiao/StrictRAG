@@ -2,7 +2,7 @@
 
 Label: wayfinder:task
 Type: task
-Status: open
+Status: resolved
 Blocked by: 01
 
 ## Question
@@ -20,4 +20,17 @@ Blocked by: 01
 
 ## Answer
 
-（待填）
+**已解**。取证全文：[`../research/03-migrate-real-pg.md`](../research/03-migrate-real-pg.md)。
+
+空库（`\dt` → `Did not find any relations`；`drizzle.__drizzle_migrations` 不存在）上 `pnpm db:migrate` → `[✓] migrations applied successfully!`，零错误。
+
+| 断言 | 结果 |
+|------|------|
+| SQL 文件数 / journal 条目数 / 已应用行数 | **23 / 23 / 23**（idx 0–22 连续，tag 与文件名逐条一致） |
+| public 表数 | 26 |
+| 能力级回读 | `documents.active_index_version`(integer, nullable) · `chunks.dedupe_status`(text) 均落地；`schema_meta` 真 insert → 真 select 回读 → 真 delete 通过 |
+| `pnpm --filter @strict-rag/db db:generate` | `No schema changes, nothing to migrate`，且前后 `git status packages/db` 皆空 → **零漂移** |
+
+**结论**：雾簇 23「迁移未经真 PG apply 验证」在本机**已解**——不是「不能做」，是此前没人跑过。
+
+**未覆盖**：迁移 0015 的历史回填值真伪（雾簇 38）需有历史行才可判，本轮是空库，不在本票结论内。

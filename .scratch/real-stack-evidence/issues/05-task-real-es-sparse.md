@@ -2,7 +2,7 @@
 
 Label: wayfinder:task
 Type: task
-Status: open
+Status: resolved
 Blocked by: 01
 
 ## Question
@@ -22,4 +22,20 @@ Blocked by: 01
 
 ## Answer
 
-（待填）
+**已解**。取证全文：[`../research/05-real-es.md`](../research/05-real-es.md)。
+
+真集群：compose `elasticsearch:8.15.3`（**vanilla，无 IK**），索引 `strict_rag_dev` 由 worker 的 `ensureSparseIndex` 真建。
+
+| 验证项 | 真集群结果 |
+|--------|-----------|
+| 建索引 + mapping | ✅ mapping 与 `SPARSE_INDEX_PROPERTIES` **逐字段一致**（uuid 类全 `keyword`、`sparseText` `text`、`visibilityLevel` `integer`）；「已存在则 PUT `_mapping` 补 keyword」分支也真跑过 |
+| bulk 写入 | ✅ `_count` 与入库 chunk 数一致；`_source` 里 `aclPrincipals` / `ownerDeptId` 按「null 不写」语义缺席 |
+| **中文检索** | ✅ `match` 查「检索闸」命中 2 条、`max_score` 非零 —— **IK 不是「能命中」的必要条件**（`standard` 分词两侧同切）；IK 影响的是分词粒度与排序质量 |
+| `aclPrincipals` 三态 | ✅ 真集群实测：`null` → 字段不写；`[]` → 哨兵 `["__acl_none__"]`；`[uid]` → uid 列表。查询期 `should=[must_not exists, term uid]` 下，非名单用户**只见**「无名单」文档，名单内用户见「无名单 + 本人名单」 |
+| `listIndexedChunkIds` 对账 | ✅ 正常（其 fail-closed 语义在本轮工单 04 抓到的 refresh 缺陷修复后一次判 ok） |
+
+**覆盖表裁定**：
+
+- **`X5`**（acl）：维持 `部分测`，**阻塞方改判** —— 不是「须真 ES」，而是**查询期 `doc_type` filter 在源码里根本不存在**（真 ES 也验不出一条不存在的 filter）。同时**证明其缺失不构成泄漏**：`apps/api/src/services/retrieve/retrieve.ts:212` 在 sparse 命中后立刻与 PG 语料求交（`byId.has`），场外 chunk 一律丢弃；代价是**超集排序挤占 top-k 的召回损失**。销账条件 = 索引加 `docType` keyword + 查询期 terms filter，并补「范围外 chunk 不占 top-k」的测例。缺口列已改写。
+- **`E1`**（ingest）：维持 `部分测`，**阻塞方由「真 ES 部署」改判为「仓内可重复的真 ES 集成测位」** —— 真 ES 上已真跑到「入库后按正文中文术语检索命中该 doc 的 chunk」。缺口列已改写。
+- **未做**：`E2` 的 supersede ↔ ES 命中串联；多租户独立索引；`X5` 的落地实现（属新增面，须先裁）。

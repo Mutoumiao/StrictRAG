@@ -6,6 +6,8 @@
 >
 > **清点后的动向**（2026-09-23 追加，2026-09-24 更新）：簇 4 + 5 + 2 的 L1 侧已由 [`l1-signoff-evidence`](./l1-signoff-evidence/map.md) 收口；簇 1 已由 [`l2-report-determinability`](./l2-report-determinability/map.md) 收口；**簇 31 里的「16 行 Then ↔ 源码不一致」已由 [`acceptance-divergence`](./acceptance-divergence/map.md) 收口**（7 行判 `已测` · 9 行保留 `部分测` 并写明销账条件 · 8 条 ADR-ready 裁定书 · 一处源码对齐 ADR-033）。三张图均**只在本分支**推进、不带 worktree。**簇 31 剩下的部分**（覆盖表另有 59 行 `部分测`，含 16 行名单之外的同族行）仍空着。
 
+> **2026-09-29 追加（wayfinder 图 [`real-stack-evidence`](./real-stack-evidence/map.md)）**：本图挑的是**「不能（离线不可做）」这个前提本身**——本机 **Docker Desktop 可用**（此前九张图的口径是「Docker / 真 PG / 真 ES 均不在」），于是把簇 **23 / 24 / 36 / 37** 拿去验。结论：**簇 23 已解**（真 PG 从零 apply 23/23、`db:generate` 零漂移）；**簇 24 部分解**（真 ES 8.15.3 上建索引 / mapping / bulk / 中文检索 / `aclPrincipals` 三态与查询期收窄全部真跑通过；**IK 不是「能命中」的必要条件**，它只影响分词粒度与排序质量；多租户**独立索引**仍未动，单索引 + `tenantId` filter 路线真跑正常）；**簇 36 仍是「不差业务逻辑、只差调度基建」**（真跑未改变该判断，本仓确无 cron/Repeat）；**簇 37 收窄**（「自动 reindex」已裁为人工触发，剩「真 ES 上 reindex 覆盖旧 principals」半截，本图未做）。**顺带解出两处只在真集群现形的源码缺陷**（ES bulk 不等刷新 → 误红 `ES_RECONCILE_FAILED`；`smoke:half` 撞 ADR-048 四眼闸），并新增簇 **39**（见下表）。证据：[`docs/ops/real-stack-evidence.md`](../docs/ops/real-stack-evidence.md)。
+
 ## 汇总表
 
 | # | 簇 | 挡谁 | 离线可做 | PRD 依据 | 出处（图） |
@@ -32,8 +34,8 @@
 | 20 | `downrank` 跨 doc 去重动作 | 不挡；设计未成形 | 能但设计未成形 | 04-pipelines §5.1 | close-p2-exit-gaps |
 | 21 | admin 站规清扫（原生 `<select>` 约 24 处） | 不挡 | 不能（视觉回归不可验） | 仓内站规（spec） | 四张图 |
 | 22 | `drizzle/meta` 类型/默认值级人工走查 | 不挡 | 能 | 无（工程债） | fill-must-haves · close-p2-exit-gaps · p2-exit-evidence |
-| 23 | 迁移未经真 PG apply 验证 | 不挡；未验证项 | 不能（须 Docker/PG） | 无 | migration-default-parity · 多图 |
-| 24 | B8 真 ES+IK / 多租户独立索引 | P3b 部门隔离全文与生产话术 | 不能 | 03-data ES PRD | 多图 Out of scope |
+| 23 | 迁移未经真 PG apply 验证 | **已解（2026-09-29）** | 能（本机 Docker 可用） | 无 | migration-default-parity · 多图 · real-stack-evidence |
+| 24 | B8 真 ES+IK / 多租户独立索引 | P3b 部门隔离全文与生产话术 | **部分解（2026-09-29）**：真 ES 路径真跑通；IK 非命中必要条件；独立索引未动 | 03-data ES PRD | 多图 Out of scope · real-stack-evidence |
 | 25 | B9 真 RustFS / Mongo 正文 | 生产；不挡半产品 | 不能 | 03-data | 多图 Out of scope |
 | 26 | LangGraph 编排重构（现为线性状态机） | 不挡语义；架构路线 | 能（回归面极大） | 01-architecture 技术栈 | fill-must-haves |
 | 27 | P3a Full 图（CRAG / multi_hop） | P3a | 不能（硬门在 L2 人签） | 10-delivery 路线图 | 多图 Out of scope |
@@ -46,7 +48,8 @@
 | 34 | 在线编写完整体验（`editor-draft` + BlockNote）· admin 文档 ACL 编辑面 | 不挡；P2.x | 能但落点/选型未冻 | 功能表 §4.3/§5.2 | fill-must-haves |
 | 35 | 缺前置小项（「高度重复」阈值 · L0 vs L1 Hit@k 载体 · 魔数嗅探） | 不挡；各缺前置 | 不能 | 03-data（阈值未写）· ADR-053 | fill-must-haves |
 | 36 | 孤儿清理周期调度 | 不挡；缺调度基建 | 不能 | 03-data 存储边界 §2.4 | close-p2-exit-gaps |
-| 37 | 自动 reindex-on-tighten / dense 反向构造（B2-3 剩余） | 不挡 | 不能（须真 PG/ES） | ADR-009 决策 4 · ES PRD §4.3 | fill-must-haves · p3b-doc-acl |
+| 37 | 自动 reindex-on-tighten / dense 反向构造（B2-3 剩余） | 不挡 | **仍不能（但阻塞方已精确）**：「自动 reindex」已裁为人工触发，剩「真 ES 上 reindex 覆盖旧 principals」半截，须真 PG/ES | ADR-009 决策 4 · ES PRD §4.3 | fill-must-haves · p3b-doc-acl |
+| 39 | **半产品端到端「问答」段不可复现**（无 Gateway 时 `smoke:half` 末步必失败；`GATEWAY_MODE=http` 要求上游同时提供 chat + embeddings + **rerank** 三契约，而常见本地模型服务只给前两条，也不提供 `/rerank`） | 「第三人拉起 → 问答」这条 DoD；不挡 P2 签字（签字另需真模型与人签） | 能建（须先裁：**是否允许**一个 dev-only 的 JSON 桩 Gateway / 本地适配器），**或**如实记为环境前置 | 05-api · 07-models（Gateway 契约）· `docs/ops/half-smoke.md` | real-stack-evidence |
 | 38 | 迁移 0015 历史回填值真伪（`0` / `'[]'` 替历史行断言「无重复」） | 不挡 | 不能（改可空须 ADR） | 03-data schema | migration-default-parity |
 
 ## 挑目的地时的三条读法
