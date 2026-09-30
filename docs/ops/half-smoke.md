@@ -41,7 +41,7 @@ http 客户端**不下发** `purpose`，Gateway 只能按 `messages[0].content`�
 curl -s http://127.0.0.1:4000/ready | jq '.checks.gateway'
 ```
 
-配了 `GATEWAY_BASE_URL` → `"up"`；未配 → `"skipped"`（软依赖，`ready` 仍为 `true`）。
+配了且探活成功 → `"up"`；配了但 `GET {base}/v1/models` 探活失败 → `"down"`（`gateway` 是**软依赖**，`ready` 仍为 `true`）；未配 → `"skipped"`。
 
 ## 用桩（dev-only，可选）
 
@@ -57,6 +57,8 @@ GATEWAY_BASE_URL=http://127.0.0.1:4100 pnpm smoke:half
 ```
 
 **桩口径**：只证明**管道接对**，**不是**质量证据，**不得**进签字包；生产档位（`APP_ENV`/`NODE_ENV=production`）**拒绝启动**；只从 EVIDENCE 抽取、不编造 `chunkId`。桩跑出的 `PASS` **不等于** RAG 可用 / 可签字。
+
+**桩的已知局限（别把它当相关性判据）**：抽取按**单字 token 重叠**判定 —— 与语料**毫无关系但恰好共享单字**的问题（例如只共享一个「的」）**仍可能**拿到 `answered`。它只证明「检索有料 → 生成 → 引用 → verify」这条链接对了；要它更严（例如要求整句 / 多 token 命中）须先有人需要。
 
 ## 末步失败的三种可分辨形态
 

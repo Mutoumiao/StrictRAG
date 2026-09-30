@@ -24,9 +24,9 @@ Blocked by: 03, 04
 
 **为什么没动 `docs/module-status/api.md`**：本图对 `apps/` 是**零改动**（桩是 `scripts/` 下的独立进程，由 `GATEWAY_BASE_URL` 指过去），api 包的「已具备 / 未做」没有任何变化 —— 写它反而是往镜像里塞不属于该包的东西。
 
-**收口门禁（最后一次提交之后复跑）**：`pnpm check-types` **8/8** · `pnpm lint` **8/8 零 warning** · `node --test scripts/{stub-gateway,smoke-ask,up-stack,seed-demo}.test.mjs` **19/19** · `pnpm --dir apps/api test` **183 文件 / 1144 通过** · `pnpm --dir apps/worker test` **61 / 283** · 全仓 `pnpm test --concurrency=1` **11/11 包** · `pnpm check:module-status` **39 条**（`1-路径` / `6-联动` / `7-时效` 三类为空，与基线同）。
+**收口门禁（最后一次提交之后复跑）**：`pnpm check-types` **8/8** · `pnpm lint` **8/8 零 warning** · `node --test scripts/{stub-gateway,smoke-ask,up-stack,seed-demo}.test.mjs` **21/21** · `pnpm --dir apps/api test` **183 文件 / 1144 通过** · `pnpm --dir apps/worker test` **61 / 283** · 全仓 `pnpm test --concurrency=1` **11/11 包** · `pnpm check:module-status` **39 条**（`1-路径` / `6-联动` / `7-时效` 三类为空，与基线同）。
 
-**对抗性反向复核**：见「Comments」。
+**对抗性反向复核**：独立代理逐条核「镜像的话在源码 / 脚本里真能指到吗」，查出 **4 处需收紧**并全部修正：① 测例数写「13 例」实为 **9**（反向复核实跑 `# tests 9`）→ 去掉虚数并**补两条测例**（`NODE_ENV` 生产护栏 + 语义局限如实钉住），现为 **11 例**；② **桩的语义局限只写在源码注释里、第三人可读的三处文档都没写** → `docs/ops/half-smoke.md` / `docs/module-status/README.md` / `docs/ops/operable-stack.md` 三处补齐「抽取按单字 token 重叠 → 与语料无关但共享单字的问题仍可能 answered，**不是相关性判据**」；③ 「默认行为不变」**过宽** —— 判定与退出码确实未变，但**失败路径新增了诊断行** → 措辞收紧到「判定与退出码不变，失败路径新增诊断」；④ 清单页「配了 `GATEWAY_BASE_URL` → `up`」**过简** —— 实为「配且探活成功 → up；配但探活失败 → down；未配 → skipped」→ 改写。
 
 **封图**：前沿已空，`Status: resolved`。
 

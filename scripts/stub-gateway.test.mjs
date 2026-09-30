@@ -270,3 +270,37 @@ test('生产护栏：APP_ENV=production 起进程 → 拒绝启动（非零退�
   assert.notEqual(code, 0);
   assert.match(stderr, /拒绝启动/);
 });
+
+test('生产护栏：NODE_ENV=production（APP_ENV 非 production）同样拒绝启动', async () => {
+  const child = spawn(process.execPath, [STUB_PATH], {
+    env: { ...process.env, APP_ENV: 'development', NODE_ENV: 'production' },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let stderr = '';
+  child.stderr.on('data', (chunk) => {
+    stderr += chunk;
+  });
+  const code = await new Promise((resolve) => child.on('exit', resolve));
+  assert.notEqual(code, 0);
+  assert.match(stderr, /拒绝启动/);
+  // 两个环境键都点名，便于定位是哪一档挡住
+  assert.match(stderr, /NODE_ENV=production/);
+});
+
+test('语义局限（如实钉住）：桩按单字 token 重叠抽取 —— 与语料无关但共享单字的问题仍会 answered', async () => {
+  await withStub(async (base) => {
+    const prompt = [
+      'QUESTION:',
+      '公司的请假流程是什么？',
+      '',
+      'EVIDENCE:',
+      '[0] chunkId=chk-x docId=doc-x title=x',
+      '他说的对。',
+    ].join('\n');
+    const { parsed } = await chat(base, GENERATE_SYS, prompt);
+    // 只共享单字「的」→ 仍被判为「有重叠」（触发面窄）。本测例如实钉住这个局限：
+    // 桩**不是**相关性判据，它只证明管道接对；改严（要求整句/多 token 命中）须先有人需要。
+    assert.equal(parsed.insufficient, false);
+    assert.deepEqual(parsed.citations, ['chk-x']);
+  });
+});

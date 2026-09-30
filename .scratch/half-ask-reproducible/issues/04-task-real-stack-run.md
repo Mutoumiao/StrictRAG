@@ -13,7 +13,7 @@ Blocked by: 03
 
 取证正文：[`research/04-real-stack-half-ask.md`](../research/04-real-stack-half-ask.md)（专职取证代理执行；关键声明由主控复核）。
 
-**A · 无 Gateway 复验**：`pnpm smoke:half` 第 1–7 步全过、第 8 步 `FAIL: ask has no citations`（`status=abstained` / `reason=internal_guard`），**exit 1**；**新版可诊断提示已出现**（缺 Gateway / 三条 JSON / 看哪份文档 / 可用桩），且**默认行为与改动前一致**（未放宽任何闸）。
+**A · 无 Gateway 复验**：`pnpm smoke:half` 第 1–7 步全过、第 8 步 `FAIL: ask has no citations`（`status=abstained` / `reason=internal_guard`），**exit 1**；**新版可诊断提示已出现**（缺 Gateway / 三条 JSON / 看哪份文档 / 可用桩），且**判定与退出码与改动前一致**（未放宽任何闸；失败路径新增了诊断行，属本轮改动）。
 
 **B · 用桩跑通（本图 DoD）**：起 `node scripts/stub-gateway.mjs`（banner 逐字记录）→ `GATEWAY_BASE_URL=http://127.0.0.1:4100 pnpm smoke:half` → **exit 0**，输出 `PASS … citations=2 (gateway=stub · 仅证明管道接对 · 非质量证据)`。ask 响应 `answered` / `verified` / `citations=2` / `llmCalls=3` / `evidenceCount=2`；**两条 citation 的 chunkId 经 `psql` 核对均属该文档**；桩收到的 purpose 序列 = `embed → rerank → generate → claim_split → judge`；**答案句与 citations 逐字来自 EVIDENCE（无编造）**。
 

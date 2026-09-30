@@ -47,8 +47,8 @@ Status: resolved（前沿：空；工单 01 · 02 · 03 · 04 · 05 全收口）
 
 - [01 · 研究：末步 ask 的失败形态与三契约可达面](./issues/01-research-ask-gateway-surface.md) — 真栈实测：`smoke:half` 第 8 步 exit 1（`status=abstained` / `reason=internal_guard`）；**只缺 `generate` 的 JSON**，检索侧（embed + 真 ES sparse + rerank）已全通；桩可**零生产代码改动**接入（`GATEWAY_BASE_URL` 指向独立进程）；爆炸面 18 文件 / 104 it，只要不改默认值就零波及；仓内**无**现成 HTTP JSON 桩；`prds` 里**查不到**「mock chat 必须非 JSON」的明文。
 - [02 · 裁定：建 dev-only 桩（路 A）为主 + 可诊断性并列](./issues/02-dec-stub-or-prerequisite.md) — **路 A**：独立进程的**抽取式**桩（只从提示给的 EVIDENCE 抽取、`citations` 逐字取自 evidence、证据不足必须 `insufficient: true`），**零 `apps/` 改动**、不新增 `GATEWAY_MODE` 档位；`GET /__stub` 自证身份供 `smoke:half` 确定性标注；生产档位**拒绝启动**；**R3 并列要求**：末步失败须区分「缺 Gateway / 用桩 / 管道坏」；**R5 禁则**：不许为桩开后门、不许放宽 ask 任何闸。
-- [03 · 落：桩 + 烟测诊断](./issues/03-task-implement.md) — `scripts/stub-gateway.mjs`（覆盖 5 个 purpose + `/v1/embeddings` 前缀 + `/v1/models` + `/__stub`；生产护栏；响亮 banner；确定性）；`scripts/smoke-half.mjs`（默认行为不变 + 桩标注 + 三类可诊断）；`scripts/stub-gateway.test.mjs` **13 例**（含生产护栏、无证据不编答案、两条 embeddings 前缀、确定性）；`docs/ops/half-smoke.md` 补三条契约最小形状 / 可核命令 / 用桩两步 / 桩口径 / 失败三形态；`package.json` 加 `stub:gateway`（**不动任何默认链路**）。
-- [04 · 真栈真跑：无 key 机器端到端](./issues/04-task-real-stack-run.md) — A：无 Gateway 复验（第 8 步 exit 1 + **新版诊断**出现，默认行为未变）；B：用桩 **exit 0**、`PASS … citations=2 (gateway=stub)`，**两条 citation 经 `psql` 核对属该文档**，桩收到的序列 = `embed → rerank → generate → claim_split → judge`，答案与引用**逐字来自 EVIDENCE**；C：生产档位拒绝启动 / 零重叠问题 abstained / 无 EVIDENCE → `insufficient:true`；D：三个已知坑都在文档里，另挖出 **5 处前置缺口并已补进清单页**。
+- [03 · 落：桩 + 烟测诊断](./issues/03-task-implement.md) — `scripts/stub-gateway.mjs`（覆盖 5 个 purpose + `/v1/embeddings` 前缀 + `/v1/models` + `/__stub`；生产护栏；响亮 banner；确定性）；`scripts/smoke-half.mjs`（**判定与退出码不变**、仅失败路径新增诊断行 + 桩标注 + 三类可诊断）；`scripts/stub-gateway.test.mjs` **11 例**（含 `APP_ENV` 与 `NODE_ENV` **两档**生产护栏、无证据不编答案、**语义局限如实钉住**、两条 embeddings 前缀、确定性）；`docs/ops/half-smoke.md` 补三条契约最小形状 / 可核命令 / 用桩两步 / 桩口径 / 失败三形态；`package.json` 加 `stub:gateway`（**不动任何默认链路**）。
+- [04 · 真栈真跑：无 key 机器端到端](./issues/04-task-real-stack-run.md) — A：无 Gateway 复验（第 8 步 exit 1 + **新版诊断**出现；**判定与退出码未变**，仅失败路径新增诊断行）；B：用桩 **exit 0**、`PASS … citations=2 (gateway=stub)`，**两条 citation 经 `psql` 核对属该文档**，桩收到的序列 = `embed → rerank → generate → claim_split → judge`，答案与引用**逐字来自 EVIDENCE**；C：生产档位拒绝启动 / 零重叠问题 abstained / 无 EVIDENCE → `insufficient:true`；D：三个已知坑都在文档里，另挖出 **5 处前置缺口并已补进清单页**。
 
 ### 目的地达成（2026-10-01）
 
@@ -60,7 +60,7 @@ Status: resolved（前沿：空；工单 01 · 02 · 03 · 04 · 05 全收口）
 
 **该被记住的三句话**：① **先量失败面再决定要不要建东西** —— 实测发现只缺 `generate` 那一次 JSON（检索侧早就全通），把一个「看起来要接一整套模型服务」的问题缩成「一台假网关」；② **桩可以是加严而不是放宽** —— 抽取式（只引用证据、不足即 insufficient）让「有证据才作答」更硬，罐头答案式的 mock 才是要拒绝的形态；③ **「自证身份」比「靠约定」可靠** —— `GET /__stub` 让烟测**确定性**地知道自己在用桩，真网关 404 不误判，于是「用桩的 PASS」不可能被误读成「真模型跑通」。
 
-**门禁（最后一次提交之后复跑）**：`check-types` 8/8 · `lint` 8/8 零 warning · `node --test scripts/{stub-gateway,smoke-ask,up-stack,seed-demo}.test.mjs` **19/19** · api **183 文件 / 1144 通过** · worker **61 / 283** · 全仓 `test --concurrency=1` **11/11 包** · `check:module-status` **39 条**（`1-路径` / `6-联动` / `7-时效` 三类为空）。**提交（本地，未 push）**：`f8b8edf` 立图 · `a1fd0b7` 工单 01/02 · `39d352d` 工单 03 · 工单 04/05 收口。
+**门禁（最后一次提交之后复跑）**：`check-types` 8/8 · `lint` 8/8 零 warning · `node --test scripts/{stub-gateway,smoke-ask,up-stack,seed-demo}.test.mjs` **21/21** · api **183 文件 / 1144 通过** · worker **61 / 283** · 全仓 `test --concurrency=1` **11/11 包** · `check:module-status` **39 条**（`1-路径` / `6-联动` / `7-时效` 三类为空）。**提交（本地，未 push）**：`f8b8edf` 立图 · `a1fd0b7` 工单 01/02 · `39d352d` 工单 03 · 工单 04/05 收口。
 
 ## Not yet specified
 

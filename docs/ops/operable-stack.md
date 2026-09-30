@@ -98,7 +98,7 @@ node scripts/stub-gateway.mjs                     # 一个终端（默认 127.0.
 GATEWAY_BASE_URL=http://127.0.0.1:4100 pnpm smoke:half   # 另一个终端
 ```
 
-桩**只从提示里的 EVIDENCE 抽取**（引用逐字取自 evidence，证据不足即 `insufficient:true`），生产档位**拒绝启动**，`smoke:half` 的输出会标注 `gateway=stub`。**用桩通过的 `PASS` 只证明管道接对，不是质量证据、不得进签字包**；仓库默认（无 Gateway → 拒答）一个字未改。
+桩**只从提示里的 EVIDENCE 抽取**（引用逐字取自 evidence，证据不足即 `insufficient:true`），生产档位**拒绝启动**，`smoke:half` 的输出会标注 `gateway=stub`。**用桩通过的 `PASS` 只证明管道接对，不是质量证据、不得进签字包**，也**不是相关性判据**（抽取按单字 token 重叠，与语料无关但共享单字的问题仍可能 `answered`）；仓库默认（无 Gateway → 拒答）一个字未改。
 
 清单：[half-smoke.md](./half-smoke.md)。引用判定单测：`node --test scripts/smoke-ask.test.mjs`。
 
