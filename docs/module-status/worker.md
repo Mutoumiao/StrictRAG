@@ -135,7 +135,7 @@ BullMQ 消费者：probe + 入库五阶段状态机在 **dev mock 栈**下可跑
 
 worker 侧批跑现在**接**映射账本：进程级 env L1_DOC_MAP / L2_DOC_MAP，与 api CLI **同名同义**（来源 = worker 进程环境，**不是** job payload；一进程一份账本，换账本须重启进程 —— env 是模块加载期快照）。批跑函数在 hitAtKCase **之前**按账本把夹具逻辑 id 解析为当前 KB 的 documents.id uuid，读取时机是**每次 job**（路径取 env 快照，文件内容每次重读）。
 
-失效**四态**（本轮语义核心）：① **未设置**（空 / 纯空白）→ 与改动前**逐位一致**：报告三键 docMapSource / docMapResolved / docMapUnmappedIds 为 none / 0 / []，缺映射继续算 miss；② **设置但账本不可用**（缺文件 / 非 JSON / 形状违约 / kbId 或语料指纹不符）→ 该 job **响亮失败**（markFailed 落 status=failed + errorMessage 复用 CorpusLedgerError 原文），**绝不**降级成「未设置」；③ **设置但库内对账不过**（2026-10-01 起）→ 同样 **响亮失败**，错误信息是对账那一类（missing / not_retrievable / title_mismatch 各自可分辨，点名 logicalId + docId + 实测姿态）；④ **设置且自洽** → 解析。L1 与 L2 同办（L2 的**正常分支与 error 分支两处**比对点都先解析）。库读本身失败（库不可达）也走 ② 同款响亮失败，不许当成「对账通过」。
+失效**四态**（本轮语义核心）：① **未设置**（空 / 纯空白）→ 与改动前**逐位一致**：报告三键 docMapSource / docMapResolved / docMapUnmappedIds 为 none / 0 / []，缺映射继续算 miss；② **设置但账本不可用**（缺文件 / 非 JSON / 形状违约 / kbId 或语料指纹不符）→ 该 job **响亮失败**（markFailed 落 status=failed + errorMessage 复用 CorpusLedgerError 原文），**绝不**降级成「未设置」；③ **设置但库内对账不过**（2026-10-01 起）→ 同样 **响亮失败**，错误信息是对账那一类（missing / not_retrievable / title_mismatch 各自可分辨，点名 logicalId + docId + 可得时的实测姿态）；④ **设置且自洽** → 解析。L1 与 L2 同办（L2 的**正常分支与 error 分支两处**比对点都先解析）。库读本身失败（库不可达）也走 ② 同款响亮失败，不许当成「对账通过」。
 
 落库：persist.ts 两处 reportJson 白名单里的映射来源三键改**取报告真值**（不再硬编码常量）；未设账本时取值恰等于旧常量，故库内形状不变。报告 DTO 三键由 api 侧透出（见 [api](./api.md)）。
 

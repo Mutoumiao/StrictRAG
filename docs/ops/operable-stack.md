@@ -64,7 +64,7 @@ L2_KB_ID=<kbId> L2_DOC_MAP=artifacts/eval-corpus-ledger-<kbId>.json \
   pnpm --filter @strict-rag/api exec tsx src/scripts/run-l2-golden.ts
 ```
 
-账本 `kbId` / `corpusFingerprint` 与本次 KB / 当前夹具不符即拒跑（exit 2）。**跑批前还会做一次库内对账**（2026-10-01 起）：账本每条 `docId` 都要在当前 KB 的 `documents` 里查到、且该行 `status=ready` ∧ `lifecycle=active`、且 title 与账本条目逐字相符；不满足则按三类（`missing` / `not_retrievable` / `title_mismatch`）**拒跑并在消息里点名逻辑 id + 文档 id + 实测姿态**。这不是洁癖：重跑入库会为同一 KB 生成新 uuid、旧行落 `superseded` **却仍在库**，只查「存在」会放行一批必然假 miss。缺映射**继续算 miss**，绝不变成「该门不适用」。`retrieve_mode` 仍以 env 为准；mock 数字禁止写入签字页。
+账本 `kbId` / `corpusFingerprint` 与本次 KB / 当前夹具不符即拒跑（exit 2）。**跑批前还会做一次库内对账**（2026-10-01 起）：账本每条 `docId` 都要在当前 KB 的 `documents` 里查到、且该行 `status=ready` ∧ `lifecycle=active`、且 title 与账本条目逐字相符；不满足则按三类（`missing` / `not_retrievable` / `title_mismatch`）**拒跑并在消息里点名逻辑 id + 文档 id + 可得时的实测姿态**。这不是洁癖：重跑入库会为同一 KB 生成新 uuid、旧行落 `superseded` **却仍在库**，只查「存在」会放行一批必然假 miss。缺映射**继续算 miss**，绝不变成「该门不适用」。`retrieve_mode` 仍以 env 为准；mock 数字禁止写入签字页。
 
 **worker 队列路径（运营台发起 → BullMQ → worker）**：worker 进程同样设 `L1_DOC_MAP` / `L2_DOC_MAP`（与 CLI **同名同义**，来源 = worker 进程环境，**不是** job payload），worker 消费 `sr-eval` job 时**每次重读**账本文件、并在 `hitAtKCase` 之前把逻辑 id 解析为 uuid。四态：
 

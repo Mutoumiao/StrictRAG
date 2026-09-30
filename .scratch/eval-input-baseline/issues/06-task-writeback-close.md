@@ -37,5 +37,11 @@ Blocked by: 04, 05
 
 ## Comments
 
-- 反向复核结论：**镜像声明逐条能指到源码**；发现的问题集中在措辞精度而非事实错误，逐条处置（见下）。**未发现**「说的比做的大」类高估。
+- 反向复核结论：**镜像声明逐条能指到源码**；**未发现**「说的比做的大」类高估，但查出 **3 处措辞过度承诺**，逐条收紧：
+  1. **「消息点名 logicalId + docId + 实测 status / lifecycle / title」是无条件写法，过宽** —— `missing` 类**查不到行**，没有 status / lifecycle / title 可测（行属别 KB 时才带 `kbId`）。已在 **6 处**（`docs/module-status/api.md` ×2、`docs/module-status/worker.md`、`docs/ops/operable-stack.md`、`docs/testing/coverage.md`、`.trellis/spec/api/backend/l1-eval.md`）改为「并在**该行可得时**带实测 …」。
+  2. **spec 自相矛盾**：`l1-eval.md` 的 worker 段仍写「**失效三态**」，与本轮新增的对账档相抵 → 改「**失效四态**」并补「库读本身失败」与「库内对账不过」两档。
+  3. **`real-stack-evidence.md` §9 标题「对账闸**四档**实测」与表里的 7 个场景不符** → 改「对账闸与题源信号的**七档**实测」。
+  - 反向复核另**独立复核**了三件事：① 库内该 KB 13 行全 `ready ∧ active`（N2 已还原）；② 队列侧失败行 `01a0f32b-…` 的 `status=failed` 与 `error_message` 与证据文逐字一致；③ `prds/` / `fixtures/` / 各 `env.ts` / `l1-matrix.ts` / `adr046-snapshot.ts` 在五个提交里**零改动**。
+  - 「失效三态」一词在 `docs/testing/coverage.md` 的**第十二轮**叙述里**保留不动** —— 那是对上一图当时状态的史实记录，不是本轮口径。
 - 三条口径纪律在回写里被显式守住：① 对账与题源两键**都不进判定**（镜像与 spec 都点明「做硬门须 ADR」）；② worker 侧 `goldSetMatchesRepoFile` 的**真跑未验**如实写（只在 api CLI 真跑里读过 true / false）；③ L2 侧对账**源码同构但未真跑**，镜像未宣称 L2 已验。
+- 收紧之后复跑 `check:module-status`：仍 **39 条**（2 env + 13 符号 + 24 表），`1/6/7` 三类为空。
