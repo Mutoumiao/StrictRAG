@@ -1,7 +1,7 @@
 # 让评测跑批的输入事实基线在两条入口上同一且可检测
 
 Label: wayfinder:map
-Status: open（前沿：工单 01）
+Status: resolved（前沿：空；工单 01 · 02 · 03 · 04 · 05 · 06 全收口）
 
 ## Destination
 
@@ -34,7 +34,7 @@ Status: open（前沿：工单 01）
 - **前图教训（三条必守）**：① 收口声明必须在**最后一次提交之后**复跑 `pnpm check:module-status`，且 `1-路径` / `6-联动` / `7-时效` 三类须为空；② 回写要带**对抗性反向复核**（逐条核「这话在源码里真能指到吗」）；③ 镜像/覆盖表里的加式必须**用脚本按行机械核**。
 - **本机限制**：无浏览器 → admin / web 视觉改动不在本图；真模型 live 跑数 / 人签也不在。**Docker Desktop 在本机可用**（前两张图已验证真栈真跑），真跑要预留重启与重跑预算，故障那一跑**必须留痕**。
 
-### 开工基线（2026-09-30 · 逐条核过源码）
+### 开工基线（2026-10-01 · 逐条核过源码）
 
 | 处 | 今天的样子 |
 |---|---|
@@ -52,14 +52,42 @@ Status: open（前沿：工单 01）
 
 - [01 · 研究：三条输入基线的现状面](./issues/01-research-input-baselines.md) — 三个角色互斥的子代理并行核实（[01a 库内对账可达性](./research/01a-ledger-db-reachability.md) · [01b 题源差异](./research/01b-case-source-divergence.md) · [01c 三键消费面](./research/01c-docmap-keys-consumers.md)）。要点：**只查「存在」不够** —— 重跑入库会生成新 uuid、旧行落 `superseded` 却仍在库（存在性对账放行必然假 miss）；**题源确实分歧**（文件 60 题 vs DB 默认空，全仓无「文件 → DB」灌题入口）；**三键确认不进任何判定**、admin/web 零命中、收紧代价仅 1 个 it；**回归面量化**为 15 个 it / 5 个文件。一条**修正**：地图原写「CLI 侧无 DB 读」不成立，两侧 CLI 都已 import `getDb`。
 - [02 · 裁定：账本 ↔ 库内对账的落点与失效语义](./issues/02-dec-ledger-db-reconcile.md) — 纯函数进 `corpus-ledger.ts`、I/O 编排进 `corpus-ledger-file.ts`，库读走**必填注入函数**（contracts 不引 `@strict-rag/db`）；**只要用了账本就必须对账**（未设账本 → 逐位一致）；**三类失效**（`missing` / `not_retrievable` / `title_mismatch`）各自可分辨且全部响亮失败，其中 `not_retrievable` 是本裁定的核心（抓重跑入库后的陈旧账本）；**三键收紧为必填**。
-- [03 · 裁定：题源以谁为准 / 差异怎么可检测](./issues/03-dec-case-source-ruling.md) — 文件 = 基线题面、DB = 运行期题集，**并存是产品设计**、本图不收敛；可检测信号 = `repro` 新增 `goldSource`（`file` / `db`）与 `goldSetMatchesRepoFile`（与仓内基线逐位比，读不到 → `null`），复用既有 `l1QuestionIdsHash`；**不进判定、不进签字快照**（新增必达项须 ADR）。
+- [03 · 裁定：题源以谁为准 / 差异怎么可检测](./issues/03-dec-case-source-ruling.md) — 文件 = 基线题面、DB = 运行期题集，**并存是产品设计**、本图不收敛；可检测信号 = `repro` 新增 `goldSource`（`file` / `db` / null=未标注）与 `goldSetMatchesRepoFile`（与仓内基线逐位比，读不到 → null），复用既有 `l1QuestionIdsHash`；**不进判定、不进签字快照**（新增必达项须 ADR）。
+- [04 · 落：对账 + 题源信号](./issues/04-task-reconcile-and-signal.md) — 纯函数进 `corpus-ledger.ts`（`diffLedgerAgainstDocs` / `formatLedgerReconcileError`）、I/O 编排进 `corpus-ledger-file.ts`（`resolveCorpusLedgerForRun` 改 async + 必填 `lookupDocs`）；api 加 `listDocRefsByIds`、worker 加 `eval/doc-refs.ts`，四入口缺省即真库；`EvalRunSchema` 三键收紧为必填。**两个对抗性验证代理独立复核**，逐条处置五处发现（陈旧注释 / 库读失败未包装 / 账本 docId 不去重 / 模板值冒充 `file` / 缺测例）。**八组反证**逐条见红后还原复跑全绿。
+- [05 · 真栈真跑：对账与题源信号](./issues/05-task-real-stack-verify.md) — 真 compose 五服务（复用前图命名卷）上跑通：正向 `hitAtK=30/30` 且 `goldSetMatchesRepoFile=true`；**坏账本三档全部 exit 2**（不存在 docId / 库内某篇临时 `superseded` 或 `failed` / title 改一字符），消息逐字点名 logicalId + docId + 实测姿态；队列侧同一坏账本 → job `failed` 且 `error_message` 是对账原文（主控用 `psql` 复核该行）；`L1_GOLD_PATH` 指改过一个 id 的副本 → 出报告但信号翻 `false`。**N2 复现的正是「旧账本仍查得到旧行、却已不可检索」** —— 只查存在会放行一批必然假 miss。
+
+### 目的地达成（2026-10-01）
+
+**「让评测跑批的输入事实基线在两条入口上同一且可检测」已达成**：
+
+1. **账本 ↔ 库内文档存在性可检测**：跑批解析账本这一步**必带库内对账**（`kbId` → 语料指纹 → 对账，前两档仍早于任何库读）；三类失效（`missing` / `not_retrievable` / `title_mismatch`）各自可分辨、**一律响亮失败**，消息点名逻辑 id + 文档 id + 实测姿态；**未设账本 → 完全不进对账**，与今天逐位一致。落点在共享层、两条入口**一起接**，且缺省即真库（生产不可绕）。
+2. **题源差异被裁定并落地**：文件 = 基线题面 / DB = 运行期题集，**并存是产品设计**（本图不收敛）；`repro` 新增 `goldSource` 与 `goldSetMatchesRepoFile`，让「同一个 `hitAtK` 底下是不是同一份题集」第一次可检测。
+3. **三键定案**：`EvalRunSchema` 的映射来源三键**收紧为必填**（`toEvalRunDto` 恒回填，历史行读路径零影响；唯一会红的 1 个裸构造测例已补键）。
+
+**该被记住的三句话**：① **「存在」不等于「可检索」** —— 重跑入库会生成新 uuid、旧行落 `superseded` 却仍在库，只查存在会放行一批必然假 miss，锚点必须选可检索姿态；② **「查不到」与「查不了」是两回事** —— 库不可达时把错误吞掉，等于把一道新鲜的闸改常开；③ **信号不是闸** —— `goldSetMatchesRepoFile` 如实标注、不进判定；把它升成必达项是改冻结语义，须 ADR，不许顺手做。
+
+**门禁（最后一次提交之后复跑）**：`check-types` 8/8 · `lint` 8/8 零 warning · 全仓 `test --concurrency=1` 11/11 包 · `check:module-status` **39 条**（`1-路径` / `6-联动` / `7-时效` 三类为空，与基线同）。**提交（本地，未 push）**：`5db80ab` 立图 · `e6a7144` 工单 01/02/03 · `08d0099` 工单 04 实现 · `dd1cf83` 工单 04 收口修复 · 工单 05/06 收口。
 
 ## Not yet specified
 
-- **「账本 ↔ 库内存在性」的下一步**：若本图把对账做成**可选开关**，则「谁在什么场景下必须开」仍需一张图（生产评测路径是否强制、`ingest-eval-corpus` 是否顺手自洽产账本 —— 即让账本在生成时就与库一致，而不是跑批时才发现）。
-- **L2 侧同族问题未动**：`L2_DOC_MAP` 的账本同样不做库内对账；L2 的 `docHitRate` 至今未跑过真批跑（前图已记）。
-- **`eval_runs` 历史行的其它可选键**：除映射来源三键外，`repro` 区块字段是否也该收紧为必填，取决于 §8 可复现面的下一张图。
-- **题源收敛若裁成「DB 为准」**：需要一条「文件 → DB」的灌题入口（`seed:demo` 或 `ingest-eval-corpus` 的扩展），这条链的落点归属（api 脚本 / worker / admin 面）留给下一张图。
+<!-- 收口后剩下的雾，按「谁挡谁」分组，供下一张图挑一个当目的地 -->
+
+### A · 本图显式划出的四条
+
+- **把「两侧题集不同」接成硬门**：`goldSetMatchesRepoFile` 今天是**信号**（如实标注、不进任何判定、不进签字快照）。要做成必达项（例如「准出所用题集须与仓内基线逐位相同」）属**改冻结语义** —— ADR-046 快照的必达元素由 `prds/08-quality` 定义，新增一项须 ADR → 改 PRD → 升 `prds/README.md` 版本。**落点已经就位**（字段在 `repro` 里、真栈上可真跑），缺的只是那一次裁定。
+- **两条入口的题源仍未收敛**：文件 `fixtures/l1/gold.yaml`（60 题、RACI 审核产物）与 DB 表 `gold_questions`（运营自管 + 反馈晋升，默认空）并存是**产品设计**，本图只让差异可见。若日后要收敛（DB 为准 → 加「文件 → DB」灌题入口；文件为准 → worker 改读文件），须先裁产品面与归属包。
+- **worker 侧的 `goldSetMatchesRepoFile` 未在真跑里验**：本图只在 api CLI 真跑里读了 `true` 与 `false` 两档；worker 侧同一函数由注入桩覆盖。落点廉价（起 worker + 一次 `POST /eval/runs`）。
+- **`loadGold` 丢掉两列**：DB 的 `expected_chunk_ids` 与 `rubric` 在 worker 的 `EvalGoldCase` 里没有位置（今天无消费方）。要接须先有消费方（例如按 chunk 计分的门）。
+
+### B · 同族但本图未碰的口子
+
+- **L2 侧的对账未真跑**：`L2_DOC_MAP` 走同一接缝（源码同构、单测覆盖），但本图未在真栈跑 L2；L2 的 `docHitRate` 至今无真跑档。
+- **对账只查一个方向**：今天查的是「账本点名的文档在不在库、可不可检索」；**不查**「库里有而账本没记」。反方向的现实后果是：重跑入库后新 uuid 未进账本 → 新文档永远不在期望集里，`hitAtK` 被**低估**。要不要做成双向，或让入库入口顺手自洽产账本，须先裁。
+- **`EvalRunSchema` 收紧后历史行的语义压平**：历史行仍读作 `none / 0 / []`（那时确实没有账本，语义正确）。若将来要区分「历史行」与「真 none」，须先有版本标记。
+
+### C · 承接前图、本图未动的清单
+
+- 簇 **8**（`CorpusLoader` 未传 tenantId）· 簇 **11**（`loadVisibilityContext` 请求级缓存）· 簇 **13**（`kb_members.role` 完整性债）· 簇 **22**（`drizzle/meta` 类型/默认值级走查）· 簇 **24 余量**（多租户独立索引）· 簇 **31 余量**（覆盖表剩余 59 行 `部分测`）· 簇 **32**（`/prds` 与 `.trellis/tasks/` 不在版本库）· 簇 **37 余量**（真 ES 上 reindex 覆盖旧 principals）。
 
 ## Out of scope
 

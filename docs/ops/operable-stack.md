@@ -64,15 +64,16 @@ L2_KB_ID=<kbId> L2_DOC_MAP=artifacts/eval-corpus-ledger-<kbId>.json \
   pnpm --filter @strict-rag/api exec tsx src/scripts/run-l2-golden.ts
 ```
 
-账本 `kbId` / `corpusFingerprint` 与本次 KB / 当前夹具不符即拒跑（exit 2）。缺映射**继续算 miss**，绝不变成「该门不适用」。`retrieve_mode` 仍以 env 为准；mock 数字禁止写入签字页。
+账本 `kbId` / `corpusFingerprint` 与本次 KB / 当前夹具不符即拒跑（exit 2）。**跑批前还会做一次库内对账**（2026-10-01 起）：账本每条 `docId` 都要在当前 KB 的 `documents` 里查到、且该行 `status=ready` ∧ `lifecycle=active`、且 title 与账本条目逐字相符；不满足则按三类（`missing` / `not_retrievable` / `title_mismatch`）**拒跑并在消息里点名逻辑 id + 文档 id + 实测姿态**。这不是洁癖：重跑入库会为同一 KB 生成新 uuid、旧行落 `superseded` **却仍在库**，只查「存在」会放行一批必然假 miss。缺映射**继续算 miss**，绝不变成「该门不适用」。`retrieve_mode` 仍以 env 为准；mock 数字禁止写入签字页。
 
-**worker 队列路径（运营台发起 → BullMQ → worker）**：worker 进程同样设 `L1_DOC_MAP` / `L2_DOC_MAP`（与 CLI **同名同义**，来源 = worker 进程环境，**不是** job payload），worker 消费 `sr-eval` job 时**每次重读**账本文件、并在 `hitAtKCase` 之前把逻辑 id 解析为 uuid。三态：
+**worker 队列路径（运营台发起 → BullMQ → worker）**：worker 进程同样设 `L1_DOC_MAP` / `L2_DOC_MAP`（与 CLI **同名同义**，来源 = worker 进程环境，**不是** job payload），worker 消费 `sr-eval` job 时**每次重读**账本文件、并在 `hitAtKCase` 之前把逻辑 id 解析为 uuid。四态：
 
 - **未设置**（空 / 纯空白）→ 与不接账本时逐位一致：报告三键 `docMapSource` / `docMapResolved` / `docMapUnmappedIds` = `none` / `0` / `[]`，缺映射继续算 miss；
-- **设置但账本不可用**（缺文件 / 非 JSON / 形状违约 / `kbId` 或语料指纹不符）→ 该 job **响亮失败**（`eval_runs.status=failed` + `error_message` 复用账本错误原文），**绝不**降级成「未设置」；
+- **设置但账本不可用**（缺文件 / 非 JSON / 形状违约 / `kbId` 或语料指纹不符 / **对账查询本身失败**）→ 该 job **响亮失败**（`eval_runs.status=failed` + `error_message` 复用账本错误原文），**绝不**降级成「未设置」；
+- **设置但库内对账不过**（`missing` / `not_retrievable` / `title_mismatch`）→ 同样**响亮失败**，错误信息是对账那一类；
 - **设置且自洽** → 解析。
 
-worker 换账本须**重启进程**（env 是模块加载期快照）。判定仍在 api 侧、worker 只落库；三键与账本解析都不进任何判定。
+worker 换账本须**重启进程**（env 是模块加载期快照）。判定仍在 api 侧、worker 只落库；三键、对账结论与 L1 §8 的题源两键（`goldSource` / `goldSetMatchesRepoFile`）都不进任何判定。
 
 `pnpm up:apps` = compose 中间件（若未起）+ api + worker，不必手拼四进程。仅中间件：`node scripts/up-stack.mjs --compose-only`。
 

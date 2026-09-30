@@ -126,3 +126,32 @@ pnpm smoke:half                                        # 端到端；ask 一步�
 **环境坑三条**（本轮踩到，已写入 [operable-stack.md §6](./operable-stack.md)）：turbo `dev` 任务 env 白名单过滤 operable 变量 · `pnpm --filter` 的 `@` 经 PowerShell `.cmd` 被拼坏 · Docker 自退后 ES host 端口转发丢失须 `restart` 容器。
 
 **未核实 / 不在本页**：两条入口的**题源不同**（CLI 读 `fixtures/l1/gold.yaml`、worker 读 DB 表 `gold_questions`）—— 本图只对齐数字**含义**，未对齐题源；账本 ↔ 库内文档的**运行时不变量**仍不做校验（前图裁定 4 显式划出）；L2 真跑与准出仍缺。
+
+## 9. 续图（2026-10-01 · `eval-input-baseline`）：跑批前的账本 ↔ 库内对账 + 题集身份信号
+
+逐项取证：[`.scratch/eval-input-baseline/research/05-real-stack-reconcile.md`](../../.scratch/eval-input-baseline/research/05-real-stack-reconcile.md)。
+
+**背景**：§8 把两条入口拉到「同一份账本、同一套语义」上，但账本与**库内文档**之间仍无任何运行时校验 —— 账本点名的 `docId` 若已不在库，或已不可检索，跑批只会安静地给出偏低的 `hitAtK`。本续图在 `hitAtKCase` **之前**加一道对账闸，并在 §8 的题源差异上补一个**可检测信号**。
+
+**对账闸四档实测**（真 compose 五服务；PG 复用既有命名卷，KB `01a0eda2-6781-7ca3-90e8-17dcd7ba68c2` 13 篇全 `ready ∧ active`）：
+
+| 场景 | 破坏点 | 期望 | 实测 | 退出码 |
+|---|---|---|---|---|
+| P 正向 | 无 | 通过出报告 | `hitAtK=1`（30/30）· `docMapSource=ledger` · `goldSource=file` · `goldSetMatchesRepoFile=true` | 0 |
+| N1 `missing` | 账本某条 `docId` 改成库内不存在的 uuid | 拒跑 | 点名 `ingest-samples/01-doc→0000…00ff missing` | 2 |
+| N2 `not_retrievable` | 库内某篇临时 `lifecycle='superseded'` | 拒跑 | `not_retrievable=1` + 实测 `status=ready lifecycle=superseded` | 2 |
+| N2′ `not_retrievable` | 库内某篇临时 `status='failed'` | 拒跑 | `not_retrievable=1` + 实测 `status=failed lifecycle=active` | 2 |
+| N3 `title_mismatch` | 账本某条 `title` 改一字符 | 拒跑 | `title_mismatch=1` + 实测 `title=01-doc` | 2 |
+| N4 题源不匹配 | `L1_GOLD_PATH` 指向改了 id 的副本 | 出报告但信号翻转 | `goldSource=file` 不变、`goldSetMatchesRepoFile=false` | 0 |
+| M 队列侧 | worker 的 `L1_DOC_MAP` 指向坏账本入队 | job failed 且是**对账**那条 | `eval_runs.id=01a0f32b-0a10-7a4a-a37d-f2a3b0cb7c2a` · `status=failed` · `error_message` = 对账原文 | — |
+
+**N2 是本轮的核心**：它复现的正是「重跑入库后旧账本仍能查到旧行、却已不可检索」的形状 —— 行还在（`missing=0`）、账本内部指纹自洽、`kbId` 全对，但该行已 `superseded`。**只查「存在」的旧口径会放行**，产生一批必然假 miss；新闸以**可检索姿态**（`status='ready'` ∧ `lifecycle='active'`）为准。改 `docId` / `title` **不影响**账本内部指纹（指纹只吃 `logicalId + sourceSha256`），故 N1 / N3 的报错确实来自对账而非指纹档（两份坏账本都被 `parseCorpusLedger` 正常接受，已复核）。
+
+**题源信号**：`repro.goldSource` 让「题集身份哈希锚在哪一侧」可见，`repro.goldSetMatchesRepoFile` 让它与仓内基线**逐位可比**。P 跑（api CLI 读文件）得 `true`；N4 用改了一个 `id` 的副本 → `false`。**这是信号不是闸**：不进任何判定、不进签字快照（做成必达项 = 改冻结语义，须 ADR）。
+
+**这不是签字数字**：无真 Gateway（chat / embed 仍 mock）、向量 8 维、ES 无 IK、`coverage=0`、可答类全 `abstained`，`businessPass` 仍 `false`（reasons 与 §7 同，**不含** `hit_at_k_below_min`）。本页数字不得进签字包。
+
+**本机留痕**（`artifacts/` 已 gitignore，列出便于本机复核）：原账本 `artifacts/eval-corpus-ledger-01a0eda2-6781-7ca3-90e8-17dcd7ba68c2.json`（未改）；坏账本 `artifacts/l1-bad-missing.json` 与 `artifacts/l1-bad-title.json` —— **留痕不删**；P 的报告 `artifacts/l1-last-run.{json,md}`；队列侧失败行 `eval_runs.id=01a0f32b-0a10-7a4a-a37d-f2a3b0cb7c2a`。
+
+**未核实 / 不在本页**：N2 用 `psql update` 直接改姿态复现（**未**真走一遍「重新入库产生新 docId + 旧行 superseded」的入库状态机 —— 形状等价、来源不同）；worker 侧的 `goldSetMatchesRepoFile` 未在真跑里验（信号非闸）；M 只跑了 L1（`golden_2x2`），L2 队列路径未实测。
+

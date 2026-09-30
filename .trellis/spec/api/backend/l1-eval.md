@@ -49,7 +49,7 @@
 
 **禁止**：为了让某次跑次变绿而放宽任一门；把缺测当合格；在判定处复制门限数字；把「未接打分器」写成「已达 AUROC 门」。
 
-**未做（债）**：真人抽检动作本身（登记面已落，数字须人给；样例 `fixtures/l1/human-spot.example.json` 是恰好达标样例，**禁止**当真实数字）· ≥100 条真标注校准集（规模门已落，真实夹具仍 8 题）· 真 judge live 跑数与验收（本机无 Gateway / 密钥）· `repro` 未透出 DTO · 版本载体类字段仍 `null`（seed / fallbackChains 版本 / promptVersions / lifecycle 规则版本 / session 策略版本）。
+**未做（债）**：真人抽检动作本身（登记面已落，数字须人给；样例 `fixtures/l1/human-spot.example.json` 是恰好达标样例，**禁止**当真实数字）· ≥100 条真标注校准集（规模门已落，真实夹具仍 8 题）· 真 judge live 跑数与验收（本机无 Gateway / 密钥）· `repro` 未透出 DTO · 版本载体类字段仍 `null`（seed / fallbackChains 版本 / promptVersions / lifecycle 规则版本 / session 策略版本）· 把「两侧题集不同」（`goldSetMatchesRepoFile`）接进门禁 / 签字快照 —— 新增必达项 = 改冻结语义，须 ADR → 改 PRD → 升版。
 
 ---
 
@@ -85,7 +85,7 @@
 
 > L1 报告新增 `repro`（形状 = contracts 子路径 `@strict-rag/contracts/eval-repro` 的 `L1Repro`，14 键）；api CLI 与 worker 批跑**同形状**。不含任何判定。
 
-- **取真值**（能取到就取）：`models`（env 三模型 + KB `model_bindings`）· `retrieveK` / `rerankTopN`（图上回包档位派生）· `tauClaim`（与快照同一个 τ）· `questionIdsHash`（题面 id 集合：trim → 去空 → **升序** → sha256）· `calibrationHash`（校准集文件内容逐字节 sha256）。
+- **取真值**（能取到就取）：`models`（env 三模型 + KB `model_bindings`）· `retrieveK` / `rerankTopN`（图上回包档位派生）· `tauClaim`（与快照同一个 τ）· `questionIdsHash`（题面 id 集合：trim → 去空 → **升序** → sha256）· `calibrationHash`（校准集文件内容逐字节 sha256）· `goldSource`（题源：api CLI = `file`，worker = `db`；`null` = 未标注，只有模板取到）· `goldSetMatchesRepoFile`（本次题面 id / `caseKey` 集合与仓内 `fixtures/l1/gold.yaml` 是否**逐个相同**，复用 `l1QuestionIdsHash` 比哈希；仓内文件读不到 / 不合形 → `null` **未知**，不得当 `true`，也不得当 `false`）。两键均按**全量**题面算，**不**受 `L1_MAX_CASES` / `maxCases` 截断影响。
 - **恒 `null`**（无载体 / 未实现，销账见镜像与工单 05 去向表）：`seed` · `fallbackChainsVersion` · `crag` · `contextMode` · `promptVersions` · `lifecycleFilterVersion` · `sessionStrategyVersion` · `l2GoldSetHash`（L2 侧归下一张图）。
 - **既有 `mode` 不动**：顶层 `mode` / `retrieve_mode` 是 `retrieve_mode` 的历史别名（`resolveEvalMode`），**不是** ask 档位；区块里**没有**第二个 `mode`。§8 `mode` / `contextMode` 的语义歧义记债。
 - **md 渲染**：能取到的渲染真值，取不到的一律渲染「—」。
@@ -195,7 +195,7 @@ Seed 规模：可答 30 + 不可答类 30（含 `false_premise`）；**mock 数�
 | `L1_TENANT_ID` | 否 | 固定 dev uuid | |
 | `L1_USER_ID` | 否 | 固定 dev uuid | |
 | `L1_PERSIST_EVAL` | 否 | 关 | `1`/`true` → insert `eval_runs`（db migration 0006） |
-| `L1_DOC_MAP` | 否 | 关 | 映射账本路径（`artifacts/eval-corpus-ledger-<kbId>.json`）；不设 = 与今天逐位一致；账本缺 / 解析失败 / `kbId` 或 `corpusFingerprint` 不符 → exit 2 |
+| `L1_DOC_MAP` | 否 | 关 | 映射账本路径（`artifacts/eval-corpus-ledger-<kbId>.json`）；不设 = 与今天逐位一致；账本缺 / 解析失败 / `kbId` 或 `corpusFingerprint` 不符 / **库内对账不过** / 对账查询本身失败 → exit 2 |
 
 > **Turbo**：`turbo.json` 的 `lint` / `test` task env 须声明 `L1_*`（含 `L1_PERSIST_EVAL` / `L1_DOC_MAP`）；新增键同步改 turbo。
 
@@ -206,6 +206,11 @@ Seed 规模：可答 30 + 不可答类 30（含 `false_premise`）；**mock 数�
 - **逻辑 id 由目录结构派生**（`ingest-samples/<name>` / `l2-corpus/<name>`），禁止脚本手抄；权威对照是两份 fixtures README，由 `tests/eval/eval-corpus-map.test.ts` 机械核对（gold 逻辑 id ⊆ 派生 id）。
 - **账本形状 / 指纹 / 解析**唯一锚在 contracts 子路径 `@strict-rag/contracts/eval-corpus-ledger`（含 `node:crypto`，故不进主入口）：`buildCorpusLedger` / `parseCorpusLedger` / `corpusFingerprint` / `resolveExpectedDocIds` / `summarizeDocMap`。账本落 `artifacts/`（运行产物不入库）。
 - **跑批解析落点**：`runL1Golden` 在 `hitAtKCase` **之前**解析 `expectedDocIds`（`docMapPath`）。**未映射继续算 miss**（原样保留逻辑 id，绝不变成 `null` / 该门不适用）；报告顶层三键 `docMapSource` / `docMapResolved` / `docMapUnmappedIds` 如实标注来源，**都不进任何判定**（`PILOT_HARD_GATES` / `evaluateAdr046Bind` 公式一字不动）。
+- **跑批前库内对账（2026-10-01 起 · 两侧同办）**：`resolveCorpusLedgerForRun` 改 **async** 且 `lookupDocs` **必填** —— 顺序 = `kbId` 全等 → `corpusFingerprint` 全等 → **库内对账**（前两档仍早于任何库读）。对账把账本每条 `docId` 与当前 KB 的 `documents` 行比，**三类失效各自可分辨、全部响亮失败**：`missing`（查不到行，或该行 `kb_id ≠ 本次 run 的 kbId`）· `not_retrievable`（行在但 `status ≠ 'ready'` **或** `lifecycle ≠ 'active'` —— 检索闸不满足 ⇒ 该条目在证据里不可能出现）· `title_mismatch`（可检索但 `documents.title` 与账本条目 `title` 不逐字相等）。错误消息点名 `logicalId` + `docId` + 实测 `status` / `lifecycle` / `title` 与三类计数。
+  - **为什么不止查「存在」**：重跑入库会为同一 KB 生成**新 uuid**、旧行落 `superseded` **却仍在库**；存在性对账会放行一批必然假 miss。以**可检索姿态**为准才抓得到这种陈旧账本。
+  - **库读走注入函数**（`(docIds) => rows`），**不**把 DB 句柄塞进 contracts（该子路径只 import node 内置）；`docIds` 传**去重 + 升序**。四个入口（api L1/L2 CLI、worker L1/L2 批跑）的缺省 `lookupDocs` 即**真库查询**，生产路径**不可绕**，测试注入桩覆盖。
+  - **库不可达 ≠ 对账通过**：`lookupDocs` 自身抛错 → 包成 `CorpusLedgerError`（「查不了」与「查不到」是两回事）。**未设账本 → 完全不进对账**，与不接账本时逐位一致。
+  - **账本自洽多一条**：两个逻辑 id 指向同一 `docId` 一律拒（`buildCorpusLedger` / `parseCorpusLedger` 同口径）—— 否则两道题会被悄悄合并到同一 uuid。
 - **worker 侧（2026-09-29 起接账本）**：来源 = worker 进程级 env `L1_DOC_MAP`（与 api CLI **同名同义**，**不是** job payload；一进程一份账本，换账本须重启进程 —— env 是模块加载期快照）。`consumer.ts` 把 env 快照里的路径传给 `runL1Batch({ docMapPath })`（空 / 纯空白 = 未设置）；`run-l1-batch.ts` 在 `hitAtKCase` **之前**调 `resolveCorpusLedgerForRun` 解析逻辑 id，读取时机是**每次 job**（路径取 env 快照、文件内容每次 job 重读）。**失效三态**：未设置 = 与改动前逐位一致（三键 `none` / `0` / `[]`，缺映射继续算 miss）；设置但账本不可用（缺文件 / 非 JSON / 形状违约 / `kbId` 或指纹不符）→ 抛 `CorpusLedgerError` → `consumer.ts` 捕获后 `markFailed`（**响亮失败**，绝不降级成「未设置」）；设置且自洽 → 解析。落库白名单（`eval/persist.ts` 的 `saveReport`）三键改**取报告真值**（未设账本时恰等于旧常量）。**判定仍在 api 侧**：三键与账本解析都不进 `PILOT_HARD_GATES` / `evaluateAdr046Bind`。共享实现 = contracts 子路径 `@strict-rag/contracts/eval-corpus-ledger-file`（api 侧 `corpus-fixtures.ts` / `corpus-map.ts` 改为其纯 re-export，import 路径一个字未变）。
 
 #### 产物与 git
