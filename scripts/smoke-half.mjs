@@ -3,6 +3,8 @@
  * HALF-SMOKE：单篇 txt 上传→complete→审批→scan→双就绪→active→ask 有引用。
  * 检索闸仍 ready∧active。ES/扫描/向量可为 mock。≠ 生产 ES / ≠ 真杀毒。
  * live ask 须 Gateway 产出合法 JSON；默认 mock chat 不是 JSON → 空引用失败。
+ * 亦可指向 dev-only 桩（node scripts/stub-gateway.mjs + GATEWAY_BASE_URL）；
+ * 此时末步 PASS 只证明管道接对，不是质量证据。见 docs/ops/half-smoke.md。
  *
  * 前置：PG+Redis · migrate · api+worker（pnpm up:apps）
  *   pnpm smoke:half
@@ -17,6 +19,7 @@ import { askHasCitations } from './smoke-ask.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const API_BASE = (process.env.API_BASE ?? 'http://127.0.0.1:4000').replace(/\/$/, '');
+const GATEWAY_BASE_URL = (process.env.GATEWAY_BASE_URL ?? '').replace(/\/$/, '');
 const TENANT = process.env.DEMO_TENANT_ID ?? '01900000-0000-7000-8000-000000000001';
 const TIMEOUT_MS = Number(process.env.DEMO_TIMEOUT_MS ?? 120_000);
 const POLL_MS = Number(process.env.DEMO_POLL_MS ?? 1_000);
@@ -53,6 +56,63 @@ function assertOk(step, res, { expectStatus } = {}) {
   }
 }
 
+/** 短超时探 GET {base}/__stub；仅命中 {stub:true} 才认桩（真网关会 404）。 */
+async function probeStubGateway() {
+  if (!GATEWAY_BASE_URL) return false;
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 1500);
+    const res = await fetch(`${GATEWAY_BASE_URL}/__stub`, { signal: ctrl.signal });
+    clearTimeout(timer);
+    if (!res.ok) return false;
+    const json = await res.json().catch(() => null);
+    return json?.stub === true;
+  } catch {
+    return false;
+  }
+}
+
+/** reason → 「哪一环坏了 + 看哪份文档」的翻译（非 internal_guard 分支）。 */
+const ASK_REASON_HINTS = {
+  low_retrieval:
+    '检索为空（embed / sparse / rerank 或 ready∧active 双就绪闸坏了）→ 查前 7 步与 docs/ops/half-smoke.md。',
+  rerank_unavailable:
+    'rerank 节点不可用（检索内无条件调用）→ 见 docs/ops/half-smoke.md 三条契约。',
+  claim_split_failed:
+    'claim_split 契约不合法（claims / chunkIds 形状）→ 见 docs/ops/half-smoke.md 三条契约。',
+  unsupported_claims:
+    'judge 分低于 TAU_CLAIM（min 否决）→ 见 docs/ops/half-smoke.md 三条契约。',
+  invalid_citations:
+    'generate 的 citations 不在 evidence 内（编造 id）→ 见 docs/ops/half-smoke.md 三条契约。',
+  model_abstained:
+    'Gateway 主动 insufficient:true（证据不足）→ 见 docs/ops/half-smoke.md 三条契约。',
+};
+
+/** 第 8 步失败时的三类可分辨提示（追加在原 FAIL 行之后）。 */
+function askFailureHints({ reason, gatewayCheck, gatewayIsStub }) {
+  const hints = ['[诊断] 末步（第 8 步）ask 未拿到引用。'];
+  if (gatewayIsStub) {
+    hints.push(
+      '[诊断] 这一跑用的是 dev-only 桩（gateway=stub）：PASS 只证明管道接对，不是质量证据。',
+    );
+  }
+  if (reason === 'internal_guard' && (gatewayCheck === 'skipped' || !GATEWAY_BASE_URL)) {
+    hints.push(
+      '[诊断] 末步需要 chat 的三条 JSON（generate / claim_split / judge）；本机未配 Gateway' +
+        `（/ready checks.gateway=${gatewayCheck ?? 'unknown'}）→ 见 docs/ops/half-smoke.md；` +
+        '也可用 dev-only 桩：`node scripts/stub-gateway.mjs` + `GATEWAY_BASE_URL=http://127.0.0.1:4100`。',
+    );
+  } else if (reason && ASK_REASON_HINTS[reason]) {
+    hints.push(`[诊断] reason=${reason}：${ASK_REASON_HINTS[reason]}`);
+  } else {
+    hints.push(
+      `[诊断] reason=${reason ?? 'unknown'}；检查 Gateway 的 generate/claim_split/judge 输出形状，` +
+        '见 docs/ops/half-smoke.md。',
+    );
+  }
+  return hints;
+}
+
 async function main() {
   console.log(`HALF-SMOKE → ${API_BASE}`);
   const health = await api('GET', '/health');
@@ -62,6 +122,11 @@ async function main() {
   const ready = await api('GET', '/ready');
   if (ready.status !== 200 || ready.json?.ready !== true) {
     throw new Error(`ready not green HTTP ${ready.status} body=${JSON.stringify(ready.json)}`);
+  }
+  const gatewayCheck = ready.json?.checks?.gateway;
+  const gatewayIsStub = await probeStubGateway();
+  if (gatewayIsStub) {
+    console.log('gateway=stub（dev-only 桩 · 仅证明管道接对 · 非质量证据）');
   }
 
   const login = await api('POST', '/api/v1/auth/admin/dev-login', {
@@ -168,13 +233,20 @@ async function main() {
   });
   assertOk('ask', ask, { expectStatus: 200 });
   if (!askHasCitations(ask.json)) {
-    throw new Error(`ask has no citations: ${JSON.stringify(ask.json)}`);
+    const err = new Error(`ask has no citations: ${JSON.stringify(ask.json)}`);
+    err.hints = askFailureHints({
+      reason: ask.json?.data?.reason,
+      gatewayCheck,
+      gatewayIsStub,
+    });
+    throw err;
   }
   const cites = ask.json.data.citations;
   if (!cites.some((c) => c && c.docId === docId)) {
     throw new Error(`ask citations miss ingested docId=${docId}: ${JSON.stringify(cites)}`);
   }
-  console.log(`PASS kbId=${kbId} docId=${docId} citations=${cites.length}`);
+  const gatewayTag = gatewayIsStub ? ' (gateway=stub · 仅证明管道接对 · 非质量证据)' : '';
+  console.log(`PASS kbId=${kbId} docId=${docId} citations=${cites.length}${gatewayTag}`);
   console.log('NOTE: mock retrieve/scan allowed; not production ES; not QUAL-2.');
 }
 
@@ -182,6 +254,9 @@ const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPat
 if (isMain) {
   main().catch((err) => {
     console.error('FAIL:', err.message ?? err);
+    if (Array.isArray(err?.hints)) {
+      for (const hint of err.hints) console.error(hint);
+    }
     process.exit(1);
   });
 }

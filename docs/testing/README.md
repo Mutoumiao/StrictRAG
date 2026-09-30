@@ -45,6 +45,7 @@ pnpm --filter @strict-rag/contracts test -- -t 'R[0-9]+:'
 |------|------|
 | `scripts/up-stack.test.mjs` | 启动编排脚本契约 |
 | `scripts/smoke-ask.test.mjs` | ask 冒烟脚本契约 |
+| `scripts/stub-gateway.test.mjs` | dev-only 桩网关（抽取式）契约：五 purpose 形状、EVIDENCE 抽取约束、双 `/v1` 前缀、生产护栏 |
 | `scripts/seed-demo.test.mjs` | demo 种子脚本契约 |
 | `scripts/module-status/git-status.test.mjs` | module-status 检查的 `git status --porcelain` 解析契约（改了源码未改文档必须能被看见） |
 

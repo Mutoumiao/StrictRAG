@@ -15,6 +15,7 @@
     "test": "turbo run test",
     "up:apps": "node scripts/up-stack.mjs",
     "smoke:half": "node scripts/smoke-half.mjs",
+    "stub:gateway": "node scripts/stub-gateway.mjs",
     "seed:demo": "node scripts/seed-demo.mjs",
     "demo:ingest": "node scripts/demo-ingest.mjs",
     "test:e2e-ingest": "node scripts/demo-ingest.mjs",
