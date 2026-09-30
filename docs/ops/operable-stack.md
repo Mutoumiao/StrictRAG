@@ -89,6 +89,17 @@ MONGODB_URL=mongodb://127.0.0.1:27017/strict_rag pnpm --filter @strict-rag/worke
 pnpm smoke:half
 ```
 
+**末步 ask 需要一台同时提供 chat / embeddings / rerank 三条契约的 Gateway**；本机无 key 时末步会拒答（`reason=internal_guard`）并以非零码退出 —— 这是**环境前置**，不是源码缺陷。要看它到底缺什么：`curl -s localhost:4000/ready` 看 `checks.gateway`；三种失败形态的可分辨诊断由脚本直接打印。
+
+无 key 机器上想**验证管道**（不是验证质量）可用**dev-only 抽取式桩**：
+
+```bash
+node scripts/stub-gateway.mjs                     # 一个终端（默认 127.0.0.1:4100；打印 dev-only banner）
+GATEWAY_BASE_URL=http://127.0.0.1:4100 pnpm smoke:half   # 另一个终端
+```
+
+桩**只从提示里的 EVIDENCE 抽取**（引用逐字取自 evidence，证据不足即 `insufficient:true`），生产档位**拒绝启动**，`smoke:half` 的输出会标注 `gateway=stub`。**用桩通过的 `PASS` 只证明管道接对，不是质量证据、不得进签字包**；仓库默认（无 Gateway → 拒答）一个字未改。
+
 清单：[half-smoke.md](./half-smoke.md)。引用判定单测：`node --test scripts/smoke-ask.test.mjs`。
 
 试点打开 `AUTH_ENFORCE`（**不**改仓库默认）：[auth-enforce-pilot.md](./auth-enforce-pilot.md)。

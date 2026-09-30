@@ -1,7 +1,7 @@
 # 让「第三人拉起 → 问答」这条 DoD 在无第三方 key 的机器上可复现（或如实记为环境前置）
 
 Label: wayfinder:map
-Status: open（前沿：工单 01）
+Status: resolved（前沿：空；工单 01 · 02 · 03 · 04 · 05 全收口）
 
 ## Destination
 
@@ -47,13 +47,28 @@ Status: open（前沿：工单 01）
 
 - [01 · 研究：末步 ask 的失败形态与三契约可达面](./issues/01-research-ask-gateway-surface.md) — 真栈实测：`smoke:half` 第 8 步 exit 1（`status=abstained` / `reason=internal_guard`）；**只缺 `generate` 的 JSON**，检索侧（embed + 真 ES sparse + rerank）已全通；桩可**零生产代码改动**接入（`GATEWAY_BASE_URL` 指向独立进程）；爆炸面 18 文件 / 104 it，只要不改默认值就零波及；仓内**无**现成 HTTP JSON 桩；`prds` 里**查不到**「mock chat 必须非 JSON」的明文。
 - [02 · 裁定：建 dev-only 桩（路 A）为主 + 可诊断性并列](./issues/02-dec-stub-or-prerequisite.md) — **路 A**：独立进程的**抽取式**桩（只从提示给的 EVIDENCE 抽取、`citations` 逐字取自 evidence、证据不足必须 `insufficient: true`），**零 `apps/` 改动**、不新增 `GATEWAY_MODE` 档位；`GET /__stub` 自证身份供 `smoke:half` 确定性标注；生产档位**拒绝启动**；**R3 并列要求**：末步失败须区分「缺 Gateway / 用桩 / 管道坏」；**R5 禁则**：不许为桩开后门、不许放宽 ask 任何闸。
+- [03 · 落：桩 + 烟测诊断](./issues/03-task-implement.md) — `scripts/stub-gateway.mjs`（覆盖 5 个 purpose + `/v1/embeddings` 前缀 + `/v1/models` + `/__stub`；生产护栏；响亮 banner；确定性）；`scripts/smoke-half.mjs`（默认行为不变 + 桩标注 + 三类可诊断）；`scripts/stub-gateway.test.mjs` **13 例**（含生产护栏、无证据不编答案、两条 embeddings 前缀、确定性）；`docs/ops/half-smoke.md` 补三条契约最小形状 / 可核命令 / 用桩两步 / 桩口径 / 失败三形态；`package.json` 加 `stub:gateway`（**不动任何默认链路**）。
+- [04 · 真栈真跑：无 key 机器端到端](./issues/04-task-real-stack-run.md) — A：无 Gateway 复验（第 8 步 exit 1 + **新版诊断**出现，默认行为未变）；B：用桩 **exit 0**、`PASS … citations=2 (gateway=stub)`，**两条 citation 经 `psql` 核对属该文档**，桩收到的序列 = `embed → rerank → generate → claim_split → judge`，答案与引用**逐字来自 EVIDENCE**；C：生产档位拒绝启动 / 零重叠问题 abstained / 无 EVIDENCE → `insufficient:true`；D：三个已知坑都在文档里，另挖出 **5 处前置缺口并已补进清单页**。
+
+### 目的地达成（2026-10-01）
+
+**「让『第三人拉起 → 问答』这条 DoD 在无第三方 key 的机器上可复现（或如实记为环境前置）」已达成 —— 两路都落到了**：
+
+1. **可复现**（路 A）：仓内多了 **dev-only 抽取式桩网关**，无 key 机器上两条命令即可把 HALF-SMOKE 走到 `PASS`；桩**只从提示里的 EVIDENCE 抽取**、引用逐字取自 evidence、证据不足即 `insufficient:true`、生产档位拒绝启动、`GET /__stub` 自证身份让 `smoke:half` 标注 `gateway=stub`。
+2. **可解释**（路 B）：`smoke:half` 末步失败现在**自己说清**「缺 Gateway / 用的是桩 / 哪一环坏了 + 看哪份文档」；清单页补齐三条契约最小形状、可核命令、PowerShell 写法、就绪检查与「进程 env 覆盖 `.env`」。
+3. **仓库默认一个字未改**：`apps/` 零改动、`GATEWAY_MODE` / `GATEWAY_BASE_URL` 默认值未动、ask 的闸一字未放宽、18 个测试文件 / 104 个 `it()` 零波及。**用桩的 PASS 在输出、清单页、模块状态三处都被标注为「只证明管道接对，不是质量证据」**。
+
+**该被记住的三句话**：① **先量失败面再决定要不要建东西** —— 实测发现只缺 `generate` 那一次 JSON（检索侧早就全通），把一个「看起来要接一整套模型服务」的问题缩成「一台假网关」；② **桩可以是加严而不是放宽** —— 抽取式（只引用证据、不足即 insufficient）让「有证据才作答」更硬，罐头答案式的 mock 才是要拒绝的形态；③ **「自证身份」比「靠约定」可靠** —— `GET /__stub` 让烟测**确定性**地知道自己在用桩，真网关 404 不误判，于是「用桩的 PASS」不可能被误读成「真模型跑通」。
+
+**门禁（最后一次提交之后复跑）**：`check-types` 8/8 · `lint` 8/8 零 warning · `node --test scripts/{stub-gateway,smoke-ask,up-stack,seed-demo}.test.mjs` **19/19** · api **183 文件 / 1144 通过** · worker **61 / 283** · 全仓 `test --concurrency=1` **11/11 包** · `check:module-status` **39 条**（`1-路径` / `6-联动` / `7-时效` 三类为空）。**提交（本地，未 push）**：`f8b8edf` 立图 · `a1fd0b7` 工单 01/02 · `39d352d` 工单 03 · 工单 04/05 收口。
 
 ## Not yet specified
 
-- **桩若要接进 api**：用哪种档位（`GATEWAY_MODE=stub`？还是把桩当成一台真 HTTP Gateway 由 `GATEWAY_BASE_URL` 指过去）—— 后者**零生产代码改动**、爆炸面最小，但需要有人真的把桩进程起起来；前者更省事但多一个档位要维护。这条留给工单 02，若裁成路 B 则自然消失。
-- **本地模型适配器**（不是桩，而是把 Ollama / llama.cpp 这类**真**本地服务接上，缺的是 rerank 契约）—— 比桩更接近真实，但需要一台够强的机器与模型下载；本图若走 A 路可以顺手记下「适配器路线」的可行性，但不实现。
-- **`smoke:half` 的其它环境前置**（`SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` 必须先配、四眼审批需第二个身份）—— 前图已补进配方，但「第三人拉起」的完整前置清单是否还有别的暗礁，本图只覆盖问答段。
-- **`pnpm up:apps` 的 env 白名单坑**（turbo dev 任务过滤 operable 变量，前图记过）—— 属配方质量，若本图发现第三人仍会踩，可顺手补文档；实现层修 turbo 配置不在本图。
+- **桩的语义相关面窄**（取证实测的诚实边界）：桩按**单字 token 重叠**抽取，与语料毫无关系但仍有单字重叠的问题**仍可能**拿到 `answered`。它不是「假 RAG」，但也**不**能当相关性判据；要让它更严（例如要求整句/多 token 命中才作答）是下一张图的小改动，**前提是先有人需要**它更严。
+- **桩没进默认链路**：`pnpm up:apps` / `pnpm smoke:half` 的**默认**仍是「无 Gateway → 拒答」，用桩要显式两条命令。要不要给一条「一条命令全起（含桩）」的 dev 便利入口，属产品取向（会削弱「默认不产出答案」的姿态），故**留在雾里**。
+- **本地真模型适配器**（Ollama / llama.cpp：chat 有、**缺 rerank 契约**）：比桩更接近真实，但需要一台够强的机器与模型下载；本图只在清单页留了口径，**未做**。
+- **worker 侧 `contextualize` 的 chat(http) 仍无桩覆盖**：本图只覆盖问答段；桩顺手支持了 `/v1/embeddings`（便宜），但 `INGEST_CONTEXTUALIZE_MODE=http` 那条路的 JSON 形状未验。
+- **`GET /ready` 的 `gateway=skipped` 不区分「本机没配」与「末步将失败」**：本图把区分放进了 `smoke:half` 的输出，没动 `/ready`（动它要改 api 生产代码，超出本图「零 apps 改动」的裁定）。
 
 ## Out of scope
 
@@ -61,5 +76,5 @@ Status: open（前沿：工单 01）
 - **改 `prds/00–11` 已冻语义**（含任何门限数字与判定公式）：须 ADR → 改 PRD → 升版。
 - **放宽「mock 结果禁进签字包」红线**；**把 `smoke:half` PASS 当成可签字证据**。
 - **生产 ES+IK / 多租户独立索引 / 真 RustFS / 真杀毒（QUAL-2）**：前图已裁。
-- **改仓库默认开关**。
+- **改仓库默认开关**（含把桩接进默认链路）。
 - **admin / web 的视觉与交互改动**：本机无浏览器验证手段。

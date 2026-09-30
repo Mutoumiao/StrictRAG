@@ -5,9 +5,19 @@
 
 ## 前置
 
-1. `docker compose -f docker/docker-compose.yml up -d` 或 `pnpm up:apps`（见 [operable-stack.md](./operable-stack.md)）
-2. `pnpm db:migrate`（**全新库**还须先按 [operable-stack.md](./operable-stack.md) §2 配 `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD`，否则 api 起不来）
-3. api :4000 与 worker 已起（`pnpm up:apps`）
+1. **环境变量**：按 [`../../.env.operable.example`](../../.env.operable.example) 把 operable 键**追加**进 `.env`（或按它配）；本页所有命令都假定这些键已在进程中生效。
+   - **进程级注入优先**：代码只对**未设置**的键回落 `.env`，故 `VAR=… cmd` 这类前缀注入会**覆盖** `.env` 里的同名值（包括 `.env` 里留空的键）。
+2. `docker compose -f docker/docker-compose.yml up -d` 或 `pnpm up:apps`（见 [operable-stack.md](./operable-stack.md)）
+3. `pnpm db:migrate`（**全新库**还须先按 [operable-stack.md](./operable-stack.md) §2 配 `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD`，否则 api 起不来）
+4. api :4000 与 worker 已起（`pnpm up:apps`），且**必须处于 `AUTH_ENFORCE` 关的档位** —— 脚本第 2 步走 `POST /api/v1/auth/admin/dev-login`（该端点在强制鉴权下不提供）。
+5. **确认就绪**（两条都可核）：
+
+```bash
+curl -s http://127.0.0.1:4000/ready    # 期望 ready=true，checks 里 postgres/redis 为 up
+curl -s http://127.0.0.1:4000/health
+```
+
+> **PowerShell 提示**：`VAR=value cmd` 这种 bash 前缀写法在 PowerShell 里**不生效**，请写成 `$env:VAR='value'; pnpm smoke:half`（同一会话内后续命令都带该 env）。
 
 扫描 / 向量 / ES 可为 mock（CI 默认 mock 即可入库）。  
 live ask 须 Gateway 产出合法 generate / claim_split / judge JSON；缺 `GATEWAY_BASE_URL` 时默认 mock chat **不是** JSON，ask 会拒答、本脚本因空引用失败。  
