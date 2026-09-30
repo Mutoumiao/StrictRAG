@@ -73,6 +73,26 @@ function str(value: unknown, label: string): string {
   return value.trim();
 }
 
+/**
+ * 账本自洽：`logicalId` 与 `docId` **各自唯一**。
+ * 后者是不可省的一条：两个逻辑 id 指向同一篇文档时，账本已不能描述「一篇夹具对应一条」，
+ * 且会让两道题双双映射到同一 uuid（Hit@k 的输入被悄悄合并）。
+ */
+function assertLedgerEntriesUnique(entries: readonly CorpusLedgerEntry[]): void {
+  const seenLogical = new Set<string>();
+  const seenDoc = new Set<string>();
+  for (const e of entries) {
+    if (seenLogical.has(e.logicalId)) {
+      throw new TypeError(`corpus ledger duplicate logicalId: ${e.logicalId}`);
+    }
+    seenLogical.add(e.logicalId);
+    if (seenDoc.has(e.docId)) {
+      throw new TypeError(`corpus ledger duplicate docId: ${e.docId}`);
+    }
+    seenDoc.add(e.docId);
+  }
+}
+
 /** 逻辑 id 升序比较（逐码点，不依赖 locale；同 id 视为等价）。 */
 function compareLogicalId(a: CorpusLedgerEntry, b: CorpusLedgerEntry): number {
   if (a.logicalId < b.logicalId) return -1;
@@ -140,13 +160,7 @@ export function buildCorpusLedger(input: {
     throw new TypeError('corpus ledger entries must be a non-empty array');
   }
   const entries = input.entries.map((e, i) => parseEntry(e, i));
-  const seen = new Set<string>();
-  for (const e of entries) {
-    if (seen.has(e.logicalId)) {
-      throw new TypeError(`corpus ledger duplicate logicalId: ${e.logicalId}`);
-    }
-    seen.add(e.logicalId);
-  }
+  assertLedgerEntriesUnique(entries);
   const sorted = sortLedgerEntries(entries);
   return {
     version: CORPUS_LEDGER_VERSION,
@@ -182,13 +196,7 @@ export function parseCorpusLedger(raw: unknown): CorpusLedger {
     throw new TypeError('corpus ledger entries must be a non-empty array');
   }
   const entries = rawEntries.map((e, i) => parseEntry(e, i));
-  const seen = new Set<string>();
-  for (const e of entries) {
-    if (seen.has(e.logicalId)) {
-      throw new TypeError(`corpus ledger duplicate logicalId: ${e.logicalId}`);
-    }
-    seen.add(e.logicalId);
-  }
+  assertLedgerEntriesUnique(entries);
   const sorted = sortLedgerEntries(entries);
   if (corpusFingerprint(sorted) !== fingerprint) {
     throw new TypeError('corpus ledger corpusFingerprint does not match its entries');

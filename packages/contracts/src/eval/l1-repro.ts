@@ -102,9 +102,10 @@ export type L1Repro = {
   l2GoldSetHash: null;
   /**
    * §8 题源：本次跑的题面从哪来（api CLI = `file`；worker 队列 = `db`）。
-   * 非「取不到」字段，故无 `null`；两个入口各自显式填真值。
+   * `null` = **未标注**（只有模板会取到）；两个生产入口各自显式填真值 —— 故「忘了接线」表现为
+   * `null` 而不是冒充 `file`（禁占位值冒充，与本节「取不到只准写 null」同纪律）。
    */
-  goldSource: 'file' | 'db';
+  goldSource: 'file' | 'db' | null;
   /**
    * §8 可检测信号：本次跑的题面 id 集合（api 用 `id`、worker 用 `caseKey`）与仓内
    * `fixtures/l1/gold.yaml` 的 id 集合是否**逐个相同**。
@@ -130,8 +131,8 @@ export function emptyL1Repro(): L1Repro {
     lifecycleFilterVersion: null,
     sessionStrategyVersion: null,
     l2GoldSetHash: null,
-    // goldSource 无 null 值域：模板值取 `file`（仓内基线侧）；api CLI / worker 各自显式填真值。
-    goldSource: 'file',
+    // 模板取 `null` = 未标注：api CLI / worker 各自显式填 `file` / `db`；漏接线不得冒充 `file`。
+    goldSource: null,
     goldSetMatchesRepoFile: null,
   };
 }

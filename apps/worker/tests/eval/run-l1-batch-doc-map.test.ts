@@ -283,4 +283,41 @@ describe('runL1Batch · 账本不可用 = 响亮失败（不得静默降级）',
     writeFileSync(p, JSON.stringify({ version: 999 }), 'utf8');
     await expect(run({ docMapPath: p })).rejects.toThrow(/invalid corpus ledger in/);
   });
+
+  it('库读本身失败（库不可达）→ 抛 CorpusLedgerError：「查不了」不许当成「对账通过」', async () => {
+    const dir = tmp();
+    const docMapPath = writeLedger(dir, 'kb');
+    await expect(
+      run({
+        docMapPath,
+        lookupDocs: async () => {
+          throw new Error('connect ECONNREFUSED 127.0.0.1:5432');
+        },
+      }),
+    ).rejects.toThrow(/corpus ledger reconcile lookup failed:.*ECONNREFUSED/);
+  });
+});
+
+describe('runL1Batch · maxCases 截断不改变题集身份', () => {
+  it('题集身份两键仍按全量 caseKey 集合算（截断只影响「跑了哪些题」）', async () => {
+    const cases = [
+      { caseKey: 'a1', question: 'a1', type: 'answerable' as const, expectedDocIds: [LOGICAL_A] },
+      { caseKey: 'a2', question: 'a2', type: 'answerable' as const, expectedDocIds: [LOGICAL_A] },
+    ];
+    const base = {
+      kbId: 'kb',
+      retrieveMode: 'mock' as const,
+      cases,
+      execute: async () => ({ outcome: 'answered' as const, evidenceDocIds: [DOC_A] }),
+      repoRoot: REPO_ROOT,
+    };
+    const full = await runL1Batch(base);
+    const truncated = await runL1Batch({ ...base, maxCases: 1 });
+    expect(truncated.cases).toHaveLength(1);
+    expect(full.cases).toHaveLength(2);
+    expect(truncated.repro.goldSource).toBe('db');
+    // 不许把截断后的子集当题集身份：两键与全量跑逐位相同
+    expect(truncated.repro.questionIdsHash).toBe(full.repro.questionIdsHash);
+    expect(truncated.repro.goldSetMatchesRepoFile).toBe(full.repro.goldSetMatchesRepoFile);
+  });
 });

@@ -105,6 +105,12 @@ describe('buildCorpusLedger · 造账本', () => {
     expect(() => ledgerOf([entry('a', DOC_A, 'not-a-sha')])).toThrow(/sha256/);
     expect(() => ledgerOf([entry('   ', DOC_A, SHA_A)])).toThrow(/logicalId/);
   });
+
+  it('两个逻辑 id 指向同一篇文档 → 抛错（不许把两道题悄悄合并到同一 uuid）', () => {
+    expect(() => ledgerOf([entry('a', DOC_A, SHA_A), entry('b', DOC_A, SHA_B)])).toThrow(
+      /duplicate docId/,
+    );
+  });
 });
 
 describe('parseCorpusLedger · 解析校验', () => {
@@ -130,6 +136,16 @@ describe('parseCorpusLedger · 解析校验', () => {
     expect(() =>
       parseCorpusLedger({ ...ledger, entries: [{ ...ledger.entries[0], sourceSha256: SHA_B }] }),
     ).toThrow(/does not match/);
+  });
+
+  it('重复 docId 在解析侧同样拒，且早于指纹自洽校验（手工改出来的账本也过不去）', () => {
+    const ledger = ledgerOf([entry('a', DOC_A, SHA_A), entry('b', DOC_B, SHA_B)]);
+    const dup = {
+      ...ledger,
+      // 指纹故意留成与「改动后条目」不匹配：仍须先报 duplicate docId
+      entries: [ledger.entries[0], { ...ledger.entries[1], docId: DOC_A }],
+    };
+    expect(() => parseCorpusLedger(dup)).toThrow(/duplicate docId/);
   });
 
   it('非对象 / 缺 kbId → 抛错', () => {

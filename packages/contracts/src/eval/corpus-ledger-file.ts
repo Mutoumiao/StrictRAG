@@ -97,11 +97,8 @@ export function fixtureCorpusFingerprint(repoRoot: string): string {
 }
 
 /**
- * 跑批侧读账本 + 新鲜度校验（工单 02 裁定 3 / 4）。
- *
- * 只认账本里的精确 uuid；账本 `kbId` 或 `corpusFingerprint` 与本次 run / 当前夹具不符 → 拒跑。
- * 「docId 是否仍在库内」**不做**运行时校验（会让 eval CLI 引入新的 DB 读，扩大回归面）—— 改由
- * 账本记 `title` + `GET …/documents` 全量人工对账（裁定 4，显式划出）。
+ * 账本读 / 校验 / 对账链上的错误族（缺文件 · 非 JSON · 形状违约 · `kbId` 或指纹不符 ·
+ * 库内对账不通过 · 对账查询本身失败）。**一律响亮**，禁止静默降级成「无账本」。
  */
 export class CorpusLedgerError extends Error {
   constructor(message: string) {
@@ -164,7 +161,15 @@ export async function resolveCorpusLedgerForRun(input: {
     );
   }
   const docIds = [...new Set(ledger.entries.map((e) => e.docId))].sort();
-  const refs = await input.lookupDocs(docIds);
+  let refs: readonly LedgerDocRef[];
+  try {
+    refs = await input.lookupDocs(docIds);
+  } catch (err) {
+    // 「查不到」与「查不了」是两回事：库不可达时绝不许当成「对账通过」。
+    throw new CorpusLedgerError(
+      `corpus ledger reconcile lookup failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
   const diff = diffLedgerAgainstDocs(ledger, refs);
   if (!diff.ok) {
     throw new CorpusLedgerError(formatLedgerReconcileError(diff, input.kbId));

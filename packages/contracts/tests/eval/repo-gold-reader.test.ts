@@ -94,6 +94,16 @@ describe('goldSetMatchesRepoFile · 题集身份比对', () => {
     expect(goldSetMatchesRepoFile(REPO_ROOT, [...ids.slice(1), 'l1-not-in-repo'])).toBe(false);
   });
 
+  it('多一个 / 少一个 / 重复一个 / 空集 → false（比的是集合身份，不是长度）', () => {
+    const ids = readRepoGoldCaseIds(REPO_ROOT) ?? [];
+    expect(ids.length).toBeGreaterThan(0);
+    expect(goldSetMatchesRepoFile(REPO_ROOT, [...ids, 'l1-not-in-repo'])).toBe(false);
+    expect(goldSetMatchesRepoFile(REPO_ROOT, ids.slice(1))).toBe(false);
+    expect(goldSetMatchesRepoFile(REPO_ROOT, [...ids, ids[0] ?? ''])).toBe(false);
+    // 空集：`l1QuestionIdsHash([])` 为 null，与仓内基线哈希不等 → false（不得因「都是未知」而 true）
+    expect(goldSetMatchesRepoFile(REPO_ROOT, [])).toBe(false);
+  });
+
   it('错 repoRoot / 空目录 → null（未知，不得当 true / false）', () => {
     expect(goldSetMatchesRepoFile(path.join(tmp(), 'nope'), ['a'])).toBeNull();
     expect(goldSetMatchesRepoFile(tmp(), ['a'])).toBeNull();

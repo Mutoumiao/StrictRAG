@@ -110,4 +110,15 @@ describe('runL1Golden · §8 题源两键', () => {
     expect(report.repro.goldSetMatchesRepoFile).toBeNull();
     expect(formatReportMd(report)).toContain('| goldSetMatchesRepoFile | — |');
   });
+
+  it('maxCases 截断只影响「跑了哪些题」：题集身份两键仍按全量算', async () => {
+    const dir = tmp();
+    const full = await run(dir, defaultGoldPath());
+    const truncated = await run(dir, defaultGoldPath(), { maxCases: 1 });
+    expect(truncated.cases).toHaveLength(1);
+    expect(full.cases.length).toBeGreaterThan(1);
+    // 截断后仍与仓内基线逐位相同，且题面哈希与全量跑一致（不许把截断后的子集当题集身份）
+    expect(truncated.repro.goldSetMatchesRepoFile).toBe(true);
+    expect(truncated.repro.questionIdsHash).toBe(full.repro.questionIdsHash);
+  });
 });

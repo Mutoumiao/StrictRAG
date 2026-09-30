@@ -92,9 +92,10 @@ describe('emptyL1Repro · §8 区块形状', () => {
 
   it('取不到的分项一律 null（不是空串 / unknown / 连字符）', () => {
     const repro = emptyL1Repro();
-    // goldSource 是「题源标注」而非「取不到」项：无 null 值域，模板值取 `file`
-    const { models, goldSource, ...top } = repro;
-    expect(goldSource).toBe('file');
+    // goldSource 的 `null` = 未标注（模板值）；两个生产入口各自显式填 `file` / `db` ——
+    // 故「忘了接线」表现为 null，而不是冒充成 `file`。
+    const { models, ...top } = repro;
+    expect(repro.goldSource).toBeNull();
     for (const value of Object.values(top)) {
       expect(value).toBeNull();
     }
