@@ -17,7 +17,7 @@ Status: open（前沿：工单 01）
 - 域：StrictRAG。**WHAT** 冲突以 `prds/00–11` 为准；**IS 以源码为准**，`docs/module-status/` 是镜像。
 - **来源**：总 backlog §0.2 的当前主调度是 **P-HALF**（半产品可运行）；`docs/module-status/README.md` 与 `docs/ops/half-smoke.md` 都记着同一条缺口 —— 末步 ask 需要三契约 Gateway；雾清单簇 **39** 把它记为「能建（须先裁：是否允许一个 dev-only 的 JSON 桩 Gateway / 本地适配器），**或**如实记为环境前置」。**前图**：本图与 [`eval-input-baseline`](../eval-input-baseline/map.md) 无依赖关系。
 - **本图立的判据线**：一条 DoD（「txt → ask 有引用」）**必须能被第三人按文档复现，或者它的失败必须能被第三人按文档解释**。今天两者都不成立 —— 失败原因只写在源码与一句风险提示里。
-- **每轮先读**：本图 · `docs/agents/issue-tracker.md` · `docs/agents/domain.md` · `docs/ops/half-smoke.md` · `docs/ops/operable-stack.md` · `docs/module-status/README.md`（半产品段）· `scripts/smoke-half.mjs` · `scripts/smoke-ask.mjs` · `apps/api/src/gateway/`（运行时解析与 mock / http 两档）· `prds/07-models/`（Gateway 契约）· `.trellis/spec/api/backend/model-gateway.md`。写代码前读 `.trellis/spec/` 对应包 `index.md`。
+- **每轮先读**：本图 · `docs/agents/issue-tracker.md` · `docs/agents/domain.md` · `docs/ops/half-smoke.md` · `docs/ops/operable-stack.md` · `docs/module-status/README.md`（半产品段）· `scripts/smoke-half.mjs` · `scripts/smoke-ask.mjs` · `apps/api/src/services/gateway/`（运行时解析与 mock / http 两档）· `prds/07-models/`（Gateway 契约）· `.trellis/spec/api/backend/model-gateway.md`。写代码前读 `.trellis/spec/` 对应包 `index.md`。
 - **本图携带执行**：工单可直接改脚本 / 加桩 / 改文档。同一缺口**禁止**再 `task.py create` 平行实现任务。
 - **只在本分支（`main`）**：不建 worktree，不新建分支。
 - **门禁**：每收一张工单跑 `pnpm check-types` + `pnpm lint`（零 warning）+ 相关包测试（改脚本则跑 `node --test scripts/*.test.mjs`）；收口跑全仓 `pnpm test --concurrency=1`。
@@ -44,6 +44,9 @@ Status: open（前沿：工单 01）
 ## Decisions so far
 
 <!-- 每关闭一张工单追加一行：名称（链接）+ 一行要点 -->
+
+- [01 · 研究：末步 ask 的失败形态与三契约可达面](./issues/01-research-ask-gateway-surface.md) — 真栈实测：`smoke:half` 第 8 步 exit 1（`status=abstained` / `reason=internal_guard`）；**只缺 `generate` 的 JSON**，检索侧（embed + 真 ES sparse + rerank）已全通；桩可**零生产代码改动**接入（`GATEWAY_BASE_URL` 指向独立进程）；爆炸面 18 文件 / 104 it，只要不改默认值就零波及；仓内**无**现成 HTTP JSON 桩；`prds` 里**查不到**「mock chat 必须非 JSON」的明文。
+- [02 · 裁定：建 dev-only 桩（路 A）为主 + 可诊断性并列](./issues/02-dec-stub-or-prerequisite.md) — **路 A**：独立进程的**抽取式**桩（只从提示给的 EVIDENCE 抽取、`citations` 逐字取自 evidence、证据不足必须 `insufficient: true`），**零 `apps/` 改动**、不新增 `GATEWAY_MODE` 档位；`GET /__stub` 自证身份供 `smoke:half` 确定性标注；生产档位**拒绝启动**；**R3 并列要求**：末步失败须区分「缺 Gateway / 用桩 / 管道坏」；**R5 禁则**：不许为桩开后门、不许放宽 ask 任何闸。
 
 ## Not yet specified
 
