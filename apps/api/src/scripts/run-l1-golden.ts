@@ -18,6 +18,7 @@ import {
   resolveExpectedDocIds,
   summarizeDocMap,
   type DocMapSource,
+  type LedgerDocRef,
 } from '@strict-rag/contracts/eval-corpus-ledger';
 import { evalRuns, formatLocalDateTime } from '@strict-rag/db';
 import { uuidv7 } from 'uuidv7';
@@ -30,7 +31,11 @@ import {
   type BindVerdict,
   type HardGates,
 } from '../eval/adr046-snapshot.js';
-import { CorpusLedgerError, resolveCorpusLedgerForRun } from '../eval/corpus-map.js';
+import {
+  CorpusLedgerError,
+  goldSetMatchesRepoFile,
+  resolveCorpusLedgerForRun,
+} from '../eval/corpus-map.js';
 import { HumanSpotLoadError, loadHumanSpotLedger } from '../eval/human-spot.js';
 import { liveJudgeScorerFromEnv } from '../eval/judge-scorer.js';
 import {
@@ -71,6 +76,7 @@ import {
   type ExecuteAskResult,
 } from '../services/ask/index.js';
 import { getDb } from '../services/db.js';
+import { documentRepo } from '../services/documents.js';
 import { modelGatewayRepo } from '../services/model-gateway.js';
 
 export type GoldCase = {
@@ -210,6 +216,11 @@ export type RunL1Options = {
   docMapPath?: string;
   /** 夹具根（账本新鲜度校验用）；默认 `resolveRepoRoot()` */
   repoRoot?: string;
+  /**
+   * 账本 ↔ 库内文档对账的库读函数（仅传了 `docMapPath` 时用到）；默认真库
+   * `documentRepo.listDocRefsByIds`。测试注入桩，生产路径**不可绕**。
+   */
+  lookupDocs?: (docIds: readonly string[]) => Promise<readonly LedgerDocRef[]>;
   /**
    * §8 `models.kbBindings` 读取器（需读库；CLI `main()` 注入 `modelGatewayRepo.listKbBindings`）。
    * 不注入 / 读库失败 = 取不到 → `null`（不得编造绑定）。
@@ -489,10 +500,14 @@ function buildL1Repro(input: {
   askMode: unknown;
   tauClaim: number | null;
   kbBindings: readonly L1ReproKbBinding[] | null;
+  goldSource: 'file' | 'db';
+  goldSetMatchesRepoFile: boolean | null;
 }): L1Repro {
   const budget = reproBudgetForAskMode(input.askMode);
   return {
     ...emptyL1Repro(),
+    goldSource: input.goldSource,
+    goldSetMatchesRepoFile: input.goldSetMatchesRepoFile,
     models: {
       env: {
         chat: envModelOrNull(env.GATEWAY_CHAT_MODEL),
@@ -511,9 +526,12 @@ function buildL1Repro(input: {
 
 /** §8 区块的 md 行；取不到的渲染成「—」（不得渲染成 `null` / 空串）。 */
 function reproMdLines(repro: L1Repro): string[] {
-  const dash = (value: string | number | null): string => (value === null ? '—' : String(value));
+  const dash = (value: string | number | boolean | null): string =>
+    value === null ? '—' : String(value);
   const bindings = repro.models.kbBindings;
   const rows: Array<[string, string]> = [
+    ['goldSource', dash(repro.goldSource)],
+    ['goldSetMatchesRepoFile', dash(repro.goldSetMatchesRepoFile)],
     ['models.env.chat', dash(repro.models.env.chat)],
     ['models.env.embed', dash(repro.models.env.embed)],
     ['models.env.rerank', dash(repro.models.env.rerank)],
@@ -645,12 +663,16 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
     ? toHumanSpotReport(loadHumanSpotLedger(opts.humanSpotPath), opts.humanSpotPath)
     : null;
   const cases = opts.maxCases && opts.maxCases > 0 ? all.slice(0, opts.maxCases) : all;
-  // 账本先读：kbId / 指纹不符立刻失败，别跑完一整批才发现映射不可用
+  const repoRoot = opts.repoRoot ?? resolveRepoRoot();
+  const lookupDocs =
+    opts.lookupDocs ?? ((ids: readonly string[]) => documentRepo.listDocRefsByIds(ids));
+  // 账本先读：kbId / 指纹 / 库内对账不符立刻失败，别跑完一整批才发现映射不可用
   const ledger = opts.docMapPath
-    ? resolveCorpusLedgerForRun({
+    ? await resolveCorpusLedgerForRun({
         ledgerPath: opts.docMapPath,
         kbId: opts.kbId,
-        repoRoot: opts.repoRoot ?? resolveRepoRoot(),
+        repoRoot,
+        lookupDocs,
       })
     : null;
   const run = opts.execute ?? executeAsk;
@@ -783,6 +805,9 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
       askMode,
       tauClaim,
       kbBindings,
+      goldSource: 'file',
+      // 全量 all（与 questionIdsHash 同源），**不**受 L1_MAX_CASES 截断影响
+      goldSetMatchesRepoFile: goldSetMatchesRepoFile(repoRoot, all.map((c) => c.id)),
     }),
     errorCount,
     cases: rows,

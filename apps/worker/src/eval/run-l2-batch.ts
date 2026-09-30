@@ -25,12 +25,15 @@ import {
   resolveExpectedDocIds,
   summarizeDocMap,
   type DocMapSource,
+  type LedgerDocRef,
 } from '@strict-rag/contracts/eval-corpus-ledger';
 import {
   defaultRepoRoot,
   resolveCorpusLedgerForRun,
 } from '@strict-rag/contracts/eval-corpus-ledger-file';
 import { uuidv7 } from 'uuidv7';
+
+import { lookupDocRefs } from './doc-refs.js';
 
 export type L2Verdict = 'pass' | 'fail' | 'error';
 
@@ -158,15 +161,22 @@ export async function runL2Batch(opts: {
   docMapPath?: string;
   /** 夹具根（账本新鲜度校验用）；默认按本文件位置上溯 4 层 */
   repoRoot?: string;
+  /**
+   * 账本 ↔ 库内文档对账的库读函数（仅传了 `docMapPath` 时用到）；默认真库 `lookupDocRefs`。
+   * 测试注入桩，生产路径**不可绕**。
+   */
+  lookupDocs?: (docIds: readonly string[]) => Promise<readonly LedgerDocRef[]>;
 }): Promise<L2BatchReport> {
   const sliced =
     opts.maxCases && opts.maxCases > 0 ? opts.cases.slice(0, opts.maxCases) : opts.cases;
-  // 账本先读：kbId / 指纹不符立刻抛错（消费者捕获 → markFailed），别跑完一整批才发现映射不可用
+  const lookupDocs = opts.lookupDocs ?? lookupDocRefs;
+  // 账本先读：kbId / 指纹 / 库内对账不符立刻抛错（消费者捕获 → markFailed），别跑完一整批才发现映射不可用
   const ledger = opts.docMapPath
-    ? resolveCorpusLedgerForRun({
+    ? await resolveCorpusLedgerForRun({
         ledgerPath: opts.docMapPath,
         kbId: opts.kbId,
         repoRoot: opts.repoRoot ?? defaultRepoRoot(import.meta.url),
+        lookupDocs,
       })
     : null;
   // 有账本时把逻辑 id 换成 uuid（缺映射原样保留 → 必然 miss）；两处比对（正常分支与 error 分支）都走它

@@ -72,6 +72,8 @@ describe('emptyL1Repro · §8 区块形状', () => {
         'contextMode',
         'crag',
         'fallbackChainsVersion',
+        'goldSetMatchesRepoFile',
+        'goldSource',
         'l2GoldSetHash',
         'lifecycleFilterVersion',
         'models',
@@ -90,7 +92,9 @@ describe('emptyL1Repro · §8 区块形状', () => {
 
   it('取不到的分项一律 null（不是空串 / unknown / 连字符）', () => {
     const repro = emptyL1Repro();
-    const { models, ...top } = repro;
+    // goldSource 是「题源标注」而非「取不到」项：无 null 值域，模板值取 `file`
+    const { models, goldSource, ...top } = repro;
+    expect(goldSource).toBe('file');
     for (const value of Object.values(top)) {
       expect(value).toBeNull();
     }

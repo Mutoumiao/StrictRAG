@@ -51,11 +51,12 @@ export const EvalRunSchema = z
     zeroToleranceHits: z.number().int().nonnegative().optional(),
     /**
      * 映射来源三键（**如实标注，不进任何判定**）：`ledger` = 按账本解析；`none` = 未传账本。
-     * 可选以兼容历史行（缺键 → 读取侧回落 `none` / `0` / `[]`）。
+     * **必填**（收紧）：`toEvalRunDto` 恒回填三键，历史行读取侧也回落到 `none` / `0` / `[]`，
+     * 故读路径不会因历史行缺键失败；此处不再留 `.optional()` 的后门。
      */
-    docMapSource: z.enum(['ledger', 'none']).optional(),
-    docMapResolved: z.number().int().nonnegative().optional(),
-    docMapUnmappedIds: z.array(z.string()).optional(),
+    docMapSource: z.enum(['ledger', 'none']),
+    docMapResolved: z.number().int().nonnegative(),
+    docMapUnmappedIds: z.array(z.string()),
     ranAt: z.string(),
     jobId: z.string().nullable().optional(),
     errorMessage: z.string().nullable().optional(),

@@ -10,11 +10,14 @@ import { describe, expect, it } from 'vitest';
 import {
   buildCorpusLedger,
   corpusFingerprint,
+  diffLedgerAgainstDocs,
+  formatLedgerReconcileError,
   parseCorpusLedger,
   resolveExpectedDocIds,
   sortLedgerEntries,
   summarizeDocMap,
   type CorpusLedgerEntry,
+  type LedgerDocRef,
 } from '../../src/eval/corpus-ledger.js';
 
 const SHA_A = 'ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb';
@@ -210,5 +213,162 @@ describe('sortLedgerEntries · 排序确定性', () => {
     expect(sorted.map((e) => e.logicalId)).toEqual(['a', 'b']);
     expect(input.map((e) => e.logicalId)).toEqual(['b', 'a']);
     expect(sorted[0]).not.toBe(input[0]);
+  });
+});
+
+describe('diffLedgerAgainstDocs · 账本 ↔ 库内文档对账', () => {
+  /** 库内行（`ready ∧ active`、kbId = 本次 run）；逐字段可覆盖以构造三类失配。 */
+  function refOf(docId: string, title: string, over: Partial<LedgerDocRef> = {}): LedgerDocRef {
+    return { docId, kbId: 'kb-1', title, status: 'ready', lifecycle: 'active', ...over };
+  }
+
+  const ledger = ledgerOf([
+    entry('ingest-samples/01-doc', DOC_A, SHA_A, '01-doc'),
+    entry('l2-corpus/leave-policy', DOC_B, SHA_B, 'leave-policy'),
+  ]);
+  const green = [refOf(DOC_A, '01-doc'), refOf(DOC_B, 'leave-policy')];
+
+  it('全绿：三类皆空，ok=true', () => {
+    expect(diffLedgerAgainstDocs(ledger, green)).toEqual({
+      ok: true,
+      missing: [],
+      notRetrievable: [],
+      titleMismatch: [],
+    });
+  });
+
+  it('missing：账本点名的 docId 查不到行', () => {
+    const diff = diffLedgerAgainstDocs(ledger, [refOf(DOC_A, '01-doc')]);
+    expect(diff.ok).toBe(false);
+    expect(diff.missing).toEqual([
+      { logicalId: 'l2-corpus/leave-policy', docId: DOC_B, reason: 'missing' },
+    ]);
+    expect(diff.notRetrievable).toEqual([]);
+    expect(diff.titleMismatch).toEqual([]);
+  });
+
+  it('missing：行在但 kbId ≠ 本次 run 的 kbId', () => {
+    const diff = diffLedgerAgainstDocs(ledger, [
+      refOf(DOC_A, '01-doc'),
+      refOf(DOC_B, 'leave-policy', { kbId: 'other-kb' }),
+    ]);
+    expect(diff.missing).toHaveLength(1);
+    expect(diff.missing[0]).toMatchObject({
+      logicalId: 'l2-corpus/leave-policy',
+      docId: DOC_B,
+      reason: 'missing',
+      observed: { kbId: 'other-kb' },
+    });
+  });
+
+  it('not_retrievable：行在但 status ≠ ready', () => {
+    const diff = diffLedgerAgainstDocs(ledger, [
+      refOf(DOC_A, '01-doc'),
+      refOf(DOC_B, 'leave-policy', { status: 'uploaded' }),
+    ]);
+    expect(diff.missing).toEqual([]);
+    expect(diff.notRetrievable).toHaveLength(1);
+    expect(diff.notRetrievable[0]).toMatchObject({
+      logicalId: 'l2-corpus/leave-policy',
+      docId: DOC_B,
+      reason: 'not_retrievable',
+      observed: { status: 'uploaded' },
+    });
+  });
+
+  it('not_retrievable：行在但 lifecycle ≠ active（重跑入库后旧行落 superseded）', () => {
+    const diff = diffLedgerAgainstDocs(ledger, [
+      refOf(DOC_A, '01-doc'),
+      refOf(DOC_B, 'leave-policy', { lifecycle: 'superseded' }),
+    ]);
+    expect(diff.notRetrievable).toHaveLength(1);
+    expect(diff.notRetrievable[0]?.observed?.lifecycle).toBe('superseded');
+    expect(diff.titleMismatch).toEqual([]);
+  });
+
+  it('title_mismatch：行在且可检索，但 title 与账本不逐字相等', () => {
+    const diff = diffLedgerAgainstDocs(ledger, [
+      refOf(DOC_A, '01-doc'),
+      refOf(DOC_B, 'renamed', { status: 'uploaded', lifecycle: 'superseded' }),
+    ]);
+    // 命中第一类 not_retrievable 后不再往下判（title 同为错也不进 title_mismatch）
+    expect(diff.notRetrievable).toHaveLength(1);
+    expect(diff.titleMismatch).toEqual([]);
+
+    const onlyTitle = diffLedgerAgainstDocs(ledger, [
+      refOf(DOC_A, '01-doc'),
+      refOf(DOC_B, 'renamed'),
+    ]);
+    expect(onlyTitle.notRetrievable).toEqual([]);
+    expect(onlyTitle.titleMismatch).toHaveLength(1);
+    expect(onlyTitle.titleMismatch[0]).toMatchObject({
+      logicalId: 'l2-corpus/leave-policy',
+      docId: DOC_B,
+      reason: 'title_mismatch',
+      observed: { title: 'renamed' },
+    });
+  });
+
+  it('三类混合：计数各自可分辨，且三类互斥（不重复计）', () => {
+    const three = ledgerOf([
+      entry('a', DOC_A, SHA_A, 'a'),
+      entry('b', DOC_B, SHA_B, 'b'),
+      entry('c', 'doc-c', SHA_A, 'c'),
+      entry('d', 'doc-d', SHA_B, 'd'),
+    ]);
+    const diff = diffLedgerAgainstDocs(three, [
+      refOf(DOC_A, 'wrong'), // title_mismatch
+      refOf(DOC_B, 'b', { status: 'uploaded' }), // not_retrievable（不再判 title）
+      // doc-c 缺失 → missing
+      refOf('doc-d', 'd'), // 绿
+    ]);
+    expect(diff.ok).toBe(false);
+    expect(diff.missing.map((i) => i.logicalId)).toEqual(['c']);
+    expect(diff.notRetrievable.map((i) => i.logicalId)).toEqual(['b']);
+    expect(diff.titleMismatch.map((i) => i.logicalId)).toEqual(['a']);
+  });
+
+  it('输出顺序 = 账本 entries 顺序（账本已按 logicalId 升序）', () => {
+    const shuffled = ledgerOf([
+      entry('zeta', DOC_B, SHA_B, 'zeta'),
+      entry('alpha', DOC_A, SHA_A, 'alpha'),
+    ]);
+    // 两条都不返回 → 全 missing；顺序应跟账本（alpha 在 zeta 前）
+    const diff = diffLedgerAgainstDocs(shuffled, []);
+    expect(diff.missing.map((i) => i.logicalId)).toEqual(['alpha', 'zeta']);
+  });
+});
+
+describe('formatLedgerReconcileError · 错误消息', () => {
+  function refOf(docId: string, title: string, over: Partial<LedgerDocRef> = {}): LedgerDocRef {
+    return { docId, kbId: 'kb-1', title, status: 'ready', lifecycle: 'active', ...over };
+  }
+
+  it('单条消息：含三类计数 + 逐条明细（logicalId / docId / 实测字段）', () => {
+    const ledger = ledgerOf([entry('ingest-samples/01-doc', DOC_A, SHA_A, '01-doc')]);
+    const diff = diffLedgerAgainstDocs(ledger, [
+      refOf(DOC_A, 'renamed', { status: 'uploaded', lifecycle: 'superseded' }),
+    ]);
+    const msg = formatLedgerReconcileError(diff, 'kb-1');
+    expect(msg).toContain('账本与库内文档对不上');
+    expect(msg).toContain('missing=0');
+    expect(msg).toContain('not_retrievable=1');
+    expect(msg).toContain('title_mismatch=0');
+    expect(msg).toContain('ingest-samples/01-doc');
+    expect(msg).toContain(DOC_A);
+    expect(msg).toContain('status=uploaded');
+    expect(msg).toContain('lifecycle=superseded');
+  });
+
+  it('明细最多列前 5 条，其余以「…共 N 条」收口', () => {
+    const entries = Array.from({ length: 7 }, (_, i) =>
+      entry(`logical/${i}`, `doc-${i}`, i % 2 === 0 ? SHA_A : SHA_B, `t-${i}`),
+    );
+    const diff = diffLedgerAgainstDocs(ledgerOf(entries), []);
+    const msg = formatLedgerReconcileError(diff, 'kb-1');
+    expect(diff.missing).toHaveLength(7);
+    expect(msg).toContain('missing=7');
+    expect(msg).toContain('…共 7 条');
+    expect(msg.match(/\[/g)).toHaveLength(5);
   });
 });

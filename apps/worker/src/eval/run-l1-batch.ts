@@ -36,14 +36,16 @@ import {
   resolveExpectedDocIds,
   summarizeDocMap,
   type DocMapSource,
+  type LedgerDocRef,
 } from '@strict-rag/contracts/eval-corpus-ledger';
 import {
-  defaultRepoRoot,
+  goldSetMatchesRepoFile,
   resolveCorpusLedgerForRun,
 } from '@strict-rag/contracts/eval-corpus-ledger-file';
 
 import { env } from '../env.js';
 
+import { evalRepoRoot, lookupDocRefs } from './doc-refs.js';
 import { loadHumanSpotLedger } from './human-spot.js';
 
 export type EvalGoldCase = {
@@ -161,20 +163,28 @@ export async function runL1Batch(opts: {
    * 捕获后 `markFailed`，**不得**静默降级成「未设置」）。
    */
   docMapPath?: string;
-  /** 夹具根（账本新鲜度校验用）；默认按本文件位置上溯 4 层 */
+  /** 夹具根（账本新鲜度校验用）；默认 `evalRepoRoot()` */
   repoRoot?: string;
+  /**
+   * 账本 ↔ 库内文档对账的库读函数（仅传了 `docMapPath` 时用到）；默认真库 `lookupDocRefs`。
+   * 测试注入桩，生产路径**不可绕**。
+   */
+  lookupDocs?: (docIds: readonly string[]) => Promise<readonly LedgerDocRef[]>;
 }): Promise<L1BatchReport> {
   const humanSpot = opts.humanSpotPath
     ? toHumanSpotReport(loadHumanSpotLedger(opts.humanSpotPath), opts.humanSpotPath)
     : null;
   const sliced =
     opts.maxCases && opts.maxCases > 0 ? opts.cases.slice(0, opts.maxCases) : opts.cases;
-  // 账本先读：kbId / 指纹不符立刻抛错（消费者捕获 → markFailed），别跑完一整批才发现映射不可用
+  const repoRoot = opts.repoRoot ?? evalRepoRoot();
+  const lookupDocs = opts.lookupDocs ?? lookupDocRefs;
+  // 账本先读：kbId / 指纹 / 库内对账不符立刻抛错（消费者捕获 → markFailed），别跑完一整批才发现映射不可用
   const ledger = opts.docMapPath
-    ? resolveCorpusLedgerForRun({
+    ? await resolveCorpusLedgerForRun({
         ledgerPath: opts.docMapPath,
         kbId: opts.kbId,
-        repoRoot: opts.repoRoot ?? defaultRepoRoot(import.meta.url),
+        repoRoot,
+        lookupDocs,
       })
     : null;
   const matrix = emptyMatrix();
@@ -290,6 +300,12 @@ export async function runL1Batch(opts: {
     repro: {
       ...emptyL1Repro(),
       questionIdsHash: l1QuestionIdsHash(opts.cases.map((c) => c.caseKey)),
+      goldSource: 'db',
+      // 全量 cases（与 questionIdsHash 同源），**不**受 maxCases 截断影响
+      goldSetMatchesRepoFile: goldSetMatchesRepoFile(
+        repoRoot,
+        opts.cases.map((c) => c.caseKey),
+      ),
     },
     errorCount,
     cases: rows,

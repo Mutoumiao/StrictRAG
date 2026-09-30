@@ -13,7 +13,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { L2_TYPES, type L2Case, type L2Type } from '@strict-rag/contracts';
-import { buildCorpusLedger } from '@strict-rag/contracts/eval-corpus-ledger';
+import {
+  buildCorpusLedger,
+  type CorpusLedger,
+  type LedgerDocRef,
+} from '@strict-rag/contracts/eval-corpus-ledger';
 import { defaultRepoRoot, readFixtureCorpus } from '@strict-rag/contracts/eval-corpus-ledger-file';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -22,7 +26,28 @@ import { runL2Batch } from '../../src/eval/run-l2-batch.js';
 const REPO_ROOT = defaultRepoRoot(import.meta.url);
 const LOGICAL_A = 'ingest-samples/01-doc';
 const DOC_A = '01900000-0000-7000-8000-0000000000a1';
-const DOC_OTHER = '01900000-0000-7000-8000-0000000000b1';
+
+/** 未被引用的条目给唯一 docId（真实账本一篇一 id，桩靠 docId 反查 title 逐条对账）。 */
+function uniqueDocId(logicalId: string): string {
+  const seg = logicalId.split('/').pop() ?? logicalId;
+  const hex = Buffer.from(seg, 'utf8').toString('hex').slice(0, 12).padEnd(12, '0');
+  return `01900000-0000-7000-8000-${hex}`;
+}
+
+/** 账本对账库读桩：账本每条 docId 都当成库内 ready ∧ active ∧ title 相符（不连真库）。 */
+function stubLookupDocs(ledgerPath: string) {
+  return async (ids: readonly string[]): Promise<LedgerDocRef[]> => {
+    const ledger = JSON.parse(readFileSync(ledgerPath, 'utf8')) as CorpusLedger;
+    const byDocId = new Map(ledger.entries.map((e) => [e.docId, e]));
+    return ids.map((id) => ({
+      docId: id,
+      kbId: ledger.kbId,
+      title: byDocId.get(id)?.title ?? '',
+      status: 'ready',
+      lifecycle: 'active',
+    }));
+  };
+}
 
 const tmpDirs: string[] = [];
 afterEach(() => {
@@ -40,7 +65,7 @@ function tmp(): string {
 function writeLedger(
   dir: string,
   kbId: string,
-  docIdFor: (logicalId: string) => string = (id) => (id === LOGICAL_A ? DOC_A : DOC_OTHER),
+  docIdFor: (logicalId: string) => string = (id) => (id === LOGICAL_A ? DOC_A : uniqueDocId(id)),
   only?: string[],
 ): string {
   const files = readFixtureCorpus(REPO_ROOT).filter((f) => !only || only.includes(f.logicalId));
@@ -105,12 +130,14 @@ describe('runL2Batch · docMap（同构三键）', () => {
 
   it('传账本 → 解析成 uuid；命中真值；unmapped 字典序', async () => {
     const dir = tmp();
+    const docMapPath = writeLedger(dir, 'kb');
     const report = await runL2Batch({
       kbId: 'kb',
       retrieveMode: 'mock',
       cases: [l2Case('l2-dm-a', 'near_coref', [LOGICAL_A, 'nope/missing'])],
       executeTurn: async () => okTurn(),
-      docMapPath: writeLedger(dir, 'kb'),
+      docMapPath,
+      lookupDocs: stubLookupDocs(docMapPath),
       repoRoot: REPO_ROOT,
     });
     expect(report.docMapSource).toBe('ledger');
@@ -181,6 +208,7 @@ describe('runL2Batch · 账本不可用 = 响亮失败（不得静默降级）',
 describe('runL2Batch · error 分支也受解析影响', () => {
   it('executeTurn 抛错 → 该题 verdict=error 且 docHit 仍按解析后的名单计分', async () => {
     const dir = tmp();
+    const docMapPath = writeLedger(dir, 'kb');
     const report = await runL2Batch({
       kbId: 'kb',
       retrieveMode: 'mock',
@@ -188,7 +216,8 @@ describe('runL2Batch · error 分支也受解析影响', () => {
       executeTurn: async () => {
         throw new Error('gateway down');
       },
-      docMapPath: writeLedger(dir, 'kb'),
+      docMapPath,
+      lookupDocs: stubLookupDocs(docMapPath),
       repoRoot: REPO_ROOT,
     });
     expect(report.cases[0]?.verdict).toBe('error');
@@ -225,12 +254,14 @@ describe('runL2Batch · 三键不进判定', () => {
       executeTurn: async () => okTurn(),
     });
     const dir = tmp();
+    const docMapPath = writeLedger(dir, 'kb');
     const with_ = await runL2Batch({
       kbId: 'kb',
       retrieveMode: 'live',
       cases,
       executeTurn: async () => okTurn(),
-      docMapPath: writeLedger(dir, 'kb'),
+      docMapPath,
+      lookupDocs: stubLookupDocs(docMapPath),
       repoRoot: REPO_ROOT,
     });
     expect(without.signoffEligible).toBe(true);

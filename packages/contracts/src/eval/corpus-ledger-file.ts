@@ -15,14 +15,23 @@
  * `fixtures/l2/corpus/<name>` → `l2-corpus/<name>`），禁止在脚本里再手抄一份清单（手抄会漂）；
  * 权威对照仍是两份 fixtures README 的表格（`fixtures/l1` 与 `fixtures/l2`），由对账测例机械核对。
  *
- * 只做 I/O（读文件字节 + sha256）与派生；账本形状 / 指纹纯函数在 `./corpus-ledger.js`。
+ * 只做 I/O（读文件字节 + sha256 + 读仓内基线 gold）与派生；账本形状 / 指纹 / 对账纯函数在
+ * `./corpus-ledger.js`。跑批对账经**注入的 `lookupDocs`**（本文件不引 `@strict-rag/db`）。
  */
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { corpusFingerprint, parseCorpusLedger, type CorpusLedger } from './corpus-ledger.js';
+import {
+  corpusFingerprint,
+  diffLedgerAgainstDocs,
+  formatLedgerReconcileError,
+  parseCorpusLedger,
+  type CorpusLedger,
+  type LedgerDocRef,
+} from './corpus-ledger.js';
+import { l1QuestionIdsHash } from './l1-repro.js';
 
 /** 两份语料目录与其逻辑 id 前缀（与两份 fixtures README 表格一致）。 */
 export const FIXTURE_CORPUS_DIRS = [
@@ -129,14 +138,19 @@ export function loadCorpusLedgerFile(ledgerPath: string): CorpusLedger {
 }
 
 /**
- * 跑批前解析账本：`kbId` 全等 ∧ `corpusFingerprint` 全等（当前夹具重算），任一不符 → 拒跑。
- * 拿 A 库的映射跑 B 库、或拿过期映射跑，都是无意义且危险的。
+ * 跑批前解析账本：`kbId` 全等 → `corpusFingerprint` 全等 → **库内对账**（查注入的 `lookupDocs`），
+ * 任一档不符 → 抛 `CorpusLedgerError` 拒跑。拿 A 库的映射跑 B 库、拿过期映射跑、或账本点名的文档
+ * 已不在本 KB / 不可检索 / title 不符，都是无意义且危险的。
+ *
+ * `lookupDocs` **必填**（本文件只 import node 内置，**不引** `@strict-rag/db`）：只要用了账本，对账就跑。
+ * 查询入参 `docIds` **去重 + 升序**（确定性）。`kbId` / 指纹两档仍早于任何库读。
  */
-export function resolveCorpusLedgerForRun(input: {
+export async function resolveCorpusLedgerForRun(input: {
   ledgerPath: string;
   kbId: string;
   repoRoot: string;
-}): CorpusLedger {
+  lookupDocs: (docIds: readonly string[]) => Promise<readonly LedgerDocRef[]>;
+}): Promise<CorpusLedger> {
   const ledger = loadCorpusLedgerFile(input.ledgerPath);
   if (ledger.kbId !== input.kbId) {
     throw new CorpusLedgerError(
@@ -149,5 +163,60 @@ export function resolveCorpusLedgerForRun(input: {
       `corpus ledger corpusFingerprint ${ledger.corpusFingerprint} != current fixtures ${current}`,
     );
   }
+  const docIds = [...new Set(ledger.entries.map((e) => e.docId))].sort();
+  const refs = await input.lookupDocs(docIds);
+  const diff = diffLedgerAgainstDocs(ledger, refs);
+  if (!diff.ok) {
+    throw new CorpusLedgerError(formatLedgerReconcileError(diff, input.kbId));
+  }
   return ledger;
+}
+
+/**
+ * 读仓内基线题集 id（**只做信号，不做校验**）。
+ *
+ * 读 `<repoRoot>/fixtures/l1/gold.yaml`（内容 JSON）：取 `cases[].id`（trim 后非空的字符串），返回**升序**数组。
+ * 任何失败（读不到 / 非 JSON / 无 `cases` 数组 / 有 id 不合形）、或集合为空 → 返回 `null`，**绝不抛错**。
+ * 它是题源差异的**信号**（`goldSetMatchesRepoFile` 的读数来源），不是跑批闸。
+ */
+export function readRepoGoldCaseIds(repoRoot: string): string[] | null {
+  let raw: string;
+  try {
+    raw = readFileSync(path.join(repoRoot, 'fixtures/l1/gold.yaml'), 'utf8');
+  } catch {
+    return null;
+  }
+  let data: unknown;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!data || typeof data !== 'object') return null;
+  const cases = (data as { cases?: unknown }).cases;
+  if (!Array.isArray(cases)) return null;
+  const ids: string[] = [];
+  for (const c of cases) {
+    if (!c || typeof c !== 'object') return null;
+    const id = (c as { id?: unknown }).id;
+    if (typeof id !== 'string') return null;
+    const trimmed = id.trim();
+    if (trimmed.length === 0) return null;
+    ids.push(trimmed);
+  }
+  if (ids.length === 0) return null;
+  return ids.sort();
+}
+
+/**
+ * 本次跑的题面 id 集合与仓内基线是否**逐个相同**：复用既有确定性哈希 `l1QuestionIdsHash`（禁另写一套
+ * 集合比较）。仓内文件读不到 / 不合形 → `null`（**未知**，不得当 `true`，也不得当 `false`）。
+ */
+export function goldSetMatchesRepoFile(
+  repoRoot: string,
+  runIds: readonly string[],
+): boolean | null {
+  const repoIds = readRepoGoldCaseIds(repoRoot);
+  if (repoIds === null) return null;
+  return l1QuestionIdsHash(runIds) === l1QuestionIdsHash(repoIds);
 }

@@ -261,3 +261,126 @@ export function summarizeDocMap(
   unmapped.sort();
   return { docMapSource: 'ledger', docMapResolved: resolved, docMapUnmappedIds: unmapped };
 }
+
+/** 可检索姿态：`status` 必须等于它（检索闸双就绪之一，禁止散落字面量）。 */
+export const RETRIEVABLE_STATUS = 'ready';
+/** 可检索姿态：`lifecycle` 必须等于它（检索闸双就绪之一，禁止散落字面量）。 */
+export const RETRIEVABLE_LIFECYCLE = 'active';
+
+/**
+ * 库内文档行的对账投影：`docId` 之外还带 `kbId` / `title` / `status` / `lifecycle`。
+ * 由调用方注入的 `lookupDocs` 产出（本文件不做任何 DB I/O）。
+ */
+export type LedgerDocRef = {
+  docId: string;
+  kbId: string;
+  title: string;
+  status: string;
+  lifecycle: string;
+};
+
+/** 单条对账失配：`logicalId` + `docId` + 类型 + 实测到的库内字段（取不到则缺省）。 */
+export type LedgerReconcileIssue = {
+  logicalId: string;
+  docId: string;
+  reason: 'missing' | 'not_retrievable' | 'title_mismatch';
+  observed?: { kbId?: string; title?: string; status?: string; lifecycle?: string };
+};
+
+/** 对账差异：三类**互斥**，各自可分辨；`ok = 三类皆空`。 */
+export type LedgerReconcileDiff = {
+  ok: boolean;
+  missing: LedgerReconcileIssue[];
+  notRetrievable: LedgerReconcileIssue[];
+  titleMismatch: LedgerReconcileIssue[];
+};
+
+/**
+ * 账本 ↔ 库内文档行对账（纯函数，零 I/O）。按账本 `entries` 顺序逐条判，命中第一类即不再往下判：
+ * ① `refs` 里没有该 `docId`，**或**该行 `kbId !== ledger.kbId` → `missing`；
+ * ② 行在但 `status !== 'ready'` **或** `lifecycle !== 'active'` → `not_retrievable`；
+ * ③ 行在且可检索，但 `title` 与账本条目不逐字相等 → `title_mismatch`。
+ * 只查「存在」会放行重跑入库后落 `superseded` 的旧行（必然假 miss），故以可检索姿态为准。
+ * **确定性**：输出顺序 = 账本 entries 顺序（账本已按 `logicalId` 升序）。
+ */
+export function diffLedgerAgainstDocs(
+  ledger: CorpusLedger,
+  refs: readonly LedgerDocRef[],
+): LedgerReconcileDiff {
+  const byDocId = new Map<string, LedgerDocRef>();
+  for (const ref of refs) byDocId.set(ref.docId, ref);
+  const missing: LedgerReconcileIssue[] = [];
+  const notRetrievable: LedgerReconcileIssue[] = [];
+  const titleMismatch: LedgerReconcileIssue[] = [];
+  for (const entry of ledger.entries) {
+    const ref = byDocId.get(entry.docId);
+    if (!ref || ref.kbId !== ledger.kbId) {
+      missing.push({
+        logicalId: entry.logicalId,
+        docId: entry.docId,
+        reason: 'missing',
+        ...(ref ? { observed: { kbId: ref.kbId } } : {}),
+      });
+      continue;
+    }
+    if (ref.status !== RETRIEVABLE_STATUS || ref.lifecycle !== RETRIEVABLE_LIFECYCLE) {
+      notRetrievable.push({
+        logicalId: entry.logicalId,
+        docId: entry.docId,
+        reason: 'not_retrievable',
+        observed: {
+          kbId: ref.kbId,
+          title: ref.title,
+          status: ref.status,
+          lifecycle: ref.lifecycle,
+        },
+      });
+      continue;
+    }
+    if (ref.title !== entry.title) {
+      titleMismatch.push({
+        logicalId: entry.logicalId,
+        docId: entry.docId,
+        reason: 'title_mismatch',
+        observed: {
+          kbId: ref.kbId,
+          title: ref.title,
+          status: ref.status,
+          lifecycle: ref.lifecycle,
+        },
+      });
+    }
+  }
+  return {
+    ok: missing.length === 0 && notRetrievable.length === 0 && titleMismatch.length === 0,
+    missing,
+    notRetrievable,
+    titleMismatch,
+  };
+}
+
+/** 明细条数上限：超过则「…共 N 条」收口（避免把整库细节灌进一条错误）。 */
+const RECONCILE_DETAIL_MAX = 5;
+
+function formatReconcileIssue(issue: LedgerReconcileIssue): string {
+  const observed = issue.observed;
+  const parts = [`${issue.logicalId}→${issue.docId}`, issue.reason];
+  if (observed?.kbId !== undefined) parts.push(`kbId=${observed.kbId}`);
+  if (observed?.title !== undefined) parts.push(`title=${observed.title}`);
+  if (observed?.status !== undefined) parts.push(`status=${observed.status}`);
+  if (observed?.lifecycle !== undefined) parts.push(`lifecycle=${observed.lifecycle}`);
+  return `[${parts.join(' ')}]`;
+}
+
+/**
+ * 单条错误消息（供 `CorpusLedgerError`）：必须含三类**计数**与逐条明细
+ * （每条点名 `logicalId` + `docId` + 实测 `status` / `lifecycle` / `title` / `kbId` 里可得那几项）。
+ * 明细最多列前 5 条，其余以「…共 N 条」收口。禁只报一句「对账失败」，禁降级成「无账本」。
+ */
+export function formatLedgerReconcileError(diff: LedgerReconcileDiff, kbId: string): string {
+  const issues = [...diff.missing, ...diff.notRetrievable, ...diff.titleMismatch];
+  const counts = `missing=${diff.missing.length} not_retrievable=${diff.notRetrievable.length} title_mismatch=${diff.titleMismatch.length}`;
+  const detail = issues.slice(0, RECONCILE_DETAIL_MAX).map(formatReconcileIssue).join('；');
+  const rest = issues.length > RECONCILE_DETAIL_MAX ? `；…共 ${issues.length} 条` : '';
+  return `账本与库内文档对不上（KB ${kbId}）：${counts}；明细：${detail}${rest}`;
+}

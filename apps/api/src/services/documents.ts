@@ -7,7 +7,7 @@ import {
   knowledgeBases,
   users,
 } from '@strict-rag/db';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { uuidv7 } from 'uuidv7';
 
 import { defaultKbStrategyRows } from './chunk-strategy-catalog.js';
@@ -120,6 +120,24 @@ export const documentRepo = {
   async getDoc(docId: string) {
     const [row] = await getDb().select().from(documents).where(eq(documents.id, docId)).limit(1);
     return row ?? null;
+  },
+
+  /**
+   * 按 id 批量查对账投影（评测账本 ↔ 库内文档对账用）；`ids` 空 → `[]`，**不发查询**。
+   * 列与 worker 侧 `lookupDocRefs` 同形状（见 `apps/worker/src/eval/doc-refs.ts`）。
+   */
+  async listDocRefsByIds(ids: readonly string[]) {
+    if (ids.length === 0) return [];
+    return getDb()
+      .select({
+        docId: documents.id,
+        kbId: documents.kbId,
+        title: documents.title,
+        status: documents.status,
+        lifecycle: documents.lifecycle,
+      })
+      .from(documents)
+      .where(inArray(documents.id, [...ids]));
   },
 
   async insertUploadedDoc(input: {

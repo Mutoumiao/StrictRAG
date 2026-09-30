@@ -35,6 +35,7 @@ import {
   resolveExpectedDocIds,
   summarizeDocMap,
   type DocMapSource,
+  type LedgerDocRef,
 } from '@strict-rag/contracts/eval-corpus-ledger';
 
 import { CorpusLedgerError, resolveCorpusLedgerForRun } from '../eval/corpus-map.js';
@@ -52,6 +53,7 @@ import {
 } from '../services/ask/index.js';
 import { clipSessionWindow, isExplicitSessionBackref } from '../services/ask/session-window.js';
 import { getDb } from '../services/db.js';
+import { documentRepo } from '../services/documents.js';
 import { getGateway, getGatewayForTenant } from '../services/gateway/index.js';
 import { createDefaultRetrieveDeps } from '../services/retrieve/index.js';
 import {
@@ -185,6 +187,11 @@ export type RunL2Options = {
   docMapPath?: string;
   /** 夹具根（账本新鲜度校验用）；默认 `resolveRepoRoot()` */
   repoRoot?: string;
+  /**
+   * 账本 ↔ 库内文档对账的库读函数（仅传了 `docMapPath` 时用到）；默认真库
+   * `documentRepo.listDocRefsByIds`。测试注入桩，生产路径**不可绕**。
+   */
+  lookupDocs?: (docIds: readonly string[]) => Promise<readonly LedgerDocRef[]>;
 };
 
 export type L2CliParse =
@@ -357,12 +364,14 @@ export function formatL2ReportMd(report: L2Report): string {
 export async function runL2Golden(opts: RunL2Options): Promise<L2Report> {
   const gold = loadL2Gold(opts.goldPath);
   const cases = opts.maxCases && opts.maxCases > 0 ? gold.cases.slice(0, opts.maxCases) : gold.cases;
-  // 账本先读：kbId / 指纹不符立刻失败，别跑完一整批才发现映射不可用
+  // 账本先读：kbId / 指纹 / 库内对账不符立刻失败，别跑完一整批才发现映射不可用
   const ledger = opts.docMapPath
-    ? resolveCorpusLedgerForRun({
+    ? await resolveCorpusLedgerForRun({
         ledgerPath: opts.docMapPath,
         kbId: opts.kbId,
         repoRoot: opts.repoRoot ?? resolveRepoRoot(),
+        lookupDocs:
+          opts.lookupDocs ?? ((ids: readonly string[]) => documentRepo.listDocRefsByIds(ids)),
       })
     : null;
   // 有账本时把逻辑 id 换成 uuid（缺映射原样保留 → 必然 miss）；无账本逐位保持今天语义

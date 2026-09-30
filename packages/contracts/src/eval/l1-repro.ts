@@ -100,6 +100,17 @@ export type L1Repro = {
   sessionStrategyVersion: null;
   /** §8 L2 剧本集哈希：L2 侧归下一张图 → 恒 null */
   l2GoldSetHash: null;
+  /**
+   * §8 题源：本次跑的题面从哪来（api CLI = `file`；worker 队列 = `db`）。
+   * 非「取不到」字段，故无 `null`；两个入口各自显式填真值。
+   */
+  goldSource: 'file' | 'db';
+  /**
+   * §8 可检测信号：本次跑的题面 id 集合（api 用 `id`、worker 用 `caseKey`）与仓内
+   * `fixtures/l1/gold.yaml` 的 id 集合是否**逐个相同**。
+   * `null` = 仓内文件读不到 / 不合形（**未知**，不得当 `true`，也不得当 `false`）。
+   */
+  goldSetMatchesRepoFile: boolean | null;
 };
 
 /** 全 `null` 区块：报告的起点，也用于「取不到一律 null」与「全 null 渲染」测例。 */
@@ -119,5 +130,8 @@ export function emptyL1Repro(): L1Repro {
     lifecycleFilterVersion: null,
     sessionStrategyVersion: null,
     l2GoldSetHash: null,
+    // goldSource 无 null 值域：模板值取 `file`（仓内基线侧）；api CLI / worker 各自显式填真值。
+    goldSource: 'file',
+    goldSetMatchesRepoFile: null,
   };
 }

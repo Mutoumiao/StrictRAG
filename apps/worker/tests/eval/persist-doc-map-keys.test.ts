@@ -6,11 +6,15 @@
  * 简介：捕获 set 载荷，断言三键来自报告真值而非硬编码常量；无账本时恰为 none/0/[]。
  */
 
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { buildCorpusLedger } from '@strict-rag/contracts/eval-corpus-ledger';
+import {
+  buildCorpusLedger,
+  type CorpusLedger,
+  type LedgerDocRef,
+} from '@strict-rag/contracts/eval-corpus-ledger';
 import { defaultRepoRoot, readFixtureCorpus } from '@strict-rag/contracts/eval-corpus-ledger-file';
 import { describe, expect, it, vi, afterEach } from 'vitest';
 
@@ -39,6 +43,28 @@ const REPO_ROOT = defaultRepoRoot(import.meta.url);
 const LOGICAL_A = 'ingest-samples/01-doc';
 const DOC_A = '01900000-0000-7000-8000-0000000000a1';
 
+/** 未被引用的条目给唯一 docId（真实账本一篇一 id，桩靠 docId 反查 title 逐条对账）。 */
+function uniqueDocId(logicalId: string): string {
+  const seg = logicalId.split('/').pop() ?? logicalId;
+  const hex = Buffer.from(seg, 'utf8').toString('hex').slice(0, 12).padEnd(12, '0');
+  return `01900000-0000-7000-8000-${hex}`;
+}
+
+/** 账本对账库读桩：账本每条 docId 都当成库内 ready ∧ active ∧ title 相符（不连真库）。 */
+function stubLookupDocs(ledgerPath: string) {
+  return async (ids: readonly string[]): Promise<LedgerDocRef[]> => {
+    const ledger = JSON.parse(readFileSync(ledgerPath, 'utf8')) as CorpusLedger;
+    const byDocId = new Map(ledger.entries.map((e) => [e.docId, e]));
+    return ids.map((id) => ({
+      docId: id,
+      kbId: ledger.kbId,
+      title: byDocId.get(id)?.title ?? '',
+      status: 'ready',
+      lifecycle: 'active',
+    }));
+  };
+}
+
 const tmpDirs: string[] = [];
 afterEach(() => {
   while (tmpDirs.length) {
@@ -61,7 +87,7 @@ function writeLedger(dir: string, kbId: string): string {
     generatedAt: '2026-09-29 10:00:00',
     entries: files.map((f) => ({
       logicalId: f.logicalId,
-      docId: f.logicalId === LOGICAL_A ? DOC_A : '01900000-0000-7000-8000-0000000000b1',
+      docId: f.logicalId === LOGICAL_A ? DOC_A : uniqueDocId(f.logicalId),
       title: f.title,
       sourceFile: f.sourceFile,
       sourceSha256: f.sourceSha256,
@@ -95,6 +121,7 @@ describe('persist · 映射来源三键白名单（取自报告真值）', () =>
 
   it('saveReport（L1）带账本 → reportJson 三键 = 报告真值（ledger / 非 0 / unmapped）', async () => {
     const dir = tmp();
+    const docMapPath = writeLedger(dir, 'kb-1');
     const report = await runL1Batch({
       kbId: 'kb-1',
       retrieveMode: 'mock',
@@ -107,7 +134,8 @@ describe('persist · 映射来源三键白名单（取自报告真值）', () =>
         },
       ],
       execute: async () => ({ outcome: 'answered', evidenceDocIds: [DOC_A] }),
-      docMapPath: writeLedger(dir, 'kb-1'),
+      docMapPath,
+      lookupDocs: stubLookupDocs(docMapPath),
       repoRoot: REPO_ROOT,
     });
     expect(report.docMapSource).toBe('ledger');
@@ -138,6 +166,7 @@ describe('persist · 映射来源三键白名单（取自报告真值）', () =>
 
   it('saveL2Report（L2）带账本 → reportJson 三键 = 报告真值', async () => {
     const dir = tmp();
+    const docMapPath = writeLedger(dir, 'kb-1');
     const report = await runL2Batch({
       kbId: 'kb-1',
       retrieveMode: 'mock',
@@ -161,7 +190,8 @@ describe('persist · 映射来源三键白名单（取自报告真值）', () =>
         evidenceDocIds: [DOC_A],
         answer: 'ok',
       }),
-      docMapPath: writeLedger(dir, 'kb-1'),
+      docMapPath,
+      lookupDocs: stubLookupDocs(docMapPath),
       repoRoot: REPO_ROOT,
     });
     expect(report.docMapSource).toBe('ledger');

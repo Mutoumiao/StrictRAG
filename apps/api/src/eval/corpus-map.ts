@@ -10,6 +10,8 @@
  */
 export {
   CorpusLedgerError,
+  goldSetMatchesRepoFile,
   loadCorpusLedgerFile,
+  readRepoGoldCaseIds,
   resolveCorpusLedgerForRun,
 } from '@strict-rag/contracts/eval-corpus-ledger-file';

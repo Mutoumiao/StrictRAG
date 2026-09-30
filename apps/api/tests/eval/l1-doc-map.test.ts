@@ -2,7 +2,8 @@
  * 目标：L1 跑批必须按账本把逻辑 id 解析成 uuid；不传账本时逐位保持今天语义，缺映射继续算 miss（绝不 null）。
  * 需求：prds/08-quality/02-evaluation-and-gates.md §3 / §6（Hit@20 数据面）· 裁定 02（裁定 2 / 3 / 4）
  * 被测：runL1Golden（docMapPath）· resolveCorpusLedgerForRun · formatReportMd
- * 简介：不传账本 → 三键 none/0/[] 且 hitAtK 与直比逐位一致；传账本全命中 / 缺 id 算 miss；kbId 或指纹不符拒跑。
+ * 简介：不传账本 → 三键 none/0/[] 且 hitAtK 与直比逐位一致；传账本全命中 / 缺 id 算 miss；kbId 或指纹不符拒跑；
+ *       库内对账（docId 不存在 / 不可检索 / title 不符）一律拒跑，错误消息点名 logicalId + docId + 实测字段。
  */
 
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -10,10 +11,15 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { hitAtKCase } from '@strict-rag/contracts';
-import { buildCorpusLedger } from '@strict-rag/contracts/eval-corpus-ledger';
+import {
+  buildCorpusLedger,
+  type CorpusLedger,
+  type LedgerDocRef,
+} from '@strict-rag/contracts/eval-corpus-ledger';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { defaultRepoRoot, readFixtureCorpus } from '../../src/eval/corpus-fixtures.js';
+import { CorpusLedgerError } from '../../src/eval/corpus-map.js';
 import { formatReportMd, runL1Golden, type L1Report } from '../../src/scripts/run-l1-golden.js';
 import type { ExecuteAskParams, ExecuteAskResult } from '../../src/services/ask/index.js';
 
@@ -34,6 +40,37 @@ const REPO_ROOT = defaultRepoRoot(import.meta.url);
 const DOC_01 = '01900000-0000-7000-8000-0000000000a1';
 const DOC_02 = '01900000-0000-7000-8000-0000000000a2';
 const UUID_RE = /^[0-9a-f-]{36}$/;
+
+/**
+ * 未被 gold 引用的条目给**唯一** docId：真实账本一篇一 id，注入桩靠 docId 反查 title 逐条对账，
+ * 多逻辑 id 共用同一 docId 会让 title 无法逐条对上（测试夹具不该制造这种不可能态）。
+ */
+function uniqueDocId(logicalId: string): string {
+  const seg = logicalId.split('/').pop() ?? logicalId;
+  const hex = Buffer.from(seg, 'utf8').toString('hex').slice(0, 12).padEnd(12, '0');
+  return `01900000-0000-7000-8000-${hex}`;
+}
+
+/**
+ * 账本对账库读桩：把账本里每条 docId 都当成库内「同 kbId ∧ ready ∧ active ∧ title 相符」的行。
+ * 生产缺省是真库查询（`documentRepo.listDocRefsByIds`），此处只替换「怎么查」，不替换对账本身。
+ */
+function stubLookupDocs(ledgerPath: string) {
+  return async (ids: readonly string[]): Promise<LedgerDocRef[]> => {
+    const ledger = JSON.parse(readFileSync(ledgerPath, 'utf8')) as CorpusLedger;
+    const byDocId = new Map(ledger.entries.map((e) => [e.docId, e]));
+    return ids.map((id) => {
+      const entry = byDocId.get(id);
+      return {
+        docId: id,
+        kbId: ledger.kbId,
+        title: entry?.title ?? '',
+        status: 'ready',
+        lifecycle: 'active',
+      };
+    });
+  };
+}
 
 function goldFile(dir: string): string {
   const cases = [
@@ -87,12 +124,16 @@ function answeredWithDocs(question: string): ExecuteAskResult {
   };
 }
 
-/** 造一份账本（指纹自洽）；`docIds` 缺省 → 全部 13 条按前缀给 uuid */
+/** 造一份账本（指纹自洽）；`docIds` 缺省 → 01/02 用 DOC_01/DOC_02，其余给唯一 uuid */
 function writeLedger(
   dir: string,
   kbId: string,
   docIdFor: (logicalId: string) => string = (id) =>
-    id === 'ingest-samples/02-doc' ? DOC_02 : DOC_01,
+    id === 'ingest-samples/01-doc'
+      ? DOC_01
+      : id === 'ingest-samples/02-doc'
+        ? DOC_02
+        : uniqueDocId(id),
   onlyLogicalIds?: string[],
 ): string {
   const files = readFixtureCorpus(REPO_ROOT).filter(
@@ -117,7 +158,12 @@ function writeLedger(
 
 async function run(
   dir: string,
-  extra: { kbId?: string; docMapPath?: string; goldPath?: string } = {},
+  extra: {
+    kbId?: string;
+    docMapPath?: string;
+    goldPath?: string;
+    lookupDocs?: (docIds: readonly string[]) => Promise<readonly LedgerDocRef[]>;
+  } = {},
 ) {
   return runL1Golden({
     goldPath: extra.goldPath ?? goldFile(dir),
@@ -125,7 +171,12 @@ async function run(
     kbId: extra.kbId ?? 'kb',
     persistEval: false,
     execute: async (params: ExecuteAskParams) => answeredWithDocs(params.body.question),
-    ...(extra.docMapPath ? { docMapPath: extra.docMapPath } : {}),
+    ...(extra.docMapPath
+      ? {
+          docMapPath: extra.docMapPath,
+          lookupDocs: extra.lookupDocs ?? stubLookupDocs(extra.docMapPath),
+        }
+      : {}),
   });
 }
 
@@ -213,6 +264,48 @@ describe('runL1Golden · 传账本', () => {
     await expect(run(dir, { docMapPath: path.join(dir, 'missing.json') })).rejects.toThrow(
       /cannot read corpus ledger/,
     );
+  });
+});
+
+describe('runL1Golden · 库内对账（账本 ↔ 库内文档）', () => {
+  it('账本点名的 docId 库内不存在 → 拒跑，点名 logicalId + docId', async () => {
+    const dir = tmp();
+    const docMapPath = writeLedger(dir, 'kb');
+    const err = await run(dir, { docMapPath, lookupDocs: async () => [] }).catch((e) => e);
+    expect(err).toBeInstanceOf(CorpusLedgerError);
+    const msg = (err as Error).message;
+    expect(msg).toContain('账本与库内文档对不上');
+    expect(msg).toContain('missing=');
+    expect(msg).toContain('ingest-samples/01-doc');
+    expect(msg).toContain(DOC_01);
+  });
+
+  it("库内行 lifecycle='superseded'（旧账本 + 重跑入库）→ 拒跑", async () => {
+    const dir = tmp();
+    const docMapPath = writeLedger(dir, 'kb');
+    const err = await run(dir, {
+      docMapPath,
+      lookupDocs: async (ids) =>
+        (await stubLookupDocs(docMapPath)(ids)).map((r) => ({ ...r, lifecycle: 'superseded' })),
+    }).catch((e) => e);
+    expect(err).toBeInstanceOf(CorpusLedgerError);
+    const msg = (err as Error).message;
+    expect(msg).toContain('not_retrievable=');
+    expect(msg).toContain('lifecycle=superseded');
+  });
+
+  it('库内 title 与账本不逐字相等 → 拒跑', async () => {
+    const dir = tmp();
+    const docMapPath = writeLedger(dir, 'kb');
+    const err = await run(dir, {
+      docMapPath,
+      lookupDocs: async (ids) =>
+        (await stubLookupDocs(docMapPath)(ids)).map((r) => ({ ...r, title: 'renamed' })),
+    }).catch((e) => e);
+    expect(err).toBeInstanceOf(CorpusLedgerError);
+    const msg = (err as Error).message;
+    expect(msg).toContain('title_mismatch=');
+    expect(msg).toContain('title=renamed');
   });
 });
 

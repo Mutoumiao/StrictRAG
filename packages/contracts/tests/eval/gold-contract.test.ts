@@ -65,6 +65,10 @@ describe('eval run contract', () => {
       matrix: { A: 1, B: 0, C: 0, D: 1 },
       coverage: 1,
       errorCount: 0,
+      // 映射来源三键已收紧为必填（读路径由 toEvalRunDto 恒回填，历史行回落 none/0/[]）
+      docMapSource: 'none',
+      docMapResolved: 0,
+      docMapUnmappedIds: [],
       ranAt: '2026-08-29 12:00:00',
     };
     expect(EvalRunSchema.parse(run).matrix.A).toBe(1);
@@ -77,5 +81,11 @@ describe('eval run contract', () => {
     expect(EvalRunSchema.parse({ ...run, judgeAuroc: 0.8 }).judgeAuroc).toBe(0.8);
     expect(EvalRunSchema.parse({ ...run, judgeAuroc: null }).judgeAuroc).toBeNull();
     expect(EvalRunSchema.safeParse({ ...run, tauClaim: 0.3 }).success).toBe(false);
+    // 映射来源三键已收紧为必填：缺任一即拒（反证目标：把某键改回 .optional() → 本段红）
+    for (const key of ['docMapSource', 'docMapResolved', 'docMapUnmappedIds'] as const) {
+      const clone: Record<string, unknown> = { ...run };
+      delete clone[key];
+      expect(EvalRunSchema.safeParse(clone).success).toBe(false);
+    }
   });
 });
