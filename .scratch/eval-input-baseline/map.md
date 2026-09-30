@@ -50,7 +50,9 @@ Status: open（前沿：工单 01）
 
 ## Decisions so far
 
-<!-- 每关闭一张工单追加一行：名称（链接）+ 一行要点 -->
+- [01 · 研究：三条输入基线的现状面](./issues/01-research-input-baselines.md) — 三个角色互斥的子代理并行核实（[01a 库内对账可达性](./research/01a-ledger-db-reachability.md) · [01b 题源差异](./research/01b-case-source-divergence.md) · [01c 三键消费面](./research/01c-docmap-keys-consumers.md)）。要点：**只查「存在」不够** —— 重跑入库会生成新 uuid、旧行落 `superseded` 却仍在库（存在性对账放行必然假 miss）；**题源确实分歧**（文件 60 题 vs DB 默认空，全仓无「文件 → DB」灌题入口）；**三键确认不进任何判定**、admin/web 零命中、收紧代价仅 1 个 it；**回归面量化**为 15 个 it / 5 个文件。一条**修正**：地图原写「CLI 侧无 DB 读」不成立，两侧 CLI 都已 import `getDb`。
+- [02 · 裁定：账本 ↔ 库内对账的落点与失效语义](./issues/02-dec-ledger-db-reconcile.md) — 纯函数进 `corpus-ledger.ts`、I/O 编排进 `corpus-ledger-file.ts`，库读走**必填注入函数**（contracts 不引 `@strict-rag/db`）；**只要用了账本就必须对账**（未设账本 → 逐位一致）；**三类失效**（`missing` / `not_retrievable` / `title_mismatch`）各自可分辨且全部响亮失败，其中 `not_retrievable` 是本裁定的核心（抓重跑入库后的陈旧账本）；**三键收紧为必填**。
+- [03 · 裁定：题源以谁为准 / 差异怎么可检测](./issues/03-dec-case-source-ruling.md) — 文件 = 基线题面、DB = 运行期题集，**并存是产品设计**、本图不收敛；可检测信号 = `repro` 新增 `goldSource`（`file` / `db`）与 `goldSetMatchesRepoFile`（与仓内基线逐位比，读不到 → `null`），复用既有 `l1QuestionIdsHash`；**不进判定、不进签字快照**（新增必达项须 ADR）。
 
 ## Not yet specified
 
