@@ -1,7 +1,7 @@
 # 落：检索语料装载按入口租户收窄
 
 Type: task
-Status: open
+Status: resolved
 Blocked by: 02
 
 ## Question
@@ -16,3 +16,9 @@ Blocked by: 02
 - **既有测例断言一字不改**（若真变红，按本图 Notes 的红线处理并如实记录）。
 
 **不做**：改 schema / 加约束；动 ES `requireTenantId` 闸；改默认开关。
+
+## Answer
+
+**本票不实施。** 工单 02 裁定「不改语料装载的租户来源」，理由见该票 Answer（既有 fail-closed 测例有意钉住该来源 · 无 PRD 依据 · 两源在可达状态下同值 · ES 硬闸取的入口租户与装载面反推值本非同一变量）。
+
+因此：**0 处源码改动、0 条新增测例、0 处既有断言改动**。核实过程中挖出的真问题（ask 租户两源）**不由本票承接** —— 它须先做一次产品 / 契约裁定（可能须 ADR），已记入 `docs/module-status/api.md` 技术债与雾清单新簇 40。

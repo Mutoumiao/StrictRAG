@@ -18,6 +18,8 @@
 
 > **2026-10-09 追加（wayfinder 图 [`pending-review-ops`](./pending-review-ops/map.md)）**：本图挑的是簇 **17**（`pending_review` 的 admin 审阅面）与簇 **14** 的一半（`ingest_jobs` 的运营可见面镜像）。**结论：簇 17 收口** —— 01 号研究核清「报告 `conflictPairs` 的 `pending_review` 项**必带** `heldChunkId` 且 admin **已把它拉到手**，缺的只是渲染与动作」，于是裁定**复用文档页已读的入库报告**（**不**新开读端点：无生产者的半接线 + 新暴露面），在文档行展开的报告区块加「待审冲突」块：有 `doc.editor` 二选一（调**既有** resolve 端点、处置后停用、**不**代跑 Reindex），无码只读。补 contracts 契约测 4 条 + RTL 11 条（含反证：去掉 `action` 判据 2 条变红；首轮夹具未带 `heldChunkId` 导致反证无效，已补夹具）。**顺带纠偏镜像 6 处**（`worker.md` / `db.md` / `README.md` 的「无查询面」与已落的 per-doc 只读 API 不符；`worker.md` 的 `dupe_status` 笔误）。**未解决 / 新记债**：① **处置零审计**，且 `admin-write-audit` 白名单对「文档内容处置类」（`resolve` / `supersede` / `PATCH` 元数据 / `PUT acl`）**同类不同待** → 准入 = 先定「哪些路径属管理写」口径；② 簇 14 只纠镜像，**跨文档**运维查询面仍未落（要不要建取决于「成员即可读全量账本」的暴露面裁定）；③ 待审积压聚合指标未落。**汇总表**：簇 17 行按「已解」改写，簇 14 行按「per-doc 已落 / 跨文档未落」改写。
 
+> **2026-10-09 追加（wayfinder 图 [`retrieve-corpus-tenant-scope`](./retrieve-corpus-tenant-scope/map.md)）**：本图挑的是簇 **8**（`CorpusLoader` 未传 tenantId、检索侧从文档行反推）。**结论：原定改动裁定为「不改」，但挖出真问题（新簇 40）** —— ① 既有测例 `apps/api/tests/acl/dept-acl-ask-e2e.test.ts:327` 的 `describe('语料装载的 tenantId 来源（fail-closed）')` **有意钉住**「租户取自文档行」（改用入口租户后部门查询会成功、该断言立即红）；② 改动**无 PRD 依据**（本簇自己标「PRD 未明写」），且当前语义是 fail-closed 不是放行；③ `documents.tenant_id` NOT NULL、写路径一律写 `kb.tenantId` → 正常数据下两源同值；④ ES builder 的硬闸取的是**入口租户**（`retrieve.ts:199`），与装载面的反推值**本就不是同一变量** → 本图想收的「同源」在装载面不存在。**真问题**：ask 的租户有**两源**且不同值时口径分裂 —— ES 稀疏腿按入口租户过滤、PG 语料按 KB 的租户装载，`auth.tenantId ≠ kb.tenantId` 时**稀疏召回静默丢失**（**不泄漏**：异租户命中会被「只保留语料内 id」求交滤掉）。**未实测**（无真 ES）。三条可能处置（ES 腿改按 `kb.tenantId` / 不等即拒 ask / 明确跨租户不得发生并加断言）**都须先裁**，故记为新簇 **40** 并写进 `docs/module-status/api.md` 技术债。**汇总表**：簇 8 标「裁定为不修」并指向簇 40；新增簇 40 行。
+
 ## 汇总表
 
 | # | 簇 | 挡谁 | 离线可做 | PRD 依据 | 出处（图） |
@@ -29,7 +31,7 @@
 | 5 | 校准规模（夹具 8 条 vs PRD ≥100）与打分器接线（生产入口不接） | L1 准出（AUROC 真实路径不可达） | 扩集/接线能；真判分不能 | 08-quality §4 | quality-gate-parity |
 | 6 | QUAL-2 真杀毒（今天 `mock_scan`） | 生产上线；不挡开发主线 | 不能 | 交付剧本 M · DEC-SCAN | fill-must-haves · close-p2-exit-gaps · p2-exit-evidence |
 | 7 | P2.5 准出（L2 须 live 真跑 + 人签） | rewrite/session 默认开 与 P3a | 不能 | 10-delivery 路线图 · 08-quality §6.1/§6.2 | 五张图 Out of scope |
-| 8 | `CorpusLoader` 未传 tenantId（检索侧从文档行反推） | 不挡；工程债 | 能（回归面较大） | 未核实（PRD 未明写） | p3b-doc-acl · p3b-principal-forms · quality-gate-parity |
+| 8 | `CorpusLoader` 未传 tenantId（检索侧从文档行反推） | **裁定为不修（2026-10-09）** | **不改**：既有 fail-closed 测例（`dept-acl-ask-e2e.test.ts:327`）有意钉住该来源，且无 PRD 依据；真问题改由簇 **40** 承载 | 未核实（PRD 未明写） | p3b-doc-acl · p3b-principal-forms · quality-gate-parity · **retrieve-corpus-tenant-scope** |
 | 9 | `DEPT_INHERIT_DOWN` 关继承时「库级文档」语义 | 不挡；须 PRD 补行才销账 | 口径定后能补测 | PRD 未明说（ADR-057） | p3b-doc-acl · p3b-principal-forms · quality-gate-parity |
 | 10 | grant 写审计是否落表（今天只有 Pino） | P3b 出口 AE7 行 | 能（先裁是否落表） | 交付剧本 AE7 · ADR-057 | p3b-doc-acl · p3b-principal-forms · quality-gate-parity |
 | 11 | `loadVisibilityContext` 请求级缓存 | 不挡；性能债 | 能 | PRD 未写 | p3b-doc-acl · p3b-principal-forms · quality-gate-parity |
@@ -61,6 +63,7 @@
 | 37 | 自动 reindex-on-tighten / dense 反向构造（B2-3 剩余） | 不挡 | **仍不能（但阻塞方已精确）**：「自动 reindex」已裁为人工触发，剩「真 ES 上 reindex 覆盖旧 principals」半截，须真 PG/ES | ADR-009 决策 4 · ES PRD §4.3 | fill-must-haves · p3b-doc-acl |
 | 39 | **半产品端到端「问答」段不可复现**（无 Gateway 时 `smoke:half` 末步必失败；`GATEWAY_MODE=http` 要求上游同时提供 chat + embeddings + **rerank** 三契约，而常见本地模型服务只给前两条，也不提供 `/rerank`） | 「第三人拉起 → 问答」这条 DoD；不挡 P2 签字（签字另需真模型与人签） | 能建（须先裁：**是否允许**一个 dev-only 的 JSON 桩 Gateway / 本地适配器），**或**如实记为环境前置 | 05-api · 07-models（Gateway 契约）· `docs/ops/half-smoke.md` | real-stack-evidence |
 | 38 | 迁移 0015 历史回填值真伪（`0` / `'[]'` 替历史行断言「无重复」） | 不挡 | 不能（改可空须 ADR） | 03-data schema | migration-default-parity |
+| 40 | **ask 的租户权威源**：ES 稀疏腿用**入口租户**（`auth.tenantId ?? kb.tenantId`），PG 语料用**KB 的租户**（取自文档行）；两者不等时稀疏召回**静默丢失**（不泄漏，异租户命中被语料求交滤掉） | 不挡（**未实测**，依据 = 源码两处取值链） | 能（① ES 腿改按 `kb.tenantId` ② 不等即拒 ask ③ 明确跨租户不得发生并加断言），但**三条都须先裁** | 未核实（PRD 未写「租户权威源」） | **retrieve-corpus-tenant-scope** |
 
 ## 挑目的地时的三条读法
 
