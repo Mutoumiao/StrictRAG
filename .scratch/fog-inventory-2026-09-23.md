@@ -16,6 +16,8 @@
 
 > **2026-10-01 追加（wayfinder 图 [`half-ask-reproducible`](./half-ask-reproducible/map.md)）**：本图挑的是簇 **39**（半产品端到端「问答」段不可复现）。**结论：簇 39 收口** —— 先核实「失败只缺 chat 的 `generate` 那一次 JSON，检索侧（embed + 真 ES sparse + rerank）在 mock 档已全通」，再按 `prds/07-models` 里**查不到**「mock chat 必须非 JSON」明文这一事实，裁定建 **dev-only 抽取式桩网关**：独立进程（`scripts/stub-gateway.mjs`）、**零 `apps/` 代码改动**（由 `GATEWAY_BASE_URL` 指过去）、**只从提示里的 EVIDENCE 抽取**（引用逐字取自 evidence，证据不足即 `insufficient:true`）、生产档位**拒绝启动**、`GET /__stub` 自证身份让 `smoke:half` 标注 `gateway=stub`；并列要求 `smoke:half` 末步失败给出三类可分辨诊断（缺 Gateway / 用桩 / 管道坏）。**仓库默认一个字未改**（无 Gateway → 拒答照旧）。**汇总表**：本图**不成簇**（簇 39 是「一张图的事」而非跨图缺口），故表**不逐行改**；销账口径 = 表中该行「离线可做」一栏写的两条路，本图选了「能建」那条。证据：[`docs/ops/half-smoke.md`](../docs/ops/half-smoke.md) · [`research/04-real-stack-half-ask.md`](./half-ask-reproducible/research/04-real-stack-half-ask.md)。
 
+> **2026-10-09 追加（wayfinder 图 [`pending-review-ops`](./pending-review-ops/map.md)）**：本图挑的是簇 **17**（`pending_review` 的 admin 审阅面）与簇 **14** 的一半（`ingest_jobs` 的运营可见面镜像）。**结论：簇 17 收口** —— 01 号研究核清「报告 `conflictPairs` 的 `pending_review` 项**必带** `heldChunkId` 且 admin **已把它拉到手**，缺的只是渲染与动作」，于是裁定**复用文档页已读的入库报告**（**不**新开读端点：无生产者的半接线 + 新暴露面），在文档行展开的报告区块加「待审冲突」块：有 `doc.editor` 二选一（调**既有** resolve 端点、处置后停用、**不**代跑 Reindex），无码只读。补 contracts 契约测 4 条 + RTL 11 条（含反证：去掉 `action` 判据 2 条变红；首轮夹具未带 `heldChunkId` 导致反证无效，已补夹具）。**顺带纠偏镜像 6 处**（`worker.md` / `db.md` / `README.md` 的「无查询面」与已落的 per-doc 只读 API 不符；`worker.md` 的 `dupe_status` 笔误）。**未解决 / 新记债**：① **处置零审计**，且 `admin-write-audit` 白名单对「文档内容处置类」（`resolve` / `supersede` / `PATCH` 元数据 / `PUT acl`）**同类不同待** → 准入 = 先定「哪些路径属管理写」口径；② 簇 14 只纠镜像，**跨文档**运维查询面仍未落（要不要建取决于「成员即可读全量账本」的暴露面裁定）；③ 待审积压聚合指标未落。**汇总表**：簇 17 行按「已解」改写，簇 14 行按「per-doc 已落 / 跨文档未落」改写。
+
 ## 汇总表
 
 | # | 簇 | 挡谁 | 离线可做 | PRD 依据 | 出处（图） |
@@ -33,10 +35,10 @@
 | 11 | `loadVisibilityContext` 请求级缓存 | 不挡；性能债 | 能 | PRD 未写 | p3b-doc-acl · p3b-principal-forms · quality-gate-parity |
 | 12 | 角色 principal / `role:` 主体 | 不挡（已裁不做，且属放宽方向） | 能但收益 0 | ADR-057 §5 | kb-role-vs-code · p3b-* |
 | 13 | `kb_members.role` 完整性债（无 CHECK / 读取侧 cast / 无 parse） | 不挡；债 | 能 | ADR-035 §决策 5/7（未销账） | kb-role-vs-code |
-| 14 | `GET …/ingest-jobs` 暴露面粒度（成员即可读全量账本） | 不挡；产品取向 | 能（若裁收紧） | 05-api（未核实节） | doc-read-member-gate · kb-role-vs-code |
+| 14 | `GET …/ingest-jobs` 暴露面粒度（成员即可读全量账本） | 不挡；产品取向 | **镜像已纠（2026-10-09）**：per-doc 只读已落、跨文档面未落；是否收紧未裁 | 05-api（未核实节） | doc-read-member-gate · kb-role-vs-code · **pending-review-ops** |
 | 15 | 404/403 存在性探测面 | 不挡；须裁代价 | 能（会改 404 语义） | ADR-035 §决策 4 | doc-read-member-gate · kb-role-vs-code |
 | 16 | `allowedDocIds` 无生产者（准入 = 先指名生产者） | 不挡 | 能但先要有生产者 | ADR-009 决策 3 · 05-api §2.2 | close-p2-exit-gaps · fill-must-haves |
-| 17 | `pending_review` 的 admin 审阅面（端点 + DTO 已齐，缺控件） | 不挡 | 能（RTL） | 功能表 §4.3 | close-p2-exit-gaps · p2-exit-evidence |
+| 17 | `pending_review` 的 admin 审阅面（端点 + DTO 已齐，缺控件） | **已解（2026-10-09）** | 能（RTL） | 功能表 §4.3 | close-p2-exit-gaps · p2-exit-evidence · **pending-review-ops** |
 | 18 | embed TPM / 堆积告警（R6-b） | 不挡（已划出） | 不能（PRD 无计数口径） | ADR-044 · 04-pipelines | close-p2-exit-gaps |
 | 19 | 真 Langfuse 读取面 | 不挡；准入 = 接真 SDK | 不能 | 08-quality §Langfuse | close-p2-exit-gaps |
 | 20 | `downrank` 跨 doc 去重动作 | 不挡；设计未成形 | 能但设计未成形 | 04-pipelines §5.1 | close-p2-exit-gaps |

@@ -6,7 +6,7 @@
 | 成熟度 | **可联调**（schema + client + 检索谓词底座；**无**业务服务层） |
 | 默认依赖模式 | 需要调用方提供 `DATABASE_URL`；时间列使用本地格式字符串（见 ORM PRD） |
 | 关联模块 | `api` 与 `worker` 共用 client / schema；检索闸门谓词被 api retrieve 复用 |
-| 最近更新 | 2026-09-20（**记明 `kb_members.role` 的定位**：库内锚点 / 模板锚点，运行时授权以权限码为准、不参与授权闸；并记 DB 层无 CHECK 约束；**未改任何 schema / 迁移**）；2026-09-20（**撤库侧默认**：migration `0022_ingest_report_default_parity` 对 `ingest_reports.cross_doc_dropped` / `conflict_pairs` 执行 `DROP DEFAULT`，把 `0015` 为回填留下的 `DEFAULT 0` / `DEFAULT '[]'::jsonb` 撤掉，使库侧与 schema / 快照一致；**未在真 PG 上跑过**（本机无 Docker 守护进程）；新增护栏单测 `tests/migrations/sql-snapshot-default-parity.test.ts`）；2026-09-20（`drizzle/meta/0021_snapshot.json` 基线快照落盘（26 表），`db:generate` 恢复可用；**验收在仓外副本达成**，仓库侧只多该未跟踪文件）；2026-09-19（`documents.active_index_version`，migration `0020`；`chunks.duplicate_of` / `dedupe_status`，migration `0021`；均**无默认**）；2026-09-17（`ingest_reports.contextualize_l1_ok` / `contextualize_l0_fallback`，migration `0019`，无默认）；2026-09-16（`ingest_reports.dedupe_cross_doc_rate`，migration `0018`；`ask_traces.citations`，migration `0017`；均无默认） |
+| 最近更新 | 2026-10-09（**镜像纠偏（图 pending-review-ops）**：本包**源码零改动**。把两处与源码不符的旧句按源码改写 —— `ingest_jobs` 由「无查询 API / 查询面无」改为「**per-doc 只读查询面已落**（api `GET /documents/:docId/ingest-jobs`）/ 跨文档运维面未落」；`chunks.dedupe_status` / `duplicate_of` 与报告 `conflictPairs.heldChunkId` 的形状未变，仅确认其运营消费面已落 admin 侧）；2026-09-20（**记明 `kb_members.role` 的定位**：库内锚点 / 模板锚点，运行时授权以权限码为准、不参与授权闸；并记 DB 层无 CHECK 约束；**未改任何 schema / 迁移**）；2026-09-20（**撤库侧默认**：migration `0022_ingest_report_default_parity` 对 `ingest_reports.cross_doc_dropped` / `conflict_pairs` 执行 `DROP DEFAULT`，把 `0015` 为回填留下的 `DEFAULT 0` / `DEFAULT '[]'::jsonb` 撤掉，使库侧与 schema / 快照一致；**未在真 PG 上跑过**（本机无 Docker 守护进程）；新增护栏单测 `tests/migrations/sql-snapshot-default-parity.test.ts`）；2026-09-20（`drizzle/meta/0021_snapshot.json` 基线快照落盘（26 表），`db:generate` 恢复可用；**验收在仓外副本达成**，仓库侧只多该未跟踪文件）；2026-09-19（`documents.active_index_version`，migration `0020`；`chunks.duplicate_of` / `dedupe_status`，migration `0021`；均**无默认**）；2026-09-17（`ingest_reports.contextualize_l1_ok` / `contextualize_l0_fallback`，migration `0019`，无默认）；2026-09-16（`ingest_reports.dedupe_cross_doc_rate`，migration `0018`；`ask_traces.citations`，migration `0017`；均无默认） |
 | Spec | `.trellis/spec/db/backend/` |
 | PRD | `prds/03-data` · `prds/02-engineering/02-orm-drizzle.md` |
 
@@ -35,7 +35,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 ### Schema · kb（入库主轴）
 - `knowledge_bases` · `documents`（含 **`chunkStrategy` / `chunkStrategyParams`** · **`active_index_version`**（migration `0020`；**可空无默认**，NULL = 从未成功激活 / 旧行未回填；只在 `es_index` 成功那次与 `status=ready` **同一条 UPDATE** 写）· **P3b-META** `owner_dept_id` / `visibility_level` 默认 20；**强制未接** · **P3b** `acl_principals` 可空 `uuid[]`，NULL=未设）· `chunks`（含 **`duplicate_of` / `dedupe_status`**，migration `0021`；`dedupe_status` 仅取值 `pending_review`，处理完回 NULL）· `chunk_manifests`
 - `chunk_embeddings`：**`embedding` 列为 jsonb `number[]`**（演示 mock 向量；**不是** native pgvector/`vector` 列）
-- `ingest_jobs`：schema 已有；**worker** `job-ledger` 按阶段边界最小写（**非**本包服务层；无查询 API；同 doc 锁在 worker Redis 侧）
+- `ingest_jobs`：schema 已有；**worker** `job-ledger` 按阶段边界最小写（**非**本包服务层；api 侧 **per-doc 只读查询面已落**，跨文档运维面未落；同 doc 锁在 worker Redis 侧）
 - `ingest_reports`：doc+indexVersion 唯一；事实列 chunkCount / internalDropped / **crossDocDropped / dedupeCrossDocRate** / conflictPairs / **contextSource** / **contextualizeL1Ok / contextualizeL0Fallback** / 双就绪 / 对账计数（migration `0011_ingest_reports` + `0015_ingest_report_cross_doc` + `0016_ingest_report_context_source` + `0018_ingest_report_dedupe_rate` + `0019_ingest_report_contextualize_counts`）；`dedupe_cross_doc_rate` 与两个 contextualize 计数**均无默认**（NULL = 迁移前旧行未记录，不得读成 0；L1 未开启的本轮写 0）；**`cross_doc_dropped` / `conflict_pairs` 的库侧默认已于 migration `0022` 撤销**（`0015` 为回填留下的 `DEFAULT 0` / `DEFAULT '[]'::jsonb` 与 schema 不一致，留着会让漏传该列的写入被静默填 0，故撤掉；漏传即 `NOT NULL` 违例）；`conflictPairs` 形状 = `{otherDocId, otherChunkId, action: skip_index|pending_review, heldChunkId?}`；**无** Hit@k 列
 - `kb_settings_audits`：tenantId / kbId / actorUserId / diffJson（migration `0013_kb_settings_audits`）；**无**密钥列；**不是** admin_write 全路径落表
 - `kb_members`（migration `0002_phase2_ask_foundation`）：role 列 text，默认 `'read'`，取值 read / write / admin；**库内锚点 / 模板锚点**——列注释与 2026-09-20 的裁定均记明「**运行时授权以权限码为准**」，该列**不参与**运行时授权闸（全仓唯一读取它的 SQL 只服务成员列表）；DB 层**无** CHECK 约束
@@ -67,7 +67,7 @@ Drizzle schema + client：**知识库 / 文档 / 分片 / 向量(jsonb) / 入库
 |----|------|
 | 部门强制检索 / 跨部门授权 | 文档部门列 `0007`；`dept_cross_grants` `0008`；过滤在 api 默认关（开时精确 ∪ 祖先 + grant 精确 ∪ 祖先部门子树；超管可绕过；列表同滤；可关继承） |
 | 权限三表终态 | 字典表 `permission_definitions` 已落；求值仍 `codes_json`；规范化角色-权限关联表迁表须 ADR |
-| `ingest_jobs` 完整运维账本 | 表有；worker 最小写；查询面无（锁见 worker Redis） |
+| `ingest_jobs` 完整运维账本 | 表有；worker 最小写；**per-doc 只读查询面已落**（api 侧）/ 跨文档运维面未落（锁见 worker Redis） |
 | 业务签字 live 真跑数字 | 表 `eval_runs` 可落库；真跑属 api/ops |
 | Mongo 正文 / ES 索引本体 | **不在**本包 |
 | 原生 pgvector 列 + ANN 索引 | 当前 jsonb mock 向量 |
