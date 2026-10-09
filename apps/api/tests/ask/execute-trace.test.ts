@@ -25,6 +25,7 @@ describe('executeAsk trace + graph wiring', () => {
         kbId: KB,
         tenantId: '01900000-0000-7000-8000-000000000001',
         userId: uuidv7(),
+        kbTenantId: '01900000-0000-7000-8000-000000000001',
         membership: 'member',
         body: {
           question: '年假有多少天？',
@@ -101,6 +102,7 @@ describe('executeAsk trace + graph wiring', () => {
         kbId: KB,
         tenantId: '01900000-0000-7000-8000-000000000001',
         userId: uuidv7(),
+        kbTenantId: '01900000-0000-7000-8000-000000000001',
         membership: 'member',
         body: {
           question: '年假几天',

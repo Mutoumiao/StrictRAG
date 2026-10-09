@@ -20,6 +20,8 @@ export const baseInput = (over: Partial<AskGraphInput> = {}): AskGraphInput => (
   requestId: 'req-1',
   question: '年假有多少天？',
   tenantId: 'tenant-1',
+  // 默认与 tenantId 同值（一致）；要造「两源不等」须显式 over.kbTenantId
+  kbTenantId: over.kbTenantId ?? over.tenantId ?? 'tenant-1',
   kbId: 'kb-1',
   membership: 'member',
   tauClaim: 0.5,

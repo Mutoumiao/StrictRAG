@@ -31,6 +31,12 @@ export type AskGraphInput = {
   requestId: string;
   question: string;
   tenantId: string;
+  /**
+   * KB 行的租户。检索层纵深断言「tenant 一致」的比对另一侧
+   * （ADR-009：入口校验 (userId,kbId,tenantId) ∈ kb_members 且 tenant 一致；失败 → abstained）。
+   * 必填：新入口少传即编译不过，不会静默免检。
+   */
+  kbTenantId: string;
   kbId: string;
   membership: MembershipSlot;
   userId?: string;
@@ -48,6 +54,7 @@ export type AskGraphState = {
   requestId: string;
   question: string;
   tenantId: string;
+  kbTenantId: string;
   kbId: string;
   membership: MembershipSlot;
   userId?: string;
@@ -132,6 +139,7 @@ export function initState(input: AskGraphInput): AskGraphState {
     requestId: input.requestId,
     question: input.question,
     tenantId: input.tenantId,
+    kbTenantId: input.kbTenantId,
     kbId: input.kbId,
     membership: input.membership,
     userId: input.userId,

@@ -31,7 +31,13 @@ import { saveAskTrace } from './traces.js';
 export type ExecuteAskParams = {
   requestId: string;
   kbId: string;
+  /** 入口租户：令牌声明，缺省时由调用方回落成 KB 租户 */
   tenantId: string;
+  /**
+   * KB 行的租户。必填，供检索层纵深断言「tenant 一致」（ADR-009）。
+   * 调用方必须给 KB 行的真值，不得用 `tenantId` 顶替 —— 否则断言永不触发。
+   */
+  kbTenantId: string;
   userId: string;
   membership: AskGraphInput['membership'];
   body: AskRequest;
@@ -194,6 +200,7 @@ export async function executeAsk(
       requestId: params.requestId,
       question: params.body.question,
       tenantId: params.tenantId,
+      kbTenantId: params.kbTenantId,
       kbId: params.kbId,
       membership: params.membership,
       userId: params.userId,

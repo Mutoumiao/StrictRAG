@@ -312,11 +312,21 @@ export function createEvalRoutes(deps: EvalRouteDeps = {}) {
       sessionId?: string;
     } = { question: parsed.data.question, options: { stream: false } };
     if (sessionId) body.sessionId = sessionId;
+    /*
+     * 内口不认令牌（口令制），故 KB 行租户必须自己查：
+     * ① 不存在的 kbId 一律拒（此前是开口）；② KB 租户作为 kbTenantId 交给检索层纵深断言，
+     * 使「请求体里乱填 tenantId」不再能静默绕过一致性判定（ADR-009）。
+     */
+    const kb = await getKb(parsed.data.kbId);
+    if (!kb) {
+      return fail(c, BizCode.NOT_FOUND, 'knowledge base not found', 404, { kbId: parsed.data.kbId });
+    }
     const result = await runAsk(
       {
         requestId: uuidv7(),
         kbId: parsed.data.kbId,
         tenantId: parsed.data.tenantId,
+        kbTenantId: kb.tenantId,
         userId: parsed.data.userId,
         membership: 'member',
         body,

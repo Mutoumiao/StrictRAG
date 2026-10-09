@@ -175,6 +175,11 @@ export type RunL1Options = {
   kbId: string;
   maxCases?: number;
   tenantId?: string;
+  /**
+   * KB 行的租户，供检索层纵深断言「tenant 一致」（ADR-009）。
+   * CLI 入口会读 KB 行传入；嵌入式调用不传 → 按 `tenantId` 等同处理（本批不做一致性判定）。
+   */
+  kbTenantId?: string;
   userId?: string;
   /** 可注入（单测 mock graph） */
   execute?: (params: ExecuteAskParams, deps?: ExecuteAskDeps) => Promise<ExecuteAskResult>;
@@ -683,6 +688,7 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
   let askMode: string | null = null;
   const rows: L1CaseRow[] = [];
   const tenantId = opts.tenantId ?? process.env.L1_TENANT_ID ?? '01900000-0000-7000-8000-000000000001';
+  const kbTenantId = opts.kbTenantId ?? tenantId;
   const userId = opts.userId ?? process.env.L1_USER_ID ?? '01900000-0000-7000-8000-0000000000e1';
 
   for (const c of cases) {
@@ -691,6 +697,7 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
       requestId,
       kbId: opts.kbId,
       tenantId,
+      kbTenantId,
       userId,
       membership: 'member',
       body: { question: c.question, options: { stream: false } },
@@ -906,11 +913,18 @@ async function main(): Promise<void> {
   }
 
   try {
+    // 检索层纵深断言（ADR-009）要比对 KB 行的租户；CLI 必须给真值，不得用 L1_TENANT_ID 顶替
+    const kbRow = await documentRepo.getKb(kbId);
+    if (!kbRow) {
+      console.error(`KB not found: ${kbId}`);
+      process.exit(2);
+    }
     const report = await runL1Golden({
       goldPath,
       outDir,
       kbId,
       maxCases,
+      kbTenantId: kbRow.tenantId,
       humanSpotPath: args.humanSpotPath,
       docMapPath,
       judgeScorerMode,

@@ -62,6 +62,7 @@ describe('executeAsk wires tracer spans', () => {
         kbId: KB,
         tenantId: '01900000-0000-7000-8000-000000000001',
         userId: uuidv7(),
+        kbTenantId: '01900000-0000-7000-8000-000000000001',
         membership: 'member',
         body: { question: '你好', options: { mode: 'balanced' } },
       },
@@ -95,6 +96,7 @@ describe('executeAsk wires tracer spans', () => {
         kbId: KB,
         tenantId: '01900000-0000-7000-8000-000000000001',
         userId: uuidv7(),
+        kbTenantId: '01900000-0000-7000-8000-000000000001',
         membership: 'member',
         body: {
           question: '你好',
@@ -146,6 +148,7 @@ describe('executeAsk wires tracer spans', () => {
         kbId: KB,
         tenantId: '01900000-0000-7000-8000-000000000001',
         userId,
+        kbTenantId: '01900000-0000-7000-8000-000000000001',
         membership: 'member',
         body: {
           question: '这份文档的适用范围是什么',
@@ -248,6 +251,7 @@ describe('executeAsk wires tracer spans', () => {
         kbId: KB,
         tenantId: '01900000-0000-7000-8000-000000000001',
         userId,
+        kbTenantId: '01900000-0000-7000-8000-000000000001',
         membership: 'member',
         body: {
           question: '网上那份文件怎么说',
@@ -326,6 +330,7 @@ describe('executeAsk wires tracer spans', () => {
         kbId: KB,
         tenantId: '01900000-0000-7000-8000-000000000001',
         userId: uuidv7(),
+        kbTenantId: '01900000-0000-7000-8000-000000000001',
         membership: 'member',
         body: { question: '年假有多少天？', options: { mode: 'balanced' } },
       },

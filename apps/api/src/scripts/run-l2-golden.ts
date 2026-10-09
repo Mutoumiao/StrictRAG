@@ -171,6 +171,11 @@ export type RunL2Options = {
   kbId: string;
   maxCases?: number;
   tenantId?: string;
+  /**
+   * KB 行的租户，供检索层纵深断言「tenant 一致」（ADR-009）。
+   * CLI 入口会读 KB 行传入；嵌入式调用不传 → 按 `tenantId` 等同处理（本批不做一致性判定）。
+   */
+  kbTenantId?: string;
   userId?: string;
   execute?: (params: ExecuteAskParams, deps?: ExecuteAskDeps) => Promise<ExecuteAskResult>;
   executeDeps?: ExecuteAskDeps;
@@ -381,6 +386,7 @@ export async function runL2Golden(opts: RunL2Options): Promise<L2Report> {
     ledger ? resolveExpectedDocIds(expected, ledger) : expected;
   const run = opts.execute ?? executeAsk;
   const tenantId = opts.tenantId ?? process.env.L2_TENANT_ID ?? DEV_TENANT_ID;
+  const kbTenantId = opts.kbTenantId ?? tenantId;
   const userId = opts.userId ?? process.env.L2_USER_ID ?? DEV_USER_ID;
   const rewriteEnabled = resolveRewriteEnabled(opts.rewriteEnabled);
   const windows = new Map<string, WindowTurn[]>();
@@ -419,6 +425,7 @@ export async function runL2Golden(opts: RunL2Options): Promise<L2Report> {
           requestId: uuidv7(),
           kbId: opts.kbId,
           tenantId,
+          kbTenantId,
           userId,
           membership: 'member',
           body,
@@ -593,11 +600,18 @@ async function main(): Promise<void> {
   const docMapPath = process.env.L2_DOC_MAP?.trim() || undefined;
 
   try {
+    // 检索层纵深断言（ADR-009）要比对 KB 行的租户；CLI 必须给真值，不得用 L2_TENANT_ID 顶替
+    const kbRow = await documentRepo.getKb(parsed.kbId);
+    if (!kbRow) {
+      console.error(`KB not found: ${parsed.kbId}`);
+      process.exit(2);
+    }
     const report = await runL2Golden({
       goldPath,
       outDir,
       kbId: parsed.kbId,
       maxCases: parsed.maxCases,
+      kbTenantId: kbRow.tenantId,
       docMapPath,
     });
     console.log(

@@ -40,6 +40,7 @@ import {
   type GraphEvidence,
   type SessionWindowTurn,
 } from './state.js';
+import { logger } from '../logger.js';
 import { recordLlmCall } from '../obs/metrics.js';
 import {
   isExplicitDocumentBackref,
@@ -294,6 +295,25 @@ export async function runAskGraph(
   // --- retrieve ---
   {
     const span = tracer.startSpan('ask.retrieve', { kbId: state.kbId });
+    /*
+     * 0b 检索层纵深（ADR-009 / online-ask §5）：入口租户必须与 KB 行的租户一致，
+     * 失败 → abstained reason=not_member，**不进 dense/ES**。
+     * 入口租户在缺 claim 时已回落成 KB 租户（只会产生相等），故此处只抓真正的不等。
+     */
+    if (state.tenantId !== state.kbTenantId) {
+      span.end({ reason: 'not_member' });
+      logger.info(
+        {
+          event: 'ask_tenant_mismatch',
+          tenantId: state.tenantId,
+          kbTenantId: state.kbTenantId,
+          kbId: state.kbId,
+          requestId: state.requestId,
+        },
+        'ask tenant mismatch: entry tenant differs from kb tenant',
+      );
+      return finalize(state, 'not_member');
+    }
     if (!tryChargeRetrieve(state.retrieveCalls, budget.maxRetrieveCalls)) {
       span.end({ reason: 'budget_exhausted' });
       return finalize(state, 'budget_exhausted');

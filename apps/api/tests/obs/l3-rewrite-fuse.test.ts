@@ -70,6 +70,7 @@ async function askWithRewriteEnv(opts?: { rewriteEnabled?: boolean }): Promise<{
       requestId: uuidv7(),
       kbId: KB,
       tenantId: TENANT,
+      kbTenantId: TENANT,
       userId: uuidv7(),
       membership: 'member',
       body: {

@@ -96,6 +96,7 @@
 | `ask/scoring-rrf.test.ts` | 混合检索的余弦相似与 RRF 融合按预期排序。 | prds/04-pipelines | `cosine / rrfFuse` | 打分与倒数秩融合的纯函数。 | 现行 |
 | `ask/sparse-kb-filter.test.ts` | 共享索引查询必须带 tenantId + kbId term，外库 chunk 不得进 evidence。 | 剧本 O1 | `searchSparseEs / runRetrieve` http sparse | 默认 mock ES；锁 tenantId + kbId filter；部门 terms 另见 es-dept-query-filter。≠ 生产独立索引。 | 现行 |
 | `ask/trace-citations-column.test.ts` | 当轮 citations 必须真的落进 ask_traces 列（断线重拉终态的前提）。 | 功能表 §3 断线重拉终态 · prds/03-data §3.4 | `saveAskTrace` | 传 citations 落列；拒答落 `[]`（≠ 未记录）；未传落 null。 | 现行 |
+| `ask/tenant-consistency.test.ts` | ask 检索期必须比对入口租户与 KB 行租户，不一致即拒答且不进 dense/ES。 | ADR-009 · prds/04-pipelines/02-online-ask-langgraph.md §5「0b 检索层纵深」 | `runAskGraph 检索前置 / POST …/ask / POST /internal/eval/execute-ask` | 等值照常；不等值 abstained+not_member 且 retrieve 零调用；内口 KB 行缺失 404；令牌租户不得被 KB 租户顶替。 | 现行 |
 | `ask/verify-required.test.ts` | 合法 draft 必须完整 verify；拆句失败或网关错不得 answered。 | P0 R9 · prds/08-quality | `runAskGraph（verify / claim_split）` | happy 必经 generate+claim_split+judge；拆句失败或网关错不得 answered。 | 现行 |
 | `auth/enforce-401.test.ts` | AUTH_ENFORCE 开启且无 Bearer 时必须 401。 | QUAL-1 | `requirePermissionWhenEnforced` | enforce 开且无 Bearer → 401。 | 现行 |
 | `auth/enforce-permission-matrix.test.ts` | enforce=true 时写入口必须按码 403：read 六类入口全拒、doc_operator 审批拒；绕过壳也无效。 | 剧本 B1-2 / B1-8 / S2 / S3 / S8 / Y3 · ADR-051 | `requirePermissionWhenEnforced / requirePermission（documents · members · kb-settings · eval · ask）` | 夹具在测试内 stubEnv 开 enforce；403 只来自缺码；对照 ask 仍 200。 | 现行 |
