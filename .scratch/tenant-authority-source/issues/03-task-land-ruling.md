@@ -39,7 +39,7 @@ Blocked by: 02
 
 **落点说明**：断言放在 **ask 图的检索节点前置**（= PRD §5「0b 检索层纵深」的位置，失败形态是 `finalize abstained`），因此**两条入口（用户路由 / 内口）共用同一条判定**，且未来任何在图上取证的节点都会先过这道闸。**KB 租户来源限定为 KB 行**（`getKb` / `documentRepo.getKb`），不用文档行「第一行」那一路（R8 已把后者留雾）。
 
-### 2 · 新增覆盖（7 例）
+### 2 · 新增覆盖（8 例）
 
 | 例 | 断言 |
 |----|------|
@@ -47,7 +47,8 @@ Blocked by: 02
 | 图 · 不等值 | `status='abstained'` ∧ `reason='not_member'` ∧ 注入的 retrieve **0 次**（不进 dense/ES） |
 | 路由 · 令牌租户 = KB 行租户 | 200 ∧ `answered` |
 | 路由 · 令牌租户 ≠ KB 行租户 | 200 ∧ `abstained` ∧ `not_member`（钉「不得用 KB 租户顶替令牌租户」） |
-| 内口 · `kbId` 不存在 | **404**（此前是开口） |
+| 路由 · **令牌没声明租户** | 200 ∧ `answered`（R2 边界：回落只会产生相等，不算不一致） |
+| 内口 · `kbId` 不存在 | **404**（此前是开口；「请求写错」与「身份与数据矛盾」分开处置） |
 | 内口 · body 租户 = KB 行租户 | 200 ∧ `answered` |
 | 内口 · body 租户 ≠ KB 行租户 | 200 ∧ `abstained` ∧ `not_member` |
 
@@ -64,7 +65,7 @@ Blocked by: 02
 
 ### 4 · 既有断言零翻
 
-- **api 全量**：`187 files passed` · `1168 passed | 3 skipped (1171)`（改动前 186 文件 / 1161 passed + 3 skipped ⇒ **+1 文件 · +7 例，零红零翻**）。
+- **api 全量**：`187 files passed` · `1169 passed | 3 skipped (1172)`（改动前 186 文件 / 1161 passed + 3 skipped ⇒ **+1 文件 · +8 例，零红零翻**）。
 - 装载面的 fail-closed 测例（`dept-acl-ask-e2e.test.ts:327-341`）**未动、未红**：本图**不改装载面**（R6 已裁）。
 - ES 稀疏腿的两条「入口租户」断言（`retrieve-run.test.ts:462` · `sparse-kb-filter.test.ts:117`）**未动、未红**：R6 已裁「不改取值来源」，故本条不触发。
 - 唯一被动的既有断言是 `ExecuteAskParams` 的 9 处字面量构造点**补字段**（值同），断言本身一字未改。
@@ -73,16 +74,19 @@ Blocked by: 02
 
 | 门 | 结果 |
 |----|------|
-| `pnpm --filter @strict-rag/api test` | 187 文件全绿 · 1168 passed + 3 skipped |
+| `pnpm --filter @strict-rag/api test` | 187 文件全绿 · 1169 passed + 3 skipped |
 | `pnpm check-types` | **8 successful, 8 total** |
 | `pnpm lint` | **8 successful, 8 total**（`--max-warnings 0`，api 实际执行非缓存） |
-| 全仓 `pnpm test` / `check:module-status` | 留到工单 04 收口批次跑 |
+| 全仓 `pnpm test --concurrency=1` | **11 successful, 11 total**（admin-catalog 13 · contracts 322 · db · worker 289 · api 1169+3 · admin 200 · web 56） |
+| `pnpm check:module-status` | 47 条（2 env + 13 符号 + 32 表），`1-路径` / `6-联动` / `7-时效` **均为空**；与立图前同数（本次回写**未新增**噪声） |
 
 ### 6 · 未验证 / 残余（如实登记）
 
 - **未做全栈真栈端到端**：本图只在图级与路由级证明「不等值 → 拒答」。**真 ES 上的最小对照已由工单 01 跑过**（A 查 2 / B 查 1 · `kb-onlyA`：A→1 / B→0），证明的是**旧行为**（静默丢失）；新行为的端到端（起 api + 真 PG + 真 ES + 网关）**本轮未做**。
 - **CLI 批跑的嵌入式用法**：`runL1Golden` / `runL2Golden` 若被**编程方式**调用而不传 `kbTenantId`，等于声明「入口租户就是 KB 租户」，该批不做一致性判定。生产 CLI（`main()`）已读 KB 行，故真实批跑受保护；**残余 = 嵌入式调用**。销账条件：把该参提为必填，或让批跑改走内口。
-- **超管跨租户**：本图的断言**不给超管例外**（租户是存储隔离边界）。ADR-051 未写「超管可否跨租户」→ 记债（销账条件见裁定书 R8）。
+- **超管跨租户**：本图的断言**不给超管例外**（租户是存储隔离边界）。这是**与 ADR-051 `:1360`「内容与平台全路径」的字面张力**（该条未写租户）→ 记债并登总 backlog `DEC-TENANT-SA`（销账条件见裁定书 R8）。
+- **`kbTenantId` 的防漂移面有边界**：`tests/` 不在 `check-types` 覆盖面（`apps/api/tsconfig.json` 的 `include` 只有 `src`），CLI runner 的该参是**可选**（`?? tenantId`）→ 这两处不靠类型护栏，靠测例与「入口读 KB 行」的纪律。
+- **dev 探针未纳入**：`apps/api/src/scripts/seed-es-sparse-probe.ts` 自行取**文档行第一行**租户并**直连** `searchSparseEs`（绕过 `runRetrieve` 与本断言）。非生产 ask 入口，**不在保护范围**，如实登记。
 - **内口 `membership: 'member'` 硬编码**（0b 的成员侧在内口被绕过）：本图**未动**（属内口信任模型），留雾 + 记债。
 - **`kb_members.tenant_id` 取邀请人租户 / 无同租户校验**：**未动**（无消费者、无越权），留雾。
 - **装载面取「第一行」租户**：**未动**，留雾。

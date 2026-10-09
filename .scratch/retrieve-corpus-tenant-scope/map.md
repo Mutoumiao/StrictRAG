@@ -53,7 +53,7 @@ Status: resolved（前沿：空；**目的地经工单 02 重画**：原定改�
 
 ## Not yet specified
 
-- **ask 的租户权威源是 auth 还是 KB**（本图核出的真问题 · 已登记雾清单簇 **40** 与 `api.md` 技术债）：三条处置 —— ① ES 稀疏腿改按 `kb.tenantId`（对齐 PG 语料）② `auth.tenantId ≠ kb.tenantId` 即拒 ask ③ 明确「跨租户访问不得发生」并在写路径 / 读取面加断言。**准入 = 先做一次裁定**（可能须 ADR：现行 `ask.ts:314` 的 `auth.tenantId ?? kb.tenantId` 是既有实现，改它属改语义）。**未实测**：不等值时的实际表现（稀疏腿是否真的一条不中）无真 ES 证据。
+- **ask 的租户权威源是 auth 还是 KB**（本图核出的真问题 · 已登记雾清单簇 **40** 与 `api.md` 技术债）：**已销（2026-10-10，图 [`tenant-authority-source`](../tenant-authority-source/map.md)）** —— 裁定不是「二选一」而是「**两值必须一致**」（依据 ADR-009 与 `prds/04-pipelines/02-online-ask-langgraph.md` §5 0b 的明文「且 tenant 一致；失败 → abstained `not_member`，不进 dense/ES」），落地 = 检索节点前置断言 + `kbTenantId` 必填 + 内口补查 KB 行；**装载面依旧不改**（与本图工单 02 的裁定一致），三条原候选中的「ES 腿改按 `kb.tenantId`」被明确否决（断言前置后两值恒等，改源会翻本图钉住的两条断言）。
 - **`documents.tenant_id` 的 DB 约束**：今天只有 NOT NULL，无「必须等于所属 KB 的租户」约束；加它需 migration + 生产数据前提（是否存在历史异租户行未核）。
 - **`loadVisibilityContext` 的请求级复用**（簇 11）：同一请求内 `loadCorpus` 可能被调 2 次（带 scope 与不带 scope 各一次）→ 可见性上下文重算 2 次。是否值得缓存属性能取向，**留雾**。
 - **装载测例的 `db.js` mock 忽略 `where`**：本图发现任何新增的**查询谓词**都没有回归保护（mock 直接返回全夹具）。若将来在装载面加谓词，须同时改 mock 口径或在真 PG 上验 —— 属测试基建债，**留雾**。

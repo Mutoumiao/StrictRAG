@@ -460,6 +460,30 @@ return c.json(okEnvelope(response), httpStatus);
 
 ---
 
+## Design Decision: 0b 租户一致性（入口租户 vs KB 行租户）
+
+**Context**：ask 的检索期此前有**两处取值链** —— ES 稀疏腿取**入口租户**（`routes/ask.ts` 的 `auth.tenantId ?? kb.tenantId`），PG 语料取**文档行**租户（`services/retrieve/corpus.ts` 的 `dual[0]?.tenantId`）。两值不等时 ES 腿**静默零命中**（不泄漏：异租户命中会被「只保留语料内 id」求交滤掉；属召回丢失，已在真 ES 上跑出对照数字）。冻结文本其实早已写死要求：ADR-009（`prds/11-decisions/00-adr-index.md:151`）与 `prds/04-pipelines/02-online-ask-langgraph.md:170` ——「0b 检索层纵深：断言 `userId ∈ kb_members(kbId)` **且 tenant 一致**；失败 → `finalize abstained` `reason=not_member`（或 `internal_guard`），**不进 dense/ES**」。源码此前只落了成员那一侧。
+
+**Decision**：**权威源不二选一 —— 要求两值一致**。
+
+- **判定点**：ask 图的**检索节点前置**（`apps/api/src/graph/run.ts`），在 `tryChargeRetrieve` **之前** → 不等即 `finalize(state, 'not_member')`，**不进 dense/ES**、不耗检索预算；同时写一条领域事件 `ask_tenant_mismatch`（带 `tenantId` / `kbTenantId` / `kbId` / `requestId`）。落在这里而非路由层，是因为 PRD 0b 的失败形态是 **abstain**（不是 0a 的 403），且两条入口共用同一条判定。
+- **比对双方**：`tenantId`（令牌声明；**在用户路由 `routes/ask.ts` 上**缺 claim 时已回落成 `kb.tenantId` —— 该回落只会产生相等，故「令牌没声明租户」不算不一致、逐位等价）+ `kbTenantId`（**KB 行的租户**）。内口/CLI 的 `tenantId` 是请求体 / env 值，没有这层回落。
+- **不给超管例外，但这是与 ADR-051 的张力（不是无冲突）**：ADR-051 #6 写「超管全权：无需 `kb_members` 即可**内容与平台全路径**」，**未写租户**；本决策按 ADR-009 的「且 tenant 一致」判「超管也须租户一致」，并在总 backlog 登 **`DEC-TENANT-SA`** 记债（销账 = 接真 IdP / 多租户试点前由 ADR 明确；若判可放行，须 ADR → 改 PRD → 升版）。
+- **必填即防漂移，但覆盖面有边界**：`AskGraphInput.kbTenantId` · `AskGraphState.kbTenantId` · `ExecuteAskParams.kbTenantId` 在 `src/` 里一律**必填**（新 `src` 入口少传即编译不过）。**注意两处不在类型护栏内**：① `tests/` 不在 `check-types` 覆盖面（`apps/api/tsconfig.json` 的 `include` 只有 `src`）② CLI runner 的 `RunL1Options.kbTenantId` / `RunL2Options.kbTenantId` 是**可选**（`?? tenantId` 回落）—— 这两处靠测例与「入口读 KB 行」的纪律，不靠类型。入口**必须**给 KB 行的真值（`getKb(...).tenantId`），**禁止**用 `tenantId` 顶替 —— 顶替会让断言永不触发；`apps/api/tests/ask/tenant-consistency.test.ts` 已用反证钉住这个漂移口。
+- **两条入口**：`routes/ask.ts`（`kb` 已在手，`tenantId` 仍是令牌租户）· `routes/eval.ts` 的 `/internal/eval/execute-ask`（**补 `getKb`**：取不到 → **404**；该口是口令制、无令牌，此前既不校验 `kbId` 存在也不校验 `body.tenantId`）。
+- **CLI 批跑**：`runL1Golden` / `runL2Golden` 的 CLI `main()` 读 KB 行传入 `kbTenantId`（取不到 → exit 2）。**已知残余**：以编程方式调用这两个 runner 而不传 `kbTenantId` 时按 `tenantId` 等同处理（该批不做一致性判定），销账条件 = 把该参提为必填或让批跑改走内口。
+
+**禁止**（改一处即改语义，须先裁）：
+
+- 把断言做成**路由层 403** —— PRD 0b 的失败形态是 abstain。
+- 把 **ES 稀疏腿改成按 `kb.tenantId` 取值** —— 断言前置后两值恒等，改源不改变任何结果，却会翻转 `tests/ask/retrieve-run.test.ts` / `tests/ask/sparse-kb-filter.test.ts` 里「稀疏腿收到入口租户」的既有断言。
+- 把**装载面**改成入口租户 —— 会翻 `tests/acl/dept-acl-ask-e2e.test.ts` 的 fail-closed 用例，且与本决策无关。
+- 把 `kbTenantId` 用 `tenantId` 或常量顶替（等于关掉这条闸）。
+
+**Related**：`apps/api/tests/ask/tenant-consistency.test.ts` · `services/retrieve/{retrieve,corpus}.ts` · `docs/module-status/api.md`（技术债行）。
+
+---
+
 ## Design Decision: B2-W mode / docTypes 在 ask 入口而非仅 UI
 
 **Context**：settings 写路径已有，但 ask 不读则配置无效。

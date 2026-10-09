@@ -5,8 +5,8 @@
  *       reason=not_member（或 internal_guard），不进 dense/ES」。
  * 被测：runAskGraph 的检索节点前置断言 · POST /knowledge-bases/:kbId/ask · POST /internal/eval/execute-ask
  * 简介：等值照常检索（回归锚）；不等值 → status=abstained ∧ reason=not_member ∧ 注入的 retrieve **零调用**；
- *       用户入口：与 KB 同租户的令牌得 answered，异租户令牌得 not_member（钉子令牌租户不得被 KB 租户顶替）；
- *       内口：KB 行不存在 → 404，body 租户与 KB 行不等 → 拒，相等 → 照常。
+ *       用户入口：与 KB 同租户的令牌得 answered，异租户令牌得 not_member，**没声明租户的令牌仍得 answered**
+ *       （入口回落只会产生相等）；内口：KB 行不存在 → 404，body 租户与 KB 行不等 → 拒，相等 → 照常。
  *       反证：删掉 run.ts 的判定 → 不等值两条转 answered 而红；把入口的 kbTenantId 顶替成 tenantId → 同两条红。
  */
 
@@ -36,14 +36,14 @@ const OTHER_TENANT = '01900000-0000-7000-8000-0000000000b1';
 
 const META = { esMode: 'mock', candidateCount: 1, denseHits: 1, sparseHits: 1 };
 
-async function token(tenantId: string) {
+async function token(tenantId?: string) {
   const userId = uuidv7();
   const pair = await issueTokenPair({
     userId,
     app: 'web',
     roles: ['web_consumer'],
     email: `${userId.slice(0, 8)}@test.local`,
-    tenantId,
+    ...(tenantId ? { tenantId } : {}),
   });
   return { userId, accessToken: pair.accessToken };
 }
@@ -139,6 +139,18 @@ describe('POST /knowledge-bases/:kbId/ask · 入口租户与 KB 行租户', () =
     const body = (await res.json()) as { data: { status: string; reason?: string } };
     expect(body.data.status).toBe('abstained');
     expect(body.data.reason).toBe('not_member');
+  });
+
+  it('令牌没声明租户 → 入口回落成 KB 租户 → 不拒答（边界：不声明不算不一致）', async () => {
+    const { accessToken } = await token();
+    const res = await buildAskApp(KB_TENANT).request(`/api/v1/knowledge-bases/${KB}/ask`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ question: '年假有多少天？', options: { mode: 'balanced' } }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { status: string; reason?: string } };
+    expect(body.data.status).toBe('answered');
   });
 });
 

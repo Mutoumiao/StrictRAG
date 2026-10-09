@@ -59,7 +59,8 @@ PRD 真正沉默的只有一格：**「一致」是比较哪两个 tenant**（R2
 ### R5 · 两条入口都要落（含内口），并堵住内口开口
 
 - **用户路径** `apps/api/src/routes/ask.ts`：`kb` 已在手（`getKb` 已调）→ 传 `kbTenantId: kb.tenantId`。
-- **内口** `apps/api/src/routes/eval.ts` 的 `/internal/eval/execute-ask`：**补一次 `getKb`**（该 dep 已存在，`EvalRouteDeps.getKb`），KB 行取不到 → 拒（`not_member`），并把 `kb.tenantId` 作为 `kbTenantId` 传下去 ⇒ 「接受任意 `tenantId`」这个开口被堵。
+- **内口** `apps/api/src/routes/eval.ts` 的 `/internal/eval/execute-ask`：**补一次 `getKb`**（该 dep 已存在，`EvalRouteDeps.getKb`），并把 `kb.tenantId` 作为 `kbTenantId` 传下去 ⇒ 「接受任意 `tenantId`」这个开口被堵。
+  - **KB 行取不到 → `404`（不是 abstain）**：内口是**口令制的机器接口**，`kbId` 查不到属**请求错**，与同文件其它端点（gold-questions / eval-runs）的 404 口径一致，也让 worker 侧记成 error 而非 abstained；「租户不一致」才走 abstain（那是身份与数据的矛盾，不是请求写错）。
 - **两个评测脚本** `apps/api/src/scripts/run-l1-golden.ts` / `run-l2-golden.ts`：今天 `tenantId` 取 env 默认（可能 ≠ KB 租户）→ 必须补 `kbTenantId`（值来自 KB 行）。**副作用如实写**：若有人用 `L1_TENANT_ID` / `L2_TENANT_ID` 显式指到 ≠ KB 租户，本图之后该批跑会按新规则拒答 —— 这是**预期的 fail-closed**，须在 spec / 镜像里写明用法。
 
 ### R6 · 明确否决的两条候选（附残余）
@@ -73,8 +74,9 @@ PRD 真正沉默的只有一格：**「一致」是比较哪两个 tenant**（R2
 
 1. 两值相等 → 照常检索（逐位等价，回归锚）。
 2. 两值不等 → `ok:false` / `reason='not_member'`，**且 sparse 未被调用**（Dense 也不该跑）。**反证**：把判定删掉 → 本条必红。
-3. 内口：KB 行不存在 → 拒；KB 行存在且 `body.tenantId ≠ kb.tenantId` → 拒。
+3. 内口：KB 行不存在 → **404**；KB 行存在且 `body.tenantId ≠ kb.tenantId` → 拒（abstained `not_member`）。
 4. 用户路由：令牌租户 ≠ KB 租户时，路由交出的 `tenantId` 是**令牌租户**（不是 KB 租户）、`kbTenantId` 是 **KB 行租户**。**反证**：把 `kbTenantId` 写成 `tenantId` / 写成常量 → 本条必红（这两处正是「静默抹平不等」的漂移口）。
+5. **令牌没声明租户**（`auth.tenantId` 缺）→ 入口回落成 KB 租户 → **不拒答**（R2 的边界：不声明不算不一致）。
 5. 反证探针无效时如实记录并换探针（前图教训）。
 
 **既有断言零翻**：研究票 §4.3 已证今天**全仓无**「入口租户 ≠ 文档行/KB 租户」的夹具 ⇒ 新断言在既有夹具上恒不命中；`ExecuteAskParams` 的既有构造点补字段属**新增必填入参**，断言内容不变。**若实跑出现翻红，先如实报告再裁，不许放宽实现。**
@@ -87,7 +89,7 @@ PRD 真正沉默的只有一格：**「一致」是比较哪两个 tenant**（R2
 | 内口把 `membership: 'member'` **硬编码**（绕过 0b 的成员断言） | **划出（留雾 + 记债）**：内口不携带真实身份，堵它要动内口信任模型，不属本图 |
 | `apps/api/src/services/retrieve/corpus.ts:71` 取**第一行**文档的租户 | **划出（留雾）**：今天无路径能造出「同 KB 内文档行租户不一致」（研究票 §6.3）；要动它必须先裁「哪一行才算」 |
 | `prds/09-security/01-auth-acl-compliance.md:219` 省略「且 tenant 一致」（与 ADR-009 / online 措辞不一致） | **不改 PRD**；在 spec + 镜像记「措辞差，以更具体者（ADR-009 `:151` / online `:170`）为准」 |
-| **超管跨租户访问是否放行**（ADR-051 `:1360` 只写「超管全权：无需 `kb_members`」，**未写跨租户**） | **本图不给超管例外**：租户是存储隔离边界（ES filter / Mongo 分库 / RustFS key 前缀全按租户），且断言确定性优于猜测。**划出 + 记债**：销账条件 = 接真 IdP 或做多租户试点前，由 ADR 明确「超管可否跨租户」；若届时判「可」，本图这条断言需同步开例外（属改冻结语义，须 ADR → 改 PRD → 升版） |
+| **超管跨租户访问是否放行**（ADR-051 `:1360` 只写「超管全权：无需 `kb_members` 即**内容与平台全路径**」，`：1372` 写「超管非成员 ask → 允许」；**两条都未写租户**） | **本图不给超管例外**：租户是存储隔离边界（ES filter / Mongo 分库 / RustFS key 前缀全按租户），且断言确定性优于猜测。**这是与 ADR-051 的字面张力，不是「无冲突」**：按 ADR-009 的「且 tenant 一致」判不例外，并在 backlog 登 **`DEC-TENANT-SA`** 记债。**划出**：销账条件 = 接真 IdP 或做多租户试点**之前**由 ADR 明确；若届时判「可放行」，本图这条断言需同步开例外（属改冻结语义，须 ADR → 改 PRD → 升版） |
 | 装载测例把 `db.js` 的 `where` mock 成忽略入参（新增查询谓词无回归保护） | **划出 + 记债**：本图不在装载面加谓词，故不触发；销账条件 = 下次在装载面加谓词时同步改 mock 口径或用真 PG 验 |
 
 ### R9 · 本图结论的规定表述（防高估）

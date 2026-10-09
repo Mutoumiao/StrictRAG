@@ -21,7 +21,8 @@
 | ask `scope` | **顶层**可选字段（如 `scope.docTypes`）；**禁止**塞进 `options`（ADR-050） |
 | UI ≠ API 授权 | handler **独立验码**；菜单有无改变不了 API |
 | admin 壳 | 根中间件验 **`admin.shell`**；无码 → 403/302→web（ADR-045 经 **051** 修订） |
-| 租户 | JWT 内 tenant_id，禁止只靠 body |
+| 租户 | JWT 内 tenant_id，禁止只靠 body；**ask 检索期**要求「入口租户 = KB 行租户」，不等 → 拒答 `not_member` 且不进 dense/ES（ADR-009，见 [ask-pipeline](./ask-pipeline.md) 的 0b 决策） |
+| 租户（内口例外） | `POST /internal/eval/execute-ask` 是**口令制、无令牌**：其 `tenantId` 只能由请求体给出；该口自行查 KB 行（缺 KB → 404）并把 KB 行租户交给**同一条**一致性判定 |
 | 建库 | `POST /knowledge-bases` body **必填** `initialAdminUserId`，写入 `kb_members(role=admin)`；`tenantId` 只认令牌（无令牌时 `DEV_DEFAULT_TENANT`），**忽略** body 租户 |
 | 策略三层 | 表 `chunk_strategy_definitions` / `kb_chunk_strategies` 为 catalog 权威；写入闸仍 `IMPLEMENTED_*`；complete/reindex 按 for-upload available 计数（仅 1 个自动，≥2 必选）；改库启用 **不** 自动 reindex |
 | 文档运营 | PATCH 文档 `docType` 须 ∈ 该 KB 枚举（空枚举只能清 null）；lifecycle 四态；上架 `active` 仍须 `status=ready`；检索闸仍 ready∧active |
