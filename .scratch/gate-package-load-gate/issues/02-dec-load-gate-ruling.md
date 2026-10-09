@@ -1,7 +1,7 @@
 # 裁定：τ 的权威源与「拒绝加载」的形状
 
 Type: grilling
-Status: pending
+Status: resolved
 Blocked by: 01
 
 ## Question
@@ -20,4 +20,85 @@ Blocked by: 01
 
 ## Answer
 
-待填
+**主控裁定（不动 `prds/00–11` 任何条款文本；出 ADR-062 记录归属澄清）。**
+
+### R1 · τ 的权威源 =「包为权威 · env 为承载 · 两者必须一致」
+
+选**读法 2 + 3**（一致性闸 + 有包才适用），不选读法 1（源切换）。依据与理由：
+
+1. **这件事本来就是冻结语义，不是新语义**：§6.0「加载」行（`prds/08-quality/02-evaluation-and-gates.md:151`）是 **ADR-046 决策 #4** 的下沉（`prds/11-decisions/00-adr-index.md:1024-1026` 逐字「运行时加载校验配置↔包一致；不匹配 → 拒绝加载」），另见 `#2.4`（`:1017`）与加强句 `prds/00-product/01-vision-and-success.md:113`。**「须 ADR」的那半前提站不住**：ADR-007 原文（`:71-76`）只说「唯一 tauClaim / 废弃 tauAbstain / crag 只管检索分支」，**没有**「唯一源 = env」这句 —— 那是 `apps/api/src/env.ts:16` / `.env.example:17-19` / `README.md:81-83` 三处下游固化。工单 01 的研究把这一点核清了，故本裁定的前提是「**落地既有冻结要求**」。
+2. **为什么不直接读法 1（τ 改取自包）**：① **无包时必须能跑**（§6.0 锚点行 `:148`「KB 未声明则用默认」+ 试点前 dogfood + `tests/eval/signoff-package-derive.test.ts:60-63` 的「无合格 run → 保持 null」用例）→ 源切换必然保留 env 兜底，收益只剩「换个变量名」；② **队列路径的包今天不记录 τ**（`run-l1-batch.ts:300-309`，worker 批跑经 api 内口、注释自陈「τ 在 api 侧，不回传」），源切换会让主生产路径的包全部不可用，除非先补生产者 —— 而补生产者**在本裁定里单独做**（R5）；③ ask 路径逐请求读库取 τ 会**改变判定输入**（`graph/run.ts:542` 的唯一消费点），风险与收益不成比例，且 §6.0 并未要求 ask 改判。
+3. **读法 2 在实质上满足 §6.0**：「运行时质量参数仅来自已签字包」的落地形态 = **包决定该 KB 的运行参数应当是什么，env 只是承载它的机制且必须与包相等**；不等 → 不加载（§6.0 逐字）。这同时把 §7 的再认证义务变成**机器可拦**的：改了 env τ 而不重跑，包立刻不可加载。
+4. **ADR-062（新增条目）**：记录「权威在包 / env 须一致 / 无包放行 / 拒绝加载的读面终态」四点归属澄清，并**明写「未改任何条款文本 → 不触发 `prds/README.md` 版本变更」**。这是审计需要（免得下一轮把它读成「绕过 ADR-007 的静默改动」），不是改冻结语义。
+
+### R2 · 一致性判据 = `report_json.repro.tauClaim`，严格相等，且必须处理「未记录」
+
+- **唯一载体** = `eval_runs.report_json.repro.tauClaim`（`packages/contracts/src/eval/l1-repro.ts:86`）。`gateSnapshot` 未落库（工单 01 §1.3 推断），`l1-gate-snapshot.json` 被 gitignore → **不作为运行时判据**。
+- **解析纪律**：`jsonb` 里的值只有 `typeof === 'number' && Number.isFinite(v)` 才算「已记录」；`null` / 缺键 / 非数字 / 脏历史数据 **一律归为「未记录」**（不得 `Number()` 强转把 `null` 变成 0，也不得把 `'0.5'` 当已记录 —— 宁可判为未记录）。
+- **比较纪律**：**严格相等**（`===`）。两侧都由同一个 env 数字字面量派生，不做容差、不做四舍五入 —— 引入容差就是在发明新语义。
+- **只比 τ**：本图「运行时质量参数」的量词收窄为 τ（读法 4）；其余参数（档位 / `contextMode` / `sessionEnabledDefault` / 门限常量）**不比对**，逐个记债。
+
+### R3 · 不一致与不可核的终态：**都拒绝加载**（可分辨 reason）
+
+| 情形 | 终态 | reason |
+|------|------|--------|
+| 有包 ∧ 包内 τ 已记录 ∧ 等于 `env.TAU_CLAIM` | `gatePackageId` / `effectiveAt` **照旧有值**（逐位不变） | — |
+| 有包 ∧ 包内 τ 已记录 ∧ **不等于** | `gatePackageId: null`、`effectiveAt: null` | `tau_mismatch` |
+| 有包 ∧ 包内 τ **未记录** | 同上 | `tau_unrecorded` |
+| **无包** | `gatePackageId: null`、`effectiveAt: null`、**不带 reason** | — |
+
+依据：§6.0 对「不一致」的处置逐字是**拒绝加载**（不是「标注」）；「未记录」虽未被 §6.0 点名，但把 τ 未被记录的包呈现为「该 KB 的签字包」正是研究 §3.2 指出的**无依据绑定声明**（读面把 env 的 τ 与那个包的 id 并排展示，暗示该 τ 属于该包）→ 按仓内既有纪律「缺测不放行 / 不臆造 / 不代签」，**与不一致同侧**，但 reason 可分辨。三者都配 `childLogger(...).warn({event:'gate_package_rejected', …})`，**不得静默**。
+
+### R4 · 作用域：只挂 `defaultQuality`（KB 设置读面）
+
+| 挂点 | 本图 | 理由 |
+|------|------|------|
+| `defaultQuality`（`routes/kb-settings.ts:66-72`） | **挂** | 唯一把「包」与「τ」并排对外的地方；剧本 T6 的核对面 |
+| api 启动（`index.ts:18-48`） | **不挂** | `parseEnv()` 在模块加载期、结构上无 DB 句柄（`env.ts:271`）；且多 KB 无逐库语境 |
+| ask 运行路径（`execute.ts:204` / `graph/run.ts:542`） | **不挂** | 改判定输入＝读法 1；§6.0 未要求 ask 拒答 |
+| worker 侧判定 | **不做** | worker 只是生产者（R5 只让它**记录** τ，不做判定） |
+
+**必须承认的边界**：§6.0 说的是「**运行时**质量参数」，本图只让**读面**拒加载 —— 即 `graph/run.ts:542` 仍按 `env.TAU_CLAIM` 判。这与「包为权威且必须一致」不冲突（不一致时包不被加载、读面显形），但「ask 是否也该拒」**留雾**（销账条件见 R9）。
+
+### R5 · 生产者补记 τ（本图必做）
+
+不补则队列路径产出的包**恒** `tau_unrecorded` → 闸在主生产路径上恒拒、功能等于半死。故：
+
+1. api 内口 `POST /internal/eval/execute-ask`（`routes/eval.ts:294-345`）响应**加一项** `tauClaim: env.TAU_CLAIM`（同进程同值，即 `runAsk` 实际用的那个）。
+2. worker `run-l1-batch.ts` 逐题收该字段：**全部题目同值**才写入 `repro.tauClaim`；出现分歧或全缺 → 保持 `null`（**不猜**）。
+3. 既有测例 `apps/worker/tests/eval/run-l1-batch-repro.test.ts:67`（今天断言 `null`）**按新语义改写**，并在工单 03 Answer 写明「这是本图的目的，不是测试写错」。
+4. 内口响应属 api↔worker 接口，`docs/module-status/api.md` 需记（回写票）。
+
+### R6 · 契约：`QualitySnapshot` 加一个可选字段承载原因
+
+`gatePackageRejectedReason`，取值 `z.enum(['tau_mismatch','tau_unrecorded'])`，**可空可选**（按 `DeptCrossGrantSchema` 既有范式）；**一致时与无包时都不出现**。其余字段一律不动；`tauClaim` **永远**是 env 的值（本图不换源）。
+
+### R7 · admin 最小回显（只加文案）
+
+设置页质量区在 `gatePackageRejectedReason` 出现时显示一行中文原因（两种各一句），**不加任何写控件**。同批补 RTL 一条。本机无浏览器 → 视觉 / 交互**未验**，Answer 写明。
+
+### R8 · 测试策略
+
+| 用例 | 钉什么 |
+|------|--------|
+| 一致 | `gatePackageId` / `effectiveAt` 照旧、无 reason（**逐位不变**） |
+| 不一致 | 二者为 `null` + `reason='tau_mismatch'` + warn 日志 |
+| τ 未记录（`null` / 缺键 / 非数字三种） | `null` + `reason='tau_unrecorded'` |
+| 无包 | `null` + **无** reason（试点前语义不变） |
+| 纯函数直测 | 三态 + 边界（`0` / `1` 合法值、`NaN`/`Infinity` 归未记录） |
+| 契约 | 新字段形状 + `.strict()` 不破 |
+| worker 生产者 | 内口回传 τ → `repro.tauClaim` 记录；分歧 → 保持 `null` |
+| **反证** | 去掉闸 → 「不一致」用例必红（否则是空转闸） |
+
+挂点无既有回归保护（`defaultQuality` 无 200-路径专测）→ **必须新增专测**，不得只靠既有用例变绿。
+
+### R9 · 不做清单（逐条带销账条件，回写票落进镜像）
+
+- §6.0「加严方向」diff 表校验 · 「放宽」无 ADR → 失败 · 「标记」`gate_bundle=pilot|stricter`：本图不做；**工单 03 前先核是否已实现**，已实现就如实写、不重复建。
+- §7 过期包（超 90 天 / 再认证触发）与 `effectiveAt` 的时效判定：不做。
+- 其余运行时质量参数（档位 / `contextMode` / `sessionEnabledDefault` / 门限常量）与包的一致性：不做。
+- **ask 路径的包加载闸**（读法 1 完整形态）：不做 —— 销账条件 = 一次专门裁定 + 逐请求取包的代价评估。
+- `tauStar`（τ 扫描建议值）接运行时（雾清单簇 28 的半截）：不做。
+- 真 judge live 跑 · ≥100 条真标注校准集 · 真人抽检 · RACI 人签 · 真 PG 上验 `report_json` 脏值分布：不在本机 / 不属本图。
+
+**综上，本图的行为变化方向只有一条**：`gatePackageId` 从「有值」变「无值」（加严），且只在包与运行 τ 不一致或 τ 未记录时发生。**不得反向**（不得为少拒而放宽相等判定、不得把「未记录」当「一致」）。
