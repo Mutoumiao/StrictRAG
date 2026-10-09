@@ -81,11 +81,23 @@
 
 ---
 
+## 签字包「加载」校验（§6.0 加载行 / ADR-046 决策 #4 · **ADR-062**）
+
+> 冻结要求逐字：**「运行时质量参数仅来自已签字包；不一致 → 拒绝加载」**（`prds/08-quality/02-evaluation-and-gates.md` §6.0），反例列写的就是「运行时 τ 与签字包脱节」；剧本 T6 允许「加载拒绝**或**不一致告警失败」。
+
+- **权威归属（ADR-062）**：**包为权威、env 为承载且必须与包相等**。不选「τ 改取自包」（读法切换）—— 无包时必须能跑（试点前），且队列路径的包曾长期不记 τ。ADR-007 原文只说「唯一 tauClaim / 废弃双阈值」，**未**规定来源；「env 唯一源」是 `env.ts` / `.env.example` / README 的下游固化。
+- **判据**：`eval_runs.report_json.repro.tauClaim`（唯一载体；`gateSnapshot` **不落库**、`l1-gate-snapshot.json` 是 gitignore 的文件产物）。只有**有限数**才算「已记录」；缺键 / `null` / 字符串 / `NaN` → **未记录**（**禁止** `Number()` 强转）。
+- **判定（纯函数 `eval/gate-package-load.ts` · `judgeGatePackageLoad`）**：严格相等、**无容差**、**只比 τ**。
+- **四态（`routes/kb-settings.ts` 的 `defaultQuality`）**：一致 → 照旧呈现 `gatePackageId` / `effectiveAt`；不一致 → 置 `null` + `gatePackageRejectedReason='tau_mismatch'`；未记录 → 置 `null` + `'tau_unrecorded'`；**无包 → `null` 且不带 reason**（试点前是正常状态，不是拒绝）。前两种另写 `gate_package_rejected` warn —— **禁止静默**。
+- **生产者补齐**：api 内口 `POST /internal/eval/execute-ask` 回传本跑 `tauClaim`（= api 进程 `TAU_CLAIM`，即图实际用于 min 否决的值）；worker `runL1Batch` 逐题收集，**整批恰好一个同值**才写 `repro.tauClaim`，全缺或分歧记 `null`。**禁止**用 worker 自己的 env 顶替（图在 api 侧跑）。
+- **测**：`tests/eval/gate-package-load.test.ts`（纯函数 + 取数）· `tests/kb/settings-gate-package-load.test.ts`（走真 `defaultQuality` 的四态；**反证**：去掉闸 → 不一致与未记录两条必红）· `packages/contracts/tests/kb/settings-contract.test.ts`（可选键两态）· `apps/worker/tests/eval/{run-l1-batch-repro,execute-ask-http}.test.ts`。
+- **未做（各留销账条件）**：τ 改取自包（须另一条 ADR）· ask 运行路径参与加载闸 · api 启动校验（`parseEnv()` 期无 DB 句柄）· 其余运行时质量参数（档位 / `contextMode` / `sessionEnabledDefault` / 门限常量）与包的一致性 · §6.0「加严方向 / 放宽 / 标记」三行 · §7 过期包时效。
+
 ## §8 可复现区块（`repro`）
 
 > L1 报告新增 `repro`（形状 = contracts 子路径 `@strict-rag/contracts/eval-repro` 的 `L1Repro`，14 键）；api CLI 与 worker 批跑**同形状**。不含任何判定。
 
-- **取真值**（能取到就取）：`models`（env 三模型 + KB `model_bindings`）· `retrieveK` / `rerankTopN`（图上回包档位派生）· `tauClaim`（与快照同一个 τ）· `questionIdsHash`（题面 id 集合：trim → 去空 → **升序** → sha256）· `calibrationHash`（校准集文件内容逐字节 sha256）· `goldSource`（题源：api CLI = `file`，worker = `db`；`null` = 未标注，只有模板取到）· `goldSetMatchesRepoFile`（本次题面 id / `caseKey` 集合与仓内 `fixtures/l1/gold.yaml` 是否**逐个相同**，复用 `l1QuestionIdsHash` 比哈希；仓内文件读不到 / 不合形 → `null` **未知**，不得当 `true`，也不得当 `false`）。两键均按**全量**题面算，**不**受 `L1_MAX_CASES` / `maxCases` 截断影响。
+- **取真值**（能取到就取）：`models`（env 三模型 + KB `model_bindings`）· `retrieveK` / `rerankTopN`（图上回包档位派生）· `tauClaim`（api CLI = 与快照同一个局部变量；worker = 内口回传的本跑 τ，整批同值才记，否则 `null` —— 见上节「签字包加载校验」）· `questionIdsHash`（题面 id 集合：trim → 去空 → **升序** → sha256）· `calibrationHash`（校准集文件内容逐字节 sha256）· `goldSource`（题源：api CLI = `file`，worker = `db`；`null` = 未标注，只有模板取到）· `goldSetMatchesRepoFile`（本次题面 id / `caseKey` 集合与仓内 `fixtures/l1/gold.yaml` 是否**逐个相同**，复用 `l1QuestionIdsHash` 比哈希；仓内文件读不到 / 不合形 → `null` **未知**，不得当 `true`，也不得当 `false`）。两键均按**全量**题面算，**不**受 `L1_MAX_CASES` / `maxCases` 截断影响。
 - **恒 `null`**（无载体 / 未实现，销账见镜像与工单 05 去向表）：`seed` · `fallbackChainsVersion` · `crag` · `contextMode` · `promptVersions` · `lifecycleFilterVersion` · `sessionStrategyVersion` · `l2GoldSetHash`（L2 侧归下一张图）。
 - **既有 `mode` 不动**：顶层 `mode` / `retrieve_mode` 是 `retrieve_mode` 的历史别名（`resolveEvalMode`），**不是** ask 档位；区块里**没有**第二个 `mode`。§8 `mode` / `contextMode` 的语义歧义记债。
 - **md 渲染**：能取到的渲染真值，取不到的一律渲染「—」。

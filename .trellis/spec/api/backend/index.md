@@ -83,4 +83,4 @@
 
 ## ADR-ready 裁定指针
 
-- 验收剧本 ↔ 源码分歧的 **ADR-ready 裁定书（八条）**：`.scratch/acceptance-divergence/research/02-adr-ready-findings.md`（wayfinder 图 `acceptance-divergence`）—— api 侧四项 = `D-拼句` 死分支与 LLM 路 · `V5` 重提端点契约 · `X4` 白名单前提 · `T6` §6.0 与 ADR-007 · `P3` 抽样链；**改这些须走 ADR → 改 PRD → 升 `prds/README.md` 版本**，本仓不改 `prds/00–11`。
+- 验收剧本 ↔ 源码分歧的 **ADR-ready 裁定书（八条）**：`.scratch/acceptance-divergence/research/02-adr-ready-findings.md`（wayfinder 图 `acceptance-divergence`）—— api 侧四项 = `D-拼句` 死分支与 LLM 路 · `V5` 重提端点契约 · `X4` 白名单前提 · `T6` §6.0 与 ADR-007 · `P3` 抽样链；**改这些须走 ADR → 改 PRD → 升 `prds/README.md` 版本**，本仓不改 `prds/00–11`。**其中 `T6` 已由 wayfinder 图 `gate-package-load-gate`（**ADR-062**）收掉一半**：τ 的一致性加载闸已落（见 `l1-eval.md` 的「签字包『加载』校验」）；**仍欠**的是把 τ 的来源改由包推导（读法切换，仍须 ADR → 改 PRD）。
