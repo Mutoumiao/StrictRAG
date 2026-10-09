@@ -1,7 +1,7 @@
 # 现状核实：签字包从哪来、τ 有几处取值、今天有没有一致性判定
 
 Type: research
-Status: claimed
+Status: resolved
 Blocked by: —
 
 ## Question
@@ -47,4 +47,24 @@ Blocked by: —
 
 ## Answer
 
-待填（研究子代理产出 → [research/01-gate-package-load.md](../research/01-gate-package-load.md)）
+**研究子代理产出（350 行 / 42 KB）：[research/01-gate-package-load.md](../research/01-gate-package-load.md)**（全文按本工单 1–7 组组织，行号实测、三类标注、全称否定附搜索范围）。要点：
+
+**① 签字包 = `eval_runs` 四列条件的最近一条**：`run_type='golden_2x2' ∧ status='succeeded' ∧ retrieve_mode='live' ∧ signoff_eligible∈{'1','true'}`（`apps/api/src/services/eval-runs.ts:46-47,53-62,337-349`），排序键是 `createdAt`（`:340`）；对外**只回 `{id, effectiveAt}`**（`:79-85`）→ **包内 τ 经此口读不到**。生产者三条：api CLI 直写（`run-l1-golden.ts:268-305`，`reportJson: report` 整份落库 `:289`）· HTTP 入队 + worker 回写（`routes/eval.ts:237` → `worker/src/eval/persist.ts:102-150` 逐键白名单）· L2（不入选集）。**人签不在库里**（`fixtures/l1/RACI.md` 文件产物；`isSignoffPackageRow` 自陈「不代签」）；代码里的「签字」只是两个入参布尔（`eval/adr046-snapshot.ts:47-48,166`），真实 CLI 恒 `false`。
+
+**② τ 的取值链**：运行时唯一源 = env。`services/ask/execute.ts:204`（跑图入参）· `:271`（trace 快照）· `routes/kb-settings.ts:69`（设置读面）全部直读 `env.TAU_CLAIM`；**唯一判定消费点** = `graph/run.ts:542` 的 min 否决。`run-l1-golden.ts:757` 的 `snapIn?.tauClaim ?? env.TAU_CLAIM` 使报告（`:806`）与快照（`:847`）**共用同一局部变量** → 「不出现两个 τ」成立，但**靠共用变量而非校验**。
+
+**③ 一致性判定：全仓零**。把 env τ 与包 id 并列返回却从不核对（`kb-settings.ts:67-71`）→ 包内 τ ≠ env τ 时读面**照样**呈现 env 的 τ 与那个包的 id，**无任何地方会察觉**。启动路径（`index.ts:18-48`）不加载包；`env.ts:207-213` 的 `TAU_CLAIM_LEGACY`（双源不一致 → 启动拒）是**同型先例但在纯 env 侧**。
+
+**④ 关键反转（推翻了本图立项时「须 ADR」的一半前提）**：§6.0 加载行 `prds/08-quality/02-evaluation-and-gates.md:151` 就是 **ADR-046 决策 #4** 的下沉（`prds/11-decisions/00-adr-index.md:1024-1026` 逐字「运行时加载校验配置↔包一致；不匹配 → 拒绝加载」）+ `#2.4`（`:1017`「运行时质量参数写入 KB 配置快照，与签字包绑定」）；而 **ADR-007 原文（`:71-76`）只说「唯一 tauClaim / 废弃双阈值」，并没有写「唯一源 = env」** —— 那是 `apps/api/src/env.ts:16` / `.env.example:17-19` / `README.md:81-83` 三处**下游固化**。另有加强句 `prds/00-product/01-vision-and-success.md:113` 与**验收剧本 T6**（`prds/10-delivery/03-acceptance-scenarios.md:344`）「篡改快照 → **加载拒绝或**不一致告警失败」。
+
+**⑤ 可核对性与挂点**：包内 τ 的**唯一载体** = `report_json.repro.tauClaim`（`packages/contracts/src/eval/l1-repro.ts:86`）；`gateSnapshot` **[推断] 未落库**（`run-l1-golden.ts:826` persist 早于 `:863` bind）；`l1-gate-snapshot.json` 只在文件且被 gitignore。**worker 产出的「签字包」`repro.tauClaim` 恒 `null`**（`run-l1-batch.ts:300-309` 用 `emptyL1Repro()` 只填三键；`apps/worker/tests/eval/run-l1-batch-repro.test.ts:67` 正断言 null），因其批跑**经 api 内口执行**、注释自陈「τ 在 api 侧，不回传」。四个可能挂点各有影响面；**`defaultQuality` 没有任何 200-路径专测**（全部设置 200 用例都注入 `qualitySnapshot`）→ 新闸在既有测例里**无回归保护**。
+
+**⑥ 会翻的既有断言：几乎没有**。「不一致即拒」并挂 `defaultQuality` → **0 条必翻**；「τ 取自包」→ `l1-repro-fields.test.ts:146` 不翻（同变量），`run-l1-batch-repro.test.ts:67` **仅在把 worker 纳入作用域时翻**。**真正的风险是「无测试可翻」**。
+
+**⑦ 反向复核**：§6.0 加载行**确未实现**（找过的模式与范围见报告 §7.1）。既有裁定一致地把本项「留给专门的图」：`acceptance-divergence`（T6 = 丁 · 阻塞方 ADR-007 · 销账条件 = ADR → 改 PRD → 升版）· `quality-gate-parity` 工单 01 行 21 = C · `l1-signoff-evidence` / `l2-report-determinability` 的 Out of scope · `docs/module-status/api.md:207` · `docs/testing/coverage/03-ops.md:114`。**没有任何一处声明「永不做」**。
+
+**⑧ 四种读法（报告 §7.3，非裁定）**：读法 1「源切换」（τ 改取自包）**必**改 PRD（撞 ADR-007 的下游固化）；读法 2「一致性闸」（env 仍是承载，有包时必须相等，不等即拒）· 读法 3「有包才适用」（无包放行）· 读法 4「量词收窄」（只指 τ）在**字面**上都可不动 PRD 落地。
+
+**未核**（已在报告中标明）：是否有别的「跨源（非纯 env）一致性闸」先例 · 「加载行反例列」有无更细解释（`prds` / `docs` / `.trellis` 均只有引用）· `report_json` 缺 `gateSnapshot` 系代码次序推断，未在真 PG 取行验证。
+
+**研究纪律**：只读，未改任何源码 / PRD / 文档；产出只有本报告一个文件。
