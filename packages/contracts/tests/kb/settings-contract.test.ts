@@ -13,6 +13,7 @@ import {
   KbDocTypesSchema,
   KbSettingsSchema,
   PatchKbSettingsBodySchema,
+  QualitySnapshotSchema,
 } from '../../src/kb/kb-settings.contract.js';
 
 describe('PatchKbSettingsBodySchema', () => {
@@ -125,6 +126,35 @@ describe('PatchKbSettingsBodySchema', () => {
 });
 
 describe('KbSettingsSchema', () => {
+  it('签字包被拒绝加载时带可核对 reason；一致 / 无包时不出现该键', () => {
+    const base = {
+      kbId: '01900000-0000-7000-8000-000000000099',
+      name: 'KB',
+      allowedModes: ['balanced'] as const,
+      defaultMode: 'balanced' as const,
+    };
+    const parsed = QualitySnapshotSchema.safeParse({
+      tauClaim: 0.5,
+      gatePackageId: null,
+      effectiveAt: null,
+      gatePackageRejectedReason: 'tau_mismatch',
+    });
+    expect(parsed.success).toBe(true);
+    expect(QualitySnapshotSchema.safeParse({ tauClaim: 0.5 }).success).toBe(true);
+    expect(
+      QualitySnapshotSchema.safeParse({ tauClaim: 0.5, gatePackageRejectedReason: 'whatever' })
+        .success,
+    ).toBe(false);
+    // 旧响应（qualitySnapshot 内无该新键）仍可解析 → 历史 / 试点前的 GET 不被新键打断
+    expect(
+      KbSettingsSchema.safeParse({
+        ...base,
+        qualitySnapshot: { tauClaim: 0.5, gatePackageId: null, effectiveAt: null },
+        sessionRewrite: { enabledDefault: false, locked: true },
+      }).success,
+    ).toBe(true);
+  });
+
   it('requires sessionRewrite locked off', () => {
     const base = {
       kbId: '01900000-0000-7000-8000-000000000099',

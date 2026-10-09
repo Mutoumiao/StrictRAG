@@ -13,6 +13,7 @@ import { uuidv7 } from 'uuidv7';
 import { attachAuthMiddleware, type AuthVariables } from '../../src/auth/middleware.js';
 import { issueTokenPair } from '../../src/auth/identity/token-service.js';
 import { requestIdMiddleware } from '../../src/middleware/request-id.js';
+import { env } from '../../src/env.js';
 import { createEvalRoutes, type EvalRouteDeps } from '../../src/routes/eval.js';
 import type { ExecuteAskResult } from '../../src/services/ask/index.js';
 import { extraStatsFromReport, type EvalRunRepo, type EvalRunRow } from '../../src/services/eval-runs.js';
@@ -343,9 +344,13 @@ describe('eval runs HTTP', () => {
       }),
     });
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { data: { minSupport: number | null; status: string } };
+    const body = (await res.json()) as {
+      data: { minSupport: number | null; status: string; tauClaim?: number };
+    };
     expect(body.data.status).toBe('abstained');
     expect(body.data.minSupport).toBe(0.1);
+    // 本跑的 τ 必须回传（worker 批跑据此把它记进报告 `repro.tauClaim`，签字包加载校验才有依据）
+    expect(body.data.tauClaim).toBe(env.TAU_CLAIM);
   });
 
   it('POST session_multiturn 不依赖 gold_questions；空 L2 题面 400', async () => {

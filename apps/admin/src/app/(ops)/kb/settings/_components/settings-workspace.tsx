@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type {
   AskMode,
   DataClass,
+  GatePackageRejectedReason,
   KbConsumePurpose,
   KbSettings,
   KbSettingsAuditItem,
@@ -55,6 +56,22 @@ import { ChunkStrategyPanel } from './chunk-strategy-panel';
 
 const ALL_MODES: AskMode[] = ['strict', 'balanced', 'fast'];
 const DATA_CLASSES: DataClass[] = ['internal', 'sensitive'];
+
+/**
+ * 签字包被拒绝加载时的中文说明（§6.0 加载行 / ADR-046 决策 #4）。
+ * **只解释，不给动作**：改 τ 或重跑 L1 都不是本页能做的事。
+ */
+export function rejectedReasonText(
+  reason: GatePackageRejectedReason | null | undefined,
+): string | null {
+  if (reason === 'tau_mismatch') {
+    return '签字包记录的 τ 与运行时 TAU_CLAIM 不一致，已拒绝加载该包（须重跑 L1 或改回原 τ）';
+  }
+  if (reason === 'tau_unrecorded') {
+    return '该签字包未记录 τ，无法核对，已拒绝加载（不把无法核对的包当作已绑定）';
+  }
+  return null;
+}
 
 export function SettingsWorkspace() {
   const { me } = useAdminAuth();
@@ -490,6 +507,11 @@ export function SettingsWorkspace() {
                 </dd>
               </div>
             </dl>
+            {rejectedReasonText(settings.qualitySnapshot.gatePackageRejectedReason) ? (
+              <p className="text-xs text-destructive">
+                {rejectedReasonText(settings.qualitySnapshot.gatePackageRejectedReason)}
+              </p>
+            ) : null}
           </section>
 
           <section className="space-y-2 rounded-lg border border-border bg-muted/30 p-4">

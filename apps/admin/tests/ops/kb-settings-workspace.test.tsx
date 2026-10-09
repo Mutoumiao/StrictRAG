@@ -350,6 +350,33 @@ describe('SettingsWorkspace', () => {
     expect(body).not.toHaveProperty('qualitySnapshot');
   });
 
+  it('签字包被拒绝加载时，质量区显示可核对原因（只读，不给动作）', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', KB_ID);
+    me.permissions = ['admin.shell', 'kb.config.write'];
+    loadKbSettings.mockResolvedValue({
+      ok: true,
+      settings: {
+        ...settings,
+        qualitySnapshot: {
+          tauClaim: 0.7,
+          gatePackageId: null,
+          effectiveAt: null,
+          gatePackageRejectedReason: 'tau_mismatch' as const,
+        },
+      },
+    });
+
+    render(<SettingsWorkspace />);
+
+    const heading = await screen.findByRole('heading', { name: '质量（只读）' });
+    const section = heading.closest('section');
+    expect(section).not.toBeNull();
+    expect(within(section!).getByText(/τ 与运行时 TAU_CLAIM 不一致/)).toBeInTheDocument();
+    // 只解释、不新增控件
+    expect(within(section!).queryByRole('button')).not.toBeInTheDocument();
+    expect(within(section!).queryByRole('textbox')).not.toBeInTheDocument();
+  });
+
   it('加载后可见三档消费绑定；选生成覆盖后保存 PUT 不含 judge', async () => {
     const ref = '01900000-0000-7000-8000-0000000000aa#chat';
     localStorage.setItem('strict-rag:admin:last-kb-id', KB_ID);

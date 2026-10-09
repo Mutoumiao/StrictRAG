@@ -106,6 +106,37 @@ describe('createEvalHttpExecute', () => {
     });
   });
 
+  it('200 带 tauClaim 原样带回；未下发则缺省（批跑据此记 null）', async () => {
+    const make = (data: Record<string, unknown>) =>
+      createEvalHttpExecute({
+        baseUrl: 'http://api.test',
+        token: 'tok',
+        kbId: '01900000-0000-7000-8000-0000000000aa',
+        tenantId: '01900000-0000-7000-8000-000000000001',
+        userId: '01900000-0000-7000-8000-0000000000e1',
+        fetchImpl: (async () =>
+          new Response(JSON.stringify({ ok: true, data }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          })) as typeof fetch,
+      });
+
+    const withTau = await make({ status: 'answered', tauClaim: 0.35 })({
+      caseKey: 'g1',
+      question: 'q',
+    });
+    expect(withTau).toMatchObject({ outcome: 'answered', tauClaim: 0.35 });
+
+    const noTau = await make({ status: 'answered' })({ caseKey: 'g1', question: 'q' });
+    expect(noTau).not.toHaveProperty('tauClaim');
+
+    const badTau = await make({ status: 'answered', tauClaim: null })({
+      caseKey: 'g1',
+      question: 'q',
+    });
+    expect(badTau).not.toHaveProperty('tauClaim');
+  });
+
   it('L2 执行器带 sessionId 与窗', async () => {
     let body: unknown;
     const execute = createEvalHttpL2Execute({

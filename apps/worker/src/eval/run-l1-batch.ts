@@ -65,6 +65,11 @@ export type EvalCaseExecuteResult =
       answerKind?: 'knowledge' | 'chitchat';
       /** 图上 citations.length；未采集 → 缺省 */
       citationCount?: number;
+      /**
+       * 执行侧（api 内口）本跑实际用的 τ；未下发 → 缺省。整批只取一个同值写进报告 `repro.tauClaim`
+       * （§6.0 加载校验的依据）；分歧或全缺 → 报告记 `null`，不猜。
+       */
+      tauClaim?: number | null;
     }
   | { outcome: 'error'; errorMessage?: string };
 
@@ -191,6 +196,8 @@ export async function runL1Batch(opts: {
   const hitAcc = emptyHitAtK();
   let errorCount = 0;
   const rows: L1BatchCaseRow[] = [];
+  /** 执行侧下发的 τ（去重）；恰好一个 → 记进 `repro.tauClaim`，0 个或分歧 → `null` */
+  const reportedTaus = new Set<number>();
 
   for (const c of sliced) {
     let outcome: L1Outcome;
@@ -211,6 +218,9 @@ export async function runL1Batch(opts: {
         minSupport = parseMinSupport(result.minSupport);
         answerKind = result.answerKind;
         citationCount = result.citationCount;
+        if (typeof result.tauClaim === 'number' && Number.isFinite(result.tauClaim)) {
+          reportedTaus.add(result.tauClaim);
+        }
       }
     } catch (err) {
       outcome = 'error';
@@ -299,6 +309,8 @@ export async function runL1Batch(opts: {
      */
     repro: {
       ...emptyL1Repro(),
+      // 执行侧（api）本跑实际用的 τ：整批恰好一个同值才记；全缺或分歧 → null（不猜、不取 worker 自己的 env）
+      tauClaim: reportedTaus.size === 1 ? [...reportedTaus][0]! : null,
       questionIdsHash: l1QuestionIdsHash(opts.cases.map((c) => c.caseKey)),
       goldSource: 'db',
       // 全量 cases（与 questionIdsHash 同源），**不**受 maxCases 截断影响

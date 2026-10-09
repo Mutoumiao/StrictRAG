@@ -79,11 +79,21 @@ export function parseCrossDocDedupeAction(
     : DEFAULT_CROSS_DOC_DEDUPE_ACTION;
 }
 
+/**
+ * 签字包「拒绝加载」的原因（§6.0 加载行 / ADR-046 决策 #4 · ADR-062）。
+ * `tau_mismatch` = 包内冻结的 τ 与运行时 `TAU_CLAIM` 不等；`tau_unrecorded` = 包内未记录 τ（无法核对）。
+ * **一致时与无包时都不出现**（无包是试点前的正常状态，不是拒绝）。
+ */
+export const GatePackageRejectedReasonSchema = z.enum(['tau_mismatch', 'tau_unrecorded']);
+export type GatePackageRejectedReason = z.infer<typeof GatePackageRejectedReasonSchema>;
+
 /** GET 只读：质量 snapshot（禁止经 settings 写 τ） */
 export const QualitySnapshotSchema = z.object({
   tauClaim: z.number().min(0).max(1),
   gatePackageId: z.string().nullable().optional(),
   effectiveAt: z.string().nullable().optional(),
+  /** 仅当签字包被拒绝加载时出现；此时 `gatePackageId` / `effectiveAt` 均为 null */
+  gatePackageRejectedReason: GatePackageRejectedReasonSchema.nullable().optional(),
 });
 export type QualitySnapshot = z.infer<typeof QualitySnapshotSchema>;
 

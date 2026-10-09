@@ -81,9 +81,27 @@ export type EvalRunRepo = {  createQueued(input: {
    * 条件（可查询子集）：`run_type=golden_2x2` ∧ `status=succeeded` ∧ `retrieve_mode=live` ∧ `signoff_eligible=1`。
    * **RACI 人签是文件产物**（`fixtures/l1/RACI.md`），不在库里，故不构成过滤条件（不代签）。
    * 无合格者返回 `null`。
+   *
+   * `tauClaim` = 该跑**冻结进报告的 τ**（`report_json.repro.tauClaim`），供运行时做 §6.0 加载校验；
+   * 未记录（缺键 / `null` / 非有限数）→ `null`，**不得**强转或猜测。
    */
-  latestSignoffPackage(kbId: string): Promise<{ id: string; effectiveAt: string | null } | null>;
+  latestSignoffPackage(
+    kbId: string,
+  ): Promise<{ id: string; effectiveAt: string | null; tauClaim: number | null } | null>;
 };
+
+/**
+ * 从 `eval_runs.report_json` 取「本跑冻结的 τ」。
+ * 只有 `repro.tauClaim` 是**有限数**才算已记录；缺键 / `null` / 字符串 / `NaN` 一律 → `null`
+ * （宁判「未记录」，也不做 `Number()` 强转把它变成 0 或 0.5）。
+ */
+export function signoffPackageTauFromReport(report: unknown): number | null {
+  if (report == null || typeof report !== 'object') return null;
+  const repro = (report as { repro?: unknown }).repro;
+  if (repro == null || typeof repro !== 'object') return null;
+  const raw = (repro as { tauClaim?: unknown }).tauClaim;
+  return typeof raw === 'number' && Number.isFinite(raw) ? raw : null;
+}
 
 function asStatus(raw: string | null | undefined): EvalRunStatus {
   if (raw === 'queued' || raw === 'running' || raw === 'succeeded' || raw === 'failed') return raw;
@@ -337,7 +355,11 @@ export const evalRunRepo: EvalRunRepo = {
   async latestSignoffPackage(kbId) {
     // 条件与 `isSignoffPackageRow` 同义（SQL 侧同样写死这四条，防两边漂移）
     const rows = await getDb()
-      .select({ id: evalRuns.id, createdAt: evalRuns.createdAt })
+      .select({
+        id: evalRuns.id,
+        createdAt: evalRuns.createdAt,
+        reportJson: evalRuns.reportJson,
+      })
       .from(evalRuns)
       .where(
         and(
@@ -352,6 +374,10 @@ export const evalRunRepo: EvalRunRepo = {
       .limit(1);
     const row = rows[0];
     if (!row) return null;
-    return { id: row.id, effectiveAt: row.createdAt ?? null };
+    return {
+      id: row.id,
+      effectiveAt: row.createdAt ?? null,
+      tauClaim: signoffPackageTauFromReport(row.reportJson),
+    };
   },
 };

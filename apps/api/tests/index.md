@@ -140,6 +140,7 @@
 | `eval/eval-corpus-map.test.ts` | 两份 gold 的每个逻辑 id 都要能被入库入口产出，且与两份 README 表格机械一致。 | prds/08-quality §3 / §6（Hit@20 数据面）· 裁定 02 | `readFixtureCorpus · gold.yaml · README.md` | gold 逻辑 id ⊆ 夹具派生 id；README 表（含区间）与派生 id 一致。 | 现行 |
 | `eval/l1-doc-map.test.ts` | L1 跑批按账本把逻辑 id 解析成 uuid；不传账本逐位一致；缺映射继续算 miss（绝不 null）；账本 ↔ 库内对账三类失配一律拒跑。 | prds/08-quality §3 / §6（Hit@20 数据面）· 裁定 02 | `runL1Golden（docMapPath / lookupDocs）· resolveCorpusLedgerForRun · formatReportMd` | 三键 none/0/[] 对 ledger；kbId / 指纹不符拒跑；docId 不存在 / 不可检索 / title 不符拒跑且点名 logicalId + docId；md 渲染来源行。 | 现行 |
 | `eval/l2-doc-map.test.ts` | L2 跑批同构按账本解析；三键不进 `computeL2SignoffEligible`。 | prds/08-quality §6.2 / §3 / §6 · 裁定 02 | `runL2Golden（docMapPath）· formatL2ReportMd` | docHit 真值；传 / 不传账本 signoffEligible 逐位相同。 | 现行 |
+| `eval/gate-package-load.test.ts` | 签字包的 τ 必须能安全取出，并按 §6.0 判定能否加载：不一致与未记录都拒绝加载，且无容差。 | prds/08-quality/02-evaluation-and-gates.md §6.0 加载行 · ADR-046 决策 #4 · ADR-062 | `judgeGatePackageLoad · signoffPackageTauFromReport` | 严格相等（浮点尾数不同也算不一致）；缺键 / null / NaN / 字符串数字一律判「未记录」（不强转）；0 与 1 是合法值。 | 现行 |
 | `feedback/http.test.ts` | 答案反馈 POST/PATCH 必须具备 kb 码；missing_doc 开单与 linked_doc 关单闭环可用。 | B13 · 剧本 G1 / G2 / S3 | `createFeedbackRoutes` | 须 kb 码；abstained 轮开单 open、运营 linked_doc 关单并可过滤。 | 现行 |
 | `feedback/promote-gold.test.ts` | 运营纳入黄金集必须写入 gold_questions；用户提交与缺 eval.run 不得写题。 | ADR-019 · prds/05-api §2.6 · 功能表 §4.1 · 覆盖 G3 | `createFeedbackRoutes` PATCH `promoted_to_gold` | 审核闸 = 队列点纳入；不写 gold.yaml、不入队评测。 | 现行 |
 | `gateway/bindings-http.test.ts` | 供应商绑定 HTTP 按 B3 契约读写。 | B3 | `model-gateway routes` | 供应商绑定 HTTP。 | 现行 |
@@ -195,6 +196,7 @@
 | `kb/settings-http.test.ts` | 知识库设置 HTTP 按 B2 契约读写；PATCH 后同一 app 立刻按新 mode 白名单问。 | B2 · 剧本 AB2 | `kb-settings routes · POST /ask` | 设置 HTTP；PATCH → ask 用新 allowedModes（旧档 400）。 | 现行 |
 | `kb/settings-audit-http.test.ts` | PATCH settings 有 diff 须落可查询修改日志；空 diff / 失败不写；读面权限与空列表/缺库对齐。 | 功能表 §4.2 | `PATCH/GET /knowledge-bases/:kbId/settings-audit` | 有 diff 的 PATCH → GET 见该行；空 diff 不增行；无码 403；空列表 200；缺库 404。 | 现行 |
 | `kb/visible-list.test.ts` | 可见知识库列表只返回当前身份能看到的库。 | 壳下拉数据 | `selectVisibleKbs / toKbListItem` | 可见库列表。 | 现行 |
+| `kb/settings-gate-package-load.test.ts` | 设置读面的签字包在包内 τ 与运行时 TAU_CLAIM 不一致、或包未记录 τ 时必须拒绝加载；一致照旧；无包不标拒绝。 | prds/08-quality/02-evaluation-and-gates.md §6.0 加载行 · ADR-046 决策 #4 · ADR-062 · 剧本 T6 | `GET /knowledge-bases/:kbId/settings`（默认 `defaultQuality`，不注入） | 四态：一致 → 保留 id/effectiveAt；不一致 → null + `tau_mismatch`；未记录 → null + `tau_unrecorded`；无包 → null 且无 reason。 | 现行 |
 | `obs/admin-write-audit.test.ts` | 管理写路径必须打审计日志且不落表、不含敏感键；超管非成员写仍可追溯。 | ARCH-P1b-2 · 剧本 B1-5 | `adminWriteAuditMiddleware / shouldAuditAdminWrite` | 不落表；KB 作用域写日志上下文带 kbId。 | 现行 |
 | `obs/l2-stale.test.ts` | rewrite dogfood 下 L2 指纹过期才告警。 | ARCH-P2-4 | `evaluateL2Stale` | rewrite dogfood 下 L2 指纹过期才告警。 | 现行 |
 | `obs/l3-ask.test.ts` | L3 ask 计数与护栏告警闩按阈值只告一次。 | ARCH-P2-4 | `recordL3Ask` | L3 ask 计数满阈只告一次，护栏告警有闩。 | 现行 |

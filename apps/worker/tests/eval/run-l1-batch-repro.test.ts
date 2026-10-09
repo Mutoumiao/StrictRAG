@@ -58,7 +58,7 @@ describe('runL1Batch · §8 可复现区块', () => {
     expect(report.repro.questionIdsHash).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  it('worker 取不到的分项一律 null（模型 / 档位预算 / τ / 校准集哈希 / 版本类）', async () => {
+  it('worker 取不到的分项一律 null（模型 / 档位预算 / 校准集哈希 / 版本类）；τ 未下发时为 null', async () => {
     const report = await batch();
     expect(report.repro.models.env).toEqual({ chat: null, embed: null, rerank: null });
     expect(report.repro.models.kbBindings).toBeNull();
@@ -98,5 +98,42 @@ describe('saveReport · reportJson 白名单不得静默丢键（两侧同构）
       (key) => key !== 'retrieveMode' && !(key in (reportJson ?? {})),
     );
     expect(missing).toEqual([]);
+  });
+});
+
+describe('runL1Batch · τ 由执行侧（api 内口）下发后记进报告', () => {
+  /** 执行侧下发同一个 τ 时才可记；否则报告如实记 null（不拿 worker 自己的 env 顶上） */
+  function batchWithTaus(taus: Array<number | undefined>) {
+    return runL1Batch({
+      kbId: 'kb-1',
+      retrieveMode: 'live',
+      cases: CASES,
+      execute: async ({ caseKey }) => ({
+        outcome: caseKey === 'a1' ? 'answered' : 'abstained',
+        tauClaim: taus[caseKey === 'a1' ? 0 : 1],
+      }),
+    });
+  }
+
+  it('整批同值 → 记进 repro.tauClaim（0 与 1 都是合法值，不得当假值丢）', async () => {
+    expect((await batchWithTaus([0.6, 0.6])).repro.tauClaim).toBe(0.6);
+    expect((await batchWithTaus([0, 0])).repro.tauClaim).toBe(0);
+    expect((await batchWithTaus([1, 1])).repro.tauClaim).toBe(1);
+  });
+
+  it('只部分题下发 → 仍按那一个同值记（api 是单进程单 τ）', async () => {
+    expect((await batchWithTaus([0.6, undefined])).repro.tauClaim).toBe(0.6);
+  });
+
+  it('分歧 / 全缺 → 记 null（不猜、不取 worker 侧 TAU_CLAIM）', async () => {
+    expect((await batchWithTaus([0.6, 0.7])).repro.tauClaim).toBeNull();
+    expect((await batchWithTaus([undefined, undefined])).repro.tauClaim).toBeNull();
+  });
+
+  it('非有限数按未下发处理（NaN / Infinity 不得写进合同字段）', async () => {
+    expect((await batchWithTaus([Number.NaN, Number.NaN])).repro.tauClaim).toBeNull();
+    expect(
+      (await batchWithTaus([Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY])).repro.tauClaim,
+    ).toBeNull();
   });
 });

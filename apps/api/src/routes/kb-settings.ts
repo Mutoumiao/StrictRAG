@@ -15,6 +15,7 @@ import {
   type ResolveKbMember,
 } from '../auth/middleware.js';
 import { env } from '../env.js';
+import { judgeGatePackageLoad } from '../eval/gate-package-load.js';
 import { fail, ok } from '../lib/response.js';
 import { childLogger } from '../logger.js';
 import { evalRunRepo } from '../services/eval-runs.js';
@@ -61,14 +62,43 @@ function wantsRewriteDefaultOn(raw: unknown): boolean {
 /**
  * 签字包只读回填：`qualitySnapshot` 从 `eval_runs` **读时派生**（ADR-046 四要素之四「KB 配置快照绑定
  * `eval_runs`」+ ADR-061 双轨）。**无合格 run → 保持 null**（不臆造 id、不回落 env、不代签）。
- * `tauClaim` 仍取 `TAU_CLAIM`（ADR-007 唯一源；改由签字包加载须先 ADR）。
+ *
+ * τ 仍取 `TAU_CLAIM`（env 是承载），但**包是权威**：§6.0 加载行 / ADR-046 决策 #4（ADR-062）
+ * 要求「不一致 → 拒绝加载」—— 包内冻结的 τ 与 `TAU_CLAIM` 不等、或包内**未记录** τ 时，
+ * **不把该包呈现为已绑定的签字包**（`gatePackageId` / `effectiveAt` 置 null + 可核对 reason + warn）。
  */
 async function defaultQuality(kbId: string): Promise<QualitySnapshot> {
   const pkg = await evalRunRepo.latestSignoffPackage(kbId);
+  if (!pkg) {
+    // 试点前无包：τ 取 env、无绑定、**不**标拒绝（这是正常状态，不是拒绝加载）
+    return { tauClaim: env.TAU_CLAIM, gatePackageId: null, effectiveAt: null };
+  }
+  const verdict = judgeGatePackageLoad({
+    packageTau: pkg.tauClaim,
+    runtimeTau: env.TAU_CLAIM,
+  });
+  if (!verdict.loadable) {
+    childLogger({ kbId }).warn(
+      {
+        event: 'gate_package_rejected',
+        reason: verdict.reason,
+        packageId: pkg.id,
+        packageTau: pkg.tauClaim,
+        runtimeTau: env.TAU_CLAIM,
+      },
+      'signoff gate package refused to load',
+    );
+    return {
+      tauClaim: env.TAU_CLAIM,
+      gatePackageId: null,
+      effectiveAt: null,
+      gatePackageRejectedReason: verdict.reason,
+    };
+  }
   return {
     tauClaim: env.TAU_CLAIM,
-    gatePackageId: pkg?.id ?? null,
-    effectiveAt: pkg?.effectiveAt ?? null,
+    gatePackageId: pkg.id,
+    effectiveAt: pkg.effectiveAt,
   };
 }
 

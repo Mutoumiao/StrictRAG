@@ -330,6 +330,12 @@ export function createEvalRoutes(deps: EvalRouteDeps = {}) {
       status: result.graph.status,
       reason: result.graph.reason,
       rewriteUsed: result.graph.rewriteUsed ?? false,
+      /**
+       * 本跑的 τ：图在**本进程**按 `env.TAU_CLAIM` 判 min 否决（`services/ask/execute.ts`），故这里回传
+       * 同值。worker 批跑据此把 τ 记进报告 `repro.tauClaim`，签字包的「加载校验」（§6.0 / ADR-046 #4）
+       * 才有可核对的依据 —— 在此之前 worker 产出的包 τ 恒 null、无法核对。
+       */
+      tauClaim: env.TAU_CLAIM,
       evidenceTexts: (result.graph.evidence_snapshot ?? []).map((e) => e.text ?? ''),
       evidenceDocIds: (result.graph.evidence_snapshot ?? [])
         .map((e) => e.docId)

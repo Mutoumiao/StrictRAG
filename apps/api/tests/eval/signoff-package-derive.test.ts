@@ -64,21 +64,41 @@ describe('签字包取数口径（ADR-046 / ADR-061）', () => {
   });
 
   it('有合格 run → 回该条 id 与已记录的创建时间；多条取最近一条', async () => {
-    const newer = { id: uuidv7(), createdAt: '2026-09-19 08:00:00' };
-    const older = { id: uuidv7(), createdAt: '2026-09-17 08:00:00' };
+    const newer = { id: uuidv7(), createdAt: '2026-09-19 08:00:00', reportJson: null };
+    const older = { id: uuidv7(), createdAt: '2026-09-17 08:00:00', reportJson: null };
     state.runs = [newer, older];
 
+    // `tauClaim` 是本仓新加的一项（§6.0 加载校验的判据）：该 run 未记录 → null，不得臆造
     expect(await evalRunRepo.latestSignoffPackage(KB)).toEqual({
       id: newer.id,
       effectiveAt: '2026-09-19 08:00:00',
+      tauClaim: null,
     });
   });
 
   it('创建时间缺失 → effectiveAt 为 null（不补造时刻）', async () => {
-    state.runs = [{ id: uuidv7(), createdAt: null }];
+    state.runs = [{ id: uuidv7(), createdAt: null, reportJson: null }];
     expect(await evalRunRepo.latestSignoffPackage(KB)).toEqual({
       id: state.runs[0]?.id,
       effectiveAt: null,
+      tauClaim: null,
     });
+  });
+
+  it('包内 τ 从 report_json.repro.tauClaim 取出（§6.0 加载校验的唯一判据）', async () => {
+    state.runs = [
+      { id: uuidv7(), createdAt: '2026-09-19 08:00:00', reportJson: { repro: { tauClaim: 0.35 } } },
+    ];
+    expect((await evalRunRepo.latestSignoffPackage(KB))?.tauClaim).toBe(0.35);
+
+    // 脏值（字符串 / 缺键）一律「未记录」，不得强转成数字
+    state.runs = [
+      {
+        id: uuidv7(),
+        createdAt: '2026-09-19 08:00:00',
+        reportJson: { repro: { tauClaim: '0.35' } },
+      },
+    ];
+    expect((await evalRunRepo.latestSignoffPackage(KB))?.tauClaim).toBeNull();
   });
 });

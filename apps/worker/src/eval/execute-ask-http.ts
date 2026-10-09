@@ -24,6 +24,8 @@ type ExecuteAskJson = {
     answerKind?: string;
     /** 图上 citations.length */
     citationCount?: number;
+    /** api 侧本跑实际用的 τ（`env.TAU_CLAIM`）；未下发 → 缺省 */
+    tauClaim?: number | null;
   };
   error?: { message?: string };
 };
@@ -70,6 +72,7 @@ export function createEvalHttpExecute(opts: EvalHttpExecuteOpts): EvalCaseExecut
       const minRaw = payload.data?.minSupport;
       const kind = payload.data?.answerKind;
       const count = payload.data?.citationCount;
+      const tau = payload.data?.tauClaim;
       return {
         outcome: status,
         reason: payload.data?.reason,
@@ -80,6 +83,8 @@ export function createEvalHttpExecute(opts: EvalHttpExecuteOpts): EvalCaseExecut
         // 只在下发合法值时带上；未下发保持缺省（不冒充 knowledge）
         ...(kind === 'knowledge' || kind === 'chitchat' ? { answerKind: kind } : {}),
         ...(typeof count === 'number' && Number.isFinite(count) ? { citationCount: count } : {}),
+        // τ 同上：只在下发有限数时带上，缺省即「未下发」（批跑据此决定报告记 null）
+        ...(typeof tau === 'number' && Number.isFinite(tau) ? { tauClaim: tau } : {}),
       };
     }
     return { outcome: 'error', errorMessage: `unexpected ask status: ${String(status)}` };
