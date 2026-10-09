@@ -198,7 +198,7 @@
 | `kb/visible-list.test.ts` | 可见知识库列表只返回当前身份能看到的库。 | 壳下拉数据 | `selectVisibleKbs / toKbListItem` | 可见库列表。 | 现行 |
 | `kb/settings-gate-package-load.test.ts` | 设置读面的签字包在包内 τ 与运行时 TAU_CLAIM 不一致、或包未记录 τ 时必须拒绝加载；一致照旧；无包不标拒绝。 | prds/08-quality/02-evaluation-and-gates.md §6.0 加载行 · ADR-046 决策 #4 · ADR-062 · 剧本 T6 | `GET /knowledge-bases/:kbId/settings`（默认 `defaultQuality`，不注入） | 四态：一致 → 保留 id/effectiveAt；不一致 → null + `tau_mismatch`；未记录 → null + `tau_unrecorded`；无包 → null 且无 reason。 | 现行 |
 | `obs/admin-write-audit.test.ts` | 管理写路径必须打审计日志且不落表、不含敏感键；超管非成员写仍可追溯。 | ARCH-P1b-2 · 剧本 B1-5 | `adminWriteAuditMiddleware / shouldAuditAdminWrite` | 不落表；KB 作用域写日志上下文带 kbId。 | 现行 |
-| `obs/admin-write-coverage.test.ts` | 管理写覆盖面对全量 mutating 路由是全覆盖的，且例外表紧致（新写路由不显式决定即红）。 | ARCH-P1b-2 口径「默认全审 + 显式例外」· 图 admin-write-audit-scope 工单 02 裁定 R6 | `shouldAuditAdminWrite / isAuditExcluded / AUDIT_EXCLUSIONS` + `createApp().routes` | 按 (method,path) 去重枚举真实路由；例外正则多吞一条即红；计数快照 39+11=50。 | 现行 |
+| `obs/admin-write-coverage.test.ts` | 管理写覆盖面对全量 mutating 路由是全覆盖的，且例外表紧致（新写路由不显式决定即红）。 | ARCH-P1b-2 口径「默认全审 + 显式例外」· 图 admin-write-audit-scope 工单 02 裁定 R6 | `shouldAuditAdminWrite / isAuditExcluded / AUDIT_EXCLUSIONS` + `createApp().routes` | 按 (method,path) 去重枚举真实路由；例外正则**在 mutating 路由集上多命中一条已注册路由即红**；计数快照 39+11=50。 | 现行 |
 | `obs/l2-stale.test.ts` | rewrite dogfood 下 L2 指纹过期才告警。 | ARCH-P2-4 | `evaluateL2Stale` | rewrite dogfood 下 L2 指纹过期才告警。 | 现行 |
 | `obs/l3-ask.test.ts` | L3 ask 计数与护栏告警闩按阈值只告一次。 | ARCH-P2-4 | `recordL3Ask` | L3 ask 计数满阈只告一次，护栏告警有闩。 | 现行 |
 | `obs/l3-topic-complaint.test.ts` | 主题投诉计数满阈只告一次。 | ARCH-P2-4 | `recordL3TopicComplaint` | 主题投诉计数满阈只告一次。 | 现行 |

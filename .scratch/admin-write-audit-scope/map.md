@@ -1,7 +1,7 @@
 # 管理写审计的覆盖面口径（哪些写路径必须留痕）
 
 Label: wayfinder:map
-Status: in-progress（前沿：工单 03 实现）
+Status: resolved（前沿：空；工单 01–04 全收口）
 
 ## Destination
 
@@ -58,16 +58,40 @@ Status: in-progress（前沿：工单 03 实现）
 <!-- 每关闭一张工单追加一行：名称（链接）+ 一行要点 -->
 
 - [01 · 现状核实：全量 mutating 路由 · PRD 审计要求 · 今天两层审计各覆盖什么](./issues/01-research-audit-surface.md) — 研究子代理产出（451 行 / 54 KB 在 [research/01-audit-surface.md](./research/01-audit-surface.md)）。要点：① 全仓 mutating **50 条**，实测**命中 24 / 未命中 26**；② **六条正则无一死规则**；③ **`app.routes` 可枚举、`createApp()` 不连 DB**（须按 `(method,path)` 去重，Hono 按 handler 展开）；④ PRD 对「痕」**无显式分级**（明文最强档只有 settings PATCH 的 diff 与 chunk-strategies 的旧→新）；⑤ `admin_write` **只落 stdout、无读面**；`kb_settings_audits` **服务两条路径**；⑥ **推翻三处立项前提**：`supersede`/`resolve`/lifecycle **今天零痕**、账本非「只服务一条」、正则无死规则；⑦ **会翻的既有断言 = 0**；⑧ **有 PRD 依据却零痕**的实缺含 `PUT …/knowledge-bases/:kbId/model-bindings`（剧本 **AC6**，题面未点名）；⑨ 簇 10 的 DELETE **已被 `admin_write` 命中**且有测例钉 AE7。
-- [02 · 裁定：口径 · 强度分级 · 例外表 · 防漂移](./issues/02-dec-audit-scope-ruling.md) — 主控裁定。**R1 口径 = 默认全审 + 显式例外**（`MUTATING ∧ ¬基础设施 ∧ ¬例外表`；语义 = 「改变 KB/平台**治理状态**的写」；否掉「按语义分组枚举」的理由是它保留「漏登记即免审」的结构病；按权限码判**不可行** —— 中间件在路由匹配之前，拿不到权限码）。**例外表 11 条**（ask · auth×4 · sessions · feedback POST · upload-url · internal/objects · complete · internal/eval/execute-ask · infra）。**R2 三档痕**：L1 全部管理写落 Pino `admin_write`（**禁止**加 body/字段值）· L2 持久化 diff 账本只给 PRD 明写 diff 的两条（**已闭环，不扩、不建表**）· L3 领域事件**保持 21 条不动**。**R3 新增覆盖 15 条**（含 KB 创建 #1 · reindex · scan · supersede · resolve · DELETE doc · PATCH 元数据 · PUT acl · KB model-bindings · chunk-strategies PATCH · feedback PATCH · gold-questions ×3 · eval/runs）⇒ 审计 **39** + 例外 **11** = **50**；**既有断言零翻**（`complete` / `sessions` 进例外表）。**R4 簇 10 裁定 = Pino 层已满足、不建表**；backlog 未决行 → 定案。**R5 残差记债**（无读面/无留存 · 领域事件缺字段 · `write`↔`complete` 不对称）。**R6 引入防漂移结构测例**（全覆盖 + 例外表紧致 + 计数自洽；新路由不决定即红）。**R7** 口径落源码注释 + spec + 镜像。**R8** 既有测例只增不改期望值 + 反证。**R9** 六条债带销账条件。
+- [02 · 裁定：口径 · 强度分级 · 例外表 · 防漂移](./issues/02-dec-audit-scope-ruling.md) — 主控裁定。**R1 口径 = 默认全审 + 显式例外**（`MUTATING ∧ ¬基础设施 ∧ ¬例外表`；语义 = 「改变 KB/平台**治理状态**的写」；否掉「按语义分组枚举」的理由是它保留「漏登记即免审」的结构病；按权限码判**不可行** —— 中间件在路由匹配之前，拿不到权限码）。**例外表 11 条**（ask · auth×4 · sessions · feedback POST · upload-url · internal/objects · complete · internal/eval/execute-ask · infra）。**R2 三档痕**：L1 全部管理写落 Pino `admin_write`（**禁止**加 body/字段值）· L2 持久化 diff 账本只给 PRD 明写 diff 的两条（**已闭环，不扩、不建表**）· L3 领域事件**保持不动**（21 处打点 / 20 个事件名）。**R3 新增覆盖 15 条**（含 KB 创建 #1 · reindex · scan · supersede · resolve · DELETE doc · PATCH 元数据 · PUT acl · KB model-bindings · chunk-strategies PATCH · feedback PATCH · gold-questions ×3 · eval/runs）⇒ 审计 **39** + 例外 **11** = **50**；**既有断言零翻**（`complete` / `sessions` 进例外表）。**R4 簇 10 裁定 = Pino 层已满足、不建表**；backlog 未决行 → 定案。**R5 残差记债**（无读面/无留存 · 领域事件缺字段 · `write`↔`complete` 不对称）。**R6 引入防漂移结构测例**（全覆盖 + 例外表紧致 + 计数自洽；新路由不决定即红）。**R7** 口径落源码注释 + spec + 镜像。**R8** 既有测例只增不改期望值 + 反证。**R9** 六条债带销账条件。
 - [03 · 落：按口径对齐覆盖面 + 防漂移结构测例 + 反证](./issues/03-task-align-coverage.md) — 判定改为**默认全审 + 显式例外**（`INFRA_PATHS` + `AUDIT_EXCLUSIONS` 7 条 = 11 条路由，逐条带理由与声明路由；`isAuditExcluded` 导出供测例）；新增 `tests/obs/admin-write-coverage.test.ts` 4 条（全覆盖 · 例外紧致 · 计数 39+11=50 · 方向一致，从 `createApp().routes` 按 `(method,path)` 去重枚举）；既有测例**只增补** 15 条新纳入路径断言、**期望值零改**；载荷与中间件本体未动。**新增覆盖 15 条**。**反证三轮**：判据恒假 → **9 红**；例外正则放宽 → **4 红**；（第三轮探针本身无效，16 全绿 —— 记下「反证探针也可能无效」）。**既有断言零翻**。门禁：api 全量 **186 文件 / 1161 通过 + 3 skipped** · check-types / lint 通过 · 存货闸 exit 0。
+
+- [04 · 回写](./issues/04-task-writeback.md) — 见下方「目的地达成」。
+
+### 目的地达成（2026-10-10）
+
+**「哪些写路径算管理写、各留什么强度的痕」已从正则枚举变成有口径、可核对、防漂移的一件事。**
+
+1. **全量事实有清单**：研究票实测（临时 vitest 探针 dump `createApp().routes` 逐条调用真实判定）—— 全仓 mutating **50 条**，改动前**命中 24 / 未命中 26**；六条正则**无一死规则**；注册面只有 `apps/api/src/routes/**` + `app.ts` 内联 + `openapi/routes.ts`（后两者仅 GET）。
+2. **口径可核对且指回 PRD**：判定式 = `MUTATING ∧ ¬基础设施 ∧ ¬例外表`（**默认全审 + 显式例外**）；语义 = 「改变 KB / 平台**治理状态**的写」；例外 7 条 = 11 条路由，**逐条带理由与声明的路由集**，写进源码 `AUDIT_EXCLUSIONS` 与 spec。每条新纳入路径都指到 PRD / ADR / 剧本原文（KB 创建 → ADR-035；reindex → ADR-053；supersede → ADR-020；删除 / ACL → 安全 PRD §5 记录清单；KB model-bindings → 剧本 AC6；chunk-strategies → 05-api；其余按默认全审）。
+3. **强度分级有裁定**：**L1** `admin_write`（全部管理写，只落 Pino、**不可查账**）· **L2** 持久化 diff 账本 `kb_settings_audits`（**只**服务 PRD 明写「修改日志 / 旧→新」的两条：KB settings PATCH · chunk-strategies PATCH，**不扩、不建表**）· **L3** 领域事件（21 处打点 / 20 个事件名，不动）。**未做成的如实记债**（见 `Not yet specified`）。
+4. **覆盖面按口径对齐且防漂移**：新增覆盖 **15 条** ⇒ 审计 **39** + 例外 **11** = **50**（独立复核实测同值、未决 0）；新增结构型测例从**真实路由表**枚举 mutating 路由，断言**全覆盖 + 例外表紧致 + 计数自洽** ⇒ 新增写路由不显式决定即红。
+5. **反证成立**：判据恒假 → **9 红**；例外 pattern 多吞一条已注册路由 → **4 红**；删一条例外 / 改声明 → 计数或紧致必红（独立复核另跑了 5 组探针，逐组红数已记入工单 04）。**既有断言零翻**。
+6. **回写一致**：镜像（api.md 四处 + 技术债 + 证据 + 最近更新）· spec（logging-guidelines 的口径 / 例外表 / 三档痕 / 防漂移 / 禁止项）· 覆盖表（ingest E4 · ops AC6 · coverage.md 第十六轮）· 雾清单（簇 10 改写 + 2026-10-10 追加段）· 总 backlog §0 未决行 → 定案 · 交付控制台 §0.6 与变更日志 · 兄弟图 `pending-review-ops` 两处「已销」。
+7. **未验证的如实写**：无浏览器（本图不涉 UI）· 未起真实 api 进程 / 未连 DB（判定是纯路径函数，`createApp()` 枚举在测试里跑过）· 生产日志是否被外部采集、180 天保留期由谁承接 —— 仓内无证据。
+
+**该被记住的四句话**：① **枚举式白名单的病不在「漏了几条」而在「新路由默认免审」** —— 只补四条正则治不了它，改「默认全审 + 显式例外 + 结构型测例」才治；② **「审计」在本仓有两层，混读会把 Pino 行当成可查账** —— 所以三档痕与「无读面 / 无留存」必须逐处写明；③ **反证探针本身也可能无效**（第一轮把 `complete` 的正则放宽成 `…/documents/[^/]+/.*$`，实测仍只命中一条、16 全绿）—— 「红了」要真的红了才有意义；④ **PRD 没写分级不等于可以自造分级** —— 本图的三档是**归纳**，已标明为归纳并写成销账条件。
 
 ## Not yet specified
 
-（立图时为空；随工单逐条填入，且每条都要带销账条件。）
+（收口后剩下的雾，各自带销账条件；正文落在 `docs/module-status/api.md` 的技术债行与本图工单 02 的 R9。）
 
-## Out of scope
+- **`admin_write` 无读面 / 无留存 / 无轮转** —— 仓内**不能**满足「可查账」。销账 = 先定「要不要在仓内可查账」：要则须裁 L2 扩面（哪些路径该落持久化账本）或接外部采集。
+- **安全 PRD 的「审计日志 180 天」保留期无承接方** —— 销账 = 明确由仓内留存还是外部平台承接，并写进 `docs/ops/`。
+- **领域事件缺 PRD 明写的字段**：`model_bindings_put` 缺「旧 / 新 provider+model + 原因」（ADR-055 / 剧本 P7）· `chunk_strategy_reindex` 缺「谁」（ADR-053）。销账 = 先裁「领域事件要不要承担 PRD 的字段清单」（改 `event` 载荷 = 改形状，须另裁）。
+- **`documents/write`（在审）与 `complete`（在例外表）同属「内容提交」而口径不对称** —— 销账 = 产品若要把「内容提交」整体纳入（加严，会翻既有断言）或整体排除（放宽，禁止），须另裁。
+- **PRD 无显式「痕强度分级」** —— 本图的三档是**归纳**。销账 = 产品若认这个分级，回写 PRD。
+- **L2 账本只服务两条配置路径** —— 其余「写 audit」类（角色 / 用户 / 部门 / grant / model provider）**不落表**。销账 = PRD 若明确要求 diff 才建（ADR → 改 PRD → 升版）。
 
-- 新建持久化审计**表 / 迁移**（默认记为债；除非裁定判定某条路径 PRD **明写**要有可查账且离线可做）
+## Out of scope（真正的划出项）
+
+- 新建持久化审计**表 / 迁移**（即 **L2 不扩面**；默认记为债 —— 除非裁定判定某条路径 PRD **明写**要有可查账且离线可做）
+- **簇 10 的「表级留痕」**（工单 02 R4 裁定**不做**：PRD 只要「有记录」，且站规禁止为操作日志新建审计表）
 - 把请求体 / 字段值 / 密钥塞进 `admin_write` 的 Pino 载荷
 - 改任何 `prds/00–11` 冻结文本；改任何默认开关
 - 审计日志的保留期 / 轮转 / 落盘 / 外部采集（Sentry / 日志平台）配置

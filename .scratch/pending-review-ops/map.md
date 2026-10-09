@@ -49,12 +49,12 @@ Status: resolved（前沿：空；工单 01–05 全收口）
 
 **该被记住的两句话**：① **数据已在手时，缺的往往是动作而不是接口** —— 报告 DTO 早就带着 `heldChunkId` 躺在 admin 里，前两张图却因「无列表端点」把审阅面记成雾；② **反证也可能无效** —— 首轮反证（去掉 `action` 判据仍全绿）暴露夹具没覆盖判据本身，补了 `skip_index + heldChunkId` 才钉住；这比反证本身更有价值。
 
-**未解决 / 新记债**：处置**零审计**且「文档内容处置类」写审计口径未定（已进总 backlog §0 与雾清单）· 跨文档运维查询面未落 · 待审积压聚合指标未落。
+**未解决 / 新记债**：处置**零审计**且「文档内容处置类」写审计口径未定（已进总 backlog §0 与雾清单）—— **该两条已于 2026-10-10 销**：口径定案（默认全审 + 显式例外）并一次性对齐覆盖面 + 防漂移测例，见 `.scratch/admin-write-audit-scope/`。跨文档运维查询面未落 · 待审积压聚合指标未落。
 
 **提交（本地，未 push）**：`ad0198a` 工单 01–04（代码 + 测例 + 图）· `5fb087d` 工单 05（镜像回写）。**只在本分支 `main`，未建 worktree。**
 ## Not yet specified
 
-- **文档内容处置类是否纳入 Pino 写审计白名单**（工单 02 裁定带出的债）：`admin-write-audit.ts` 的白名单覆盖成员 / 审批 / 生命周期 / 平台 admin / KB 设置写，**不含** `POST …/dedupe-conflicts/:chunkId/resolve`、`POST …/supersede`、`PATCH /documents/:docId`、`PUT /documents/:docId/acl`。只给其中一条开口会造成同类路径口径分裂 → 准入条件 = 先定「哪些路径属管理写」的口径（一个裁定），再一次性对齐白名单 + 补测。
+- **（2026-10-10 已销）文档内容处置类是否纳入 Pino 写审计白名单**（工单 02 裁定带出的债）：`admin-write-audit.ts` 的白名单覆盖成员 / 审批 / 生命周期 / 平台 admin / KB 设置写，**不含** `POST …/dedupe-conflicts/:chunkId/resolve`、`POST …/supersede`、`PATCH /documents/:docId`、`PUT /documents/:docId/acl`。只给其中一条开口会造成同类路径口径分裂 → 准入条件 = 先定「哪些路径属管理写」的口径（一个裁定），再一次性对齐白名单 + 补测。**已由 wayfinder 图 [`admin-write-audit-scope`](../admin-write-audit-scope/map.md) 收口**：口径 = 默认全审 + 显式例外（例外 7 条 = 11 条路由），四条点名路径连同另外 11 条一次纳入（审计 39 + 例外 11 = 50），并有从真实路由表枚举的防漂移测例。
 - **`ingest_jobs` 完整运维查询面（簇 14）**：今天只有 **per-doc 只读**（`GET /api/v1/documents/:docId/ingest-jobs`，HALF-JOBS 落）与 admin 文档旁看阶段；**跨文档**列表 / 筛选 / 分页**未落**，且镜像（`worker.md` · `db.md`）仍写「无查询面」。本图只**纠偏镜像**；要不要建跨文档运维面，取决于「成员即可读全量账本」的暴露面裁定（见工单 02），留作雾。
 - **`pending_review` 的聚合指标**：入库报告只有逐条 `conflictPairs`，无「待审积压」计数。要加指标须先定消费者（本仓 worker 无 metrics 出口，正解是进报告或 ask 侧）。
 - **`downrank` 处置结果**：PRD §5.1 的合法取值，写入端已 400 拒绝；若将来要做，`dedupe_status` 需第二取值，属新设计。

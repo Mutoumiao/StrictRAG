@@ -2,7 +2,7 @@
  * 目标：管理写审计对全量 mutating 路由是全覆盖的，且例外表紧致（新写路由不显式决定即红）。
  * 需求：ARCH-P1b-2 口径「默认全审 + 显式例外」· wayfinder 图 .scratch/admin-write-audit-scope 工单 02 裁定 R6。
  * 被测：shouldAuditAdminWrite / isAuditExcluded / AUDIT_EXCLUSIONS + createApp().routes
- * 简介：从真实 app 路由表枚举 mutating 路由按 (method,path) 去重后逐条断言；例外正则多吞一条即红。
+ * 简介：从真实 app 路由表枚举 mutating 路由按 (method,path) 去重后逐条断言；例外正则**在 mutating 路由集上多命中一条已注册路由**即红。
  */
 
 import { describe, expect, it } from 'vitest';
@@ -44,7 +44,7 @@ describe('管理写覆盖面对全量 mutating 路由', () => {
     expect(undecided).toEqual([]);
   });
 
-  it('每条例外恰好覆盖它声明的 mutating 路由（多吞一条即红）', () => {
+  it('每条例外恰好覆盖它声明的 mutating 路由（在 mutating 路由集上多命中一条即红）', () => {
     const routes = mutatingRoutes();
     for (const ex of AUDIT_EXCLUSIONS) {
       expect(ex.reason.length).toBeGreaterThan(0);

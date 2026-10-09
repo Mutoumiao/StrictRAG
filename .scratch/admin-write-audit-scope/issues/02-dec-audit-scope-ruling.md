@@ -61,7 +61,7 @@ Blocked by: 01
 
 **L2 · 持久化可查账（`kb_settings_audits` + `GET …/settings-audit`）**：**只**给 PRD 明写「修改日志 / diff / 旧→新」的路径 —— 今天 = KB settings PATCH（`05-api:104` + ADR-054`:1574`）与 chunk-strategies PATCH（`05-api:190` + ADR-053`:1501`），**两条已闭环**。本图**不**扩 L2、**不建表**（`logging-guidelines.md:48` 的站规明写禁止「为操作日志新建审计表」；其余路径 PRD 只写「写 audit / 审计」，未要求 diff）。
 
-**L3 · 领域事件（带业务语义的 Pino 行）**：现有 21 条**保持不动**；本图**不新增**领域事件（新纳入路径只落 L1）。
+**L3 · 领域事件（带业务语义的 Pino 行）**：现有 **21 处打点（去重后 20 个事件名）** —— `department_patch` 在 `routes/departments.ts:171`（parentMoved 支）与 `:178`（普通支）各一处 —— **保持不动**；本图**不新增**领域事件（新纳入路径只落 L1）。
 
 **明写「Pino 行 ≠ 可查账」**：`admin_write` 只落 stdout、**无读面 / 无留存配置**；凡 PRD 要求「可查账」的地方今天只有 Pino 的，**如实记债**（R9）。
 
@@ -75,7 +75,7 @@ Blocked by: 01
 
 ### R4 · 簇 10 与 backlog 未决行的收口口径
 
-**簇 10（跨部门 grant 的删除要不要留痕）→ 裁定：Pino 层已满足，不建表。** 依据：`DELETE /api/v1/admin/dept-cross-grants/:id` 落在 `/api/v1/admin/` 前缀下、**已被 `admin_write` 命中** + 领域事件 `dept_cross_grant_delete`，`dept-grants-http.test.ts:306-395` 已正面钉住剧本 **AE7**「审计有记录」；表级留痕**无 PRD 依据**（AE7 只写「有记录」），且 ADR-057 要的「原因审计」已由 `dept_cross_grants.reason` 列 + `granted_by` / `created_at` 承载。⇒ 簇 10 **按「已满足」销账**（并写明「表级留痕 = 明确不做」的依据）。
+**簇 10（跨部门 grant 的删除要不要留痕）→ 裁定：Pino 层已满足，不建表。** 依据：`DELETE /api/v1/admin/dept-cross-grants/:id` 落在 `/api/v1/admin/` 前缀下、**已被 `admin_write` 命中** + 领域事件 `dept_cross_grant_delete`；`dept-grants-http.test.ts` **路由级用例**（`:306-350`）对 POST / DELETE 各断言一条领域事件，**中间件级用例**（`:352-395`）只发了 POST（`:374`）—— DELETE 那条靠 `/api/v1/admin/` 前缀命中、**未**被直接断言（主控实测 `audited=true`）。两者合起来满足剧本 **AE7**「审计有记录」；表级留痕**无 PRD 依据**（AE7 只写「有记录」），且 ADR-057 要的「原因审计」已由 `dept_cross_grants.reason` 列 + `granted_by` / `created_at` 承载。⇒ 簇 10 **按「已满足」销账**（并写明「表级留痕 = 明确不做」的依据）。
 
 **backlog §0 未决行 → 定案**：四条名义路径按 R3 全部纳入 L1；口径见 R1；改「已定案 + 指针」。
 
