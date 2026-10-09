@@ -22,6 +22,8 @@ import type {
   PutObjectResponse,
   ReindexDocumentBody,
   ReindexDocumentResponse,
+  ResolveDedupeConflictBody,
+  ResolveDedupeConflictResponse,
   UploadUrlBody,
   UploadUrlResponse,
   WriteDocumentBody,
@@ -91,6 +93,18 @@ export async function listIngestJobs(docId: string) {
 
 export async function listIngestReports(kbId: string) {
   return http.get<IngestReportItem[]>(`/api/v1/knowledge-bases/${kbId}/ingest-report`);
+}
+
+/** 跨 doc 去重冲突的人工二选一（剧本 E4）；权限与 PATCH 文档同码（`doc.editor`）。 */
+export async function resolveDedupeConflict(
+  docId: string,
+  chunkId: string,
+  body: ResolveDedupeConflictBody,
+) {
+  return http.post<ResolveDedupeConflictResponse, ResolveDedupeConflictBody>(
+    `/api/v1/documents/${docId}/dedupe-conflicts/${chunkId}/resolve`,
+    body,
+  );
 }
 
 export async function completeUpload(kbId: string, docId: string, body: CompleteUploadBody) {

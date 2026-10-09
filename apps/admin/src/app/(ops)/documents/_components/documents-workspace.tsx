@@ -3,6 +3,7 @@
 /**
  * 文档薄列表：类型 / 运营标签 / 向量 / 稀疏。
  * 点行展开详情；可改 ownerDeptId / visibilityLevel / docType / aclPrincipals / 生效区间（有 doc.editor 才显示保存）。
+ * 报告区列出跨文档待审冲突（`pending_review` + `heldChunkId`），有 doc.editor 可二选一处置（不代跑 Reindex）。
  * 有 dept.manage 时归属用部门列表下拉；无该码仍 uuid 粘贴。不宣称强制隔离已上。
  * Reindex 走 for-upload；≥2 必须人选。lifecycle 含归档/废止/删除（DELETE 入队 purge）。替代须选后继。上架仍须 ready。
  * 表头上方按已加载行本地筛部门/可见级；不改 GET query。
@@ -56,6 +57,12 @@ import {
 } from '../meta.services';
 import { loadIngestJobs } from '../jobs.services';
 import { contextualizeCountsLabel, dedupeRateLabel, loadIngestReports, NO_INGEST_REPORT_HINT, reportsForDoc } from '../report.services';
+import {
+  dedupeWinnerLabel,
+  pendingReviewConflicts,
+  resolvePendingConflict,
+  type PendingReviewConflict,
+} from '../dedupe-review.services';
 import {
   canArchive,
   canPublish,
@@ -164,6 +171,10 @@ export function DocumentsWorkspace() {
   const [jobsNote, setJobsNote] = useState<string | null>(null);
   const [docReports, setDocReports] = useState<IngestReportItem[]>([]);
   const [reportNote, setReportNote] = useState<string | null>(null);
+  const [pendingConflicts, setPendingConflicts] = useState<PendingReviewConflict[]>([]);
+  const [dedupeResolved, setDedupeResolved] = useState<Set<string>>(new Set());
+  const [dedupeBusyChunk, setDedupeBusyChunk] = useState<string | null>(null);
+  const [dedupeMessage, setDedupeMessage] = useState<string | null>(null);
   const [reindexPlan, setReindexPlan] = useState<ForUploadResponse | null>(null);
   const [reindexPicked, setReindexPicked] = useState('');
   const [reindexBusy, setReindexBusy] = useState(false);
@@ -330,9 +341,36 @@ export function DocumentsWorkspace() {
       const mine = reportsForDoc(reportsResult.reports, docId);
       setDocReports(mine);
       setReportNote(mine.length === 0 ? NO_INGEST_REPORT_HINT : null);
+      setPendingConflicts(pendingReviewConflicts(mine));
+      setDedupeResolved(new Set());
+      setDedupeBusyChunk(null);
+      setDedupeMessage(null);
     } else {
       setDocReports([]);
       setReportNote(reportsResult.message);
+      setPendingConflicts([]);
+      setDedupeResolved(new Set());
+      setDedupeBusyChunk(null);
+      setDedupeMessage(null);
+    }
+  }
+
+  async function onResolveConflict(conflict: PendingReviewConflict, winner: 'this' | 'other') {
+    const id = detail?.id;
+    if (!id || !canEdit || dedupeBusyChunk) return;
+    setDedupeBusyChunk(conflict.heldChunkId);
+    setDedupeMessage(null);
+    const result = await resolvePendingConflict({
+      docId: id,
+      heldChunkId: conflict.heldChunkId,
+      winner,
+    });
+    if (openIdRef.current !== id) return;
+    setDedupeBusyChunk(null);
+    setDedupeMessage(result.message);
+    // 成功或终态失败（非待审 / 不存在）都停用该行：报告是历史事实，不会因此改写。
+    if (result.ok || result.terminal) {
+      setDedupeResolved((prev) => new Set(prev).add(conflict.heldChunkId));
     }
   }
 
@@ -1209,6 +1247,54 @@ export function DocumentsWorkspace() {
                               </ul>
                             ) : null}
                           </div>
+                          {pendingConflicts.length > 0 ? (
+                            <div className="text-xs">
+                              <p className="font-semibold">待审冲突（跨文档近重复 · 人工二选一）</p>
+                              <p className="text-muted-foreground">
+                                来自历史入库报告：报告不因处置而改写，本块是否仍待审以下方列表为准。保留本块后须再对本文档做 Reindex 才进检索面。
+                              </p>
+                              <ul className="m-0 list-disc ps-4">
+                                {pendingConflicts.map((c) => (
+                                  <li key={c.heldChunkId}>
+                                    本块 {c.heldChunkId} ↔ 对方文档 {c.otherDocId}
+                                    {dedupeResolved.has(c.heldChunkId) ? (
+                                      <span className="text-muted-foreground"> · 已处置</span>
+                                    ) : canEdit ? (
+                                      <>
+                                        {' '}
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="outline"
+                                          disabled={dedupeBusyChunk !== null}
+                                          onClick={() => void onResolveConflict(c, 'this')}
+                                        >
+                                          {dedupeWinnerLabel('this')}
+                                        </Button>{' '}
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="outline"
+                                          disabled={dedupeBusyChunk !== null}
+                                          onClick={() => void onResolveConflict(c, 'other')}
+                                        >
+                                          {dedupeWinnerLabel('other')}
+                                        </Button>
+                                      </>
+                                    ) : (
+                                      <span className="text-muted-foreground">
+                                        {' '}
+                                        · 无 doc.editor，不可处置
+                                      </span>
+                                    )}
+                                  </li>
+                                ))}
+                              </ul>
+                              {dedupeMessage ? (
+                                <p className="text-muted-foreground">{dedupeMessage}</p>
+                              ) : null}
+                            </div>
+                          ) : null}
                           <div className="text-xs">
                             <p className="font-semibold">分片策略（历史，只读）</p>
                             <p className="text-muted-foreground">
