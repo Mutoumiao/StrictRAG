@@ -34,6 +34,12 @@ describe('signoffPackageTauFromReport · 从 report_json 取本跑冻结的 τ',
     expect(signoffPackageTauFromReport({ repro: { tauClaim: '0.5' } })).toBeNull();
     expect(signoffPackageTauFromReport({ repro: { tauClaim: true } })).toBeNull();
   });
+
+  it('repro 本身不是普通对象（数组 / 字符串）→ 未记录，且不得抛错', () => {
+    expect(signoffPackageTauFromReport({ repro: [] })).toBeNull();
+    expect(signoffPackageTauFromReport({ repro: 'x' })).toBeNull();
+    expect(signoffPackageTauFromReport({ repro: [0.5] })).toBeNull();
+  });
 });
 
 describe('judgeGatePackageLoad · §6.0 加载判定', () => {
@@ -68,6 +74,20 @@ describe('judgeGatePackageLoad · §6.0 加载判定', () => {
     expect(judgeGatePackageLoad({ packageTau: Number.NaN, runtimeTau: 0.5 })).toEqual({
       loadable: false,
       reason: 'tau_unrecorded',
+    });
+  });
+
+  it('越过类型的输入也算「未记录」：非 number 的 packageTau 不得判成「不一致」', () => {
+    // 生产路径不会走到（`signoffPackageTauFromReport` 已先过滤），此处钉住「非数 = 未记录」这一语义
+    expect(
+      judgeGatePackageLoad({ packageTau: '0.5' as unknown as number, runtimeTau: 0.5 }).reason,
+    ).toBe('tau_unrecorded');
+  });
+
+  it('运行时 τ 非有限（env 侧由 zod 挡住，不可达）→ 判「不一致」，不放行', () => {
+    expect(judgeGatePackageLoad({ packageTau: 0.5, runtimeTau: Number.NaN })).toEqual({
+      loadable: false,
+      reason: 'tau_mismatch',
     });
   });
 });

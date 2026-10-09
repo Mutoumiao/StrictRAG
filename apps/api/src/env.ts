@@ -13,7 +13,8 @@ const AppEnvSchema = z.enum(['development', 'test', 'staging', 'production']);
 
 /**
  * API 进程环境变量（Zod 校验，失败快速退出）。
- * 密钥仅服务端；tauClaim 唯一源：`TAU_CLAIM`。
+ * 密钥仅服务端；tauClaim 的**唯一 env 承载**：`TAU_CLAIM`。有已签字包时须与包内冻结的 τ 一致，
+ * 不一致 / 包未记录 → 读面拒绝加载该包（§6.0 加载行 / ADR-046 决策 #4 · ADR-062）。
  */
 const EnvSchema = z
   .object({

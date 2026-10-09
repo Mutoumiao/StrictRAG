@@ -65,7 +65,7 @@ Blocked by: 01
 不补则队列路径产出的包**恒** `tau_unrecorded` → 闸在主生产路径上恒拒、功能等于半死。故：
 
 1. api 内口 `POST /internal/eval/execute-ask`（`routes/eval.ts:294-345`）响应**加一项** `tauClaim: env.TAU_CLAIM`（同进程同值，即 `runAsk` 实际用的那个）。
-2. worker `run-l1-batch.ts` 逐题收该字段：**全部题目同值**才写入 `repro.tauClaim`；出现分歧或全缺 → 保持 `null`（**不猜**）。
+2. worker `run-l1-batch.ts` 逐题收该字段：**全部题目同值**才写入 `repro.tauClaim`；出现分歧或全缺 → 保持 `null`（**不猜**）。（**2026-10-09 反向复核后收紧**：实现取的是**全部非 error 的题都下发了同一个 τ** 才记 —— 「只有部分题下发」也判 `null`（一题的 τ 不足以代表整批的证据面）；error 题不下发，既不参与也不阻塞。见工单 03 Answer 的「复核后收紧」节。）
 3. 既有测例 `apps/worker/tests/eval/run-l1-batch-repro.test.ts:67`（今天断言 `null`）**按新语义改写**，并在工单 03 Answer 写明「这是本图的目的，不是测试写错」。
 4. 内口响应属 api↔worker 接口，`docs/module-status/api.md` 需记（回写票）。
 

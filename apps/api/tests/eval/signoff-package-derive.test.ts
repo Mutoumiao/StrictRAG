@@ -3,6 +3,7 @@
  * 需求：ADR-046 四要素之四「KB 配置快照绑定 eval_runs」· ADR-061 L1 双轨 · 05-api §2.1
  * 被测：isSignoffPackageRow / latestSignoffPackage
  * 简介：合格=golden_2x2 ∧ succeeded ∧ live ∧ signoff_eligible；任一不满足即 null；有则取最近一条。
+ *       并回该跑**冻结的 τ**（`report_json.repro.tauClaim`；脏值判「未记录」，供 §6.0 加载校验）。
  *       SQL 侧写死同一条件（`latestSignoffPackage`），本测例钉纯函数口径防两边漂移。
  */
 

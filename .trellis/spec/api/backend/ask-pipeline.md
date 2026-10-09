@@ -240,7 +240,7 @@ route
 | strict | 20 | 6 |
 
 - 每次 `chargeAndChat` / retrieve 前 `tryCharge*`；不足 → **立即** `budget_exhausted`，**禁止**跳过节点假完成。  
-- 客户端 **不可**覆盖预算或 `tauClaim`（env `TAU_CLAIM` 唯一源）。
+- 客户端 **不可**覆盖预算或 `tauClaim`（`TAU_CLAIM` 是唯一 env 承载；有已签字包时须与包内冻结的 τ 一致，见 ADR-062）。
 
 ##### 检索预算（`retrieveBudgetForMode` · mode 默认）
 

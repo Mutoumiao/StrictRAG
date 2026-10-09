@@ -753,7 +753,8 @@ export async function runL1Golden(opts: RunL1Options): Promise<L1Report> {
   const swept = sweepTau(rows);
   const calib = await scoreJudgeAuroc(opts);
   const snapIn = opts.snapshot;
-  // τ 唯一源：快照覆盖 ?? ADR-007 的 env.TAU_CLAIM。报告与快照读同一个值，不出现两个 τ
+  // τ 来源：快照覆盖 ?? env.TAU_CLAIM（ADR-007 的唯一 env 承载）。本跑的报告与 ADR-046 快照读同一个
+  // 值，故「不出现两个 τ」；该值即签字包内冻结的 τ，运行时读面按它做 §6.0 加载校验（ADR-062）
   const tauClaim = snapIn?.tauClaim ?? env.TAU_CLAIM;
 
   // §8 models.kbBindings：需读库，读不到 = 取不到 → null（不得编造绑定）

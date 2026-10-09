@@ -377,6 +377,32 @@ describe('SettingsWorkspace', () => {
     expect(within(section!).queryByRole('textbox')).not.toBeInTheDocument();
   });
 
+  it('签字包「未记录 τ」时同样显示原因（两种原因文案可分辨）', async () => {
+    localStorage.setItem('strict-rag:admin:last-kb-id', KB_ID);
+    me.permissions = ['admin.shell', 'kb.config.write'];
+    loadKbSettings.mockResolvedValue({
+      ok: true,
+      settings: {
+        ...settings,
+        qualitySnapshot: {
+          tauClaim: 0.7,
+          gatePackageId: null,
+          effectiveAt: null,
+          gatePackageRejectedReason: 'tau_unrecorded' as const,
+        },
+      },
+    });
+
+    render(<SettingsWorkspace />);
+
+    const heading = await screen.findByRole('heading', { name: '质量（只读）' });
+    const section = heading.closest('section');
+    expect(section).not.toBeNull();
+    expect(within(section!).getByText(/未记录 τ/)).toBeInTheDocument();
+    // 与 mismatch 那句不得混用（否则运营分不清是「改过 τ」还是「跑次没记 τ」）
+    expect(within(section!).queryByText(/τ 与运行时 TAU_CLAIM 不一致/)).not.toBeInTheDocument();
+  });
+
   it('加载后可见三档消费绑定；选生成覆盖后保存 PUT 不含 judge', async () => {
     const ref = '01900000-0000-7000-8000-0000000000aa#chat';
     localStorage.setItem('strict-rag:admin:last-kb-id', KB_ID);

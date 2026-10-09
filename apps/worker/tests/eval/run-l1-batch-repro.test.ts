@@ -121,8 +121,22 @@ describe('runL1Batch · τ 由执行侧（api 内口）下发后记进报告', (
     expect((await batchWithTaus([1, 1])).repro.tauClaim).toBe(1);
   });
 
-  it('只部分题下发 → 仍按那一个同值记（api 是单进程单 τ）', async () => {
-    expect((await batchWithTaus([0.6, undefined])).repro.tauClaim).toBe(0.6);
+  it('只部分题下发 → 记 null（证据不齐：不能拿一题的 τ 代表整批）', async () => {
+    expect((await batchWithTaus([0.6, undefined])).repro.tauClaim).toBeNull();
+    expect((await batchWithTaus([undefined, 0.6])).repro.tauClaim).toBeNull();
+  });
+
+  it('error 题不下发不阻塞：其余非 error 题齐且同值 → 照记', async () => {
+    const report = await runL1Batch({
+      kbId: 'kb-1',
+      retrieveMode: 'live',
+      cases: CASES,
+      execute: async ({ caseKey }) =>
+        caseKey === 'a1'
+          ? { outcome: 'answered', tauClaim: 0.6 }
+          : { outcome: 'error', errorMessage: 'boom' },
+    });
+    expect(report.repro.tauClaim).toBe(0.6);
   });
 
   it('分歧 / 全缺 → 记 null（不猜、不取 worker 侧 TAU_CLAIM）', async () => {

@@ -196,8 +196,12 @@ export async function runL1Batch(opts: {
   const hitAcc = emptyHitAtK();
   let errorCount = 0;
   const rows: L1BatchCaseRow[] = [];
-  /** 执行侧下发的 τ（去重）；恰好一个 → 记进 `repro.tauClaim`，0 个或分歧 → `null` */
+  /** 执行侧下发的 τ（去重）；全部**非 error** 的题都下发同一个值 → 记进 `repro.tauClaim`，否则 `null` */
   const reportedTaus = new Set<number>();
+  /** 非 error 的题数（τ 只在这些题上应当被下发） */
+  let completedCases = 0;
+  /** 其中真的下发了 τ 的题数 */
+  let tauReportedCases = 0;
 
   for (const c of sliced) {
     let outcome: L1Outcome;
@@ -218,7 +222,9 @@ export async function runL1Batch(opts: {
         minSupport = parseMinSupport(result.minSupport);
         answerKind = result.answerKind;
         citationCount = result.citationCount;
+        completedCases += 1;
         if (typeof result.tauClaim === 'number' && Number.isFinite(result.tauClaim)) {
+          tauReportedCases += 1;
           reportedTaus.add(result.tauClaim);
         }
       }
@@ -309,8 +315,12 @@ export async function runL1Batch(opts: {
      */
     repro: {
       ...emptyL1Repro(),
-      // 执行侧（api）本跑实际用的 τ：整批恰好一个同值才记；全缺或分歧 → null（不猜、不取 worker 自己的 env）
-      tauClaim: reportedTaus.size === 1 ? [...reportedTaus][0]! : null,
+      // 执行侧（api）本跑实际用的 τ：**全部非 error 的题都下发且同值**才记；漏下发 / 分歧 / 全缺 → null
+      // （不猜、不取 worker 自己的 env；error 题不下发不参与，也不阻塞）
+      tauClaim:
+        completedCases > 0 && tauReportedCases === completedCases && reportedTaus.size === 1
+          ? [...reportedTaus][0]!
+          : null,
       questionIdsHash: l1QuestionIdsHash(opts.cases.map((c) => c.caseKey)),
       goldSource: 'db',
       // 全量 cases（与 questionIdsHash 同源），**不**受 maxCases 截断影响

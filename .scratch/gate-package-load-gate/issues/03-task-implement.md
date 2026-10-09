@@ -73,3 +73,20 @@ Blocked by: 02
 ### 与裁定的偏差
 
 无。R1–R8 逐条落地；R9 的不做清单原样保留（回写票记债）。
+
+### 复核后收紧（2026-10-10 · 独立反向复核子代理）
+
+复核（只读、尽力证伪）出 **1 处需收紧 + 5 处陈旧陈述**，逐条处理：
+
+| # | 复核发现 | 处理 |
+|---|---------|------|
+| 1 | **R5 字面被放宽**：原实现「去重集合恰好一个元素」就记 τ —— 20 题里只有 1 题成功下发、其余 error 时也会记，**证据面比裁定所许更弱** | **收紧**：改为「**全部非 error 的题都下发了同一个 τ**」才记（`completedCases` / `tauReportedCases` / `reportedTaus.size` 三者同时满足）；「只部分题下发」现判 `null`。测例同步：原「部分下发 → 照记」一条改为「部分下发 → `null`」，并新增「error 题不下发不阻塞」一条 |
+| 2 | `.scratch/acceptance-divergence/research/{02-adr-ready-findings,01-then-source-evidence}.md` 仍写「T6 = 丁 / 无运行时加载口 / 撞 ADR-007 唯一源」，而 spec 的 index 又指着它们当权威 | 两份**归档研究**顶部各加「2026-10-09 已被 ADR-062 部分超越」状态注（保留原取证，便于复现当时的判断依据） |
+| 3 | `docs/testing/coverage/03-ops.md` 的 **T1 行**仍写「`adr046-snapshot.ts` 全仓无运行时读取 / 加载入口」，与同一册 T6 行自相矛盾 | 收窄为「**门禁快照 `gates` 本身**仍无运行时加载口；2026-10-09 起 τ 的一致性闸已落，但只覆盖 τ 一项」 |
+| 4 | `docs/module-status/api.md` 的内口一行仍只写「回 `evidenceDocIds` 与 `minSupport`」 | 补 `tauClaim` 并写明谁消费它 |
+| 5 | 「env 唯一源」措辞与 ADR-062 冲突（`.env.example` · `apps/api/src/env.ts` · `apps/api/src/scripts/run-l1-golden.ts` · `.trellis/spec/api/backend/ask-pipeline.md`） | 四处改为「唯一 **env 承载**；有已签字包时须与包内 τ 一致」 |
+| 6 | 镜像未明写**数据影响**（既有包会从「有值」变「无值」） | `docs/module-status/api.md` 签字包一节补「上线前产出的合格 run 若 τ 未记录 → 读面从有值变无值，须用新版 worker 重跑 L1 才恢复呈现」 |
+
+复核同时要求补的边界测例（已补）：`repro` 非普通对象（数组 / 字符串）→ 未记录且不抛错 · `packageTau` 越过类型（字符串）→ 判「未记录」而非「不一致」 · `runtimeTau` 非有限（env 侧 zod 已挡，不可达）→ 判「不一致」不放行。admin 侧补「`tau_unrecorded` 文案可分辨」一条。
+
+复核**明查无问题**的类别：加严方向（六个 env 默认开关零改动、判定严格相等无容差）· 测例非空转（kb 测例确实走真 `defaultQuality`，只用 `importOriginal` 替换仓储方法）· 生产者逐跳无丢值（内口 → worker 解析 → 批跑 → `persist` 白名单 → 取回）· 工单 04 的五条纠偏**无一条过头**（逐条核过源码）· ADR-062 与实现一致。复核**未能**核实的：真 PG 上的 SQL 组合 · 真进程端到端往返 · 未跑门禁（由主控跑）。
