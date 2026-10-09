@@ -61,6 +61,37 @@ describe('shouldAuditAdminWrite', () => {
     ).toBe(true);
   });
 
+  it('2026-10-10 口径新增覆盖（默认全审 − 例外表）→ true', () => {
+    // 依据：图 .scratch/admin-write-audit-scope 工单 02 裁定 R3（每条 PRD 依据见该裁定）
+    const newlyAudited: Array<[string, string]> = [
+      // ADR-035 决策「创建 KB…审计强制」
+      ['POST', '/api/v1/knowledge-bases'],
+      // ADR-053 「reindex 动作审计（谁、docId、选中 strategy、新 version）」
+      ['POST', '/api/v1/documents/d1/reindex'],
+      ['POST', '/api/v1/documents/d1/scan'],
+      // ADR-020 「supersede 关闭旧版检索但保留审计」
+      ['POST', '/api/v1/documents/d1/supersede'],
+      // backlog 未决行点名 + 09-security §5 记录清单（删除 / ACL / 成员变更）
+      ['POST', '/api/v1/documents/d1/dedupe-conflicts/c1/resolve'],
+      ['DELETE', '/api/v1/documents/d1'],
+      ['PATCH', '/api/v1/documents/d1'],
+      ['PUT', '/api/v1/documents/d1/acl'],
+      // 剧本 AC6「KB 设置选 generate/embed/rerank 覆盖…审计」
+      ['PUT', '/api/v1/knowledge-bases/kb1/model-bindings'],
+      // 05-api §「PATCH …/chunk-strategies 须 kb.config.write；写审计日志」
+      ['PATCH', '/api/v1/knowledge-bases/kb1/chunk-strategies'],
+      // 运营处置（低频）；其余按默认全审
+      ['PATCH', '/api/v1/feedback/f1'],
+      ['POST', '/api/v1/knowledge-bases/kb1/gold-questions'],
+      ['PATCH', '/api/v1/knowledge-bases/kb1/gold-questions/g1'],
+      ['DELETE', '/api/v1/knowledge-bases/kb1/gold-questions/g1'],
+      ['POST', '/api/v1/knowledge-bases/kb1/eval/runs'],
+    ];
+    for (const [method, path] of newlyAudited) {
+      expect(shouldAuditAdminWrite(method, path)).toBe(true);
+    }
+  });
+
   it('GET / ask / auth / health → false', () => {
     expect(shouldAuditAdminWrite('GET', '/api/v1/knowledge-bases/kb1/members')).toBe(
       false,

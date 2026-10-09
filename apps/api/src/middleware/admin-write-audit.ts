@@ -11,32 +11,89 @@ export function extractKbIdFromPath(path: string): string | undefined {
   return m?.[1];
 }
 
+/** 非业务写的基础设施路径（今天皆 GET；保留以防将来加写方法） */
+const INFRA_PATHS = new Set(['/health', '/ready', '/metrics']);
+
+export type AuditExclusion = {
+  /** 对 `c.req.path` 判定的路径正则（无 g 标志，可重复 test） */
+  pattern: RegExp;
+  /** 为什么排除：PRD 依据 / 事实（PRD 无条款者必须写明「无留痕条款」） */
+  reason: string;
+  /**
+   * 本条例外**恰好**覆盖的路由（`app.routes` 的 path 形状，含 `:param` 与挂载前缀）。
+   * 反漂移测例按此断言「恰好这些」——新路由被某条例外误吞即红。
+   */
+  routes: string[];
+};
+
 /**
- * 管理写路径判定（ARCH-P1b-2）。
- * 覆盖：成员 / 审批 / 生命周期 / 平台 admin / KB settings 写。
- * 排除：GET、ask SSE、auth、health/ready/metrics。
+ * 管理写审计的例外表（口径 = 默认全审 + 显式例外）。
+ * 判定式：`MUTATING ∧ ¬INFRA_PATHS ∧ ¬本表命中 ⇒ 审计`。
+ *
+ * 语义口径：管理写 = **改变 KB 治理状态或平台治理状态**的写（访问 / 内容去向 / 配置）。
+ * 本表收的是「不属于治理状态」的写：身份面、高频自助写、上传暂存、内部口。
+ * 依据：`docs/agents/domain.md` 与 `.trellis/spec/api/backend/logging-guidelines.md`
+ * （ARCH-P1b-2）；图 `.scratch/admin-write-audit-scope/` 工单 02 裁定 R1。
+ */
+export const AUDIT_EXCLUSIONS: readonly AuditExclusion[] = [
+  {
+    pattern: /^\/api\/v1\/auth\//,
+    reason: '身份面（dev-login / token 续期）；每次续期一条；沿用原口径',
+    routes: [
+      '/api/v1/auth/admin/dev-login',
+      '/api/v1/auth/web/dev-login',
+      '/api/v1/auth/admin/token/refresh',
+      '/api/v1/auth/web/token/refresh',
+    ],
+  },
+  {
+    pattern: /^\/api\/v1\/knowledge-bases\/[^/]+\/ask$/,
+    reason: 'ask（SSE 长连）；高频自助；沿用原口径',
+    routes: ['/api/v1/knowledge-bases/:kbId/ask'],
+  },
+  {
+    pattern: /^\/api\/v1\/ask\/[^/]+\/feedback$/,
+    reason: '点赞/点踩；每次一条（高频自助）；PRD 无留痕条款',
+    routes: ['/api/v1/ask/:requestId/feedback'],
+  },
+  {
+    pattern: /^\/api\/v1\/knowledge-bases\/[^/]+\/sessions$/,
+    reason: '建会话壳；每次新会话一条（最高频自助写）；PRD 无留痕条款；既有有意断言',
+    routes: ['/api/v1/knowledge-bases/:kbId/sessions'],
+  },
+  {
+    pattern: /^\/api\/v1\/knowledge-bases\/[^/]+\/documents\/upload-url$/,
+    reason: '上传暂存三连之一；高频；内容提交由 documents 行自身持久留痕',
+    routes: ['/api/v1/knowledge-bases/:kbId/documents/upload-url'],
+  },
+  {
+    pattern: /^\/api\/v1\/knowledge-bases\/[^/]+\/documents\/[^/]+\/complete$/,
+    reason: '上传暂存收尾；同上；PRD 无留痕条款；既有有意断言',
+    routes: ['/api/v1/knowledge-bases/:kbId/documents/:docId/complete'],
+  },
+  {
+    pattern: /^\/api\/v1\/internal\//,
+    reason: '内部口（上传体中转 / eval execute-ask）；非用户令牌、批跑高频',
+    routes: ['/api/v1/internal/objects', '/api/v1/internal/eval/execute-ask'],
+  },
+];
+
+/** 是否命中例外表（导出供反漂移测例断言「例外表紧致」） */
+export function isAuditExcluded(path: string): boolean {
+  return AUDIT_EXCLUSIONS.some((e) => e.pattern.test(path));
+}
+
+/**
+ * 管理写路径判定（ARCH-P1b-2；口径见 `AUDIT_EXCLUSIONS` 上方注释）。
+ *
+ * 判定在**路由匹配之前**（`app.ts` 里挂在 auth 之后、域路由之前），手上只有
+ * method + path（`c.req.path` 带 `/api/v1` 前缀、不含 query），**拿不到**权限码 ——
+ * 故口径只能落在路径上；覆盖率由结构型测例钉住（`tests/obs/admin-write-coverage.test.ts`）。
  */
 export function shouldAuditAdminWrite(method: string, path: string): boolean {
-  const m = method.toUpperCase();
-  if (!MUTATING.has(m)) return false;
-  if (path === '/health' || path === '/ready' || path === '/metrics') return false;
-  if (path.startsWith('/api/v1/auth/')) return false;
-  if (/\/knowledge-bases\/[^/]+\/ask\/?$/.test(path)) return false;
-
-  // 成员 invite / 改角色 / remove
-  if (/\/knowledge-bases\/[^/]+\/members(\/[^/]+)?\/?$/.test(path)) return true;
-  // 审批
-  if (/\/documents\/[^/]+\/(approve|reject)\/?$/.test(path)) return true;
-  // 生命周期
-  if (/\/documents\/[^/]+\/lifecycle\/?$/.test(path)) return true;
-  // 平台管理写（users/roles/departments/model…）
-  if (path.startsWith('/api/v1/admin/')) return true;
-  // KB 设置写
-  if (m === 'PATCH' && /\/knowledge-bases\/[^/]+\/settings\/?$/.test(path)) return true;
-  // 在线编写
-  if (m === 'POST' && /\/knowledge-bases\/[^/]+\/documents\/write\/?$/.test(path)) return true;
-
-  return false;
+  if (!MUTATING.has(method.toUpperCase())) return false;
+  if (INFRA_PATHS.has(path)) return false;
+  return !isAuditExcluded(path);
 }
 
 export type AdminWriteLogPayload = {
@@ -47,7 +104,7 @@ export type AdminWriteLogPayload = {
   durationMs: number;
 };
 
-/** 纯函数：组装操作日志字段（不含 body / 密钥） */
+/** 纯函数：组装操作日志字段（不含 body / 字段值 / 密钥） */
 export function buildAdminWritePayload(input: {
   method: string;
   path: string;
