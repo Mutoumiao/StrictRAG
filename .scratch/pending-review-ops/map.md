@@ -1,7 +1,7 @@
 # 「待审冲突」运营可见可办 + 入库账本镜像纠偏
 
 Label: wayfinder:map
-Status: open（前沿：05；01–04 已收口）
+Status: resolved（前沿：空；工单 01–05 全收口）
 
 ## Destination
 
@@ -36,6 +36,22 @@ Status: open（前沿：05；01–04 已收口）
 - [02 · 裁定：审阅面落点 / 发现路径 / 权限 / 审计](./issues/02-dec-review-surface.md) — **发现路径 = 复用文档页已读的入库报告**（`conflictPairs` 已带 `heldChunkId`，缺的是渲染与动作）→ **不新开 api 读端点**（无生产者的半接线 + 新暴露面）；**落点 = 文档行展开详情内的入库报告区块**；**权限沿用 `doc.editor`**（不新增码，UI 判据与既有「保存」按钮同源）；`winner='this'` 回 `reindexRequired=true` → UI 提示须自行 Reindex、**不代跑**；**审计本图不做**，记债（白名单同类不同待：`PATCH` 元数据写与 `supersede` 状态迁移同样不在内，只开一个口会口径分裂）；**簇 14 不改语义、只纠镜像**。
 - [03 · 落：api 侧](./issues/03-task-api-discover-surface.md) — **api 源码零改动**（裁定不新端点；既有 5 条 resolve 测例 + 成员闸测已满足裁定语义，**不**改写）。补 01 号研究点名的缺口：新增 contracts 契约测 **4 条**（body 只收 `winner` 两取值且拒未知字段；响应须回显三身份字段 + `reindexRequired`），登记 `index.md`。
 - [04 · 落：admin 可见可办](./issues/04-task-admin-review-ui.md) — 新增 `dedupe-review.services.ts`（`pendingReviewConflicts` 只挑 `pending_review` ∧ 非空 `heldChunkId`、按 `heldChunkId` 去重；`dedupeWinnerLabel`；`resolvePendingConflict` 把 400/404 判**终态**）；`api.ts` 加 `resolveDedupeConflict`（**既有**端点，不新增码）；文档行展开的入库报告区块内加「待审冲突」两按钮块（处置后停用、无码只读、明写报告不改写 + 须自行 Reindex）。新增 RTL **11 条**，登记 `index.md`。**反证**：去掉 `action` 判据 → 2 条变红（首轮因夹具未带 `heldChunkId` 而无效，已补夹具）。门禁：admin **39 文件 / 198 通过** · contracts **37 / 321** · lint 零 warning。
+- [05 · 回写镜像 / 覆盖表 / 交付 §0 / 雾清单](./issues/05-task-writeback.md) — 回写 10 处（`admin` · `api` · `worker`（五处纠偏）· `db` · `contracts` · README 矩阵与未交付清单 · 覆盖表 E4 · 交付控制台 §0.5 #6 与变更日志 · 总 backlog §2.5.2 QUAL-E4 + 新债行 · 雾清单簇 17/14）。**对抗性复核**：判出 **3 处需收紧**（worker「三处」实为五处 · contracts 时效未同步 · 最近更新里写出错误列名 token）**全部修正**；**新高估 0 处**。`check:module-status` **40 条**，`1-路径`/`6-联动`/`7-时效` 三类为空。**注意**：`prds/` 与 `.trellis/tasks/` 不在 git 内（改动只落磁盘）。
+
+### 目的地达成（2026-10-09）
+
+**「待审冲突运营可见可办 + 入库账本镜像纠偏」已达成**：
+
+1. **可发现** —— 运营在文档行展开的报告区块直接看到该文档的待审块（`pending_review` ∧ 非空 `heldChunkId`，按 `heldChunkId` 去重），**不**需要新端点、不需要手拼 uuid。
+2. **可办** —— 有 `doc.editor` 即得两个按钮（保留本块 / 保留对方块），调**既有** resolve 端点；处置成功或 400/404 终态后该行停用；无该码显示「不可处置」。
+3. **可核对** —— 落库两列终态由端点既有语义保证（既有 5 条 api 测例未改写）；本轮新增 contracts 契约测 4 条；UI 明写「报告是历史事实、不因处置改写」以免运营误读为「已生效」。
+4. **镜像一致** —— 六处「无查询面 / 无审阅面」类旧句按源码纠正；README 未交付清单区分「per-doc 只读（已落）/ 跨文档（未落）」；覆盖表 E4 行补证据与缺口。
+
+**该被记住的两句话**：① **数据已在手时，缺的往往是动作而不是接口** —— 报告 DTO 早就带着 `heldChunkId` 躺在 admin 里，前两张图却因「无列表端点」把审阅面记成雾；② **反证也可能无效** —— 首轮反证（去掉 `action` 判据仍全绿）暴露夹具没覆盖判据本身，补了 `skip_index + heldChunkId` 才钉住；这比反证本身更有价值。
+
+**未解决 / 新记债**：处置**零审计**且「文档内容处置类」写审计口径未定（已进总 backlog §0 与雾清单）· 跨文档运维查询面未落 · 待审积压聚合指标未落。
+
+**提交（本地，未 push）**：`ad0198a` 工单 01–04（代码 + 测例 + 图）· `5fb087d` 工单 05（镜像回写）。**只在本分支 `main`，未建 worktree。**
 ## Not yet specified
 
 - **文档内容处置类是否纳入 Pino 写审计白名单**（工单 02 裁定带出的债）：`admin-write-audit.ts` 的白名单覆盖成员 / 审批 / 生命周期 / 平台 admin / KB 设置写，**不含** `POST …/dedupe-conflicts/:chunkId/resolve`、`POST …/supersede`、`PATCH /documents/:docId`、`PUT /documents/:docId/acl`。只给其中一条开口会造成同类路径口径分裂 → 准入条件 = 先定「哪些路径属管理写」的口径（一个裁定），再一次性对齐白名单 + 补测。
