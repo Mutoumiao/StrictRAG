@@ -1,7 +1,7 @@
 # 现状核实：全量 mutating 路由、PRD 审计要求、今天两层审计各覆盖什么
 
 Type: research
-Status: pending
+Status: resolved
 Blocked by: —
 
 ## Question
@@ -54,4 +54,24 @@ Blocked by: —
 
 ## Answer
 
-（待填。）
+**研究子代理产出（451 行 / 54 KB）：[research/01-audit-surface.md](../research/01-audit-surface.md)**（全文按本节 1–7 组组织；行号实测；全称否定附搜索范围；临时探针已删、仓库零改动）。要点：
+
+**① 全量 mutating 路由 = 50 条，今天命中 24 / 未命中 26**（实测：临时 vitest 探针 `createApp()` 后 dump `app.routes`，逐条对**真实** `shouldAuditAdminWrite` 调用）。注册面只有 `apps/api/src/routes/**` + `app.ts` 内联（仅 GET 3 条）+ `openapi/routes.ts`（仅 2 条 GET）。
+
+**② 六条正则无一死规则** —— 每条都命中至少 1 条真实路由；`PUT /api/v1/admin/model-bindings` **确实存在**（`model-gateway.ts:170`），而同名的 `PUT /api/v1/knowledge-bases/:kbId/model-bindings`（`kb-settings.ts:223`）**不**命中 —— 这是一条**有 PRD 依据却零痕**的实缺（剧本 AC6 明写「审计」）。
+
+**③ `app.routes` 枚举可行（实测）**：`createApp()` 在测试里可直接调用、**不连 DB、不起进程**（DB 是 `getDb()` 懒连）；元素键 `[basePath,path,method,handler]`。**关键坑**：Hono 按 **handler 逐条展开**（一条路由挂 N 个 handler 就出现 N 条同 method+path，`ingest-report` 出现 3 次）⇒ 反漂移测例**必须按 `(method,path)` 去重**。仓内**无**集中路径常量表可复用。`c.req.path` 实测：带 `/api/v1` 前缀、不含 query、无尾斜杠。
+
+**④ PRD 对「痕」无显式分级**（本报告按措辞归纳三档，已标【推断】）。真有明文的最强档只有两条：`05-api:104` KB settings PATCH「写**修改日志（diff）**」（+ ADR-054`:1574`）与 `05-api:190` chunk-strategies「写**审计日志**」（+ ADR-053`:1501`「旧→新」）。`09-security:328` 是**唯一**把「**下载/删除/ACL/成员变更**」写进记录清单的条款。
+
+**⑤ 今天两处留痕 + 一处领域事件**：`admin_write`（仅 Pino→stdout，**无读面 / 无留存配置**，仓内不能满足「可查账」）· `kb_settings_audits` 持久化账本（**服务两条路径**：settings PATCH + chunk-strategies PATCH，非题面以为的一条）· 21 个 inline 领域事件（覆盖 `/admin/*` 写 + 两条 KB 配置写 + reindex + ACL 收紧）。
+
+**⑥ 推翻立项前提的三处**：(a) **`supersede` / `resolve` / `lifecycle` 今天完全零痕**（连领域事件都没有 —— 题面以为有）⇒ 缺口比假设更大；(b) 账本**服务两条**路径；(c) 六条正则**无死规则** ⇒「清理死规则」不是本图的问题。
+
+**⑦ 会翻的既有断言：零。** 唯一把「不审」写成硬断言的是 `apps/api/tests/obs/admin-write-audit.test.ts:76-86`（`complete` / `sessions` → false）；断言 `childLogger().info` **次数**的只有该文件；`dept-grants-http.test.ts` 用 `find(event)` 不断言次数 ⇒ 新增审计行不会使它变红。
+
+**⑧ 噪声面**：若「默认审计 + 显式例外」，噪声源是 `sessions`(#38) > `feedback` POST(#39) > 上传三连(#2/#3/#4)；今天已有 18 条路径「领域事件 + `admin_write` 各一行」（双写）。
+
+**⑨ 反向复核**：全仓**没有**别处实现过「管理写 = 全量 mutating 减例外」的口径或清单；现有相关裁定（backlog §0:31 · pending-review-ops 工单 02 · 雾簇 10 · p3b-principal-forms · module-status/api.md:47）**均为「未决/待裁」**，无一处声明永久不做。**簇 10 的事实**：`DELETE /api/v1/admin/dept-cross-grants/:id` 落在 `/api/v1/admin/` 前缀下 → **已被 `admin_write` 命中** + 领域事件 `dept_cross_grant_delete`，且 `dept-grants-http.test.ts:306-395` **已正面钉住 AE7** ⇒ 「AE7 审计有记录」在 **Pino 层已满足**，仅「表级留痕」未满足。
+
+**⑩ spec 与源码已不一致**：`logging-guidelines.md:36` 的「覆盖」只列 5 类，实现已有第 6 类（`POST …/documents/write`）。

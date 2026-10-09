@@ -1,7 +1,7 @@
 # 管理写审计的覆盖面口径（哪些写路径必须留痕）
 
 Label: wayfinder:map
-Status: in-progress（前沿：工单 01 research）
+Status: in-progress（前沿：工单 03 实现）
 
 ## Destination
 
@@ -56,6 +56,9 @@ Status: in-progress（前沿：工单 01 research）
 ## Decisions so far
 
 <!-- 每关闭一张工单追加一行：名称（链接）+ 一行要点 -->
+
+- [01 · 现状核实：全量 mutating 路由 · PRD 审计要求 · 今天两层审计各覆盖什么](./issues/01-research-audit-surface.md) — 研究子代理产出（451 行 / 54 KB 在 [research/01-audit-surface.md](./research/01-audit-surface.md)）。要点：① 全仓 mutating **50 条**，实测**命中 24 / 未命中 26**；② **六条正则无一死规则**；③ **`app.routes` 可枚举、`createApp()` 不连 DB**（须按 `(method,path)` 去重，Hono 按 handler 展开）；④ PRD 对「痕」**无显式分级**（明文最强档只有 settings PATCH 的 diff 与 chunk-strategies 的旧→新）；⑤ `admin_write` **只落 stdout、无读面**；`kb_settings_audits` **服务两条路径**；⑥ **推翻三处立项前提**：`supersede`/`resolve`/lifecycle **今天零痕**、账本非「只服务一条」、正则无死规则；⑦ **会翻的既有断言 = 0**；⑧ **有 PRD 依据却零痕**的实缺含 `PUT …/knowledge-bases/:kbId/model-bindings`（剧本 **AC6**，题面未点名）；⑨ 簇 10 的 DELETE **已被 `admin_write` 命中**且有测例钉 AE7。
+- [02 · 裁定：口径 · 强度分级 · 例外表 · 防漂移](./issues/02-dec-audit-scope-ruling.md) — 主控裁定。**R1 口径 = 默认全审 + 显式例外**（`MUTATING ∧ ¬基础设施 ∧ ¬例外表`；语义 = 「改变 KB/平台**治理状态**的写」；否掉「按语义分组枚举」的理由是它保留「漏登记即免审」的结构病；按权限码判**不可行** —— 中间件在路由匹配之前，拿不到权限码）。**例外表 11 条**（ask · auth×4 · sessions · feedback POST · upload-url · internal/objects · complete · internal/eval/execute-ask · infra）。**R2 三档痕**：L1 全部管理写落 Pino `admin_write`（**禁止**加 body/字段值）· L2 持久化 diff 账本只给 PRD 明写 diff 的两条（**已闭环，不扩、不建表**）· L3 领域事件**保持 21 条不动**。**R3 新增覆盖 15 条**（含 KB 创建 #1 · reindex · scan · supersede · resolve · DELETE doc · PATCH 元数据 · PUT acl · KB model-bindings · chunk-strategies PATCH · feedback PATCH · gold-questions ×3 · eval/runs）⇒ 审计 **39** + 例外 **11** = **50**；**既有断言零翻**（`complete` / `sessions` 进例外表）。**R4 簇 10 裁定 = Pino 层已满足、不建表**；backlog 未决行 → 定案。**R5 残差记债**（无读面/无留存 · 领域事件缺字段 · `write`↔`complete` 不对称）。**R6 引入防漂移结构测例**（全覆盖 + 例外表紧致 + 计数自洽；新路由不决定即红）。**R7** 口径落源码注释 + spec + 镜像。**R8** 既有测例只增不改期望值 + 反证。**R9** 六条债带销账条件。
 
 ## Not yet specified
 
