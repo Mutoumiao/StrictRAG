@@ -161,5 +161,5 @@ Next.js 管理端：**登录 + 文档列表（类型 / 运营标签 / Reindex / 
 | P0 清单 | `docs/testing/p0-redlines.md`（本包 R5–R6） |
 | 命令 | `pnpm --filter @strict-rag/admin test`（`package.json` → `vitest run`） |
 | 样式入口 | `apps/admin/src/app/globals.css` · `postcss.config.mjs` · `package.json`（tailwind devDeps · `build --webpack`） |
-| 端口 | `apps/admin/package.json` → `next dev --port 3006` |
+| 端口 | `apps/admin/package.json` → `next dev --webpack --port 3006`（Next 16 默认 Turbopack 与 `next.config` 的 webpack 配置互斥，故显式 `--webpack`） |
 | Task（辅证 · 归档） | `08-09-b6-dashboard-shell` · `08-11-b13-feedback-ui` · B1–B5 · B7 等 |

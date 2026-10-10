@@ -50,7 +50,7 @@ Next.js 用户端：**登录 + 单轮问答（AI SDK 流式输出）+ 会话列�
 - 401 自动刷新重试（两条路径，**均无单测**）：`lib/http.ts`（Bearer 注入 + 单飞 `ensureRefresh`，失败清 session）+ `api/ask.ts` transport 的 `fetch` 包装（401 → `refreshAccessToken` 重试）
 - 类型：`@strict-rag/contracts`
 - 样式：Tailwind v4（`postcss.config.mjs`；`src/app/globals.css` 引入 ui 主题并配置 `@source`）；`ask-panel` / 登录页使用 Button · Input · Label · Textarea · ClosedSelect · Card · Badge · Alert（含 `variant="abstain"`）等原子组件；**没有**大面积用 `style={{}}` 写布局 / 色板
-- 构建：`next build --webpack`；`next.config` 配置 `transpilePackages` + webpack `extensionAlias`
+- 构建：`next build --webpack`；`next.config` 配置 `transpilePackages` + webpack `extensionAlias`；dev 同为 `next dev --webpack --port 3005`（Next 16 默认 Turbopack 与该 webpack 配置互斥）
 - 依赖：`ai` · `@ai-sdk/react`（版本由 catalog 统一管理）
 - **B13**：`FeedbackBar`（`ask-panel.tsx`）在 answered/abstained 且有 `requestId` 时展示 有帮助/无帮助/报错/缺文档 → `src/api/feedback.ts` → `POST /api/v1/ask/{requestId}/feedback`（`tests/ask/feedback-category.test.tsx`）
 - **B11 / 文档类型成员面**：`getKbDocTypes` → `GET /api/v1/knowledge-bases/:kbId/doc-types`；有枚举才出 ui `ClosedSelect`（含「不按类型收窄」）；选一码后 `scope.docTypes` 为该码；空选项 / 空枚举 / 读取失败不写 scope、不挡提问（`tests/ask/ask-doc-types.test.tsx`）；**非**强制选类型、**非** GET settings、**非**逗号自由输入主路径

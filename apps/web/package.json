@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev --port 3005",
+    "dev": "next dev --webpack --port 3005",
     "build": "next build --webpack",
     "check-types": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
