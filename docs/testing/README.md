@@ -43,6 +43,10 @@ pnpm --filter @strict-rag/contracts test -- -t 'R[0-9]+:'
 
 | 文件 | 目标 |
 |------|------|
+| `scripts/dev-all.test.mjs` | 一键栈编排脚本契约：参数解析、compose / 启动参数、就绪探测判定（HTTP / 日志段 / 进程退出与日志致命标记两条提前收敛）、中间件硬依赖门、进程身份识别、收尾标签与失败汇总口径 |
+| `scripts/docker-deps.test.mjs` | 中间件依赖判定契约：compose ps 解析、四态 verdict、硬 / 可选依赖分档（就绪 / 终态失败 / 未就绪） |
+| `scripts/logs.test.mjs` | 日志查看脚本契约：目标解析、参数校验、末尾 N 行读取（含截断丢残行） |
+| `scripts/verify-stack.test.mjs` | 栈体检脚本契约：硬 / 可选依赖分档、本次运行段锚定、汇总与通过口径 |
 | `scripts/up-stack.test.mjs` | 启动编排脚本契约 |
 | `scripts/smoke-ask.test.mjs` | ask 冒烟脚本契约 |
 | `scripts/stub-gateway.test.mjs` | dev-only 桩网关（抽取式）契约：五 purpose 形状、EVIDENCE 抽取约束、双 `/v1` 前缀、生产护栏 |

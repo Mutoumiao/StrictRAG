@@ -77,6 +77,70 @@ worker 换账本须**重启进程**（env 是模块加载期快照）。判定�
 
 `pnpm up:apps` = compose 中间件（若未起）+ api + worker，不必手拼四进程。仅中间件：`node scripts/up-stack.mjs --compose-only`。
 
+### 一键起全部（含 web / admin）与日志
+
+`pnpm up:apps` 只管 api + worker。要连前端一起起、并且每个程序有独立日志可查：
+
+```bash
+pnpm dev                     # compose（起容器）→ 等 postgres/redis healthy → db:migrate → 四进程
+pnpm dev --mode=start        # 以 start 模式跑（web / admin 需先 pnpm build，缺 .next 会预检拦下）
+pnpm dev --tui               # 改用 turbo TUI 面板（该模式日志不落盘）
+pnpm dev --apps=api,worker --no-compose --no-migrate   # 只补起部分进程
+pnpm dev --ready-timeout=300                            # 就绪探测上限改 300s（默认 180s；慢机 / CI 冷启动）
+
+pnpm logs                    # 列出已落盘的应用日志（大小 / 最后写入时间）
+pnpm logs api -f             # 跟随单个程序（worker / web / admin 同理）
+pnpm logs all                # 四个应用各末尾 N 行
+pnpm logs docker postgres    # 容器日志（redis / elasticsearch / mongo / rustfs 同理）
+pnpm stack:down              # 停记录里的进程 + compose down（数据卷默认保留）
+```
+
+`pnpm dev:all` 与 `pnpm dev` 等价；`pnpm dev:turbo` 只跑 turbo 面板（不含 compose / migrate），同样带 `--env-mode=loose`，避免 strict env 把 operable 变量滤掉。
+
+起完会轮询探针（api `/ready`、web / admin 首页、worker 日志行），就绪时打印一行：
+
+```bash
+[dev:all] STACK_READY (10.2s) api=http://127.0.0.1:4000 worker=ok web=http://127.0.0.1:3005 admin=http://127.0.0.1:3006
+```
+
+同时把状态写进 `.data/run/status.json`（`ready` / `readyMs` / `aborted` / 各进程 pid·端口·就绪明细 / 各日志本次运行起始偏移）。
+加 `--no-wait-ready` 可跳过探测（此时 `ready` 为 `null`）。
+
+### 收敛口径（全自动化测试要的是「尽快失败」）
+
+| 情形 | 行为 |
+|------|------|
+| 中间件 | `docker compose up -d` 起容器即返回；随后**只对硬依赖** `postgres` / `redis` 把门（上限 120s）。硬依赖 healthy 才继续 |
+| 硬依赖容器 `exited` / `dead` | **立即报错**（不再等到超时），提示 `pnpm logs docker <postgres\|redis>` |
+| 可选服务 `elasticsearch` / `mongo` / `rustfs` 未就绪 | 只打一行 WARN（mock 路径不受影响），**不阻塞**启动 |
+| 应用进程在就绪前退出 | 立即收敛：打印 `STACK_NOT_READY` + `提前收敛：<app> 进程已退出（exit=N）` + 日志指引，停掉其余进程并以非零码退出 |
+| 应用日志出现启动致命标记 | 同样提前收敛。标记取自仓内真实致命路径：`env 校验失败` · `superadmin bootstrap failed` · `Redis 不可达，worker 退出` · `EADDRINUSE` · `Cannot find module`。这类失败在 `tsx watch` 下**进程不会退出**（watch 留在原地等文件变更），所以只能按日志内容认；发现标记后给 watch 一次重启机会（10s 宽限），仍不就绪才收敛，并打印命中的那一行 |
+| 就绪超时（默认 180s） | 打印 `STACK_NOT_READY` + 未就绪项，**停掉本次进程**并以非零码退出（日志已落盘可查）。命中上面两条早收敛信号的场景不会耗到这个上限 |
+| 已有栈在跑 | 早退并指名「pid / 起于 / 应用」，给 `pnpm logs` 与 `pnpm stack:down` 两条路（`--no-port-check` 可跳过这层） |
+| `compose up` / `db:migrate` / `compose down` 卡住 | 分别有 600s / 180s / 120s 超时，超时按树杀并以退出码 `124` 回报 |
+
+失败态都落到 `.data/run/status.json`（`aborted` 记提前收敛原因），所以自动化侧既能读文件也能读退出码。
+
+### 栈体检（自动化测试的前置门）
+
+```bash
+pnpm verify:stack              # 人读摘要；任一 FAIL → 退出码非零
+pnpm verify:stack --json       # 只打 JSON（Agent / CI 解析）
+pnpm verify:stack --no-docker  # 跳过容器健康项
+```
+
+核查项：栈状态记录 · api `/health` 与 `/ready`（postgres / redis 硬依赖，es / mongo / s3 / gateway 允许 `skipped`）· web / admin 可服务 · worker 就绪（锚定**本次运行段**，日志是跨次追加的）· 日志新鲜度 · 进程存活 · compose 五服务 running/healthy。报告落 `.data/run/verify-report.json`。
+
+Agent / CI 的推荐序列：`pnpm dev`（等到 `STACK_READY`）→ `pnpm verify:stack`（不为 0 即停）→ 业务烟测（`pnpm smoke:half` / `pnpm demo:ingest`）→ `pnpm stack:down`。`pnpm dev` 自身的失败也会尽快收敛（见上「收敛口径」），所以这条序列不会出现「卡满超时才报错」的等待。
+
+在另一个窗口跑 `pnpm stack:down` 时，正在跑的 `pnpm dev` 会读到停栈标记，把这次收尾认作正常（打印「已停（外部收尾）」并以 0 退出，不再报 FAIL）；`stack:down` 自己也会把 `stoppedAt` 写进 `.data/run/status.json`，即便当时没有编排进程在场。停栈前会先核对身份（记录里的 pid 命令行必须是 `<仓库>/apps/<app>` 或 `pnpm --filter @strict-rag/<app>`）：pid 会被系统复用，核对不上就跳过该 pid 并说明，避免误杀无关进程。若编排进程是被硬杀（例如直接关掉终端窗口），留下的 `tsx watch` / `next dev` 孤儿按记录的 pid 树杀可能沿不到，`stack:down` 会按「命令行指向本仓 `apps/<app>`」兜底清扫，并打印清掉的 `应用#pid`。
+
+**边界**：`verify:stack` 只证明栈级可用（可达 + 就绪），**不**证明业务正确性，**不**证明生产可用；容器健康与 mock 开关仍以本篇与环境变量为准。
+
+日志落点 `.data/logs/<app>.log`（追加写入，已 gitignore）。默认模式**不经 turbo**：turbo 的 `dev` 任务
+env 白名单只有 6 个键，strict env 模式会把 `ELASTICSEARCH_URL` / `STORAGE_MODE` / `SUPER_ADMIN_EMAIL`
+等过滤掉（见 §6.1），api / worker 会静默退回 mock；`--tui` 模式用 `--env-mode=loose` 绕开这一层。
+
 Mongo 冒烟（须 `MONGODB_URL`）：
 
 ```bash

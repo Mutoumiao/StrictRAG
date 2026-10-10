@@ -111,7 +111,10 @@ product.pen                 → 线稿
 pnpm install
 pnpm check-types
 pnpm lint
-pnpm build | dev          # turbo
+pnpm build                # turbo
+pnpm dev                  # 一键本地栈：compose（硬依赖 postgres/redis 等 healthy）+ migrate + 四进程
+pnpm logs                 # 看日志（pnpm logs api -f）；体检 pnpm verify:stack；收尾 pnpm stack:down
+# 只有 turbo 面板：pnpm dev:turbo；单包 turbo：pnpm dev:api 等
 # docker compose -f docker/docker-compose.yml up -d
 ```
 

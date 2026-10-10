@@ -2,6 +2,10 @@
 
 | 脚本 | 用途 |
 |------|------|
+| `dev-all.mjs` | 一键本地栈：compose 中间件（只对硬依赖 postgres/redis 把门，可选服务不阻塞）+ migrate + api/worker/web/admin 四进程；日志带前缀输出并落盘 `.data/logs/<app>.log`；硬依赖失败、应用进程退出、日志致命标记（env 校验失败等）、就绪超时都尽快收敛（`pnpm dev`，`dev:all` 等价） |
+| `docker-deps.mjs` | `docker compose ps` 的纯解析与状态判定（硬 / 可选依赖分档、四态 verdict），dev-all 与 verify-stack 共用 |
+| `logs.mjs` | 看日志：应用落盘文件 tail / `-f` 跟随，或透传 `docker compose logs`（`pnpm logs <api、worker、web、admin、all、docker>`） |
+| `verify-stack.mjs` | 栈体检：api `/ready` 硬依赖 · web/admin 可服务 · worker 就绪 · 日志新鲜度 · 进程存活 · 容器健康；人读摘要 + `.data/run/verify-report.json`（`pnpm verify:stack [--json] [--no-docker]`） |
 | `up-stack.mjs` | HALF-UP：compose 中间件 + api + worker（`pnpm up:apps`） |
 | `smoke-half.mjs` | HALF-SMOKE：单篇 txt→active→ask 有引用（`pnpm smoke:half`） |
 | `smoke-ask.mjs` | HALF-SMOKE：ask 信封 citations 判定（与 `smoke-ask.test.mjs` 共用） |

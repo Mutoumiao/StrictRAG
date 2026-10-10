@@ -50,12 +50,20 @@ pnpm lint
 pnpm test
 pnpm build
 
-# 5) 起服（分终端）
+# 5) 起服：一键（compose + migrate + api/worker/web/admin 四进程，日志可查）
+pnpm dev              # 就绪时打印 STACK_READY，状态写 .data/run/status.json
+pnpm logs api -f      # 另开窗口跟随某个程序日志；pnpm logs 列出全部
+pnpm verify:stack     # 栈体检（就绪 + 可用性，任一 FAIL 退出码非零）
+pnpm stack:down       # 收尾（数据卷保留）
+
+# 或分终端手动起
 pnpm dev:api      # http://127.0.0.1:4000
 pnpm dev:worker   # BullMQ probe
 pnpm dev:web      # http://127.0.0.1:3005
 pnpm dev:admin    # http://127.0.0.1:3006
 ```
+
+一键脚本的开关（`--mode=start` / `--tui` / `--no-compose`）与日志细节见 [`docs/ops/operable-stack.md`](./docs/ops/operable-stack.md) §3。中间件按依赖分档：`postgres` / `redis` 是硬依赖（等 healthy，容器到终态即报错），`es` / `mongo` / `rustfs` 可选（不阻塞）；应用启动即崩或就绪超时都会立即收敛并以非零码退出。
 
 ### 健康检查
 

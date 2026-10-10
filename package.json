@@ -5,7 +5,12 @@
   "description": "StrictRAG — 为精准度而生的严厉企业知识库 RAG（骨架阶段，无业务逻辑）",
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev",
+    "dev": "node scripts/dev-all.mjs",
+    "dev:all": "node scripts/dev-all.mjs",
+    "dev:turbo": "turbo run dev --env-mode=loose",
+    "logs": "node scripts/logs.mjs",
+    "stack:down": "node scripts/dev-all.mjs --stop",
+    "verify:stack": "node scripts/verify-stack.mjs",
     "dev:api": "turbo run dev --filter=@strict-rag/api",
     "dev:worker": "turbo run dev --filter=@strict-rag/worker",
     "dev:admin": "turbo run dev --filter=@strict-rag/admin",
